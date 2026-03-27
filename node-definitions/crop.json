@@ -1,0 +1,59 @@
+{
+  "id": "crop",
+  "version": "1.0.0",
+  "label": "Crop",
+  "description": "Crop a rectangular region from the image",
+  "category": "Transform",
+  "icon": "crop",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "width",
+      "label": "Width",
+      "type": "int",
+      "widget": "slider",
+      "default": 1024,
+      "min": 1,
+      "max": 16384
+    },
+    {
+      "name": "height",
+      "label": "Height",
+      "type": "int",
+      "widget": "slider",
+      "default": 1024,
+      "min": 1,
+      "max": 16384
+    },
+    {
+      "name": "x",
+      "label": "X Offset",
+      "type": "int",
+      "widget": "slider",
+      "default": 0,
+      "min": 0,
+      "max": 16384
+    },
+    {
+      "name": "y",
+      "label": "Y Offset",
+      "type": "int",
+      "widget": "slider",
+      "default": 0,
+      "min": 0,
+      "max": 16384
+    }
+  ],
+  "command_template": "-crop {{width}}x{{height}}+{{x}}+{{y}} +repage"
+}

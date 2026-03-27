@@ -1,0 +1,291 @@
+/* ============================================================
+   imgplex — Design Tokens
+   All visual, typographic, and layout values live here.
+   Import this file once in main.ts; every component reads
+   from these variables via var(--name).
+   ============================================================ */
+
+:root {
+
+  /* ── Color: Application Backgrounds ─────────────────────────
+     Base surface colors used for the app shell and panels.    */
+  --bg:               #141414;   /* main window / canvas background */
+  --gap-color:        #2b2b2b;   /* color of the gaps and padding between panels */
+  --panel-bg:         #141414;   /* side panels (library, inspector, filmstrip) */
+  --panel-header-bg:  #1c1c1c;   /* panel title bar background — slightly lighter than panel */
+  --search-bg:        #0e0e0e;   /* search / filter input background */
+  --preview-bg:       #000000;   /* preview panel (intentionally darker) */
+
+
+  /* ── Color: Text ─────────────────────────────────────────────
+     Two-level text hierarchy: default body text and full-white emphasis. */
+  --text:            #a8a8a8;   /* body / default text — medium grey */
+  --text-bright:     #ffffff;   /* emphasis / label text — full white */
+
+
+  /* ── Color: Borders & Dividers ───────────────────────────────
+     Used for panel separators, input outlines, node borders.  */
+  --border:          #585858;   /* panel borders and dividers */
+
+
+  /* ── Color: Drag Handles ─────────────────────────────────────
+     The thin bars between resizable panels.                   */
+  --handle:          #292929;   /* handle resting color */
+  --handle-hot:      #585858;   /* handle color on hover / while dragging */
+
+
+  /* ── Color: Accent ───────────────────────────────────────────
+     Used for focus rings, active/selected UI states.          */
+  --accent:          #a8a8a8;     /* focus rings, search input focus border */
+
+
+  /* ── Color: Scrollbars ───────────────────────────────────────
+     Minimal translucent scrollbar that appears on panel hover.*/
+  --scrollbar-width:       5px;                       /* thin scrollbar track width */
+  --scrollbar-thumb:       #292929;    /* thumb color (visible on panel hover) */
+  --scrollbar-thumb-hover: #585858;    /* thumb color when hovered directly */
+
+
+  /* ── Typography: Fonts ───────────────────────────────────────
+     Font stacks; @font-face declarations are in fonts.css.    */
+  --font-ui:    'AtkinsonHyperlegibleNext-Regular', system-ui, sans-serif;  /* UI labels, panel text */
+  --font-mono:  'JetBrainsMono-Regular', 'ui-monospace', 'Cascadia Code', 'Consolas', monospace; /* zoom label, any code text */
+
+
+  /* ── Typography: Sizes ───────────────────────────────────────
+     Consistent scale used across all panels and components.
+     All three are currently 14px — adjust to create hierarchy. */
+  --font-size-base: 13px;   /* root / body default */
+  --font-size-sm:   14px;   /* node labels, search input, hints */
+  --font-size-xs:   14px;   /* panel section headers */
+  --font-size-xxs:  14px;   /* category labels, port type tags, thumbnail names */
+
+
+  /* ── Typography: Per-Section Text Properties ────────────────
+     Fine-grained control over font family, weight, size,
+     capitalization, and spacing for each distinct text role.
+     Values reference the font stacks and size scale above.    */
+
+  /* Panel section headers — "Node Library", "Inspector", "Preview" */
+  --text-panel-header-family:    var(--font-ui);
+  --text-panel-header-size:      var(--font-size-xs);
+  --text-panel-header-weight:    600;
+  --text-panel-header-transform: none;
+  --text-panel-header-spacing:   0.06em;
+
+  /* Node library: category group headings e.g. "Color", "Transform" */
+  --text-category-label-family:    var(--font-ui);
+  --text-category-label-size:      13px;
+  --text-category-label-weight:    700;
+  --text-category-label-transform: none;
+  --text-category-label-spacing:   0.04em;
+
+  /* Node library: individual draggable node item labels */
+  --text-node-item-family:    var(--font-ui);
+  --text-node-item-size:      13px;
+  --text-node-item-weight:    400;
+  --text-node-item-transform: none;
+  --text-node-item-spacing:   0.02em;
+
+  /* Node library: search input placeholder and typed text */
+  --text-search-family:    var(--font-ui);
+  --text-search-size:      var(--font-size-sm);
+  --text-search-weight:    400;
+  --text-search-transform: none;
+  --text-search-spacing:   normal;
+
+  /* Empty / hint messages ("No nodes loaded.", "Select a node…") */
+  --text-hint-family:    var(--font-ui);
+  --text-hint-size:      var(--font-size-sm);
+  --text-hint-weight:    400;
+  --text-hint-transform: none;
+  --text-hint-spacing:   normal;
+
+  /* Node graph: node card header label */
+  --text-node-head-family:    var(--font-mono);
+  --text-node-head-size:      12px;
+  --text-node-head-weight:    400;
+  --text-node-head-transform: none;
+  --text-node-head-spacing:   normal;
+
+  /* Node graph: port type tags ("image", "mask", etc.) */
+  --text-port-tag-family:    var(--font-mono);
+  --text-port-tag-size:      11px;
+  --text-port-tag-weight:    400;
+  --text-port-tag-transform: none;
+  --text-port-tag-spacing:   none;
+
+  /* Node graph: zoom level overlay on the minimap */
+  --text-zoom-label-family:    var(--font-mono);
+  --text-zoom-label-size:      14px;
+  --text-zoom-label-weight:    400;
+  --text-zoom-label-transform: none;
+  --text-zoom-label-spacing:   0.04em;
+
+  /* Filmstrip: thumbnail file name labels */
+  --text-thumb-name-family:    var(--font-ui);
+  --text-thumb-name-size:      var(--font-size-xxs);   /* 10px */
+  --text-thumb-name-weight:    400;
+  --text-thumb-name-transform: none;
+  --text-thumb-name-spacing:   normal;
+
+
+  /* ── Node Graph: Node Cards ──────────────────────────────────
+     Visual appearance of every process node on the canvas.   */
+  --node-bg:           #212121;                    /* node card background */
+  --node-head-bg:      #3d3d3d;                    /* node header strip background */
+  --node-border:       #585858;                    /* node card border */
+  --node-text:         #e2e2e8;                    /* node text color */
+  --node-radius:       6px;                        /* node card corner radius */
+  --node-min-width:    150px;                      /* minimum node card width */
+  --node-shadow:       0 4px 12px rgb(0, 0, 0); /* node drop shadow */
+
+  --node-selected-border:  #585858;                /* selected node border color */
+  --node-selected-shadow:  0 0 0 2px rgba(255, 255, 255, .8), 0 0px 4px rgba(255, 255, 255, .8); /* selected node glow + shadow */
+
+  /* ── Node layout measurements (px, unitless for JS math) ────
+     These are the single source of truth for ProcessNode handle
+     positions. Both CSS rules and JS constants read from here. */
+  --node-layout-header-h:   28;   /* px — header strip height */
+  --node-layout-port-pad:    5;   /* px — .node-ports top/bottom padding */
+  --node-layout-port-row-h: 20;   /* px — .port-tag height */
+  --node-layout-param-pad:   4;   /* px — .param-ports top/bottom padding */
+  --node-layout-param-row-h: 22;  /* px — .param-port-row min-height */
+  --node-layout-sep-h:       1;   /* px — border-top widths */
+
+
+  /* ── Node Graph: Canvas Background ──────────────────────────
+     The repeating pattern behind the node graph.
+     variant options: "dots" | "lines" | "cross"
+       "dots"  — small filled circles at grid intersections
+       "lines" — full horizontal + vertical grid lines
+       "cross" — small + crosshairs at grid intersections     */
+  --graph-bg-variant:    "lines";    /* pattern type (see options above) */
+  --graph-bg-gap:        32px;       /* spacing between pattern repetitions */
+  --graph-bg-size:       1px;        /* dot diameter / cross arm length (not used for lines) */
+  --graph-bg-line-width: 1px;        /* line stroke width — only applies to "lines" variant */
+  --graph-bg-color:      rgb(32, 32, 32);    /* pattern / line color */
+  --graph-bg-base-color: #141414;  /* solid canvas fill behind the pattern — same as --bg by default */
+
+
+  /* ── Node Graph: Port / Edge Data-Type Colors ───────────────
+     Color of connection handles and edges for each data type.
+     Add a new line here when introducing a new node port type. */
+  --port-color-image:   #ff8c3f;  /* image data — orange       (7.2:1 on #212121) */
+  --port-color-mask:    #d8a4fc;  /* mask / alpha — purple     (8.4:1) */
+  --port-color-number:  #22d3ee;  /* numeric value — cyan      (9.2:1) */
+  --port-color-string:  #22c55e;  /* text / string — green     (7.4:1) */
+  --port-color-boolean: #eab308;  /* boolean flag — yellow     (9.5:1) */
+  --port-color-color:   #fc86bc;  /* color swatch — pink       (7.3:1) */
+  --port-color-vector2: #fb923c;  /* 2D vector — amber         (7.8:1) */
+  --port-color-vector3: #a5b4fc;  /* 3D vector — indigo        (7.7:1) */
+  --port-color-vector4: #2dd4bf;  /* 4D vector — teal          (7.3:1) */
+  --port-color-numeric: #94a3b8;  /* polymorphic numeric — slate-blue  (6.6:1) */
+  --port-color-any:     #ffffff;  /* wildcard / any type — white       (17.5:1) */
+  --port-color-path:    #86efac;  /* folder path — mint green  (11:1) */
+
+
+  /* ── Node Graph: Connection Handles ─────────────────────────
+     The circular ports on the sides of node cards.           */
+  --handle-port-size:   10px;   /* handle diameter */
+  --handle-port-border: 2px;    /* handle border width */
+
+
+  /* ── Node Graph: Zoom Label ──────────────────────────────────
+     The % readout overlaid at the bottom-center of the minimap.*/
+  --zoom-label-color:      rgba(255, 255, 255, .8);  /* text color */
+  --zoom-label-font-size:  12px;                     /* text size */
+  --zoom-label-bottom:     22px;                     /* offset above the minimap bottom edge */
+
+
+  /* ── Node Library Panel ──────────────────────────────────────
+     Sidebar listing draggable node types.                     */
+  --library-item-hover-bg:  #3a3a3a;   /* background of a node item on hover */
+  --library-search-radius:  4px;       /* search / filter input corner radius */
+
+
+  /* ── Node Graph: Minimap ──────────────────────────────────────
+     The overview thumbnail in the bottom-right of the canvas.  */
+  --minimap-radius:       var(--panel-radius);   /* corner radius — matches panel cards by default */
+  --minimap-opacity:      0.35;                  /* resting opacity (0–1) */
+  --minimap-opacity-hover: 1;                    /* opacity when hovered */
+
+
+  /* ── Node Graph: Controls ─────────────────────────────────────
+     The zoom-in / zoom-out / fit-view button cluster.          */
+  --controls-opacity:       0.35;                /* resting opacity (0–1) */
+  --controls-opacity-hover: 1;                   /* opacity when hovered */
+
+
+  /* ── Node Graph: Context Menu ────────────────────────────────
+     Popup for inserting nodes. Triggered by right-click, Space,
+     Tab, or dropping a wire onto empty canvas.                 */
+  --ctx-bg:              #1c1c1c;              /* panel background */
+  --ctx-border:          #383838;              /* panel border color */
+  --ctx-radius:          6px;                  /* panel corner radius */
+  --ctx-shadow:          0 8px 28px rgba(0, 0, 0, 0.65);  /* drop shadow */
+  --ctx-width:           200px;                /* main category panel width */
+  --ctx-sub-width:       190px;                /* flyout sub-panel width */
+  --ctx-max-height:      360px;                /* max panel height before scrolling */
+  --ctx-search-bg:       #111111;              /* search input background */
+  --ctx-text:            #c8c8c8;              /* primary item text */
+  --ctx-text-muted:      #a8a8a8;              /* secondary text (category badge, arrow) — 7.1:1 on ctx-bg */
+  --ctx-item-hover-bg:   #2c2c2c;              /* item row highlight on hover/active */
+  --ctx-separator:       #383838;              /* line between search bar and list */
+
+
+  /* ── Layout: Panel Cards ─────────────────────────────────────
+     Floating card appearance — panels are rounded rectangles
+     separated by gaps, floating on the app background.        */
+  --panel-radius:  8px;   /* corner radius applied to every panel card */
+  --panel-gap:     6px;   /* gap between panels (also the drag handle zone size) */
+  --shell-padding: 6px;   /* space between panels and the window edges */
+
+
+  /* ── Layout: Panel Drag Handle ───────────────────────────────
+     Transparent drag zones that live in the gaps between panels.
+     Size matches --panel-gap so the gap is the drag target.   */
+  --handle-size: var(--panel-gap);   /* width (vertical) / height (horizontal) */
+
+
+  /* ── Layout: Panel Sizes ─────────────────────────────────────
+     Default, min, and max dimensions for each resizable panel.
+     NOTE: unitless integers — App.svelte reads these via
+     getComputedStyle to drive its $state and drag constraints. */
+
+  --left-panel-default: 220;   /* node library starting width (px) */
+  --left-panel-min:     160;   /* node library minimum width (px) */
+  --left-panel-max:     400;   /* node library maximum width (px) */
+
+  --right-panel-default: 280;  /* right column (inspector + preview) starting width (px) */
+  --right-panel-min:     200;  /* right column minimum width (px) */
+  --right-panel-max:     480;  /* right column maximum width (px) */
+
+  --filmstrip-default: 120;    /* filmstrip starting height (px) */
+  --filmstrip-min:      80;    /* filmstrip minimum height (px) */
+  --filmstrip-max:     220;    /* filmstrip maximum height (px) */
+
+  --inspector-default: 0.65;   /* inspector starting height as a fraction of the right column (0–1) */
+  --inspector-min:     0.30;   /* minimum fraction — preview can grow to 90% of the right column */
+  --inspector-max:     0.80;   /* maximum fraction — preview can shrink to 10% of the right column */
+
+}
+
+
+/* ── Global Reset ────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-base);
+  color: var(--text);
+}
+
+body {
+  background: var(--gap-color);
+  overflow: hidden;   /* prevent OS-level scrollbars; panels scroll internally */
+}

@@ -1,0 +1,34 @@
+{
+  "id": "flip",
+  "version": "1.0.0",
+  "label": "Flip",
+  "description": "Mirror the image horizontally or vertically",
+  "category": "Transform",
+  "icon": "flip-horizontal",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "axis",
+      "label": "Axis",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "horizontal",
+      "options": [
+        "horizontal",
+        "vertical"
+      ]
+    }
+  ],
+  "command_template": "-flop"
+}

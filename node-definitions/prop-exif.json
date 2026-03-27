@@ -1,0 +1,22 @@
+{
+  "id": "prop_exif",
+  "version": "1.0.0",
+  "label": "EXIF",
+  "description": "Outputs EXIF metadata from the current image",
+  "category": "Properties",
+  "inputs": [],
+  "outputs": [],
+  "executor": "prop_exif",
+  "needs_image_meta": true,
+  "params": [
+    { "name": "camera_make",    "label": "Camera Make",    "type": "string", "widget": "text",   "default": "", "readonly": true },
+    { "name": "camera_model",   "label": "Camera Model",   "type": "string", "widget": "text",   "default": "", "readonly": true },
+    { "name": "lens",           "label": "Lens",           "type": "string", "widget": "text",   "default": "", "readonly": true },
+    { "name": "exposure_time",  "label": "Exposure Time",  "type": "string", "widget": "text",   "default": "", "readonly": true },
+    { "name": "shutter_speed",  "label": "Shutter Speed",  "type": "string", "widget": "text",   "default": "", "readonly": true },
+    { "name": "aperture",       "label": "Aperture",       "type": "float",  "widget": "number", "default": 0,  "readonly": true },
+    { "name": "iso",            "label": "ISO",            "type": "int",    "widget": "number", "default": 0,  "readonly": true },
+    { "name": "focal_length",   "label": "Focal Length",   "type": "float",  "widget": "number", "default": 0,  "readonly": true },
+    { "name": "date_taken",     "label": "Date Taken",     "type": "string", "widget": "text",   "default": "", "readonly": true }
+  ]
+}

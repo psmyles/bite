@@ -1,0 +1,23 @@
+{
+  "id": "folderpath",
+  "version": "1.0",
+  "label": "Folder Path",
+  "description": "Outputs a folder path. Connect to the Output node's folder port to set the output destination.",
+  "category": "Utility",
+  "inputs": [],
+  "outputs": [
+    {
+      "type": "path",
+      "label": "folder"
+    }
+  ],
+  "params": [
+    {
+      "name": "folderPath",
+      "label": "Folder",
+      "type": "string",
+      "default": "",
+      "noPort": true
+    }
+  ]
+}

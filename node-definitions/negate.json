@@ -1,0 +1,11 @@
+{
+  "id": "negate",
+  "version": "1.0.0",
+  "label": "Negate",
+  "description": "Inverts the pixel values of the input channel. A pixel value of 0.0 becomes 1.0 and vice versa.",
+  "category": "Math",
+  "inputs":  [{ "type": "image", "label": "Channel" }],
+  "outputs": [{ "type": "image", "label": "Channel" }],
+  "params": [],
+  "command_template": "-negate"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "value_float",
+  "version": "1.0.0",
+  "label": "Float",
+  "description": "Outputs a constant floating-point number",
+  "category": "Values",
+  "inputs": [],
+  "outputs": [],
+  "params": [
+    { "name": "value", "label": "Value", "type": "float", "widget": "number", "default": 0, "readonly": true }
+  ]
+}

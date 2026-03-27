@@ -1,0 +1,33 @@
+{
+  "id": "channel_split",
+  "version": "1.0.0",
+  "label": "Split Channels",
+  "description": "Splits an image into its R, G, B, and A channels as separate grayscale images",
+  "category": "Channels",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "R"
+    },
+    {
+      "type": "image",
+      "label": "G"
+    },
+    {
+      "type": "image",
+      "label": "B"
+    },
+    {
+      "type": "image",
+      "label": "A"
+    }
+  ],
+  "params": [],
+  "executor": "channel_split"
+}

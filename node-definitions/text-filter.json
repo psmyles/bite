@@ -1,0 +1,18 @@
+{
+  "id": "text_filter",
+  "version": "1.0.0",
+  "label": "Text Filter",
+  "description": "Tests a string against prefix, suffix, and contains conditions. Outputs true when all non-empty conditions match. Wire a Name or Path property node to the Input port.",
+  "category": "Logic",
+  "inputs":  [],
+  "outputs": [],
+  "executor": "text_filter",
+  "params": [
+    { "name": "input",      "label": "Input",       "type": "string", "widget": "text",     "default": "" },
+    { "name": "prefix",     "label": "Prefix",      "type": "string", "widget": "text",     "default": "" },
+    { "name": "suffix",     "label": "Suffix",      "type": "string", "widget": "text",     "default": "" },
+    { "name": "contains",   "label": "Contains",    "type": "string", "widget": "text",     "default": "" },
+    { "name": "match_case", "label": "Match Case",  "type": "bool",   "widget": "checkbox", "default": false },
+    { "name": "result",     "label": "Result",      "type": "bool",   "widget": "checkbox", "default": false, "readonly": true }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "prop_power_of_two",
+  "version": "1.0.0",
+  "label": "Power of Two",
+  "description": "Returns true if both image dimensions are powers of two (1, 2, 4, 8, 16, … 4096, etc.)",
+  "category": "Properties",
+  "inputs": [],
+  "outputs": [],
+  "executor": "prop_power_of_two",
+  "needs_image_meta": true,
+  "params": [
+    { "name": "width_ok",  "label": "Width PoT",  "type": "bool", "widget": "checkbox", "default": false, "readonly": true },
+    { "name": "height_ok", "label": "Height PoT", "type": "bool", "widget": "checkbox", "default": false, "readonly": true },
+    { "name": "result",    "label": "Both PoT",   "type": "bool", "widget": "checkbox", "default": false, "readonly": true }
+  ]
+}

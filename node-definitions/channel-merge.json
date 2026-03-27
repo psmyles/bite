@@ -1,0 +1,45 @@
+{
+  "id": "channel_merge",
+  "version": "1.0.0",
+  "label": "Merge Channels",
+  "description": "Combines separate channel images into a single image. Set Channels to 3 for RGB output or 4 for RGBA. Unconnected ports default to solid black (0).",
+  "category": "Channels",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "R"
+    },
+    {
+      "type": "image",
+      "label": "G"
+    },
+    {
+      "type": "image",
+      "label": "B"
+    },
+    {
+      "type": "image",
+      "label": "A"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "channels",
+      "label": "Channels",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "3",
+      "options": [
+        "3",
+        "4"
+      ]
+    }
+  ],
+  "executor": "channel_merge"
+}

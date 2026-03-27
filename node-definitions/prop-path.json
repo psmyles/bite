@@ -1,0 +1,15 @@
+{
+  "id": "prop_path",
+  "version": "1.0.0",
+  "label": "Path",
+  "description": "Outputs the file path of the current image",
+  "category": "Properties",
+  "inputs": [],
+  "outputs": [],
+  "executor": "prop_path",
+  "needs_image_meta": true,
+  "params": [
+    { "name": "value", "label": "Path", "type": "string", "widget": "text", "default": "", "readonly": true },
+    { "name": "strip_filename", "label": "Folder Only", "type": "bool", "widget": "checkbox", "default": false, "noPort": true }
+  ]
+}

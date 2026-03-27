@@ -1,0 +1,43 @@
+{
+  "id": "sharpen",
+  "version": "1.0.0",
+  "label": "Sharpen",
+  "description": "Apply unsharp mask sharpening",
+  "category": "Filters",
+  "icon": "zap",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "sigma",
+      "label": "Radius",
+      "type": "float",
+      "widget": "slider",
+      "default": 1,
+      "min": 0.1,
+      "max": 10,
+      "step": 0.1
+    },
+    {
+      "name": "amount",
+      "label": "Amount",
+      "type": "float",
+      "widget": "slider",
+      "default": 1,
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    }
+  ],
+  "command_template": "-unsharp 0x{{sigma}}+{{amount}}"
+}

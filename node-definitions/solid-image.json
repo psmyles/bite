@@ -1,0 +1,27 @@
+{
+  "id": "solid_image",
+  "version": "1.0.0",
+  "label": "Solid Image",
+  "description": "Outputs a solid grayscale image with uniform brightness, sized to match the workflow input",
+  "category": "Channels",
+  "inputs": [],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "value",
+      "label": "Value",
+      "type": "float",
+      "widget": "slider",
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    }
+  ],
+  "executor": "solid_image"
+}

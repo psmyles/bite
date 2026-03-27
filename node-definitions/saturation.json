@@ -1,0 +1,32 @@
+{
+  "id": "saturation",
+  "version": "1.0.0",
+  "label": "Saturation",
+  "description": "Adjust the saturation of an image",
+  "category": "Color",
+  "icon": "palette",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "saturation",
+      "label": "Saturation",
+      "type": "int",
+      "widget": "slider",
+      "default": 100,
+      "min": 0,
+      "max": 200
+    }
+  ],
+  "command_template": "-modulate 100,{{saturation}},100"
+}

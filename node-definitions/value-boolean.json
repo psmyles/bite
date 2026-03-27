@@ -1,0 +1,12 @@
+{
+  "id": "value_boolean",
+  "version": "1.0.0",
+  "label": "Boolean",
+  "description": "Outputs a constant boolean value",
+  "category": "Values",
+  "inputs": [],
+  "outputs": [],
+  "params": [
+    { "name": "value", "label": "Value", "type": "bool", "widget": "checkbox", "default": false, "readonly": true }
+  ]
+}

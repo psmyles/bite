@@ -1,0 +1,15 @@
+{
+  "id": "prop_dimensions",
+  "version": "1.0.0",
+  "label": "Dimensions",
+  "description": "Outputs the width and height of the current image in pixels",
+  "category": "Properties",
+  "inputs": [],
+  "outputs": [],
+  "executor": "prop_dimensions",
+  "needs_image_meta": true,
+  "params": [
+    { "name": "width",  "label": "Width",  "type": "int", "widget": "number", "default": 0, "readonly": true },
+    { "name": "height", "label": "Height", "type": "int", "widget": "number", "default": 0, "readonly": true }
+  ]
+}

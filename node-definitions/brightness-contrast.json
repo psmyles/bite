@@ -1,0 +1,41 @@
+{
+  "id": "brightness_contrast",
+  "version": "1.0.0",
+  "label": "Brightness / Contrast",
+  "description": "Adjust image brightness and contrast",
+  "category": "Color",
+  "icon": "sun",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "brightness",
+      "label": "Brightness",
+      "type": "int",
+      "widget": "slider",
+      "default": 0,
+      "min": -100,
+      "max": 100
+    },
+    {
+      "name": "contrast",
+      "label": "Contrast",
+      "type": "int",
+      "widget": "slider",
+      "default": 0,
+      "min": -100,
+      "max": 100
+    }
+  ],
+  "command_template": "-brightness-contrast {{brightness}}x{{contrast}}"
+}

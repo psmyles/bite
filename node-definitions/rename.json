@@ -1,0 +1,11 @@
+{
+  "id": "rename",
+  "version": "1.0.0",
+  "label": "Rename",
+  "description": "Builds a new output filename from an ordered sequence of blocks: Text (fixed string), Number (auto-incrementing), and Old Name (original filename stem with optional find/replace).",
+  "category": "Output",
+  "inputs":  [{ "type": "image", "label": "Image" }],
+  "outputs": [{ "type": "image", "label": "Image" }],
+  "executor": "rename",
+  "params": []
+}

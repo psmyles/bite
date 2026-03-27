@@ -1,0 +1,14 @@
+{
+  "id": "prop_filetype",
+  "version": "1.0.0",
+  "label": "File Type",
+  "description": "Outputs the file type extension of the current image",
+  "category": "Properties",
+  "inputs": [],
+  "outputs": [],
+  "executor": "prop_filetype",
+  "needs_image_meta": true,
+  "params": [
+    { "name": "value", "label": "Extension", "type": "string", "widget": "text", "default": "", "readonly": true }
+  ]
+}

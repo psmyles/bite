@@ -1,0 +1,15 @@
+{
+  "id": "prop_name",
+  "version": "1.0.0",
+  "label": "Name",
+  "description": "Outputs the file name of the current image",
+  "category": "Properties",
+  "inputs": [],
+  "outputs": [],
+  "executor": "prop_name",
+  "needs_image_meta": true,
+  "params": [
+    { "name": "value", "label": "Name", "type": "string", "widget": "text", "default": "", "readonly": true },
+    { "name": "strip_extension", "label": "Strip Extension", "type": "bool", "widget": "checkbox", "default": false, "noPort": true }
+  ]
+}

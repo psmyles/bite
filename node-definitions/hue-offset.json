@@ -1,0 +1,32 @@
+{
+  "id": "hue_offset",
+  "version": "1.0.0",
+  "label": "Hue Offset",
+  "description": "Shift the hue of an image",
+  "category": "Color",
+  "icon": "palette",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "hue",
+      "label": "Hue Shift",
+      "type": "int",
+      "widget": "slider",
+      "default": 0,
+      "min": -180,
+      "max": 180
+    }
+  ],
+  "command_template": "-modulate 100,100,{{hue}}"
+}

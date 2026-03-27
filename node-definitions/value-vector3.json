@@ -1,0 +1,17 @@
+{
+  "id": "value_vector3",
+  "version": "1.0.0",
+  "label": "Vector 3",
+  "description": "Outputs a constant Vector3 (X, Y, Z)",
+  "category": "Values",
+  "inputs": [],
+  "outputs": [],
+  "executor": "value_vector3",
+  "params": [
+    { "name": "vec", "label": "Vector", "type": "vector3", "widget": "vector", "default": [0, 0, 0], "noPort": true },
+    { "name": "xyz", "label": "XYZ", "type": "vector3", "readonly": true, "portOnly": true },
+    { "name": "x",   "label": "X",   "type": "float",   "readonly": true, "portOnly": true },
+    { "name": "y",   "label": "Y",   "type": "float",   "readonly": true, "portOnly": true },
+    { "name": "z",   "label": "Z",   "type": "float",   "readonly": true, "portOnly": true }
+  ]
+}

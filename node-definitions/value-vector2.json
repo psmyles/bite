@@ -1,0 +1,16 @@
+{
+  "id": "value_vector2",
+  "version": "1.0.0",
+  "label": "Vector 2",
+  "description": "Outputs a constant Vector2 (X, Y)",
+  "category": "Values",
+  "inputs": [],
+  "outputs": [],
+  "executor": "value_vector2",
+  "params": [
+    { "name": "vec", "label": "Vector", "type": "vector2", "widget": "vector", "default": [0, 0], "noPort": true },
+    { "name": "xy", "label": "XY", "type": "vector2", "readonly": true, "portOnly": true },
+    { "name": "x",  "label": "X",  "type": "float",   "readonly": true, "portOnly": true },
+    { "name": "y",  "label": "Y",  "type": "float",   "readonly": true, "portOnly": true }
+  ]
+}

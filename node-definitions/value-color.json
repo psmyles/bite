@@ -1,0 +1,19 @@
+{
+  "id": "value_color",
+  "version": "1.0.0",
+  "label": "Color",
+  "description": "Outputs a constant RGBA color with individual channel outputs",
+  "category": "Values",
+  "inputs": [],
+  "outputs": [],
+  "executor": "value_color",
+  "params": [
+    { "name": "color", "label": "Color", "type": "color", "widget": "vector", "default": [1, 1, 1, 1], "step": 0.01, "noPort": true },
+    { "name": "rgba", "label": "RGBA", "type": "color",   "readonly": true, "portOnly": true },
+    { "name": "rgb",  "label": "RGB",  "type": "vector3", "readonly": true, "portOnly": true },
+    { "name": "r",    "label": "R",    "type": "float",   "readonly": true, "portOnly": true },
+    { "name": "g",    "label": "G",    "type": "float",   "readonly": true, "portOnly": true },
+    { "name": "b",    "label": "B",    "type": "float",   "readonly": true, "portOnly": true },
+    { "name": "a",    "label": "A",    "type": "float",   "readonly": true, "portOnly": true }
+  ]
+}

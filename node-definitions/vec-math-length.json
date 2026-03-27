@@ -1,0 +1,14 @@
+{
+  "id": "vec_math_length",
+  "version": "1.0.0",
+  "label": "Length",
+  "description": "Magnitude of vector (|V|)",
+  "category": "Math",
+  "inputs": [],
+  "outputs": [],
+  "executor": "vec_math_length",
+  "params": [
+    { "name": "vec",    "label": "Vector", "type": "numeric", "widget": "number", "default": 0 },
+    { "name": "result", "label": "Result", "type": "float",   "widget": "number", "default": 0, "readonly": true }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "math_subtract",
+  "version": "1.0.0",
+  "label": "Subtract",
+  "description": "A − B",
+  "category": "Math",
+  "inputs": [],
+  "outputs": [],
+  "executor": "math_subtract",
+  "params": [
+    { "name": "a",      "label": "A",      "type": "numeric", "widget": "number", "default": 0 },
+    { "name": "b",      "label": "B",      "type": "numeric", "widget": "number", "default": 0 },
+    { "name": "result", "label": "Result", "type": "numeric", "widget": "number", "default": 0, "readonly": true }
+  ]
+}

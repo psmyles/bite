@@ -1,0 +1,40 @@
+{
+  "id": "rotate",
+  "version": "1.0.0",
+  "label": "Rotate",
+  "description": "Rotate image by an arbitrary angle",
+  "category": "Transform",
+  "icon": "rotate-cw",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "params": [
+    {
+      "name": "angle",
+      "label": "Angle (°)",
+      "type": "float",
+      "widget": "slider",
+      "default": 0,
+      "min": -360,
+      "max": 360,
+      "step": 0.5
+    },
+    {
+      "name": "background",
+      "label": "Background Color",
+      "type": "color",
+      "widget": "color-picker",
+      "default": "#000000"
+    }
+  ],
+  "command_template": "-background '{{background}}' -rotate {{angle}}"
+}

@@ -1,0 +1,57 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+dist-ssr/
+dist-electron/
+dist-cli/
+dist-web/
+release/          # electron-builder installer output (release/<version>/)
+out/
+
+# ── Web deployment folder (separate git repo for GitHub Pages) ─────────────
+web/
+
+# ── TypeScript ────────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Local Vite overrides ──────────────────────────────────────────────────────
+*.local
+
+# ── Claude Code session data ──────────────────────────────────────────────────
+.claude/
+
+# ── Local test data ───────────────────────────────────────────────────────────
+test_images/
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Editor directories ────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+/release
+dist-cli

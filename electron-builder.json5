@@ -1,0 +1,75 @@
+// @see - https://www.electron.build/configuration/configuration
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.imgplex.app",
+  "asar": true,
+  "productName": "imgplex",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist",
+    "dist-electron"
+  ],
+  "extraResources": [
+    {
+      // Bundled ImageMagick — placed at resources/magick/ inside the packaged app.
+      // At runtime getMagickBinary() resolves this via process.resourcesPath.
+      "from": "resources/win/magick",
+      "to": "magick",
+      "filter": ["**/*"]
+    }
+  ],
+  "mac": {
+    "target": [
+      "dmg"
+    ],
+    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+  },
+  "extraFiles": [
+    {
+      // Standalone CLI exe placed at the install root so $INSTDIR\imgplex-cli.exe
+      // is on PATH after the installer runs.
+      "from": "dist-cli/cli-bundle.exe",
+      "to": "imgplex-cli.exe"
+    },
+    {
+      // Node definitions shipped as plain JSON files so users can add custom nodes.
+      "from": "node-definitions",
+      "to": "node-definitions",
+      "filter": ["**/*.json"]
+    }
+  ],
+  "fileAssociations": [
+    {
+      "ext": "imgplex",
+      "name": "imgplex Workflow",
+      "description": "imgplex workflow file",
+      "role": "Editor"
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false,
+    "include": "build/installer.nsh"
+  },
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "artifactName": "${productName}-Linux-${version}.${ext}"
+  }
+}

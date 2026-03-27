@@ -1,0 +1,18 @@
+{
+  "id": "append_vec",
+  "version": "1.0.0",
+  "label": "Append",
+  "description": "Combines float components into a vector",
+  "category": "Utility",
+  "inputs": [],
+  "outputs": [],
+  "executor": "append_vec",
+  "params": [
+    { "name": "x",          "label": "X",          "type": "float",   "widget": "number",   "default": 0 },
+    { "name": "y",          "label": "Y",          "type": "float",   "widget": "number",   "default": 0 },
+    { "name": "z",          "label": "Z",          "type": "float",   "widget": "number",   "default": 0 },
+    { "name": "w",          "label": "W",          "type": "float",   "widget": "number",   "default": 0 },
+    { "name": "dimensions", "label": "Dimensions", "type": "enum",    "widget": "dropdown", "default": "4", "options": ["2", "3", "4"] },
+    { "name": "result",     "label": "Result",     "type": "numeric", "widget": "number",   "default": 0, "readonly": true }
+  ]
+}

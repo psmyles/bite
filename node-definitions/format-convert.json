@@ -1,0 +1,48 @@
+{
+  "id": "format_convert",
+  "version": "1.0.0",
+  "label": "Convert Format",
+  "description": "Convert image to a different file format",
+  "category": "Output",
+  "icon": "file-output",
+  "inputs": [
+    {
+      "type": "image",
+      "label": "Input"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "image",
+      "label": "Output"
+    }
+  ],
+  "executor": "format_convert",
+  "params": [
+    {
+      "name": "format",
+      "label": "Format",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "PNG",
+      "options": [
+        "PNG",
+        "JPEG",
+        "WEBP",
+        "TIFF",
+        "AVIF",
+        "BMP",
+        "TGA"
+      ]
+    },
+    {
+      "name": "quality",
+      "label": "Quality (lossy formats)",
+      "type": "int",
+      "widget": "slider",
+      "default": 100,
+      "min": 1,
+      "max": 100
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "logic_branch",
+  "version": "1.0.0",
+  "label": "Branch",
+  "description": "Outputs If True when Condition is true, otherwise If False",
+  "category": "Logic",
+  "inputs": [],
+  "outputs": [],
+  "executor": "logic_branch",
+  "params": [
+    { "name": "condition",   "label": "Condition", "type": "bool",  "widget": "checkbox", "default": false },
+    { "name": "value_true",  "label": "If True",   "type": "any", "default": null },
+    { "name": "value_false", "label": "If False",  "type": "any", "default": null },
+    { "name": "result",      "label": "Result",    "type": "any", "default": null, "readonly": true }
+  ]
+}

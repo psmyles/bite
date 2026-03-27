@@ -1,0 +1,13 @@
+{
+  "id": "mean_value",
+  "version": "1.0.0",
+  "label": "Mean Value",
+  "description": "Outputs the mean (average) pixel value of the input channel on a scale of 0.0 to 1.0.",
+  "category": "Math",
+  "inputs": [{ "type": "image", "label": "Channel" }],
+  "outputs": [],
+  "executor": "mean_value",
+  "params": [
+    { "name": "value", "label": "Value", "type": "float", "default": 0, "readonly": true }
+  ]
+}

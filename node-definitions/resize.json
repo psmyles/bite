@@ -1,0 +1,26 @@
+{
+  "id": "resize",
+  "version": "1.1.0",
+  "label": "Resize",
+  "description": "Resize image to target dimensions",
+  "category": "Transform",
+  "icon": "resize",
+  "inputs": [
+    { "type": "image", "label": "Input" }
+  ],
+  "outputs": [
+    { "type": "image", "label": "Output" }
+  ],
+  "executor": "resize",
+  "params": [
+    { "name": "mode",            "label": "Mode",           "type": "enum",  "widget": "dropdown", "default": "absolute", "options": ["absolute", "relative"] },
+    { "name": "width",           "label": "Width",          "type": "int",   "widget": "slider",   "default": 1024, "min": 1, "max": 16384 },
+    { "name": "height",          "label": "Height",         "type": "int",   "widget": "slider",   "default": 1024, "min": 1, "max": 16384 },
+    { "name": "scale",           "label": "Scale",          "type": "float", "widget": "slider",   "default": 100,  "min": 1, "max": 800, "step": 1 },
+    { "name": "scale_width",     "label": "Scale Width",    "type": "float", "widget": "slider",   "default": 100,  "min": 1, "max": 800, "step": 1 },
+    { "name": "scale_height",    "label": "Scale Height",   "type": "float", "widget": "slider",   "default": 100,  "min": 1, "max": 800, "step": 1 },
+    { "name": "preserve_aspect", "label": "Preserve Aspect","type": "bool",  "widget": "checkbox", "default": true },
+    { "name": "density",         "label": "Resolution",     "type": "int",   "widget": "number",   "default": 72,  "min": 1, "max": 9600 },
+    { "name": "filter",          "label": "Filter",         "type": "enum",  "widget": "dropdown", "default": "Lanczos", "options": ["Lanczos", "Mitchell", "Catrom", "Point"] }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "logic_and",
+  "version": "1.0.0",
+  "label": "And",
+  "description": "A AND B",
+  "category": "Logic",
+  "inputs": [],
+  "outputs": [],
+  "executor": "logic_and",
+  "params": [
+    { "name": "a",      "label": "A",      "type": "any", "default": null },
+    { "name": "b",      "label": "B",      "type": "any", "default": null },
+    { "name": "result", "label": "Result", "type": "bool",    "widget": "checkbox", "default": false, "readonly": true }
+  ]
+}
