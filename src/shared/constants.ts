@@ -50,6 +50,9 @@ export const IPC = {
   APP_QUIT: 'app:quit',
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
   SHELL_OPEN_PATH:     'shell:open-path',
+  // Flipbook Atlas node
+  ATLAS_GENERATE:        'atlas:generate',
+  ATLAS_BROWSE:          'atlas:browse',
   // Text Output node
   TEXT_OUTPUT_WRITE:          'text-output:write',
   TEXT_OUTPUT_WRITE_PROGRESS: 'text-output:write-progress',

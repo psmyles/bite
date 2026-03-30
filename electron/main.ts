@@ -4,7 +4,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { NodeRegistry } from '../src/main/nodes/registry.js'
 import { PipelineExecutor } from '../src/main/pipeline/executor.js'
-import { registerRegistryHandlers, registerPipelineHandlers, registerDialogHandlers, registerWorkflowHandlers, registerShellHandlers, registerScanHandlers, registerTextOutputHandlers } from '../src/main/ipc/handlers.js'
+import { registerRegistryHandlers, registerPipelineHandlers, registerDialogHandlers, registerWorkflowHandlers, registerShellHandlers, registerScanHandlers, registerTextOutputHandlers, registerAtlasHandlers } from '../src/main/ipc/handlers.js'
 import { IPC } from '../src/shared/constants.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -207,6 +207,7 @@ app.whenReady().then(async () => {
   registerScanHandlers()
   registerShellHandlers()
   registerTextOutputHandlers(registry, () => win)
+  registerAtlasHandlers(() => win)
 
   createWindow()
   buildMenu()

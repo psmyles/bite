@@ -1,0 +1,64 @@
+{
+  "id": "atlas",
+  "version": "1.0.0",
+  "label": "Flipbook Atlas",
+  "description": "Combines all loaded filmstrip images into a single grid sprite sheet using ImageMagick montage",
+  "category": "Output",
+  "inputs": [],
+  "outputs": [],
+  "executor": "atlas",
+  "params": [
+    {
+      "name": "outputPath",
+      "label": "Output File",
+      "type": "string",
+      "default": "",
+      "noPort": true
+    },
+    {
+      "name": "cols",
+      "label": "Columns",
+      "type": "int",
+      "widget": "number",
+      "default": 4,
+      "min": 1,
+      "max": 64
+    },
+    {
+      "name": "rows",
+      "label": "Rows",
+      "type": "int",
+      "widget": "number",
+      "default": 4,
+      "min": 1,
+      "max": 64
+    },
+    {
+      "name": "cellWidth",
+      "label": "Cell Width",
+      "type": "int",
+      "widget": "number",
+      "default": 128,
+      "min": 1,
+      "max": 4096
+    },
+    {
+      "name": "cellHeight",
+      "label": "Cell Height",
+      "type": "int",
+      "widget": "number",
+      "default": 128,
+      "min": 1,
+      "max": 4096
+    },
+    {
+      "name": "sortBy",
+      "label": "Sort Order",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "import_order",
+      "options": ["import_order", "name"],
+      "noPort": true
+    }
+  ]
+}
