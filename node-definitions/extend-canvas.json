@@ -1,0 +1,48 @@
+{
+  "id": "extend-canvas",
+  "version": "1.0.0",
+  "label": "Extend Canvas",
+  "description": "Add transparent padding to each side of the image independently",
+  "category": "Transform",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [
+    {
+      "name": "top",
+      "label": "Top",
+      "type": "int",
+      "widget": "number",
+      "default": 0,
+      "min": 0,
+      "max": 2048
+    },
+    {
+      "name": "right",
+      "label": "Right",
+      "type": "int",
+      "widget": "number",
+      "default": 0,
+      "min": 0,
+      "max": 2048
+    },
+    {
+      "name": "bottom",
+      "label": "Bottom",
+      "type": "int",
+      "widget": "number",
+      "default": 0,
+      "min": 0,
+      "max": 2048
+    },
+    {
+      "name": "left",
+      "label": "Left",
+      "type": "int",
+      "widget": "number",
+      "default": 0,
+      "min": 0,
+      "max": 2048
+    }
+  ],
+  "command_js": "const args = []\nif (params.left   > 0) args.push('-gravity', 'West',  '-background', 'none', '-splice', params.left   + 'x0')\nif (params.right  > 0) args.push('-gravity', 'East',  '-background', 'none', '-splice', params.right  + 'x0')\nif (params.top    > 0) args.push('-gravity', 'North', '-background', 'none', '-splice', '0x' + params.top)\nif (params.bottom > 0) args.push('-gravity', 'South', '-background', 'none', '-splice', '0x' + params.bottom)\nif (args.length > 0)   args.push('-gravity', 'NorthWest')\nreturn args"
+}

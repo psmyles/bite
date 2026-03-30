@@ -1,0 +1,11 @@
+{
+  "id": "auto-orient",
+  "version": "1.0.0",
+  "label": "Auto Orient",
+  "description": "Apply the EXIF rotation tag to physically rotate the image, then strip the tag",
+  "category": "Transform",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [],
+  "command_template": "-auto-orient"
+}

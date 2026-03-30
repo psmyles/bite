@@ -1,0 +1,11 @@
+{
+  "id": "strip-metadata",
+  "version": "1.0.0",
+  "label": "Strip Metadata",
+  "description": "Remove all EXIF data, ICC profiles, and embedded comments from the image",
+  "category": "Format",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [],
+  "command_template": "-strip"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "normal-map-flip",
+  "version": "1.0.0",
+  "label": "Normal Map Flip",
+  "description": "Invert the green channel to convert between DirectX and OpenGL normal map conventions",
+  "category": "Channels",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [],
+  "command_template": "-channel Green -negate +channel"
+}

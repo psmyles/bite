@@ -1,0 +1,22 @@
+{
+  "id": "trim-alpha",
+  "version": "1.0.0",
+  "label": "Trim Alpha",
+  "description": "Auto-crop to the tight bounding box by removing transparent or near-transparent border pixels",
+  "category": "Transform",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [
+    {
+      "name": "fuzz",
+      "label": "Fuzz",
+      "type": "float",
+      "widget": "slider",
+      "default": 0,
+      "min": 0,
+      "max": 50,
+      "step": 0.5
+    }
+  ],
+  "command_template": "-fuzz {{fuzz}}% -trim +repage"
+}

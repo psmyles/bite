@@ -1,0 +1,21 @@
+{
+  "id": "pixelate",
+  "version": "1.0.0",
+  "label": "Pixelate",
+  "description": "Scale down then back up with nearest-neighbor filtering to create intentional pixel-art blockiness",
+  "category": "Transform",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [
+    {
+      "name": "block_size",
+      "label": "Block Size",
+      "type": "int",
+      "widget": "slider",
+      "default": 8,
+      "min": 2,
+      "max": 64
+    }
+  ],
+  "command_js": "const b = Math.max(2, Math.round(params.block_size))\nreturn ['-filter', 'Point', '-resize', (100 / b) + '%', '-filter', 'Point', '-resize', (b * 100) + '%']"
+}

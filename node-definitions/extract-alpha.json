@@ -1,0 +1,11 @@
+{
+  "id": "extract-alpha",
+  "version": "1.0.0",
+  "label": "Extract Alpha",
+  "description": "Output the alpha channel as a grayscale image (white = opaque, black = transparent)",
+  "category": "Channels",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [],
+  "command_template": "-alpha extract"
+}

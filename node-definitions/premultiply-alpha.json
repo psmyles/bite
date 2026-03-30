@@ -1,0 +1,21 @@
+{
+  "id": "premultiply-alpha",
+  "version": "1.0.0",
+  "label": "Premultiply Alpha",
+  "description": "Associate (premultiply) or Disassociate (un-premultiply) alpha for correct compositing in game engines",
+  "category": "Channels",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [
+    {
+      "name": "mode",
+      "label": "Mode",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "premultiply",
+      "options": ["premultiply", "unpremultiply"],
+      "labels": ["Premultiply (Associate)", "Un-premultiply (Disassociate)"]
+    }
+  ],
+  "command_js": "return ['-alpha', params.mode === 'premultiply' ? 'Associate' : 'Disassociate']"
+}

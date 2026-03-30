@@ -1,0 +1,29 @@
+{
+  "id": "quantize",
+  "version": "1.0.0",
+  "label": "Quantize",
+  "description": "Reduce the image to N distinct colors with optional dithering for a retro palette look",
+  "category": "Color",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [
+    {
+      "name": "colors",
+      "label": "Colors",
+      "type": "int",
+      "widget": "slider",
+      "default": 16,
+      "min": 2,
+      "max": 256
+    },
+    {
+      "name": "dither",
+      "label": "Dither",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "FloydSteinberg",
+      "options": ["FloydSteinberg", "Riemersma", "None"]
+    }
+  ],
+  "command_template": "-dither {{dither}} -colors {{colors}}"
+}

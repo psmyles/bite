@@ -1,0 +1,28 @@
+{
+  "id": "tint",
+  "version": "1.0.0",
+  "label": "Tint",
+  "description": "Blend a solid color over the image at a given strength using colorize",
+  "category": "Color",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [
+    {
+      "name": "color",
+      "label": "Color",
+      "type": "color",
+      "widget": "color-picker",
+      "default": "#ff0000"
+    },
+    {
+      "name": "amount",
+      "label": "Amount",
+      "type": "int",
+      "widget": "slider",
+      "default": 50,
+      "min": 0,
+      "max": 100
+    }
+  ],
+  "command_template": "-fill {{color}} -colorize {{amount}}"
+}

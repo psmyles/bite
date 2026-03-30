@@ -1,0 +1,22 @@
+{
+  "id": "threshold",
+  "version": "1.0.0",
+  "label": "Threshold",
+  "description": "Convert to a pure black-and-white mask by cutting at a percentage brightness level",
+  "category": "Color",
+  "inputs":  [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
+  "params": [
+    {
+      "name": "value",
+      "label": "Threshold",
+      "type": "float",
+      "widget": "slider",
+      "default": 50,
+      "min": 0,
+      "max": 100,
+      "step": 1
+    }
+  ],
+  "command_template": "-threshold {{value}}%"
+}
