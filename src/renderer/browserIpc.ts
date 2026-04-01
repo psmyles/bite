@@ -110,8 +110,11 @@ export function installBrowserIpc(): void {
       listenerMap.get(channel)?.delete(listener)
     },
 
-    send(_channel: string, ..._args: unknown[]): void {
-      // No-op — no main process to message.
+    send(channel: string, ...args: unknown[]): void {
+      // In browser there is no main process, so deliver directly to any
+      // renderer-side listeners registered via on() — mirrors how Electron
+      // forwards native-menu clicks to the renderer via webContents.send().
+      listenerMap.get(channel)?.forEach(listener => listener({} as Event, ...args))
     },
   }
 

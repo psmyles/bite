@@ -312,6 +312,8 @@
     onOpen={handleOpenWorkflow}
     onSave={handleSaveWorkflow}
     onSaveAs={handleSaveWorkflowAs}
+    onDuplicate={() => window.ipcRenderer.send(IPC.MENU_DUPLICATE)}
+    onDelete={() => window.ipcRenderer.send(IPC.MENU_DELETE)}
     onAbout={handleAbout}
     onCredits={handleCredits}
     title={document.title}

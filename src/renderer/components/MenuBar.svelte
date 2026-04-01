@@ -1,15 +1,17 @@
 <script lang="ts">
   interface Props {
-    onNew:     () => void
-    onOpen:    () => void
-    onSave:    () => void
-    onSaveAs:  () => void
-    onAbout:   () => void
-    onCredits: () => void
-    title:     string
+    onNew:       () => void
+    onOpen:      () => void
+    onSave:      () => void
+    onSaveAs:    () => void
+    onDuplicate: () => void
+    onDelete:    () => void
+    onAbout:     () => void
+    onCredits:   () => void
+    title:       string
   }
 
-  let { onNew, onOpen, onSave, onSaveAs, onAbout, onCredits, title }: Props = $props()
+  let { onNew, onOpen, onSave, onSaveAs, onDuplicate, onDelete, onAbout, onCredits, title }: Props = $props()
 
   let openMenu: string | null = $state(null)
 
@@ -51,6 +53,40 @@
         <li class="sep"></li>
         <li><button onclick={() => run(onSave)}>  Save<span class="shortcut">Ctrl+S</span></button></li>
         <li><button onclick={() => run(onSaveAs)}>Save As…<span class="shortcut">Ctrl+Shift+S</span></button></li>
+      </ul>
+    {/if}
+  </div>
+
+  <!-- Edit menu -->
+  <div class="menu-item" class:open={openMenu === 'edit'}>
+    <button class="menu-trigger" onclick={() => toggle('edit')}>Edit</button>
+    {#if openMenu === 'edit'}
+      <ul class="dropdown">
+        <li><button onclick={() => { openMenu = null; document.execCommand('undo') }}>Undo<span class="shortcut">Ctrl+Z</span></button></li>
+        <li><button onclick={() => { openMenu = null; document.execCommand('redo') }}>Redo<span class="shortcut">Ctrl+Y</span></button></li>
+        <li class="sep"></li>
+        <li><button onclick={() => { openMenu = null; document.execCommand('cut') }}>Cut<span class="shortcut">Ctrl+X</span></button></li>
+        <li><button onclick={() => { openMenu = null; document.execCommand('copy') }}>Copy<span class="shortcut">Ctrl+C</span></button></li>
+        <li><button onclick={() => { openMenu = null; document.execCommand('paste') }}>Paste<span class="shortcut">Ctrl+V</span></button></li>
+        <li class="sep"></li>
+        <li><button onclick={() => run(onDuplicate)}>Duplicate<span class="shortcut">Ctrl+D</span></button></li>
+        <li><button onclick={() => run(onDelete)}>Delete<span class="shortcut">Del</span></button></li>
+        <li class="sep"></li>
+        <li><button onclick={() => { openMenu = null; document.execCommand('selectAll') }}>Select All<span class="shortcut">Ctrl+A</span></button></li>
+      </ul>
+    {/if}
+  </div>
+
+  <!-- View menu -->
+  <div class="menu-item" class:open={openMenu === 'view'}>
+    <button class="menu-trigger" onclick={() => toggle('view')}>View</button>
+    {#if openMenu === 'view'}
+      <ul class="dropdown">
+        <li><button onclick={() => { openMenu = null }}>Actual Size<span class="shortcut">Ctrl+0</span></button></li>
+        <li><button onclick={() => { openMenu = null }}>Zoom In<span class="shortcut">Ctrl++</span></button></li>
+        <li><button onclick={() => { openMenu = null }}>Zoom Out<span class="shortcut">Ctrl+−</span></button></li>
+        <li class="sep"></li>
+        <li><button onclick={() => { openMenu = null; document.documentElement.requestFullscreen?.() }}>Toggle Full Screen<span class="shortcut">F11</span></button></li>
       </ul>
     {/if}
   </div>
