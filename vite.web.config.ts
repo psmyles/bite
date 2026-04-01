@@ -9,7 +9,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 //   '/imgplex/'  → project site   (https://username.github.io/imgplex/)
 export default defineConfig({
   plugins: [svelte()],
-  base: '/imgplex-web/',
+  base: '/imgplex/',
   build: {
     outDir: 'dist-web',
     emptyOutDir: true,
