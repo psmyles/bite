@@ -1,0 +1,646 @@
+{
+  "version": "1.0",
+  "graph": {
+    "nodes": [
+      {
+        "id": "group-1775021775264",
+        "type": "group",
+        "position": {
+          "x": 1761.6617148050268,
+          "y": 308.313181752011
+        },
+        "width": 459,
+        "height": 382,
+        "data": {
+          "label": "Group",
+          "definitionId": "",
+          "params": {
+            "name": "Output"
+          }
+        }
+      },
+      {
+        "id": "group-1775021621385",
+        "type": "group",
+        "position": {
+          "x": 1226.1895868399763,
+          "y": 358.5314588248279
+        },
+        "width": 290,
+        "height": 317.68048264542716,
+        "data": {
+          "label": "Group",
+          "definitionId": "",
+          "params": {
+            "name": "Compare"
+          }
+        }
+      },
+      {
+        "id": "group-1775021541397",
+        "type": "group",
+        "position": {
+          "x": -590.1112340192763,
+          "y": 153.89359925404005
+        },
+        "width": 382,
+        "height": 285,
+        "data": {
+          "label": "Group",
+          "definitionId": "",
+          "params": {
+            "name": "Input"
+          }
+        }
+      },
+      {
+        "id": "group-1775021490073",
+        "type": "group",
+        "position": {
+          "x": -86,
+          "y": -60.48913209202857
+        },
+        "width": 1094,
+        "height": 617,
+        "data": {
+          "label": "Group",
+          "definitionId": "",
+          "params": {
+            "name": "Check if the iamge is a normal map"
+          }
+        }
+      },
+      {
+        "id": "group-1775021477202",
+        "type": "group",
+        "position": {
+          "x": 244.10896349298537,
+          "y": 630.7050965505823
+        },
+        "width": 767.3427058758605,
+        "height": 319.32527001267727,
+        "data": {
+          "label": "Group",
+          "definitionId": "",
+          "params": {
+            "name": "Check file name"
+          }
+        }
+      },
+      {
+        "id": "workflow-input",
+        "type": "inputNode",
+        "position": {
+          "x": -438.44006386229114,
+          "y": 176.46457081379975
+        },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": {}
+        }
+      },
+      {
+        "id": "workflow-output",
+        "type": "outputNode",
+        "position": {
+          "x": 1999.3729363222853,
+          "y": 379.81862961921627
+        },
+        "data": {
+          "label": "Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "source",
+            "customPath": "",
+            "overwrite": "skip",
+            "outputMode": "text",
+            "portIds": [
+              "txo-0",
+              "txo-1"
+            ],
+            "nextPortIndex": 2
+          }
+        }
+      },
+      {
+        "id": "text_filter-1775021127808",
+        "type": "process",
+        "position": {
+          "x": 263,
+          "y": 143.663270196055
+        },
+        "parentId": "group-1775021477202",
+        "extent": "parent",
+        "data": {
+          "label": "Text Filter",
+          "definitionId": "text_filter",
+          "params": {
+            "input": "",
+            "prefix": "T_",
+            "suffix": "_N",
+            "contains": "",
+            "match_case": false,
+            "result": false
+          }
+        }
+      },
+      {
+        "id": "prop_name-1775021134452",
+        "type": "process",
+        "position": {
+          "x": 40,
+          "y": 137.663270196055
+        },
+        "parentId": "group-1775021477202",
+        "extent": "parent",
+        "data": {
+          "label": "Name",
+          "definitionId": "prop_name",
+          "params": {
+            "value": "",
+            "strip_extension": true
+          }
+        }
+      },
+      {
+        "id": "logic_not-1775021218119",
+        "type": "process",
+        "position": {
+          "x": 467.4206321881227,
+          "y": 221.32527001267727
+        },
+        "parentId": "group-1775021477202",
+        "extent": "parent",
+        "data": {
+          "label": "Not",
+          "definitionId": "logic_not",
+          "params": {
+            "a": null,
+            "result": true
+          }
+        }
+      },
+      {
+        "id": "comment-1775021379005",
+        "type": "commentNode",
+        "position": {
+          "x": 447.3427058758606,
+          "y": 40
+        },
+        "width": 280,
+        "height": 131,
+        "parentId": "group-1775021477202",
+        "extent": "parent",
+        "data": {
+          "label": "Comment",
+          "definitionId": "comment",
+          "params": {
+            "heading": "Name check",
+            "body": "Here we check if the name of the file doesn't match the naming convention set for normal maps. The 'Not' node at the end is to flip the result so we get the case where the result doesn't match."
+          }
+        }
+      },
+      {
+        "id": "channel_split-1775016400557",
+        "type": "process",
+        "position": {
+          "x": 40,
+          "y": 231.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Split Channels",
+          "definitionId": "channel_split",
+          "params": {
+            "_enabled": true
+          }
+        }
+      },
+      {
+        "id": "mean_value-1775016410549",
+        "type": "process",
+        "position": {
+          "x": 266,
+          "y": 217.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": {
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "logic_comparison-1775016469287",
+        "type": "compareNode",
+        "position": {
+          "x": 492,
+          "y": 226.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": {
+            "a": null,
+            "operator": "less or equal",
+            "b": null,
+            "result": true
+          }
+        }
+      },
+      {
+        "id": "mean_value-1775016410549-dup17750164899410",
+        "type": "process",
+        "position": {
+          "x": 272,
+          "y": 361.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": {
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "logic_comparison-1775016469287-dup17750164899411",
+        "type": "compareNode",
+        "position": {
+          "x": 490,
+          "y": 356.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": {
+            "a": null,
+            "operator": "less or equal",
+            "b": null,
+            "result": true
+          }
+        }
+      },
+      {
+        "id": "value_float-1775016472943-dup17750164899412",
+        "type": "process",
+        "position": {
+          "x": 62,
+          "y": 379.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Float",
+          "definitionId": "value_float",
+          "params": {
+            "value": 0.6
+          }
+        }
+      },
+      {
+        "id": "mean_value-1775016410549-dup17750164899410-dup17750165012050",
+        "type": "process",
+        "position": {
+          "x": 265,
+          "y": 496.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": {
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "logic_comparison-1775016469287-dup17750164899411-dup17750165012051",
+        "type": "compareNode",
+        "position": {
+          "x": 491,
+          "y": 487.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": {
+            "a": null,
+            "operator": "greater or equal",
+            "b": ".85",
+            "result": true
+          }
+        }
+      },
+      {
+        "id": "logic_and-1775016551147",
+        "type": "process",
+        "position": {
+          "x": 701,
+          "y": 294.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "And",
+          "definitionId": "logic_and",
+          "params": {
+            "a": null,
+            "b": null,
+            "result": false
+          }
+        }
+      },
+      {
+        "id": "logic_and-1775016551147-dup17750165595730",
+        "type": "process",
+        "position": {
+          "x": 887,
+          "y": 403.48913209202857
+        },
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "And",
+          "definitionId": "logic_and",
+          "params": {
+            "a": null,
+            "b": null,
+            "result": false
+          }
+        }
+      },
+      {
+        "id": "comment-1775016616915",
+        "type": "commentNode",
+        "position": {
+          "x": 750.5209658949578,
+          "y": 29.44393671381685
+        },
+        "width": 300,
+        "height": 232,
+        "parentId": "group-1775021490073",
+        "extent": "parent",
+        "data": {
+          "label": "Comment",
+          "definitionId": "comment",
+          "params": {
+            "heading": "Normal map check",
+            "body": "This part checks if the image is a tangent space normal map by checking the mean values of the R, G, and B channels. Because normal maps are almost always blue-ish in color, we can check if the blue channel has a high mean value (more than .85) and the red and green channel have low mean values (less than .6). If all three channel mean value comparisions are true, this section will output true that we can then use to drive the workflow"
+          }
+        }
+      },
+      {
+        "id": "comment-1775021037267",
+        "type": "commentNode",
+        "position": {
+          "x": 62,
+          "y": 125
+        },
+        "width": 280,
+        "height": 120,
+        "parentId": "group-1775021541397",
+        "extent": "parent",
+        "data": {
+          "label": "Comment",
+          "definitionId": "comment",
+          "params": {
+            "heading": "Input node",
+            "body": "This is the starting point of the workflow. Use the inspector to import a folder or individual images "
+          }
+        }
+      },
+      {
+        "id": "logic_and-1775021210010",
+        "type": "process",
+        "position": {
+          "x": 44.32500017852567,
+          "y": 40
+        },
+        "parentId": "group-1775021621385",
+        "extent": "parent",
+        "data": {
+          "label": "And",
+          "definitionId": "logic_and",
+          "params": {
+            "a": null,
+            "b": null,
+            "result": false
+          }
+        }
+      },
+      {
+        "id": "comment-1775021576640",
+        "type": "commentNode",
+        "position": {
+          "x": 40,
+          "y": 163.68048264542716
+        },
+        "width": 210,
+        "height": 114,
+        "parentId": "group-1775021621385",
+        "extent": "parent",
+        "data": {
+          "label": "Comment",
+          "definitionId": "comment",
+          "params": {
+            "heading": "Comment",
+            "body": "This node is to filter the images that match both the previous conditions"
+          }
+        }
+      },
+      {
+        "id": "prop_path-1775021318292",
+        "type": "process",
+        "position": {
+          "x": 40.26447181090725,
+          "y": 40
+        },
+        "parentId": "group-1775021775264",
+        "extent": "parent",
+        "data": {
+          "label": "Path",
+          "definitionId": "prop_path",
+          "params": {
+            "value": "",
+            "strip_filename": false
+          }
+        }
+      },
+      {
+        "id": "comment-1775021643072",
+        "type": "commentNode",
+        "position": {
+          "x": 40,
+          "y": 214.73874154230987
+        },
+        "width": 280,
+        "height": 131,
+        "parentId": "group-1775021775264",
+        "extent": "parent",
+        "data": {
+          "label": "Comment",
+          "definitionId": "comment",
+          "params": {
+            "heading": "Text output",
+            "body": "Here we use the files filtered by the chain to write to a text file. Specifically the full path that includes the name of the file. If you need just the name and not the path use the 'Name' property node "
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "xy-edge__workflow-inputout-0-channel_split-1775016400557in-0",
+        "source": "workflow-input",
+        "sourceHandle": "out-0",
+        "target": "channel_split-1775016400557",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__channel_split-1775016400557out-0-mean_value-1775016410549in-0",
+        "source": "channel_split-1775016400557",
+        "sourceHandle": "out-0",
+        "target": "mean_value-1775016410549",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__mean_value-1775016410549param-out-value-logic_comparison-1775016469287param-in-a",
+        "source": "mean_value-1775016410549",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1775016469287",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__channel_split-1775016400557out-1-mean_value-1775016410549-dup17750164899410in-0",
+        "source": "channel_split-1775016400557",
+        "sourceHandle": "out-1",
+        "target": "mean_value-1775016410549-dup17750164899410",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__mean_value-1775016410549-dup17750164899410param-out-value-logic_comparison-1775016469287-dup17750164899411param-in-a",
+        "source": "mean_value-1775016410549-dup17750164899410",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1775016469287-dup17750164899411",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__value_float-1775016472943-dup17750164899412param-out-value-logic_comparison-1775016469287-dup17750164899411param-in-b",
+        "source": "value_float-1775016472943-dup17750164899412",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1775016469287-dup17750164899411",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__mean_value-1775016410549-dup17750164899410-dup17750165012050param-out-value-logic_comparison-1775016469287-dup17750164899411-dup17750165012051param-in-a",
+        "source": "mean_value-1775016410549-dup17750164899410-dup17750165012050",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1775016469287-dup17750164899411-dup17750165012051",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__value_float-1775016472943-dup17750164899412param-out-value-logic_comparison-1775016469287param-in-b",
+        "source": "value_float-1775016472943-dup17750164899412",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1775016469287",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__channel_split-1775016400557out-2-mean_value-1775016410549-dup17750164899410-dup17750165012050in-0",
+        "source": "channel_split-1775016400557",
+        "sourceHandle": "out-2",
+        "target": "mean_value-1775016410549-dup17750164899410-dup17750165012050",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__logic_comparison-1775016469287param-out-result-logic_and-1775016551147param-in-a",
+        "source": "logic_comparison-1775016469287",
+        "sourceHandle": "param-out-result",
+        "target": "logic_and-1775016551147",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__logic_comparison-1775016469287-dup17750164899411param-out-result-logic_and-1775016551147param-in-b",
+        "source": "logic_comparison-1775016469287-dup17750164899411",
+        "sourceHandle": "param-out-result",
+        "target": "logic_and-1775016551147",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__logic_comparison-1775016469287-dup17750164899411-dup17750165012051param-out-result-logic_and-1775016551147-dup17750165595730param-in-b",
+        "source": "logic_comparison-1775016469287-dup17750164899411-dup17750165012051",
+        "sourceHandle": "param-out-result",
+        "target": "logic_and-1775016551147-dup17750165595730",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__logic_and-1775016551147param-out-result-logic_and-1775016551147-dup17750165595730param-in-a",
+        "source": "logic_and-1775016551147",
+        "sourceHandle": "param-out-result",
+        "target": "logic_and-1775016551147-dup17750165595730",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__prop_name-1775021134452param-out-value-text_filter-1775021127808param-in-input",
+        "source": "prop_name-1775021134452",
+        "sourceHandle": "param-out-value",
+        "target": "text_filter-1775021127808",
+        "targetHandle": "param-in-input"
+      },
+      {
+        "id": "xy-edge__logic_and-1775016551147-dup17750165595730param-out-result-logic_and-1775021210010param-in-a",
+        "source": "logic_and-1775016551147-dup17750165595730",
+        "sourceHandle": "param-out-result",
+        "target": "logic_and-1775021210010",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__text_filter-1775021127808param-out-result-logic_not-1775021218119param-in-a",
+        "source": "text_filter-1775021127808",
+        "sourceHandle": "param-out-result",
+        "target": "logic_not-1775021218119",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__logic_not-1775021218119param-out-result-logic_and-1775021210010param-in-b",
+        "source": "logic_not-1775021218119",
+        "sourceHandle": "param-out-result",
+        "target": "logic_and-1775021210010",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__prop_path-1775021318292param-out-value-workflow-outputtxo-0",
+        "source": "prop_path-1775021318292",
+        "sourceHandle": "param-out-value",
+        "target": "workflow-output",
+        "targetHandle": "txo-0"
+      },
+      {
+        "id": "xy-edge__logic_and-1775021210010param-out-result-workflow-outputtxo-condition",
+        "source": "logic_and-1775021210010",
+        "sourceHandle": "param-out-result",
+        "target": "workflow-output",
+        "targetHandle": "txo-condition"
+      }
+    ],
+    "viewport": {
+      "x": 570.65933477939,
+      "y": 466.24610821526744,
+      "zoom": 0.5
+    }
+  }
+}
