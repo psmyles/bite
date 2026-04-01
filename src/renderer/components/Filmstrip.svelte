@@ -1,5 +1,6 @@
 <script lang="ts">
   import { imageStore } from '../stores/images.svelte.js'
+  import { IS_ELECTRON } from '../platform.js'
 
   let stripEl       = $state<HTMLElement | undefined>(undefined)
   let stripHeight   = $state(0)
@@ -107,9 +108,13 @@
   >
     {#if imageStore.images.length === 0}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <span class="empty-hint" onclick={() => imageStore.openDialog()}>
-        Drop images here or click to open…
-      </span>
+      {#if IS_ELECTRON}
+        <span class="empty-hint" onclick={() => imageStore.openDialog()}>
+          Drop images here or click to open…
+        </span>
+      {:else}
+        <span class="empty-hint no-action">Image features require the desktop app.</span>
+      {/if}
     {:else}
       <!-- Left spacer fills the width of all off-screen items to the left -->
       {#if spacerLeft > 0}
@@ -204,6 +209,7 @@
   }
 
   .empty-hint:hover { opacity: 1; }
+  .empty-hint.no-action { cursor: default; }
 
   /* ── Virtual scroll spacers ── */
   .virt-spacer {
