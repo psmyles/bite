@@ -226,7 +226,7 @@
   --ctx-shadow:          0 8px 28px rgba(0, 0, 0, 0.65);  /* drop shadow */
   --ctx-width:           200px;                /* main category panel width */
   --ctx-sub-width:       190px;                /* flyout sub-panel width */
-  --ctx-max-height:      360px;                /* max panel height before scrolling */
+  --ctx-max-height:      420px;                /* max panel height before scrolling */
   --ctx-search-bg:       #111111;              /* search input background */
   --ctx-text:            #c8c8c8;              /* primary item text */
   --ctx-text-muted:      #a8a8a8;              /* secondary text (category badge, arrow) — 7.1:1 on ctx-bg */
