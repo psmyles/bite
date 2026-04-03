@@ -13,6 +13,7 @@
   const pathColor = portColor('path')
   const anyColor  = portColor('any')
   const boolColor = portColor('boolean')
+  const numColor  = portColor('number')
 
   const params     = $derived((data.params as Record<string, unknown>) ?? {})
   const outputMode = $derived((params.outputMode as string) ?? 'image')
@@ -88,6 +89,61 @@
     </div>
   </div>
 
+{:else if outputMode === 'flipbook'}
+  <!-- ── Flipbook mode: Image + 4 param ports ── -->
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="in-0"
+    style="background: {imgColor}; border-color: {imgColor}; top: 43px;"
+  />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="param-in-cols"
+    style="background: {numColor}; border-color: {numColor}; top: 73px;"
+  />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="param-in-rows"
+    style="background: {numColor}; border-color: {numColor}; top: 103px;"
+  />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="param-in-cellWidth"
+    style="background: {numColor}; border-color: {numColor}; top: 133px;"
+  />
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="param-in-cellHeight"
+    style="background: {numColor}; border-color: {numColor}; top: 163px;"
+  />
+
+  <div class="node" class:selected>
+    <header class="node-head">
+      <span>Output — Flipbook</span>
+    </header>
+
+    <div class="node-ports">
+      <span class="port-tag" style="color: {imgColor}">Image</span>
+    </div>
+    <div class="node-ports">
+      <span class="port-tag" style="color: {numColor}">Columns</span>
+    </div>
+    <div class="node-ports">
+      <span class="port-tag" style="color: {numColor}">Rows</span>
+    </div>
+    <div class="node-ports">
+      <span class="port-tag" style="color: {numColor}">Cell Width</span>
+    </div>
+    <div class="node-ports">
+      <span class="port-tag" style="color: {numColor}">Cell Height</span>
+    </div>
+  </div>
+
 {:else}
   <!-- ── Image mode: existing Image + Folder ports ── -->
   <Handle
@@ -105,7 +161,7 @@
 
   <div class="node" class:selected>
     <header class="node-head">
-      <span>Output</span>
+      <span>Output — Image</span>
     </header>
 
     <div class="node-ports">

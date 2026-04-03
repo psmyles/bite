@@ -21,7 +21,6 @@
   import GroupNode from './GroupNode.svelte'
   import FolderPathNode from './FolderPathNode.svelte'
   import CompareNode from './CompareNode.svelte'
-  import AtlasNode from './AtlasNode.svelte'
   import ColoredEdge from './ColoredEdge.svelte'
   import NodeContextMenu from './NodeContextMenu.svelte'
   import { portColor } from './portColors.js'
@@ -38,7 +37,7 @@
   export const OUTPUT_NODE_ID = 'workflow-output'
 
   // ── Custom node / edge types ───────────────────────────────────────────────
-  const nodeTypes = { process: ProcessNode, inputNode: InputNode, outputNode: OutputNode, commentNode: CommentNode, group: GroupNode, folderPathNode: FolderPathNode, compareNode: CompareNode, atlasNode: AtlasNode }
+  const nodeTypes = { process: ProcessNode, inputNode: InputNode, outputNode: OutputNode, commentNode: CommentNode, group: GroupNode, folderPathNode: FolderPathNode, compareNode: CompareNode }
   const edgeTypes = { colored: ColoredEdge }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

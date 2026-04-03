@@ -614,7 +614,11 @@ export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void 
       ? [...imagePaths].sort((a, b) =>
           path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true, sensitivity: 'base' })
         )
-      : imagePaths
+      : sortBy === 'name_desc'
+        ? [...imagePaths].sort((a, b) =>
+            path.basename(b).localeCompare(path.basename(a), undefined, { numeric: true, sensitivity: 'base' })
+          )
+        : imagePaths
 
     // Truncate to grid capacity
     const selected = sorted.slice(0, rows * cols)

@@ -8,7 +8,6 @@
   import InspectorRenameNode from './InspectorRenameNode.svelte'
   import InspectorResizeNode from './InspectorResizeNode.svelte'
   import InspectorFolderPathNode from './InspectorFolderPathNode.svelte'
-  import InspectorAtlasNode from './InspectorAtlasNode.svelte'
   import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js'
 
   let { definitions }: { definitions: NodeDefinition[] } = $props()
@@ -23,8 +22,10 @@
       : null
   )
 
-  const outputNodeTextMode = $derived(
-    nodeType === 'outputNode' && (nodeData?.params as Record<string, unknown> | undefined)?.outputMode === 'text'
+  const outputNodeMode = $derived(
+    nodeType === 'outputNode'
+      ? ((nodeData?.params as Record<string, unknown> | undefined)?.outputMode as string) ?? 'image'
+      : null
   )
 </script>
 
@@ -36,17 +37,17 @@
     {:else if nodeType === 'inputNode'}
       <span class="node-label">{nodeData?.label as string}</span>
     {:else if nodeType === 'outputNode'}
-      <span class="node-label">{outputNodeTextMode ? 'Output — Text' : 'Output'}</span>
+      <span class="node-label">
+        {outputNodeMode === 'text' ? 'Output — Text' : outputNodeMode === 'flipbook' ? 'Output — Flipbook' : 'Output — Image'}
+      </span>
     {:else if nodeType === 'commentNode'}
       <span class="node-label">Comment</span>
     {:else if nodeType === 'folderPathNode'}
       <span class="node-label">Folder Path</span>
-    {:else if nodeType === 'atlasNode'}
-      <span class="node-label">Flipbook Atlas</span>
     {/if}
   </div>
 
-  <div class="content" class:fill={nodeType === 'inputNode' || outputNodeTextMode}>
+  <div class="content" class:fill={nodeType === 'inputNode' || outputNodeMode === 'text'}>
     {#if !selectedNode}
       <span class="empty-hint">Select a node to edit its parameters.</span>
 
@@ -61,9 +62,6 @@
 
     {:else if nodeType === 'folderPathNode'}
       <InspectorFolderPathNode selectedNode={selectedNode} />
-
-    {:else if nodeType === 'atlasNode'}
-      <InspectorAtlasNode selectedNode={selectedNode} />
 
     {:else if !definition}
       <span class="empty-hint">No definition found for this node.</span>
