@@ -195,10 +195,8 @@ app.whenReady().then(async () => {
   // Load node definitions before opening the window
   await registry.load(nodeDefinitionsDir)
 
-  // Hot-reload definitions in dev
-  if (VITE_DEV_SERVER_URL) {
-    registry.watch(nodeDefinitionsDir)
-  }
+  // Hot-reload definitions when node-definitions folder changes
+  registry.watch(nodeDefinitionsDir)
 
   // Register IPC handlers
   registerRegistryHandlers(registry, () => win)
