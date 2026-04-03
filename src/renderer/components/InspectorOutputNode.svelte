@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import type { Node, Edge } from '@xyflow/svelte'
+  import type { Node } from '@xyflow/svelte'
   import { graphStore } from '../stores/graph.svelte.js'
   import { imageStore } from '../stores/images.svelte.js'
   import { IPC } from '../../shared/constants.js'

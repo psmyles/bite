@@ -57,8 +57,8 @@ export function topoSort(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// Set to true to log per-spawn and per-image timing to the console.
-const BATCH_DEBUG = false
+// Set IMGPLEX_DEBUG_BATCH=1 to log per-spawn and per-image timing to the console.
+const BATCH_DEBUG = process.env.IMGPLEX_DEBUG_BATCH === '1'
 
 
 function spawnMagick(args: string[], _debugLabel?: string): Promise<void> {

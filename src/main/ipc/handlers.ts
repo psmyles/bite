@@ -34,8 +34,8 @@ async function writeOutputLog(opts: {
   const mm  = String(now.getMonth() + 1).padStart(2, '0')
   const dd  = String(now.getDate()).padStart(2, '0')
   const hh  = String(now.getHours()).padStart(2, '0')
-  const min = String(now.getMinutes()).padStart(2, '0')
-  const logName = `outputlog_${yy}${mm}${dd}_${hh}${min}.log`
+  const mn  = String(now.getMinutes()).padStart(2, '0')
+  const logName = `outputlog_${yy}${mm}${dd}_${hh}${mn}.log`
 
   const totalSec    = opts.durationMs / 1000
   const mins        = Math.floor(totalSec / 60)
@@ -48,7 +48,7 @@ async function writeOutputLog(opts: {
 
   const content = [
     'imgplex Output Log',
-    `Generated: ${now.getFullYear()}-${mm}-${dd} ${hh}:${min}`,
+    `Generated: ${now.getFullYear()}-${mm}-${dd} ${hh}:${mn}`,
     '',
     `Duration:         ${durationStr}`,
     `Files output:     ${opts.outputFiles.length}`,
@@ -210,6 +210,15 @@ const IMAGE_EXTENSIONS = [
   'wbmp', 'pict', 'pct', 'dds', 'fits', 'fts',
 ]
 
+function readWorkflowFile(filePath: string): { graph: unknown; filePath: string } {
+  const raw = readFileSync(filePath, 'utf-8')
+  const data = JSON.parse(raw) as Record<string, unknown>
+  if (!data || typeof data !== 'object' || !data.graph) {
+    throw new Error('Invalid workflow file: missing graph data')
+  }
+  return { graph: data.graph, filePath }
+}
+
 export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.WORKFLOW_SAVE, async (_e, graph: unknown, filePath: string | null) => {
     let targetPath = filePath ?? null
@@ -234,22 +243,11 @@ export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): vo
       ],
     })
     if (result.canceled || result.filePaths.length === 0) return null
-    const filePath = result.filePaths[0]
-    const raw = readFileSync(filePath, 'utf-8')
-    const data = JSON.parse(raw) as Record<string, unknown>
-    if (!data || typeof data !== 'object' || !data.graph) {
-      throw new Error('Invalid workflow file: missing graph data')
-    }
-    return { graph: data.graph, filePath }
+    return readWorkflowFile(result.filePaths[0])
   })
 
   ipcMain.handle(IPC.WORKFLOW_OPEN_PATH, (_e, filePath: string) => {
-    const raw = readFileSync(filePath, 'utf-8')
-    const data = JSON.parse(raw) as Record<string, unknown>
-    if (!data || typeof data !== 'object' || !data.graph) {
-      throw new Error('Invalid workflow file: missing graph data')
-    }
-    return { graph: data.graph, filePath }
+    return readWorkflowFile(filePath)
   })
 
   let isQuitting = false
@@ -455,6 +453,35 @@ async function resolveParamsForImage(
   return resolvedParams
 }
 
+function extractTextPortConfig(
+  txNode: NodeGraph['nodes'][number],
+  graph: NodeGraph,
+  nodeId: string
+) {
+  const p             = (txNode.data.params ?? {}) as Record<string, unknown>
+  const separatorType = (p.separatorType as string) ?? 'comma'
+  const customSep     = (p.customSeparator as string) ?? ''
+  const portIds       = (p.portIds as string[]) ?? []
+
+  const connectedPorts = portIds.slice(0, -1).filter((pid) =>
+    graph.edges.some((e) => e.target === nodeId && e.targetHandle === pid)
+  )
+  const portSources = connectedPorts.map((portId) => {
+    const edge = graph.edges.find((e) => e.target === nodeId && e.targetHandle === portId)
+    if (!edge || !edge.sourceHandle?.startsWith('param-out-')) return null
+    return { sourceNodeId: edge.source, sourceParamKey: edge.sourceHandle.slice('param-out-'.length) }
+  })
+  const conditionEdge = graph.edges.find(
+    (e) => e.target === nodeId && e.targetHandle === 'txo-condition' && e.sourceHandle?.startsWith('param-out-')
+  )
+  const conditionSource = conditionEdge
+    ? { sourceNodeId: conditionEdge.source, sourceParamKey: conditionEdge.sourceHandle?.slice('param-out-'.length) ?? '' }
+    : null
+  const sep = getSeparator(separatorType, customSep)
+
+  return { connectedPorts, portSources, conditionSource, sep }
+}
+
 /** Compute the output lines for a Text Output node without writing anything. */
 async function computeTextOutputLines(
   graph: NodeGraph,
@@ -465,35 +492,10 @@ async function computeTextOutputLines(
   const txNode = graph.nodes.find((n) => n.id === nodeId)
   if (!txNode) throw new Error('Text output node not found in graph.')
 
-  const p = (txNode.data.params ?? {}) as Record<string, unknown>
-  const separatorType = (p.separatorType as string) ?? 'comma'
-  const customSep     = (p.customSeparator as string) ?? ''
-  const portIds       = (p.portIds as string[]) ?? []
-
   if (imagePaths.length === 0) return []
 
-  const connectedPorts = portIds.slice(0, -1).filter((pid) =>
-    graph.edges.some((e) => e.target === nodeId && e.targetHandle === pid)
-  )
+  const { connectedPorts, portSources, conditionSource, sep } = extractTextPortConfig(txNode, graph, nodeId)
   if (connectedPorts.length === 0) return []
-
-  const portSources = connectedPorts.map((portId) => {
-    const edge = graph.edges.find((e) => e.target === nodeId && e.targetHandle === portId)
-    if (!edge || !edge.sourceHandle?.startsWith('param-out-')) return null
-    return {
-      sourceNodeId:   edge.source,
-      sourceParamKey: edge.sourceHandle.slice('param-out-'.length),
-    }
-  })
-
-  const conditionEdge = graph.edges.find(
-    (e) => e.target === nodeId && e.targetHandle === 'txo-condition' && e.sourceHandle?.startsWith('param-out-')
-  )
-  const conditionSource = conditionEdge
-    ? { sourceNodeId: conditionEdge.source, sourceParamKey: conditionEdge.sourceHandle?.slice('param-out-'.length) ?? '' }
-    : null
-
-  const sep = getSeparator(separatorType, customSep)
 
   const ctx = buildResolveContext(graph, registry)
   const allResolved = await Promise.all(
@@ -557,29 +559,8 @@ export function registerTextOutputHandlers(
       if (!outputPath) throw new Error('No output path set on the Text Output node.')
       if (imagePaths.length === 0) throw new Error('No images are loaded.')
 
-      const separatorType = (p.separatorType as string) ?? 'comma'
-      const customSep     = (p.customSeparator as string) ?? ''
-      const portIds       = (p.portIds as string[]) ?? []
-
-      const connectedPorts = portIds.slice(0, -1).filter((pid) =>
-        graph.edges.some((e) => e.target === nodeId && e.targetHandle === pid)
-      )
+      const { connectedPorts, portSources, conditionSource, sep } = extractTextPortConfig(txNode, graph, nodeId)
       if (connectedPorts.length === 0) throw new Error('No input ports are connected.')
-
-      const portSources = connectedPorts.map((portId) => {
-        const edge = graph.edges.find((e) => e.target === nodeId && e.targetHandle === portId)
-        if (!edge || !edge.sourceHandle?.startsWith('param-out-')) return null
-        return { sourceNodeId: edge.source, sourceParamKey: edge.sourceHandle.slice('param-out-'.length) }
-      })
-
-      const conditionEdge = graph.edges.find(
-        (e) => e.target === nodeId && e.targetHandle === 'txo-condition' && e.sourceHandle?.startsWith('param-out-')
-      )
-      const conditionSource = conditionEdge
-        ? { sourceNodeId: conditionEdge.source, sourceParamKey: conditionEdge.sourceHandle?.slice('param-out-'.length) ?? '' }
-        : null
-
-      const sep = getSeparator(separatorType, customSep)
 
       _writeCancelled = false
       const win = getWin()
