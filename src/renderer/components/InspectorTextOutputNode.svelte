@@ -13,6 +13,7 @@
   const params = $derived(getNodeParams(selectedNode?.data))
 
   const outputPath    = $derived((params.outputPath    as string) ?? '')
+  const generateLog   = $derived(Boolean(params.generateLog ?? false))
   const separatorType = $derived((params.separatorType as string) ?? 'comma')
   const customSep     = $derived((params.customSeparator as string) ?? '')
   const portIds       = $derived((params.portIds as string[]) ?? ['txo-0'])
@@ -198,6 +199,7 @@
         graph,
         imagePaths: imageStore.images.map((img) => img.path),
         nodeId: selectedNode.id,
+        generateLog,
       }) as string
       lastWritten  = result
       writeSuccess = true
@@ -290,6 +292,16 @@
         {/each}
       </div>
     {/if}
+  </div>
+
+  <!-- ── Output Log ─────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Output Log</div>
+    <label class="log-toggle">
+      <input type="checkbox" checked={generateLog}
+        onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)} />
+      <span>Generate .log file</span>
+    </label>
   </div>
 
   <!-- ── Write Button ───────────────────────────────────────────────── -->
@@ -544,6 +556,18 @@
     text-align: center;
     padding: 4px 0 2px;
     font-style: italic;
+  }
+
+  /* ── Log toggle ── */
+  .log-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-bright);
+    user-select: none;
   }
 
   /* ── Write section ── */

@@ -869,7 +869,8 @@ export class PipelineExecutor {
     overwrite: 'skip' | 'overwrite',
     registry: NodeRegistry,
     onProgress: (p: Progress) => void
-  ): Promise<{ processed: number; skipped: number; failed: number }> {
+  ): Promise<{ processed: number; skipped: number; failed: number; outputFiles: string[] }> {
+    const outputFiles: string[] = []
     const sorted = topoSort(graph.nodes, graph.edges)
 
     // Text Output nodes — treated as "output sinks" so upstream nodes (mean_value, etc.)
@@ -1403,6 +1404,7 @@ export class PipelineExecutor {
                 }
               }
               await fs.promises.copyFile(resultPath, outPath)
+              outputFiles.push(outPath)
             }
           } else {
             // Single-command fast path
@@ -1437,6 +1439,7 @@ export class PipelineExecutor {
               } else {
                 await fs.promises.copyFile(inputPath, outPath)
               }
+              outputFiles.push(outPath)
             }
           }
         } catch (err) {
@@ -1481,12 +1484,13 @@ export class PipelineExecutor {
         const dir = path.dirname(path.resolve(filePath))
         await fs.promises.mkdir(dir, { recursive: true })
         await fs.promises.writeFile(filePath, content, { flag: appendMode ? 'a' : 'w' })
+        outputFiles.push(filePath)
       } catch (err) {
         console.error('[executor] Failed to write text output file:', err)
       }
     }
 
-    return { processed: completed - failures - skipped, skipped, failed: failures }
+    return { processed: completed - failures - skipped, skipped, failed: failures, outputFiles }
   }
 
   // ── CLI script export ────────────────────────────────────────────────────────

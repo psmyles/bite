@@ -148,6 +148,7 @@ function buildMenu() {
       label: 'Help',
       submenu: [
         { label: 'About',   click: send('menu:about') },
+        { label: 'Documentation', click: () => { shell.openExternal('https://github.com/psmyles/imgplex/wiki') } },
         { label: 'Credits', click: send('menu:credits') },
       ],
     },

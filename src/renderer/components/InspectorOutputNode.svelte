@@ -47,6 +47,7 @@
       const result = await window.ipcRenderer.invoke(IPC.ATLAS_GENERATE, imagePaths, {
         outputPath: flipbookOutputPath,
         rows, cols, cellWidth, cellHeight, sortBy,
+        generateLog,
       }) as string
       flipbookDone = true
       flipbookPath = result
@@ -65,8 +66,9 @@
 
   let { selectedNode }: { selectedNode: Node } = $props()
 
-  const params     = $derived(getNodeParams(selectedNode?.data))
-  const outputMode = $derived((params.outputMode as string) ?? 'image')
+  const params      = $derived(getNodeParams(selectedNode?.data))
+  const outputMode  = $derived((params.outputMode as string) ?? 'image')
+  const generateLog = $derived(Boolean(params.generateLog ?? false))
 
   // Detect a connected Folder Path node on the folder-in handle
   const folderEdge = $derived(
@@ -184,7 +186,7 @@
     graphStore.batchElapsedMs = null
 
     try {
-      const result = await window.ipcRenderer.invoke(IPC.EXECUTE_BATCH, graph, imagePaths, outputDir, overwrite) as { processed: number; skipped: number; failed: number }
+      const result = await window.ipcRenderer.invoke(IPC.EXECUTE_BATCH, graph, imagePaths, outputDir, overwrite, generateLog) as { processed: number; skipped: number; failed: number }
       graphStore.batchDone        = true
       graphStore.batchElapsedMs   = performance.now() - (graphStore.batchStartTime ?? performance.now())
       graphStore.batchSummary     = { ...result, outputDir }
@@ -340,6 +342,16 @@
   </div>
 </div>
 
+<!-- Output log -->
+<div class="param-row">
+  <span class="param-label">Output log</span>
+  <label class="log-toggle">
+    <input type="checkbox" checked={generateLog}
+      onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)} />
+    <span>Generate .log file</span>
+  </label>
+</div>
+
 <!-- Generate button -->
 {#if !IS_ELECTRON}
   <p class="web-note">Flipbook generation requires the desktop app.</p>
@@ -406,6 +418,16 @@
     labels={['Skip existing', 'Overwrite']}
     onchange={(v) => { graphStore.setParam(selectedNode.id, 'overwrite', v) }}
   />
+</div>
+
+<!-- Output log -->
+<div class="param-row">
+  <span class="param-label">Output log</span>
+  <label class="log-toggle">
+    <input type="checkbox" checked={generateLog}
+      onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)} />
+    <span>Generate .log file</span>
+  </label>
 </div>
 
 <!-- Run Process (desktop only) -->
@@ -513,6 +535,18 @@
   }
 
   .summary-val.warn { color: #fbbf24; }
+
+  /* ── Log toggle ── */
+  .log-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-bright);
+    user-select: none;
+  }
 
   /* ── Generate section ── */
   .gen-section {
