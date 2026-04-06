@@ -53,7 +53,19 @@ class ImageStore {
     window.ipcRenderer.on(IPC.LOAD_IMAGES_STREAMING_RESULT, onResult)
 
     try {
-      await window.ipcRenderer.invoke(IPC.LOAD_IMAGES_STREAMING_START, paths, THUMBNAIL_SIZE_PX)
+      const allResults: ImageInfo[] = await window.ipcRenderer.invoke(IPC.LOAD_IMAGES_STREAMING_START, paths, THUMBNAIL_SIZE_PX)
+      // Backfill any results that arrived after the listener was removed (IPC race).
+      if (Array.isArray(allResults)) {
+        const addedPaths = new Set(allAdded.map(img => img.path))
+        for (const info of allResults) {
+          if (!addedPaths.has(info.path)) {
+            const idx = this.images.length
+            this.images.push(info)
+            if (autoSelect && this.selectedIndex === -1) this.selectedIndex = idx
+            allAdded.push(info)
+          }
+        }
+      }
     } catch (err) {
       console.error('[imageStore] Streaming import failed:', err)
     } finally {

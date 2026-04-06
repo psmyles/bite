@@ -90,6 +90,7 @@ export function registerPipelineHandlers(
     // Each worker picks a chunk of BATCH_SIZE images and runs them in one spawn.
     const BATCH_SIZE = 8
     let idx = 0
+    const allResults: import('../../shared/types.js').ImageInfo[] = []
 
     async function worker(): Promise<void> {
       while (true) {
@@ -101,6 +102,7 @@ export function registerPipelineHandlers(
         try {
           const results = await executor.loadImageWithThumbnailBatch(batch, size)
           for (const result of results) {
+            allResults.push(result)
             if (!_streamCancelled) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result)
           }
         } catch (err) {
@@ -110,6 +112,9 @@ export function registerPipelineHandlers(
     }
 
     await Promise.all(Array.from({ length: concurrency }, worker))
+    // Return all results so the renderer can recover any events that arrived
+    // after the listener was torn down (IPC send vs invoke-resolve race).
+    return allResults
   })
 
   ipcMain.handle(IPC.GENERATE_THUMBNAIL, async (_e, imagePath: string, size: number) => {
