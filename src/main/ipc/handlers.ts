@@ -127,6 +127,8 @@ export function registerPipelineHandlers(
     }
   )
 
+  ipcMain.handle(IPC.EXECUTE_BATCH_CANCEL, () => { executor.cancelBatch() })
+
   ipcMain.handle(
     IPC.EXECUTE_BATCH,
     async (_e, graph: NodeGraph, imagePaths: string[], outputDir: string | null, overwrite: 'skip' | 'overwrite', generateLog: boolean) => {

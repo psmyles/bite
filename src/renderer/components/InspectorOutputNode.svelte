@@ -132,6 +132,10 @@
     return `~${Math.floor(s / 60)}m ${s % 60}s left`
   }
 
+  function cancelBatch() {
+    window.ipcRenderer.invoke(IPC.EXECUTE_BATCH_CANCEL)
+  }
+
   async function runBatch() {
     if (graphStore.batchRunning) return
 
@@ -444,28 +448,6 @@
     {graphStore.batchRunning ? 'Processing…' : 'Run Process'}
   </button>
 
-  {#if graphStore.batchRunning && graphStore.batchProgress}
-    {@const p = graphStore.batchProgress}
-    <div class="batch-progress">
-      <div class="batch-bar-track">
-        <div class="batch-bar-fill" style="width: {(p.completed / p.total) * 100}%"></div>
-      </div>
-      <div class="batch-status-row">
-        <span class="batch-count">{p.completed} / {p.total}</span>
-        <span class="batch-timer">{eta != null ? fmtEta(eta) : `${elapsed}s`}</span>
-      </div>
-      <span class="batch-filename">{p.currentFile}</span>
-    </div>
-  {:else if graphStore.batchRunning}
-    <div class="batch-progress">
-      <div class="batch-bar-track"><div class="batch-bar-fill" style="width: 0%"></div></div>
-      <div class="batch-status-row">
-        <span class="batch-count">Starting…</span>
-        <span class="batch-timer">{elapsed}s</span>
-      </div>
-    </div>
-  {/if}
-
   {#if graphStore.batchDone && !graphStore.batchRunning && graphStore.batchSummary}
     <button class="summary-btn" class:has-errors={!!graphStore.batchError} onclick={() => { graphStore.batchSummaryOpen = true }}>
       {graphStore.batchError ? 'View Summary (errors)' : 'View Summary'}
@@ -477,6 +459,47 @@
   {/if}
 </div>
 
+{/if}
+
+{#if graphStore.batchRunning}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="batch-backdrop">
+    <div class="batch-modal" role="dialog" aria-modal="true" aria-label="Processing">
+      <div class="batch-modal-header">
+        <span class="batch-modal-title">Processing</span>
+      </div>
+      <div class="batch-modal-body">
+        {#if graphStore.batchProgress}
+          {@const p = graphStore.batchProgress}
+          <div class="batch-count-row">
+            <span class="batch-count-done">{p.completed}</span>
+            <span class="batch-count-sep">/</span>
+            <span class="batch-count-total">{p.total}</span>
+            <span class="batch-count-label">images</span>
+          </div>
+          <div class="batch-progress-track">
+            <div class="batch-progress-fill" style="width: {Math.round(p.completed / p.total * 100)}%"></div>
+          </div>
+          <div class="batch-pct-label">
+            {Math.round(p.completed / p.total * 100)}%
+            &nbsp;·&nbsp;
+            {eta != null ? fmtEta(eta) : `${elapsed}s`}
+          </div>
+        {:else}
+          <div class="batch-count-row">
+            <span class="batch-count-label">Starting…</span>
+          </div>
+          <div class="batch-progress-track">
+            <div class="batch-progress-fill" style="width: 0%"></div>
+          </div>
+          <div class="batch-pct-label">{elapsed}s</div>
+        {/if}
+      </div>
+      <div class="batch-modal-footer">
+        <button class="batch-cancel-btn" onclick={cancelBatch}>Cancel</button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <style>
@@ -706,54 +729,123 @@
   .run-btn:disabled { opacity: 0.5; cursor: default; }
   .run-btn.running { opacity: 0.6; }
 
-  .batch-progress {
+  /* ── Batch progress modal ── */
+  .batch-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .batch-modal {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    width: 280px;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+
+  .batch-modal-header {
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  }
+
+  .batch-modal-title {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+
+  .batch-modal-body {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .batch-count-row {
+    display: flex;
+    align-items: baseline;
     gap: 4px;
   }
 
-  .batch-bar-track {
-    height: 3px;
+  .batch-count-done {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+
+  .batch-count-sep {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--text);
+    opacity: 0.5;
+  }
+
+  .batch-count-total {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--text);
+  }
+
+  .batch-count-label {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text);
+    opacity: 0.6;
+    margin-left: 4px;
+  }
+
+  .batch-progress-track {
+    height: 4px;
     border-radius: 2px;
     background: color-mix(in srgb, var(--border) 60%, transparent);
     overflow: hidden;
   }
 
-  .batch-bar-fill {
+  .batch-progress-fill {
     height: 100%;
     background: var(--accent);
     border-radius: 2px;
     transition: width 0.2s;
   }
 
-  .batch-status-row {
+  .batch-pct-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text);
+    opacity: 0.7;
+  }
+
+  .batch-modal-footer {
+    padding: 10px 16px 12px;
+    border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 6px;
+    justify-content: flex-end;
   }
 
-  .batch-timer {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text);
-    flex-shrink: 0;
-  }
-
-  .batch-count {
-    font-family: var(--font-mono);
-    font-size: 11px;
+  .batch-cancel-btn {
+    padding: 5px 16px;
+    background: color-mix(in srgb, var(--border) 30%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 4px;
     color: var(--text-bright);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+    transition: opacity 0.15s;
   }
 
-  .batch-filename {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .batch-cancel-btn:hover { opacity: 0.75; }
 
   .summary-btn {
     width: 100%;

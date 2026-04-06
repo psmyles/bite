@@ -21,6 +21,7 @@ export const IPC = {
   GENERATE_THUMBNAIL: 'pipeline:generate-thumbnail',
   EXECUTE_PREVIEW: 'pipeline:execute-preview',
   EXECUTE_BATCH: 'pipeline:execute-batch',
+  EXECUTE_BATCH_CANCEL: 'pipeline:execute-batch-cancel',
   EXPORT_CLI: 'pipeline:export-cli',
   // File dialogs
   OPEN_IMAGES_DIALOG:  'dialog:open-images',

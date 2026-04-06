@@ -201,6 +201,9 @@ async function readHeaderDimensions(filePath: string): Promise<HeaderDims | null
 export class PipelineExecutor {
   private previewCache = new PreviewCache()
   private _metaCache   = new Map<string, { width: number; height: number; format: string }>()
+  private _batchCancelled = false
+
+  cancelBatch(): void { this._batchCancelled = true }
 
   // ── Image metadata ──────────────────────────────────────────────────────────
 
@@ -1371,6 +1374,8 @@ export class PipelineExecutor {
     // oversubscription (e.g. 26 images on 24 cores) costs less than a full extra round.
     // JS single-threaded event loop guarantees queueIdx++ is race-free.
     const concurrency = Math.min(128, imagePaths.length)
+    this._batchCancelled = false
+    const self = this
     let queueIdx = 0
     let completed = 0
     let failures = 0
@@ -1382,6 +1387,7 @@ export class PipelineExecutor {
 
     async function processOne(): Promise<void> {
       while (queueIdx < imagePaths.length) {
+        if (self._batchCancelled) return
         const imageIndex = queueIdx          // 0-based index for rename numbering
         const inputPath  = imagePaths[queueIdx++]
         const fileName   = path.basename(inputPath)
