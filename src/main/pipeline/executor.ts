@@ -12,7 +12,7 @@ import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js'
 import { getExecutor } from './executorRegistry.js'
 import './imageNodeExecutors.js'
 import { PreviewCache } from './cache.js'
-import { computeNodeParams, loadImageMeta, loadImageMean, loadImageChannelMean, getSeparator, buildEmptyImageMeta, type ImageMeta } from './executor-compute.js'
+import { computeNodeParams, loadImageMeta, loadImageMean, loadImageChannelMean, loadMultipleChannelMeans, getSeparator, buildEmptyImageMeta, type ImageMeta } from './executor-compute.js'
 import { getMagickBinary } from './magick-path.js'
 import { cliScriptPS, cliScriptBash, cliScriptCmd } from './executor-cli.js'
 import { computeNewName, type RenameParams } from '../../shared/renameUtils.js'
@@ -57,22 +57,12 @@ export function topoSort(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// Set IMGPLEX_DEBUG_BATCH=1 to log per-spawn and per-image timing to the console.
-const BATCH_DEBUG = process.env.IMGPLEX_DEBUG_BATCH === '1'
-
-
-function spawnMagick(args: string[], _debugLabel?: string): Promise<void> {
+function spawnMagick(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const t0 = BATCH_DEBUG ? performance.now() : 0
     const proc = spawn(getMagickBinary(), args)
     const stderr: string[] = []
     proc.stderr.on('data', (chunk: Buffer) => stderr.push(chunk.toString()))
     proc.on('close', (code) => {
-      if (BATCH_DEBUG) {
-        const ms = (performance.now() - t0).toFixed(0)
-        const op = args.find(a => a.startsWith('-') && !a.startsWith('-channel') && !a.startsWith('-write') && !a.startsWith('-evaluate') && !a.startsWith('-limit')) ?? args[args.length - 1]
-        console.log(`  [magick] ${_debugLabel ?? op} — ${ms}ms  (MAGICK_THREAD_LIMIT=${process.env.MAGICK_THREAD_LIMIT ?? 'unset'})`)
-      }
       if (code === 0) resolve()
       else reject(new Error(`magick exited ${code}: ${stderr.join('').trim()}`))
     })
@@ -1138,6 +1128,31 @@ export class PipelineExecutor {
         meta = buildEmptyImageMeta(inputPath)
       }
 
+      // Pre-compute all channel means for analysis-only split nodes in a single magick
+      // spawn per source image, instead of one spawn per channel per mean_value node.
+      // Key: srcKey (e.g. "workflow-input:out-0"), Value: array indexed by channelIdx.
+      const precomputedMeans = new Map<string, number[]>()
+      if (channelMeanSources.size > 0) {
+        const bySourceKey = new Map<string, number[]>()
+        for (const { srcKey, channelIdx } of channelMeanSources.values()) {
+          if (!bySourceKey.has(srcKey)) bySourceKey.set(srcKey, [])
+          const arr = bySourceKey.get(srcKey)!
+          if (!arr.includes(channelIdx)) arr.push(channelIdx)
+        }
+        for (const [srcKey, indices] of bySourceKey) {
+          try {
+            indices.sort((a, b) => a - b)
+            const resolvedSrc = await mat(srcKey)
+            const means = await loadMultipleChannelMeans(resolvedSrc, indices)
+            const byIdx: number[] = []
+            for (let i = 0; i < indices.length; i++) byIdx[indices[i]] = means[i]
+            precomputedMeans.set(srcKey, byIdx)
+          } catch (err) {
+            console.warn(`[executor] loadMultipleChannelMeans failed for ${srcKey}:`, err)
+          }
+        }
+      }
+
       // Track the effective output extension (updated by format_convert nodes).
       let outputExt = path.extname(inputPath)
 
@@ -1273,7 +1288,8 @@ export class PipelineExecutor {
             const srcSlot = imgInEdge ? `${imgInEdge.source}:${imgInEdge.sourceHandle ?? 'out-0'}` : undefined
             const chanInfo = srcSlot ? channelMeanSources.get(srcSlot) : undefined
             const value = chanInfo
-              ? await loadImageChannelMean(await mat(chanInfo.srcKey), chanInfo.channelIdx)
+              ? (precomputedMeans.get(chanInfo.srcKey)?.[chanInfo.channelIdx]
+                  ?? await loadImageChannelMean(await mat(chanInfo.srcKey), chanInfo.channelIdx))
               : await loadImageMean(await getImg(node.id, 0))
             resolvedParams.set(node.id, { ...rawParams, value })
           } catch (err) {
@@ -1359,8 +1375,6 @@ export class PipelineExecutor {
     let completed = 0
     let failures = 0
     let skipped = 0
-    let activeWorkers = 0
-    let peakWorkers = 0
 
     // Resolve rename node params once (shared across all images — index varies per image)
     const renameNode = sorted.find((n) => registry.get(n.data.definitionId)?.executor === 'rename')
@@ -1373,10 +1387,6 @@ export class PipelineExecutor {
         const fileName   = path.basename(inputPath)
         // Apply rename transform to determine the output filename stem
         const renamedFileName = renameParams ? computeNewName(fileName, renameParams, imageIndex) : fileName
-        const imgT0 = BATCH_DEBUG ? performance.now() : 0
-        activeWorkers++
-        if (activeWorkers > peakWorkers) peakWorkers = activeWorkers
-        if (BATCH_DEBUG) console.log(`[batch] START  ${fileName}  (active=${activeWorkers})`)
         try {
           const targetDir = outputDir ?? path.dirname(inputPath)
           await fs.promises.mkdir(targetDir, { recursive: true })
@@ -1446,8 +1456,6 @@ export class PipelineExecutor {
           failures++
           console.error(`[executor] Failed to process ${fileName}:`, err)
         }
-        activeWorkers--
-        if (BATCH_DEBUG) console.log(`[batch] DONE   ${fileName}  — ${(performance.now() - imgT0).toFixed(0)}ms  (active=${activeWorkers})`)
         onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
       }
     }
@@ -1459,17 +1467,12 @@ export class PipelineExecutor {
     const threadsPerProcess = Math.max(1, Math.floor(os.cpus().length / concurrency))
     const prevThreadLimit = process.env.MAGICK_THREAD_LIMIT
     process.env.MAGICK_THREAD_LIMIT = String(threadsPerProcess)
-    if (BATCH_DEBUG) console.log(`[batch] concurrency=${concurrency}  threadsPerProcess=${threadsPerProcess}  images=${imagePaths.length}  cpus=${os.cpus().length}`)
-
-    const batchT0 = BATCH_DEBUG ? performance.now() : 0
     try {
       await Promise.all(Array.from({ length: concurrency }, processOne))
     } finally {
       if (prevThreadLimit !== undefined) process.env.MAGICK_THREAD_LIMIT = prevThreadLimit
       else delete process.env.MAGICK_THREAD_LIMIT
     }
-    if (BATCH_DEBUG) console.log(`[batch] TOTAL ${(performance.now() - batchT0).toFixed(0)}ms  peakWorkers=${peakWorkers}`)
-
     // Write collected text output lines to disk (preserving input order).
     if (hasTextOutputNodes && collectedTextLines.length > 0) {
       collectedTextLines.sort((a, b) => a.index - b.index)

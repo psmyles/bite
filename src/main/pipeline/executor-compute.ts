@@ -150,6 +150,24 @@ export async function loadImageChannelMean(imagePath: string, channelIdx: number
   return parseFloat(output) || 0
 }
 
+/** Fetch means for multiple channels in a single magick spawn.
+ *  channelIndices must be sorted ascending. Returns means in the same order. */
+export async function loadMultipleChannelMeans(imagePath: string, channelIndices: readonly number[]): Promise<number[]> {
+  if (channelIndices.length === 0) return []
+  if (channelIndices.length === 1) return [await loadImageChannelMean(imagePath, channelIndices[0])]
+  const format = channelIndices.map(i => `%[fx:${CHANNEL_FX[i] ?? 'mean'}]`).join('\n')
+  const output = await new Promise<string>((resolve, reject) => {
+    const proc = spawn(getMagickBinary(), [`${imagePath}[0]`, '-format', format, 'info:'])
+    const out: string[] = []
+    const err: string[] = []
+    proc.stdout.on('data', (c: Buffer) => out.push(c.toString()))
+    proc.stderr.on('data', (c: Buffer) => err.push(c.toString()))
+    proc.on('close', (code) => code === 0 ? resolve(out.join('').trim()) : reject(new Error(err.join('').trim())))
+    proc.on('error', reject)
+  })
+  return output.split('\n').map(v => parseFloat(v) || 0)
+}
+
 // ─── Text output helpers ──────────────────────────────────────────────────────
 
 /** Maps a user-facing separator type to the actual separator string. */
@@ -404,8 +422,8 @@ export function computeNodeParamsUnsafe(
 
     default:
       // executorKey === undefined means image node (caller passes undefined intentionally)
-      // Any other unrecognised key is a bug — warn so it doesn't silently produce wrong output
-      if (executorKey !== undefined) {
+      // 'comment' is a UI-only node with no computation — skip the warning for it.
+      if (executorKey !== undefined && executorKey !== 'comment') {
         console.warn(`[executor] Unknown executor key: "${executorKey}" — params returned unchanged. Add a case to computeNodeParams.`)
       }
       return params

@@ -1,7 +1,6 @@
 import { ipcMain, dialog, app, shell } from 'electron'
 import type { BrowserWindow } from 'electron'
-import { readFileSync, writeFileSync, chmodSync, readdirSync } from 'node:fs'
-import fs from 'node:fs'
+import fs, { readFileSync, writeFileSync, chmodSync, readdirSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
@@ -9,7 +8,7 @@ import { getMagickBinary } from '../pipeline/magick-path.js'
 import type { GraphEdge, NodeGraph } from '../../shared/types.js'
 import type { NodeRegistry } from '../nodes/registry.js'
 import { PipelineExecutor, topoSort } from '../pipeline/executor.js'
-import { computeNodeParams, loadImageMeta, loadImageMean, loadImageChannelMean, getSeparator, buildEmptyImageMeta } from '../pipeline/executor-compute.js'
+import { computeNodeParams, loadImageMeta, loadImageMean, loadImageChannelMean, loadMultipleChannelMeans, getSeparator, buildEmptyImageMeta } from '../pipeline/executor-compute.js'
 import { IPC } from '../../shared/constants.js'
 
 export function registerRegistryHandlers(
@@ -132,7 +131,7 @@ export function registerPipelineHandlers(
     IPC.EXECUTE_BATCH,
     async (_e, graph: NodeGraph, imagePaths: string[], outputDir: string | null, overwrite: 'skip' | 'overwrite', generateLog: boolean) => {
       const t0 = Date.now()
-      const result = await executor.executeBatch(graph, imagePaths, outputDir, overwrite ?? 'skip', registry, (progress) => {
+      const result = await executor.executeBatch(graph, imagePaths, outputDir, overwrite, registry, (progress) => {
         getWin()?.webContents.send(`${IPC.EXECUTE_BATCH}:progress`, progress)
       })
       if (generateLog) {
@@ -328,10 +327,10 @@ function valueToString(val: unknown): string {
   if (val === null || val === undefined) return ''
   if (typeof val === 'boolean') return val ? 'true' : 'false'
   if (typeof val === 'number') {
-    return Number.isInteger(val) ? String(val) : parseFloat(val.toFixed(4)).toString()
+    return Number.isInteger(val) ? String(val) : val.toFixed(4).replace(/\.?0+$/, '')
   }
   if (Array.isArray(val)) {
-    return (val as number[]).map((n) => parseFloat(Number(n).toFixed(4)).toString()).join(', ')
+    return (val as number[]).map((n) => Number(n).toFixed(4).replace(/\.?0+$/, '')).join(', ')
   }
   return String(val)
 }
@@ -379,6 +378,35 @@ async function resolveParamsForImage(
   const meta = needsMagickMeta
     ? await loadImageMeta(imagePath)
     : buildEmptyImageMeta(imagePath)
+
+  // Pre-scan all mean_value nodes and batch their channel reads into a single spawn.
+  const meanValueChannelMap = new Map<string, number>() // nodeId → channelIdx (-1 = whole-image mean)
+  const channelIndicesNeeded: number[] = []
+  for (const node of sorted) {
+    const def = registry.get(node.data.definitionId)
+    if (!def || def.executor !== 'mean_value') continue
+    const inEdges = edgesByTarget.get(node.id) ?? []
+    const imgInEdge = inEdges.find(e => e.targetHandle === 'in-0')
+    if (imgInEdge) {
+      const srcNode = nodeMap.get(imgInEdge.source)
+      const srcDef = registry.get(srcNode?.data.definitionId ?? '')
+      const channelIdx = parseInt((imgInEdge.sourceHandle ?? '').replace('out-', ''), 10)
+      if (srcDef?.executor === 'channel_split' && !isNaN(channelIdx)) {
+        meanValueChannelMap.set(node.id, channelIdx)
+        if (!channelIndicesNeeded.includes(channelIdx)) channelIndicesNeeded.push(channelIdx)
+        continue
+      }
+    }
+    meanValueChannelMap.set(node.id, -1)
+  }
+  const batchedChannelMeans = new Map<number, number>()
+  if (channelIndicesNeeded.length > 0) {
+    try {
+      channelIndicesNeeded.sort((a, b) => a - b)
+      const means = await loadMultipleChannelMeans(imagePath, channelIndicesNeeded)
+      channelIndicesNeeded.forEach((idx, i) => batchedChannelMeans.set(idx, means[i]))
+    } catch { /* fallback to per-channel calls in the loop below */ }
+  }
 
   for (const node of sorted) {
     const def = registry.get(node.data.definitionId)
@@ -429,18 +457,10 @@ async function resolveParamsForImage(
 
     if (def.executor === 'mean_value') {
       try {
-        // Trace in-0 back to channel_split to get the correct channel index
-        const imgInEdge = inEdges.find(e => e.targetHandle === 'in-0')
+        const channelIdx = meanValueChannelMap.get(node.id) ?? -1
         let value: number
-        if (imgInEdge) {
-          const srcNode = nodeMap.get(imgInEdge.source)
-          const srcDef = registry.get(srcNode?.data.definitionId ?? '')
-          const channelIdx = parseInt((imgInEdge.sourceHandle ?? '').replace('out-', ''), 10)
-          if (srcDef?.executor === 'channel_split' && !isNaN(channelIdx)) {
-            value = await loadImageChannelMean(imagePath, channelIdx)
-          } else {
-            value = await loadImageMean(imagePath)
-          }
+        if (channelIdx >= 0) {
+          value = batchedChannelMeans.get(channelIdx) ?? await loadImageChannelMean(imagePath, channelIdx)
         } else {
           value = await loadImageMean(imagePath)
         }
@@ -569,29 +589,36 @@ export function registerTextOutputHandlers(
 
       _writeCancelled = false
       const win = getWin()
-      const lines: string[] = []
       const ctx = buildResolveContext(graph, registry)
+      const total = imagePaths.length
+      const concurrency = Math.min(os.cpus().length, total)
+      const queue = [...imagePaths.keys()] // shared index queue
+      let done = 0
+      const collectedLines: { index: number; line: string }[] = []
 
-      for (let i = 0; i < imagePaths.length; i++) {
-        if (_writeCancelled) break
-        const resolvedParams = await resolveParamsForImage(graph, imagePaths[i], registry, ctx)
-
-        if (conditionSource) {
-          const condVal = resolvedParams.get(conditionSource.sourceNodeId)?.[conditionSource.sourceParamKey]
-          if (!condVal) {
-            win?.webContents.send(IPC.TEXT_OUTPUT_WRITE_PROGRESS, { done: i + 1, total: imagePaths.length })
-            continue
+      const worker = async (): Promise<void> => {
+        while (true) {
+          if (_writeCancelled) return
+          const i = queue.shift()
+          if (i === undefined) return
+          const resolvedParams = await resolveParamsForImage(graph, imagePaths[i], registry, ctx)
+          done++
+          win?.webContents.send(IPC.TEXT_OUTPUT_WRITE_PROGRESS, { done, total })
+          if (conditionSource) {
+            const condVal = resolvedParams.get(conditionSource.sourceNodeId)?.[conditionSource.sourceParamKey]
+            if (!condVal) continue
           }
+          const values = portSources.map((ps) => {
+            if (!ps) return ''
+            const resolved = resolvedParams.get(ps.sourceNodeId)
+            return valueToString(resolved?.[ps.sourceParamKey])
+          })
+          collectedLines.push({ index: i, line: values.join(sep) })
         }
-
-        const values = portSources.map((ps) => {
-          if (!ps) return ''
-          const resolved = resolvedParams.get(ps.sourceNodeId)
-          return valueToString(resolved?.[ps.sourceParamKey])
-        })
-        lines.push(values.join(sep))
-        win?.webContents.send(IPC.TEXT_OUTPUT_WRITE_PROGRESS, { done: i + 1, total: imagePaths.length })
       }
+
+      await Promise.all(Array.from({ length: concurrency }, worker))
+      const lines = collectedLines.sort((a, b) => a.index - b.index).map(r => r.line)
 
       if (_writeCancelled) throw new Error('CANCELLED')
 
