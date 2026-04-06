@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite'
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
 import electron from 'vite-plugin-electron/simple'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string }
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   plugins: [
     svelte(),
     electron({

@@ -37,7 +37,7 @@
         A node-based image processing tool powered by ImageMagick.
       </p>
 
-      <p class="version">Version 0.1.1</p>
+      <p class="version">Version {__APP_VERSION__}</p>
 
       <div class="link-row">
         <button class="link-btn" onclick={() => openUrl('https://github.com/psmyles/imgplex')}>
