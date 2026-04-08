@@ -147,9 +147,10 @@ function buildMenu() {
     {
       label: 'Help',
       submenu: [
-        { label: 'About',   click: send('menu:about') },
+        { label: 'About',         click: send('menu:about') },
         { label: 'Documentation', click: () => { shell.openExternal('https://github.com/psmyles/imgplex/wiki') } },
-        { label: 'Credits', click: send('menu:credits') },
+        { label: 'Report a bug',  click: () => { shell.openExternal('https://github.com/psmyles/imgplex/issues/new') } },
+        { label: 'Credits',       click: send('menu:credits') },
       ],
     },
   ]

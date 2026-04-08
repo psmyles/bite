@@ -1,17 +1,19 @@
 <script lang="ts">
   interface Props {
-    onNew:       () => void
-    onOpen:      () => void
-    onSave:      () => void
-    onSaveAs:    () => void
-    onDuplicate: () => void
-    onDelete:    () => void
-    onAbout:     () => void
-    onCredits:   () => void
-    title:       string
+    onNew:           () => void
+    onOpen:          () => void
+    onSave:          () => void
+    onSaveAs:        () => void
+    onDuplicate:     () => void
+    onDelete:        () => void
+    onAbout:         () => void
+    onDocumentation: () => void
+    onBug:           () => void
+    onCredits:       () => void
+    title:           string
   }
 
-  let { onNew, onOpen, onSave, onSaveAs, onDuplicate, onDelete, onAbout, onCredits, title }: Props = $props()
+  let { onNew, onOpen, onSave, onSaveAs, onDuplicate, onDelete, onAbout, onDocumentation, onBug, onCredits, title }: Props = $props()
 
   let openMenu: string | null = $state(null)
 
@@ -97,6 +99,8 @@
     {#if openMenu === 'help'}
       <ul class="dropdown">
         <li><button onclick={() => run(onAbout)}>About</button></li>
+        <li><button onclick={() => run(onDocumentation)}>Documentation</button></li>
+        <li><button onclick={() => run(onBug)}>Report a bug</button></li>
         <li><button onclick={() => run(onCredits)}>Credits</button></li>
       </ul>
     {/if}

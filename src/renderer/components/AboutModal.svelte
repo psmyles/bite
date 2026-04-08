@@ -1,7 +1,4 @@
 <script lang="ts">
-  import { IS_ELECTRON } from '../platform.js'
-  import { IPC } from '../../shared/constants.js'
-
   interface Props { onClose: () => void }
   let { onClose }: Props = $props()
 
@@ -11,14 +8,6 @@
 
   function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') onClose()
-  }
-
-  function openUrl(url: string) {
-    if (IS_ELECTRON) {
-      window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url)
-    } else {
-      window.open(url, '_blank')
-    }
   }
 </script>
 
@@ -38,17 +27,6 @@
       </p>
 
       <p class="version">Version {__APP_VERSION__}</p>
-
-      <div class="link-row">
-        <button class="link-btn" onclick={() => openUrl('https://github.com/psmyles/imgplex')}>
-          GitHub repository
-        </button>
-      </div>
-      <div class="link-row">
-        <button class="link-btn" onclick={() => openUrl('https://github.com/psmyles/imgplex/issues/new')}>
-          Report a bug
-        </button>
-      </div>
     </div>
   </div>
 </div>
@@ -126,30 +104,7 @@
   .version {
     font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--text);
-    opacity: 0.5;
+    color: var(--accent);
     margin: -8px 0 0;
-  }
-
-  .link-row {
-    display: flex;
-    gap: 12px;
-  }
-
-  .link-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    font-family: var(--font-ui);
-    font-size: var(--font-size-base);
-    color: var(--ctx-text);
-    cursor: pointer;
-    text-align: left;
-    transition: color 0.12s;
-  }
-
-  .link-btn:hover {
-    color: var(--text-bright);
-    text-decoration: underline;
   }
 </style>

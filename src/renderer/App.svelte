@@ -191,6 +191,18 @@
   let showAbout = $state(false)
   function handleAbout() { showAbout = true }
 
+  function handleDocumentation() {
+    const url = 'https://github.com/psmyles/imgplex/wiki'
+    if (IS_ELECTRON) window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url)
+    else window.open(url, '_blank')
+  }
+
+  function handleBug() {
+    const url = 'https://github.com/psmyles/imgplex/issues/new'
+    if (IS_ELECTRON) window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url)
+    else window.open(url, '_blank')
+  }
+
   let showCredits = $state(false)
   function handleCredits() { showCredits = true }
 
@@ -315,6 +327,8 @@
     onDuplicate={() => window.ipcRenderer.send(IPC.MENU_DUPLICATE)}
     onDelete={() => window.ipcRenderer.send(IPC.MENU_DELETE)}
     onAbout={handleAbout}
+    onDocumentation={handleDocumentation}
+    onBug={handleBug}
     onCredits={handleCredits}
     title={document.title}
   />
