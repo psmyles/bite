@@ -193,6 +193,36 @@ function checkImageMagick() {
   child.on('error', () => showImageMagickMissingDialog())
 }
 
+function compareSemver(a: string, b: string): number {
+  const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number)
+  const [aMaj, aMin, aPat] = parse(a)
+  const [bMaj, bMin, bPat] = parse(b)
+  if (aMaj !== bMaj) return aMaj - bMaj
+  if (aMin !== bMin) return aMin - bMin
+  return aPat - bPat
+}
+
+async function checkForUpdates() {
+  try {
+    const res = await fetch('https://api.github.com/repos/psmyles/imgplex/releases/latest', {
+      headers: { 'User-Agent': 'imgplex-updater' },
+    })
+    if (!res.ok) return
+    const data = await res.json() as { tag_name: string; body: string; html_url: string }
+    const latest = data.tag_name ?? ''
+    const current = app.getVersion()
+    if (compareSemver(latest, current) > 0) {
+      win?.webContents.send(IPC.UPDATE_AVAILABLE, {
+        version: latest,
+        body: data.body ?? '',
+        url: data.html_url ?? 'https://github.com/psmyles/imgplex/releases',
+      })
+    }
+  } catch {
+    // Network unavailable — silently skip
+  }
+}
+
 app.whenReady().then(async () => {
   // Load node definitions before opening the window
   await registry.load(nodeDefinitionsDir)
@@ -213,9 +243,10 @@ app.whenReady().then(async () => {
   buildMenu()
   registerWorkflowHandlers(() => win)
 
-  // After the renderer is ready: check for ImageMagick and open any pending file
+  // After the renderer is ready: check for ImageMagick, updates, and open any pending file
   win!.webContents.once('did-finish-load', () => {
     checkImageMagick()
+    checkForUpdates()
     if (pendingFilePath) {
       win!.webContents.send(IPC.OPEN_FILE_PATH, pendingFilePath)
       pendingFilePath = null

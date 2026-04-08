@@ -49,6 +49,7 @@ export const IPC = {
   OPEN_FILE_PATH: 'app:open-file-path',
   // App lifecycle
   APP_QUIT: 'app:quit',
+  UPDATE_AVAILABLE: 'app:update-available',
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
   SHELL_OPEN_PATH:     'shell:open-path',
   // Flipbook Atlas node

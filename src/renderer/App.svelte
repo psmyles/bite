@@ -12,6 +12,7 @@
   import MenuBar from './components/MenuBar.svelte'
   import CreditsModal from './components/CreditsModal.svelte'
   import AboutModal from './components/AboutModal.svelte'
+  import UpdateModal from './components/UpdateModal.svelte'
   import BatchSummaryModal from './components/BatchSummaryModal.svelte'
   import ConfirmModal from './components/ConfirmModal.svelte'
   import ImportProgressModal from './components/ImportProgressModal.svelte'
@@ -190,6 +191,14 @@
 
   let showAbout = $state(false)
   function handleAbout() { showAbout = true }
+
+  interface UpdateInfo { version: string; body: string; url: string }
+  let updateInfo = $state<UpdateInfo | null>(null)
+  $effect(() => {
+    const onUpdate = (_e: unknown, info: UpdateInfo) => { updateInfo = info }
+    window.ipcRenderer.on(IPC.UPDATE_AVAILABLE, onUpdate)
+    return () => window.ipcRenderer.off(IPC.UPDATE_AVAILABLE, onUpdate)
+  })
 
   function handleDocumentation() {
     const url = 'https://github.com/psmyles/imgplex/wiki'
@@ -411,6 +420,15 @@
 
 {#if showAbout}
   <AboutModal onClose={() => showAbout = false} />
+{/if}
+
+{#if updateInfo}
+  <UpdateModal
+    version={updateInfo.version}
+    body={updateInfo.body}
+    url={updateInfo.url}
+    onClose={() => updateInfo = null}
+  />
 {/if}
 
 {#if showCredits}
