@@ -38,6 +38,7 @@ export const IPC = {
   MENU_EXIT: 'menu:exit',
   MENU_ABOUT: 'menu:about',
   MENU_CREDITS: 'menu:credits',
+  MENU_CHECK_FOR_UPDATES: 'menu:check-for-updates',
   MENU_EXPORT_CLI_PS:   'menu:export-cli-ps',
   MENU_EXPORT_CLI_BASH: 'menu:export-cli-bash',
   MENU_EXPORT_CLI_CMD:  'menu:export-cli-cmd',
@@ -49,7 +50,8 @@ export const IPC = {
   OPEN_FILE_PATH: 'app:open-file-path',
   // App lifecycle
   APP_QUIT: 'app:quit',
-  UPDATE_AVAILABLE: 'app:update-available',
+  UPDATE_AVAILABLE:   'app:update-available',
+  CHECK_FOR_UPDATES:  'app:check-for-updates',
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
   SHELL_OPEN_PATH:     'shell:open-path',
   // Flipbook Atlas node

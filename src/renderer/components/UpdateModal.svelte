@@ -2,55 +2,95 @@
   import { IS_ELECTRON } from '../platform.js'
   import { IPC } from '../../shared/constants.js'
 
+  export type UpdateState =
+    | { status: 'checking' }
+    | { status: 'update';  version: string; body: string; url: string }
+    | { status: 'latest';  version: string; body: string; url: string }
+    | { status: 'error' }
+
   interface Props {
-    version:  string
-    body:     string
-    url:      string
-    onClose:  () => void
+    state:   UpdateState
+    onClose: () => void
   }
-  let { version, body, url, onClose }: Props = $props()
+  let { state, onClose }: Props = $props()
 
   function onBackdropClick(e: MouseEvent) {
+    if (state.status === 'checking') return  // prevent close while loading
     if (e.target === e.currentTarget) onClose()
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onClose()
+    if (e.key === 'Escape' && state.status !== 'checking') onClose()
   }
 
   function openReleasePage() {
+    if (state.status !== 'update' && state.status !== 'latest') return
+    const url = state.url
     if (IS_ELECTRON) window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url)
     else window.open(url, '_blank')
     onClose()
+  }
+
+  const titles: Record<UpdateState['status'], string> = {
+    checking: 'Checking for Updates',
+    update:   'Update Available',
+    latest:   'You\'re up to date',
+    error:    'Update Check Failed',
   }
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 <div class="backdrop" onclick={onBackdropClick}>
-  <div class="modal" role="dialog" aria-modal="true" aria-label="Update available">
+  <div class="modal" role="dialog" aria-modal="true" aria-label={titles[state.status]}>
     <div class="modal-header">
-      <span class="modal-title">Update Available</span>
-      <button class="close-btn" onclick={onClose} aria-label="Close">✕</button>
+      <span class="modal-title">{titles[state.status]}</span>
+      {#if state.status !== 'checking'}
+        <button class="close-btn" onclick={onClose} aria-label="Close">✕</button>
+      {/if}
     </div>
 
     <div class="modal-body">
-      <p class="tagline">
-        A new version of imgplex is available: <span class="version">{version}</span>
-      </p>
 
-      <div class="actions">
-        <button class="btn-update" onclick={openReleasePage}>Update</button>
-        <button class="btn-later" onclick={onClose}>Later</button>
-      </div>
-
-      {#if body}
-        <div class="release-notes">
-          <p class="notes-label">Release notes</p>
-          <pre class="notes-body">{body}</pre>
+      {#if state.status === 'checking'}
+        <div class="checking-row">
+          <span class="spinner"></span>
+          <span class="checking-text">Contacting GitHub…</span>
         </div>
+
+      {:else if state.status === 'update'}
+        <p class="tagline">
+          A new version is available: <span class="version">{state.version}</span>
+        </p>
+        <div class="actions">
+          <button class="btn-update" onclick={openReleasePage}>Update</button>
+          <button class="btn-later" onclick={onClose}>Later</button>
+        </div>
+        {#if state.body}
+          <div class="release-notes">
+            <p class="notes-label">Release notes</p>
+            <pre class="notes-body">{state.body}</pre>
+          </div>
+        {/if}
+
+      {:else if state.status === 'latest'}
+        <p class="tagline">
+          imgplex <span class="version">{state.version}</span> is the latest version.
+        </p>
+        {#if state.body}
+          <div class="release-notes">
+            <p class="notes-label">Release notes</p>
+            <pre class="notes-body">{state.body}</pre>
+          </div>
+        {/if}
+
+      {:else}
+        <p class="tagline error-text">
+          Could not reach GitHub. Check your internet connection and try again.
+        </p>
       {/if}
+
     </div>
   </div>
 </div>
@@ -120,11 +160,42 @@
     overflow-y: auto;
   }
 
+  .checking-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .checking-text {
+    font-family: var(--font-ui);
+    font-size: var(--font-size-base);
+    color: var(--text);
+  }
+
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--ctx-border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
   .tagline {
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
     color: var(--text);
     line-height: 1.5;
+    margin: 0;
+  }
+
+  .error-text {
+    color: var(--text-muted);
   }
 
   .version {
@@ -187,6 +258,7 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
+    margin: 0;
   }
 
   .notes-body {

@@ -192,13 +192,25 @@
   let showAbout = $state(false)
   function handleAbout() { showAbout = true }
 
-  interface UpdateInfo { version: string; body: string; url: string }
-  let updateInfo = $state<UpdateInfo | null>(null)
+  import type { UpdateState } from './components/UpdateModal.svelte'
+  let updateState = $state<UpdateState | null>(null)
   $effect(() => {
-    const onUpdate = (_e: unknown, info: UpdateInfo) => { updateInfo = info }
+    const onUpdate = (_e: unknown, info: { version: string; body: string; url: string }) => {
+      updateState = { status: 'update', ...info }
+    }
     window.ipcRenderer.on(IPC.UPDATE_AVAILABLE, onUpdate)
     return () => window.ipcRenderer.off(IPC.UPDATE_AVAILABLE, onUpdate)
   })
+
+  async function handleCheckForUpdates() {
+    updateState = { status: 'checking' }
+    try {
+      const result = await window.ipcRenderer.invoke(IPC.CHECK_FOR_UPDATES) as UpdateState
+      updateState = result
+    } catch {
+      updateState = { status: 'error' }
+    }
+  }
 
   function handleDocumentation() {
     const url = 'https://github.com/psmyles/imgplex/wiki'
@@ -235,8 +247,9 @@
     const onSave          = () => handleSaveWorkflow()
     const onSaveAs        = () => handleSaveWorkflowAs()
     const onExit          = () => handleExit()
-    const onAbout         = () => handleAbout()
-    const onExportCliPS   = () => handleExportCLI('powershell')
+    const onAbout              = () => handleAbout()
+    const onCheckForUpdates    = () => handleCheckForUpdates()
+    const onExportCliPS        = () => handleExportCLI('powershell')
     const onExportCliBash = () => handleExportCLI('bash')
     const onExportCliCmd  = () => handleExportCLI('cmd')
     const onOpenFilePath  = (_e: unknown, fp: string) => handleOpenFilePath(fp)
@@ -245,8 +258,9 @@
     window.ipcRenderer.on(IPC.MENU_SAVE_WORKFLOW,    onSave)
     window.ipcRenderer.on(IPC.MENU_SAVE_WORKFLOW_AS, onSaveAs)
     window.ipcRenderer.on(IPC.MENU_EXIT,             onExit)
-    window.ipcRenderer.on(IPC.MENU_ABOUT,            onAbout)
-    window.ipcRenderer.on(IPC.MENU_CREDITS,          handleCredits)
+    window.ipcRenderer.on(IPC.MENU_ABOUT,              onAbout)
+    window.ipcRenderer.on(IPC.MENU_CHECK_FOR_UPDATES,  onCheckForUpdates)
+    window.ipcRenderer.on(IPC.MENU_CREDITS,            handleCredits)
     window.ipcRenderer.on(IPC.MENU_EXPORT_CLI_PS,   onExportCliPS)
     window.ipcRenderer.on(IPC.MENU_EXPORT_CLI_BASH, onExportCliBash)
     window.ipcRenderer.on(IPC.MENU_EXPORT_CLI_CMD,  onExportCliCmd)
@@ -257,8 +271,9 @@
       window.ipcRenderer.off(IPC.MENU_SAVE_WORKFLOW,    onSave)
       window.ipcRenderer.off(IPC.MENU_SAVE_WORKFLOW_AS, onSaveAs)
       window.ipcRenderer.off(IPC.MENU_EXIT,             onExit)
-      window.ipcRenderer.off(IPC.MENU_ABOUT,            onAbout)
-      window.ipcRenderer.off(IPC.MENU_CREDITS,          handleCredits)
+      window.ipcRenderer.off(IPC.MENU_ABOUT,              onAbout)
+      window.ipcRenderer.off(IPC.MENU_CHECK_FOR_UPDATES,  onCheckForUpdates)
+      window.ipcRenderer.off(IPC.MENU_CREDITS,            handleCredits)
       window.ipcRenderer.off(IPC.MENU_EXPORT_CLI_PS,   onExportCliPS)
       window.ipcRenderer.off(IPC.MENU_EXPORT_CLI_BASH, onExportCliBash)
       window.ipcRenderer.off(IPC.MENU_EXPORT_CLI_CMD,  onExportCliCmd)
@@ -338,6 +353,7 @@
     onAbout={handleAbout}
     onDocumentation={handleDocumentation}
     onBug={handleBug}
+    onCheckForUpdates={handleCheckForUpdates}
     onCredits={handleCredits}
     title={document.title}
   />
@@ -422,12 +438,10 @@
   <AboutModal onClose={() => showAbout = false} />
 {/if}
 
-{#if updateInfo}
+{#if updateState}
   <UpdateModal
-    version={updateInfo.version}
-    body={updateInfo.body}
-    url={updateInfo.url}
-    onClose={() => updateInfo = null}
+    state={updateState}
+    onClose={() => updateState = null}
   />
 {/if}
 

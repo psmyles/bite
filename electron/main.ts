@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, globalShortcut, dialog, shell } from 'electron'
+import { app, BrowserWindow, Menu, globalShortcut, dialog, shell, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
@@ -147,10 +147,12 @@ function buildMenu() {
     {
       label: 'Help',
       submenu: [
-        { label: 'About',         click: send('menu:about') },
-        { label: 'Documentation', click: () => { shell.openExternal('https://github.com/psmyles/imgplex/wiki') } },
-        { label: 'Report a bug',  click: () => { shell.openExternal('https://github.com/psmyles/imgplex/issues/new') } },
-        { label: 'Credits',       click: send('menu:credits') },
+        { label: 'About',              click: send('menu:about') },
+        { label: 'Documentation',     click: () => { shell.openExternal('https://github.com/psmyles/imgplex/wiki') } },
+        { label: 'Report a bug',      click: () => { shell.openExternal('https://github.com/psmyles/imgplex/issues/new') } },
+        { label: 'Credits',           click: send('menu:credits') },
+        { type: 'separator' },
+        { label: 'Check for Updates', click: send('menu:check-for-updates') },
       ],
     },
   ]
@@ -202,21 +204,34 @@ function compareSemver(a: string, b: string): number {
   return aPat - bPat
 }
 
+type UpdateCheckResult =
+  | { status: 'update'; version: string; body: string; url: string }
+  | { status: 'latest'; version: string; body: string; url: string }
+  | { status: 'error' }
+
+async function fetchLatestRelease(): Promise<UpdateCheckResult> {
+  const res = await fetch('https://api.github.com/repos/psmyles/imgplex/releases/latest', {
+    headers: { 'User-Agent': 'imgplex-updater' },
+  })
+  if (!res.ok) return { status: 'error' }
+  const data = await res.json() as { tag_name: string; body: string; html_url: string }
+  const latest = data.tag_name ?? ''
+  const current = app.getVersion()
+  const releaseData = {
+    version: latest,
+    body: data.body ?? '',
+    url: data.html_url ?? 'https://github.com/psmyles/imgplex/releases',
+  }
+  return compareSemver(latest, current) > 0
+    ? { status: 'update', ...releaseData }
+    : { status: 'latest', ...releaseData }
+}
+
 async function checkForUpdates() {
   try {
-    const res = await fetch('https://api.github.com/repos/psmyles/imgplex/releases/latest', {
-      headers: { 'User-Agent': 'imgplex-updater' },
-    })
-    if (!res.ok) return
-    const data = await res.json() as { tag_name: string; body: string; html_url: string }
-    const latest = data.tag_name ?? ''
-    const current = app.getVersion()
-    if (compareSemver(latest, current) > 0) {
-      win?.webContents.send(IPC.UPDATE_AVAILABLE, {
-        version: latest,
-        body: data.body ?? '',
-        url: data.html_url ?? 'https://github.com/psmyles/imgplex/releases',
-      })
+    const result = await fetchLatestRelease()
+    if (result.status === 'update') {
+      win?.webContents.send(IPC.UPDATE_AVAILABLE, result)
     }
   } catch {
     // Network unavailable — silently skip
@@ -238,6 +253,14 @@ app.whenReady().then(async () => {
   registerShellHandlers()
   registerTextOutputHandlers(registry, () => win)
   registerAtlasHandlers(() => win)
+
+  ipcMain.handle(IPC.CHECK_FOR_UPDATES, async () => {
+    try {
+      return await fetchLatestRelease()
+    } catch {
+      return { status: 'error' }
+    }
+  })
 
   createWindow()
   buildMenu()

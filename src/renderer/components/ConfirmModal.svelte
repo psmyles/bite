@@ -22,7 +22,7 @@
       <p class="message">{message}</p>
       <div class="buttons">
         <!-- Cancel is first in DOM so it receives autofocus — it is the safe default -->
-        <button class="btn btn-primary" autofocus onclick={onCancel}>Cancel</button>
+        <button class="btn btn-primary" onclick={onCancel}>Cancel</button>
         <button class="btn btn-ghost" onclick={onConfirm}>OK</button>
       </div>
     </div>
