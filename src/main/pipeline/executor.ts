@@ -59,7 +59,7 @@ export function topoSort(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] {
 // ─── Set batch utilities ───────────────────────────────────────────────────────
 
 /** Group image paths by {prefix}{middle}{suffix} naming convention. */
-function groupBySetPattern(
+export function groupBySetPattern(
   imagePaths: string[],
   prefix: string,
   suffixes: string[]
