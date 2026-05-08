@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import type { Node } from '@xyflow/svelte'
+  import type { Node, Edge } from '@xyflow/svelte'
   import { graphStore } from '../stores/graph.svelte.js'
   import { imageStore } from '../stores/images.svelte.js'
   import { IPC } from '../../shared/constants.js'
@@ -12,11 +12,12 @@
 
   const params = $derived(getNodeParams(selectedNode?.data))
 
-  const outputPath    = $derived((params.outputPath    as string) ?? '')
-  const generateLog   = $derived(Boolean(params.generateLog ?? false))
-  const separatorType = $derived((params.separatorType as string) ?? 'comma')
-  const customSep     = $derived((params.customSeparator as string) ?? '')
-  const portIds       = $derived((params.portIds as string[]) ?? ['txo-0'])
+  const outputPath              = $derived((params.outputPath       as string)   ?? '')
+  const generateLog             = $derived(Boolean(params.generateLog ?? false))
+  const usePreviewForProcessing = $derived(Boolean(params.usePreviewForProcessing ?? false))
+  const separatorType           = $derived((params.separatorType    as string)   ?? 'comma')
+  const customSep               = $derived((params.customSeparator  as string)   ?? '')
+  const portIds                 = $derived((params.portIds          as string[]) ?? ['txo-0'])
 
   // Connected ports = all except the last (ghost) one that also have an incoming edge
   const connectedPortIds = $derived(
@@ -301,6 +302,16 @@
       <input type="checkbox" checked={generateLog}
         onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)} />
       <span>Generate .log file</span>
+    </label>
+  </div>
+
+  <!-- ── Processing Source ─────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Processing Source</div>
+    <label class="log-toggle">
+      <input type="checkbox" checked={usePreviewForProcessing}
+        onchange={(e) => graphStore.setParam(selectedNode.id, 'usePreviewForProcessing', (e.target as HTMLInputElement).checked)} />
+      <span>Use preview image for processing</span>
     </label>
   </div>
 

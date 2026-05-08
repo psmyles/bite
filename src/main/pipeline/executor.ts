@@ -6,7 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import type { GraphEdge, GraphNode, ImageInfo, NodeGraph, Progress } from '../../shared/types.js'
-import { PREVIEW_MAX_EDGE_PX } from '../../shared/constants.js'
+import { PREVIEW_MAX_EDGE_PX, THUMBNAIL_SIZE_PX } from '../../shared/constants.js'
 import type { NodeRegistry } from '../nodes/registry.js'
 import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js'
 import { getExecutor } from './executorRegistry.js'
@@ -1472,6 +1472,15 @@ export class PipelineExecutor {
       if (finalVal.args.length > 0) await spawnMagick([finalVal.base, ...finalVal.args, finalOut])
       else await fs.promises.copyFile(finalVal.base, finalOut)
       return { resultPath: finalOut, outputExt }
+    }
+
+    // ── Preview substitution — swap full-size paths for cached thumbnails ────────
+    if (outputNodeTextMode && (outputNode?.data.params as Record<string, unknown> | undefined)?.usePreviewForProcessing) {
+      const thumbPath = (p: string) => path.join(TEMP_DIR, `thumb_${shortHash(p)}_${THUMBNAIL_SIZE_PX}.png`)
+      imagePaths = await Promise.all(imagePaths.map(async (p) => {
+        const thumb = thumbPath(p)
+        return await fs.promises.access(thumb).then(() => thumb).catch(() => p)
+      }))
     }
 
     // ── Set batch mode ─────────────────────────────────────────────────────────
