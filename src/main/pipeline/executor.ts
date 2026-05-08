@@ -1462,6 +1462,8 @@ export class PipelineExecutor {
       let setFailures  = 0
       let setSkipped   = 0
 
+      onProgress({ completed: 0, total: totalSets, currentFile: '' })
+
       const setConcurrency = Math.min(Math.max(1, os.cpus().length), Math.max(1, totalSets))
 
       async function processOneSet(): Promise<void> {
@@ -1545,6 +1547,8 @@ export class PipelineExecutor {
     let completed = 0
     let failures = 0
     let skipped = 0
+
+    onProgress({ completed: 0, total: imagePaths.length, currentFile: '' })
 
     // Resolve rename node params once (shared across all images — index varies per image)
     const renameNode = sorted.find((n) => registry.get(n.data.definitionId)?.executor === 'rename')
