@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { NodeRegistry } from '../src/main/nodes/registry.js'
 import { PipelineExecutor } from '../src/main/pipeline/executor.js'
 import { registerRegistryHandlers, registerPipelineHandlers, registerDialogHandlers, registerWorkflowHandlers, registerShellHandlers, registerScanHandlers, registerTextOutputHandlers, registerAtlasHandlers } from '../src/main/ipc/handlers.js'
+import { timings } from '../src/main/pipeline/timing.js'
 import { IPC } from '../src/shared/constants.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -153,6 +154,13 @@ function buildMenu() {
         { label: 'Credits',           click: send('menu:credits') },
         { type: 'separator' },
         { label: 'Check for Updates', click: send('menu:check-for-updates') },
+        { type: 'separator' },
+        {
+          label: 'Enable Performance Timers',
+          type: 'checkbox',
+          checked: false,
+          click(item) { timings.enabled = item.checked },
+        },
       ],
     },
   ]

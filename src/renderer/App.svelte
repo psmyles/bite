@@ -76,6 +76,12 @@
   }
 
   let confirmState = $state<{ message: string; resolve: (ok: boolean) => void } | null>(null)
+  let timersEnabled = $state(false)
+
+  async function handleToggleTimers() {
+    timersEnabled = !timersEnabled
+    await window.ipcRenderer.invoke(IPC.TIMERS_SET_ENABLED, timersEnabled)
+  }
 
   function confirmLoseChanges(action: string): Promise<boolean> {
     if (!graphStore.isDirty) return Promise.resolve(true)
@@ -355,6 +361,8 @@
     onBug={handleBug}
     onCheckForUpdates={handleCheckForUpdates}
     onCredits={handleCredits}
+    onToggleTimers={handleToggleTimers}
+    {timersEnabled}
     title={document.title}
   />
 {/if}

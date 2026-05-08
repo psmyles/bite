@@ -16,6 +16,7 @@ import { computeNodeParams, loadImageMeta, loadImageMean, loadImageChannelMean, 
 import { getMagickBinary } from './magick-path.js'
 import { cliScriptPS, cliScriptBash, cliScriptCmd } from './executor-cli.js'
 import { computeNewName, type RenameParams } from '../../shared/renameUtils.js'
+import { timings } from './timing.js'
 
 // ─── Temp directory ───────────────────────────────────────────────────────────
 
@@ -84,18 +85,21 @@ function groupBySetPattern(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function spawnMagick(args: string[]): Promise<void> {
+function spawnMagick(args: string[], bucket?: { add(ms: number): void }): Promise<void> {
+  const t0 = bucket ? Date.now() : 0
   return new Promise((resolve, reject) => {
     const proc = spawn(getMagickBinary(), args)
     const stderr: string[] = []
     proc.stderr.on('data', (chunk: Buffer) => stderr.push(chunk.toString()))
     proc.on('close', (code) => {
+      if (bucket) bucket.add(Date.now() - t0)
       if (code === 0) resolve()
       else reject(new Error(`magick exited ${code}: ${stderr.join('').trim()}`))
     })
-    proc.on('error', (err) =>
+    proc.on('error', (err) => {
+      if (bucket) bucket.add(Date.now() - t0)
       reject(new Error(`Failed to spawn magick: ${err.message}. Is ImageMagick v7 in PATH?`))
-    )
+    })
   })
 }
 
@@ -399,10 +403,12 @@ export class PipelineExecutor {
     const thumbPaths = hashes.map(h => path.join(TEMP_DIR, `thumb_${h}_${size}.png`))
 
     // ── Phase 1: parallel cache + header checks ──────────────────────────────
+    const headerStartMs = Date.now()
     const [thumbStats, hdrs] = await Promise.all([
       Promise.all(thumbPaths.map(tp => fs.promises.stat(tp).catch(() => null))),
       Promise.all(imagePaths.map(p => readHeaderDimensions(p))),
     ])
+    const headerTotalMs = Date.now() - headerStartMs
 
     // Only stat source file when thumb exists (avoids extra stat on cache miss)
     const needsRegen: boolean[] = await Promise.all(
@@ -456,6 +462,7 @@ export class PipelineExecutor {
     }
 
     // ── Phase 3: single batch spawn for all fast-path misses ─────────────────
+    let fastThumbMs = 0
     if (fastMisses.length > 0) {
       // Build one magick command: each image reads, thumbnails, writes, then +delete
       // (last image writes directly to its thumbPath as the final output)
@@ -470,6 +477,7 @@ export class PipelineExecutor {
       }
 
       let batchOk = true
+      const batchSpawnT0 = Date.now()
       try {
         await new Promise<void>((resolve, reject) => {
           const proc = spawn(getMagickBinary(), batchArgs, { env: { ...process.env, MAGICK_THREAD_LIMIT: '1' } })
@@ -485,6 +493,7 @@ export class PipelineExecutor {
       }
 
       if (batchOk) {
+        fastThumbMs = Date.now() - batchSpawnT0
         for (const i of fastMisses) {
           this._metaCache.set(imagePaths[i], { width: hdrs[i]!.width, height: hdrs[i]!.height, format: hdrs[i]!.format })
         }
@@ -493,9 +502,11 @@ export class PipelineExecutor {
 
     // ── Phase 4: individual spawns for slow-path misses ──────────────────────
     // These are rare (PSD, TIFF, …) so sequential processing is fine.
+    const slowThumbMs = new Map<number, number>()
     for (const i of slowMisses) {
       try {
         let stdout = ''
+        const slowT0 = Date.now()
         await new Promise<void>((resolve, reject) => {
           const proc = spawn(
             getMagickBinary(),
@@ -514,6 +525,7 @@ export class PipelineExecutor {
           proc.on('close', code => code === 0 ? resolve() : reject(new Error(`magick exited ${code}: ${stderr.join('').trim()}`)))
           proc.on('error', err => reject(new Error(`Failed to spawn magick: ${err.message}. Is ImageMagick v7 in PATH?`)))
         })
+        slowThumbMs.set(i, Date.now() - slowT0)
         const [ws, hs, fmt] = stdout.trim().split(' ')
         this._metaCache.set(imagePaths[i], {
           width: parseInt(ws, 10) || 0,
@@ -526,12 +538,28 @@ export class PipelineExecutor {
     }
 
     // ── Phase 5: parallel stat + thumbnail read for all images ───────────────
+    const fastMissSet  = new Set(fastMisses)
+    const slowMissSet  = new Set(slowMisses)
+    const avgHeaderPerImage = imagePaths.length > 0 ? Math.round(headerTotalMs / imagePaths.length) : 0
+    const avgFastThumb = fastMisses.length > 0 ? Math.round(fastThumbMs / fastMisses.length) : 0
+
     return Promise.all(imagePaths.map(async (imagePath, i) => {
       const meta = this._metaCache.get(imagePath) ?? { width: 0, height: 0, format: 'UNKNOWN' }
       const [fileStat, thumbnailDataUrl] = await Promise.all([
         fs.promises.stat(imagePath).catch(() => null),
         fileToDataUrl(thumbPaths[i]),
       ])
+      if (timings.enabled) {
+        const pathType: 'fast' | 'slow' | 'cached' =
+          fastMissSet.has(i) ? 'fast' : slowMissSet.has(i) ? 'slow' : 'cached'
+        timings.recordImportImage({
+          file:          imagePath,
+          headerParseMs: avgHeaderPerImage,
+          identifyMs:    slowMissSet.has(i) ? (slowThumbMs.get(i) ?? 0) : 0,
+          thumbnailMs:   fastMissSet.has(i) ? avgFastThumb : (slowThumbMs.get(i) ?? 0),
+          pathType,
+        })
+      }
       return {
         path: imagePath,
         name: path.basename(imagePath),
@@ -928,6 +956,7 @@ export class PipelineExecutor {
     registry: NodeRegistry,
     onProgress: (p: Progress) => void
   ): Promise<{ processed: number; skipped: number; failed: number; outputFiles: string[] }> {
+    const batchT0 = Date.now()
     const outputFiles: string[] = []
     const sorted = topoSort(graph.nodes, graph.edges)
 
@@ -1455,12 +1484,18 @@ export class PipelineExecutor {
       const setEntries = [...setGroups.entries()]
       const totalSets  = setEntries.length
 
+      if (timings.enabled) {
+        timings.startBatch(totalSets)
+        timings.recordSetup(Date.now() - batchT0)
+      }
+
       this._batchCancelled = false
       const self = this
       let setQueueIdx = 0
       let setCompleted = 0
       let setFailures  = 0
       let setSkipped   = 0
+      let _setStartupRecorded = false
 
       onProgress({ completed: 0, total: totalSets, currentFile: '' })
 
@@ -1471,6 +1506,12 @@ export class PipelineExecutor {
           if (self._batchCancelled) return
           const setIndex = setQueueIdx
           const [middleName, suffixMap] = setEntries[setQueueIdx++]
+          const imgT0 = timings.enabled ? Date.now() : 0
+          if (timings.enabled && !_setStartupRecorded) {
+            _setStartupRecorded = true
+            timings.recordStartup(Date.now() - batchT0)
+          }
+          const magickBucket = timings.enabled ? { ms: 0, add(n: number) { this.ms += n } } : null
 
           // First available path serves as the inputPath fallback for unconnected ports.
           const firstPath = setSuffixes.map(s => suffixMap[s]).find(Boolean) ?? ''
@@ -1486,10 +1527,14 @@ export class PipelineExecutor {
 
           try {
             const targetDir = outputDir ?? (firstPath ? path.dirname(firstPath) : process.cwd())
+            const checkT0 = timings.enabled ? Date.now() : 0
             await fs.promises.mkdir(targetDir, { recursive: true })
+            let fileCheckMs = timings.enabled ? Date.now() - checkT0 : 0
 
             if (hasImageOutput) {
+              const msT0 = timings.enabled ? Date.now() : 0
               const msResult = await executeMultiStream(firstPath, setIndex, seeds)
+              const msElapsed = timings.enabled ? Date.now() - msT0 : 0
               if (msResult === null) {
                 setSkipped++
                 onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName })
@@ -1501,14 +1546,24 @@ export class PipelineExecutor {
               const outPath = path.join(targetDir, outBase + outExt)
 
               if (overwrite === 'skip') {
+                const accessT0 = timings.enabled ? Date.now() : 0
                 const exists = await fs.promises.access(outPath).then(() => true).catch(() => false)
+                if (timings.enabled) fileCheckMs += Date.now() - accessT0
                 if (exists) {
                   setSkipped++
                   onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName })
                   continue
                 }
               }
+              const copyT0 = timings.enabled ? Date.now() : 0
               await fs.promises.copyFile(resultPath, outPath)
+              if (timings.enabled && magickBucket) {
+                const imgEntry = timings.beginImage(firstPath || middleName)
+                imgEntry.fileCheck(fileCheckMs)
+                imgEntry.magick(msElapsed)
+                imgEntry.copy(Date.now() - copyT0)
+                imgEntry.done(Date.now() - imgT0)
+              }
               outputFiles.push(outPath)
             }
           } catch (err) {
@@ -1527,6 +1582,10 @@ export class PipelineExecutor {
       } finally {
         if (prevThreadLimitSet !== undefined) process.env.MAGICK_THREAD_LIMIT = prevThreadLimitSet
         else delete process.env.MAGICK_THREAD_LIMIT
+      }
+      if (timings.enabled) {
+        const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null)
+        timings.endBatch(resolvedOutputDir)
       }
       return {
         processed: setCompleted - setFailures - setSkipped,
@@ -1548,11 +1607,18 @@ export class PipelineExecutor {
     let failures = 0
     let skipped = 0
 
+    if (timings.enabled) {
+      timings.startBatch(imagePaths.length)
+      timings.recordSetup(Date.now() - batchT0)
+    }
+
     onProgress({ completed: 0, total: imagePaths.length, currentFile: '' })
 
     // Resolve rename node params once (shared across all images — index varies per image)
     const renameNode = sorted.find((n) => registry.get(n.data.definitionId)?.executor === 'rename')
     const renameParams = renameNode ? (renameNode.data.params as RenameParams) : undefined
+
+    let _startupRecorded = false
 
     async function processOne(): Promise<void> {
       while (queueIdx < imagePaths.length) {
@@ -1560,11 +1626,19 @@ export class PipelineExecutor {
         const imageIndex = queueIdx          // 0-based index for rename numbering
         const inputPath  = imagePaths[queueIdx++]
         const fileName   = path.basename(inputPath)
+        const imgT0 = timings.enabled ? Date.now() : 0
+        if (timings.enabled && !_startupRecorded) {
+          _startupRecorded = true
+          timings.recordStartup(Date.now() - batchT0)
+        }
+        const magickBucket = timings.enabled ? { ms: 0, add(n: number) { this.ms += n } } : null
         // Apply rename transform to determine the output filename stem
         const renamedFileName = renameParams ? computeNewName(fileName, renameParams, imageIndex) : fileName
         try {
           const targetDir = outputDir ?? path.dirname(inputPath)
+          const checkT0 = timings.enabled ? Date.now() : 0
           await fs.promises.mkdir(targetDir, { recursive: true })
+          let fileCheckMs = timings.enabled ? Date.now() - checkT0 : 0
 
           if (hasMultiStreamNodes) {
             // Multi-stream path — runs concurrently; unique tmpId per image prevents collisions
@@ -1581,14 +1655,24 @@ export class PipelineExecutor {
               const outPath = path.join(targetDir, outBase + outExt)
 
               if (overwrite === 'skip') {
+                const accessT0 = timings.enabled ? Date.now() : 0
                 const exists = await fs.promises.access(outPath).then(() => true).catch(() => false)
+                if (timings.enabled) fileCheckMs += Date.now() - accessT0
                 if (exists) {
                   skipped++
                   onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
                   continue
                 }
               }
+              const copyT0 = timings.enabled ? Date.now() : 0
               await fs.promises.copyFile(resultPath, outPath)
+              if (timings.enabled && magickBucket) {
+                const imgEntry = timings.beginImage(inputPath)
+                imgEntry.fileCheck(fileCheckMs)
+                imgEntry.magick(magickBucket.ms)
+                imgEntry.copy(Date.now() - copyT0)
+                imgEntry.done(Date.now() - imgT0)
+              }
               outputFiles.push(outPath)
             }
           } else {
@@ -1610,7 +1694,9 @@ export class PipelineExecutor {
               const outPath = path.join(targetDir, outBase + outExt)
 
               if (overwrite === 'skip') {
+                const accessT0 = timings.enabled ? Date.now() : 0
                 const exists = await fs.promises.access(outPath).then(() => true).catch(() => false)
+                if (timings.enabled) fileCheckMs += Date.now() - accessT0
                 if (exists) {
                   skipped++
                   onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
@@ -1620,9 +1706,24 @@ export class PipelineExecutor {
 
               if (opArgs.length > 0 || outputFormat) {
                 const fmtOut = outputFormat ? `${outputFormat}:${outPath}` : outPath
-                await spawnMagick([inputPath, ...opArgs, fmtOut])
+                await spawnMagick([inputPath, ...opArgs, fmtOut], magickBucket ?? undefined)
+                if (timings.enabled && magickBucket) {
+                  const imgEntry = timings.beginImage(inputPath)
+                  imgEntry.fileCheck(fileCheckMs)
+                  imgEntry.magick(magickBucket.ms)
+                  imgEntry.copy(0)
+                  imgEntry.done(Date.now() - imgT0)
+                }
               } else {
+                const copyT0 = timings.enabled ? Date.now() : 0
                 await fs.promises.copyFile(inputPath, outPath)
+                if (timings.enabled && magickBucket) {
+                  const imgEntry = timings.beginImage(inputPath)
+                  imgEntry.fileCheck(fileCheckMs)
+                  imgEntry.magick(0)
+                  imgEntry.copy(Date.now() - copyT0)
+                  imgEntry.done(Date.now() - imgT0)
+                }
               }
               outputFiles.push(outPath)
             }
@@ -1668,6 +1769,10 @@ export class PipelineExecutor {
       }
     }
 
+    if (timings.enabled) {
+      const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null)
+      timings.endBatch(resolvedOutputDir)
+    }
     return { processed: completed - failures - skipped, skipped, failed: failures, outputFiles }
   }
 

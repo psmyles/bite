@@ -79,7 +79,7 @@
   type="target"
   position={Position.Left}
   id="in-0"
-  style="top: 14px; background: {imgColor}; border-color: {imgColor};"
+  style="top: {handleTop(0)}px; background: {imgColor}; border-color: {imgColor};"
 />
 
 {#each suffixes as _s, i}

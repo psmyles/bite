@@ -54,6 +54,8 @@ export const IPC = {
   CHECK_FOR_UPDATES:  'app:check-for-updates',
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
   SHELL_OPEN_PATH:     'shell:open-path',
+  // Performance timers
+  TIMERS_SET_ENABLED:  'timers:set-enabled',
   // Flipbook Atlas node
   ATLAS_GENERATE:        'atlas:generate',
   ATLAS_BROWSE:          'atlas:browse',

@@ -10,6 +10,7 @@ import type { NodeRegistry } from '../nodes/registry.js'
 import { PipelineExecutor, topoSort } from '../pipeline/executor.js'
 import { computeNodeParams, loadImageMeta, loadImageMean, loadImageChannelMean, loadMultipleChannelMeans, getSeparator, buildEmptyImageMeta } from '../pipeline/executor-compute.js'
 import { IPC } from '../../shared/constants.js'
+import { timings } from '../pipeline/timing.js'
 
 export function registerRegistryHandlers(
   registry: NodeRegistry,
@@ -68,6 +69,8 @@ export function registerPipelineHandlers(
   executor: PipelineExecutor,
   getWin: () => BrowserWindow | null
 ): void {
+  ipcMain.handle(IPC.TIMERS_SET_ENABLED, (_e, enabled: boolean) => { timings.enabled = enabled })
+
   ipcMain.handle(IPC.LOAD_IMAGES, async (_e, paths: string[]) => {
     return Promise.all(paths.map((p) => executor.loadImage(p)))
   })
@@ -83,6 +86,8 @@ export function registerPipelineHandlers(
 
   ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_START, async (_e, paths: string[], size: number) => {
     _streamCancelled = false
+    const importT0 = Date.now()
+    if (timings.enabled) timings.startImport(paths.length)
     const win = getWin()
     const concurrency = os.cpus().length
     // Batch multiple images per magick spawn to amortize process-spawn overhead.
@@ -111,6 +116,7 @@ export function registerPipelineHandlers(
     }
 
     await Promise.all(Array.from({ length: concurrency }, worker))
+    if (timings.enabled) timings.endImport(Date.now() - importT0)
     // Return all results so the renderer can recover any events that arrived
     // after the listener was torn down (IPC send vs invoke-resolve race).
     return allResults

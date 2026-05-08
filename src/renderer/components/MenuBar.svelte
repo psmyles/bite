@@ -11,10 +11,12 @@
     onBug:              () => void
     onCheckForUpdates:  () => void
     onCredits:          () => void
+    onToggleTimers:     () => void
+    timersEnabled:      boolean
     title:           string
   }
 
-  let { onNew, onOpen, onSave, onSaveAs, onDuplicate, onDelete, onAbout, onDocumentation, onBug, onCheckForUpdates, onCredits, title }: Props = $props()
+  let { onNew, onOpen, onSave, onSaveAs, onDuplicate, onDelete, onAbout, onDocumentation, onBug, onCheckForUpdates, onCredits, onToggleTimers, timersEnabled, title }: Props = $props()
 
   let openMenu: string | null = $state(null)
 
@@ -105,6 +107,12 @@
         <li><button onclick={() => run(onCredits)}>Credits</button></li>
         <li class="sep"></li>
         <li><button onclick={() => run(onCheckForUpdates)}>Check for Updates</button></li>
+        <li class="sep"></li>
+        <li>
+          <button onclick={() => run(onToggleTimers)} class:checked={timersEnabled}>
+            {timersEnabled ? '✓ ' : ''}Enable Performance Timers
+          </button>
+        </li>
       </ul>
     {/if}
   </div>
