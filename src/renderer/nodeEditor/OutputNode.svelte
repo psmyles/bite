@@ -49,7 +49,11 @@
 </script>
 
 {#if graphStore.batchRunning}
-  <div class="processing-badge">Processing</div>
+  {@const cf = graphStore.batchProgress?.currentFile ?? ''}
+  <div class="processing-badge">
+    Processing
+    {#if cf}<span class="processing-file">{cf}</span>{/if}
+  </div>
 {/if}
 
 {#if outputMode === 'text'}
@@ -257,7 +261,8 @@
   /* ── Processing badge — floats above the node ── */
   .processing-badge {
     position: absolute;
-    top: -22px;
+    bottom: calc(100% + 4px);
+    top: auto;
     left: 50%;
     transform: translateX(-50%);
     font-family: var(--font-ui);
@@ -273,5 +278,22 @@
     white-space: nowrap;
     pointer-events: none;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .processing-file {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text);
+    opacity: 0.75;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 </style>

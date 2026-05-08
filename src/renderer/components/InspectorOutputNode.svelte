@@ -514,6 +514,9 @@
             &nbsp;·&nbsp;
             {eta != null ? fmtEta(eta) : `${elapsed}s`}
           </div>
+          {#if p.currentFile}
+            <div class="batch-current-file" title={p.currentFile}>{p.currentFile}</div>
+          {/if}
         {:else}
           <div class="batch-count-row">
             <span class="batch-count-label">Starting…</span>
@@ -868,6 +871,17 @@
     font-size: 11px;
     color: var(--text);
     opacity: 0.7;
+  }
+
+  .batch-current-file {
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   .batch-modal-footer {
