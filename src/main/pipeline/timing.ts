@@ -106,7 +106,7 @@ export class TimingCollector {
       avgMs = Math.round(sorted.reduce((s, v) => s + v, 0) / sorted.length)
       minMs = sorted[0]
       maxMs = sorted[sorted.length - 1]
-      p95Ms = sorted[Math.floor(sorted.length * 0.95)]
+      p95Ms = sorted[Math.min(Math.ceil(sorted.length * 0.95), sorted.length) - 1]
     }
 
     const avgMagick = imgs.length ? Math.round(imgs.reduce((s, i) => s + i.magickMs, 0) / imgs.length) : 0

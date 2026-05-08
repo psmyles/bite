@@ -109,7 +109,7 @@
         <li><button onclick={() => run(onCheckForUpdates)}>Check for Updates</button></li>
         <li class="sep"></li>
         <li>
-          <button onclick={() => run(onToggleTimers)} class:checked={timersEnabled}>
+          <button onclick={() => run(onToggleTimers)}>
             {timersEnabled ? '✓ ' : ''}Enable Performance Timers
           </button>
         </li>

@@ -1511,7 +1511,6 @@ export class PipelineExecutor {
             _setStartupRecorded = true
             timings.recordStartup(Date.now() - batchT0)
           }
-          const magickBucket = timings.enabled ? { ms: 0, add(n: number) { this.ms += n } } : null
 
           // First available path serves as the inputPath fallback for unconnected ports.
           const firstPath = setSuffixes.map(s => suffixMap[s]).find(Boolean) ?? ''
@@ -1557,7 +1556,7 @@ export class PipelineExecutor {
               }
               const copyT0 = timings.enabled ? Date.now() : 0
               await fs.promises.copyFile(resultPath, outPath)
-              if (timings.enabled && magickBucket) {
+              if (timings.enabled) {
                 const imgEntry = timings.beginImage(firstPath || middleName)
                 imgEntry.fileCheck(fileCheckMs)
                 imgEntry.magick(msElapsed)
@@ -1642,7 +1641,9 @@ export class PipelineExecutor {
 
           if (hasMultiStreamNodes) {
             // Multi-stream path — runs concurrently; unique tmpId per image prevents collisions
+            const msT0 = timings.enabled ? Date.now() : 0
             const msResult = await executeMultiStream(inputPath, imageIndex)
+            const msElapsed = timings.enabled ? Date.now() - msT0 : 0
             if (msResult === null) {
               skipped++
               onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
@@ -1666,10 +1667,10 @@ export class PipelineExecutor {
               }
               const copyT0 = timings.enabled ? Date.now() : 0
               await fs.promises.copyFile(resultPath, outPath)
-              if (timings.enabled && magickBucket) {
+              if (timings.enabled) {
                 const imgEntry = timings.beginImage(inputPath)
                 imgEntry.fileCheck(fileCheckMs)
-                imgEntry.magick(magickBucket.ms)
+                imgEntry.magick(msElapsed)
                 imgEntry.copy(Date.now() - copyT0)
                 imgEntry.done(Date.now() - imgT0)
               }
