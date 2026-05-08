@@ -47,7 +47,8 @@ export function sortNodesGroupFirst<T extends { type?: string }>(nodes: T[]): T[
 export function nodeTypeForDef(def: NodeDefinition): string {
   if (def.id === 'comment')          return 'commentNode'
   if (def.id === 'folderpath')       return 'folderPathNode'
-if (def.id === 'logic_comparison') return 'compareNode'
+  if (def.id === 'logic_comparison') return 'compareNode'
+  if (def.id === 'process_as_set')   return 'setInputNode'
   return 'process'
 }
 

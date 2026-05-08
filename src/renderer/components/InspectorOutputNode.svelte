@@ -69,6 +69,7 @@
   const params      = $derived(getNodeParams(selectedNode?.data))
   const outputMode  = $derived((params.outputMode as string) ?? 'image')
   const generateLog = $derived(Boolean(params.generateLog ?? false))
+  const hasSetInput = $derived(graphStore.nodes.some(n => n.type === 'setInputNode'))
 
   // Detect a connected Folder Path node on the folder-in handle
   const folderEdge = $derived(
@@ -424,6 +425,34 @@
   />
 </div>
 
+<!-- Set naming (only when a Set Input node is in the graph) -->
+{#if hasSetInput}
+<div class="section-divider"></div>
+<div class="section-label">Set naming</div>
+<div class="param-row two-col">
+  <div class="field">
+    <span class="param-label">Prefix</span>
+    <input
+      type="text"
+      class="text-input"
+      value={(params.setOutputPrefix as string) ?? ''}
+      placeholder="e.g. T_"
+      oninput={(e) => graphStore.setParam(selectedNode.id, 'setOutputPrefix', (e.target as HTMLInputElement).value)}
+    />
+  </div>
+  <div class="field">
+    <span class="param-label">Suffix</span>
+    <input
+      type="text"
+      class="text-input"
+      value={(params.setOutputSuffix as string) ?? ''}
+      placeholder="e.g. _ORM"
+      oninput={(e) => graphStore.setParam(selectedNode.id, 'setOutputSuffix', (e.target as HTMLInputElement).value)}
+    />
+  </div>
+</div>
+{/if}
+
 <!-- Output log -->
 <div class="param-row">
   <span class="param-label">Output log</span>
@@ -503,6 +532,22 @@
 {/if}
 
 <style>
+  .section-divider {
+    height: 1px;
+    background: var(--ctx-separator);
+    margin: 6px 0;
+  }
+
+  .section-label {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    padding: 0 12px 4px;
+  }
+
   .two-col {
     flex-direction: row;
     gap: 8px;

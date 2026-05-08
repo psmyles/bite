@@ -8,6 +8,7 @@
   import InspectorRenameNode from './InspectorRenameNode.svelte'
   import InspectorResizeNode from './InspectorResizeNode.svelte'
   import InspectorFolderPathNode from './InspectorFolderPathNode.svelte'
+  import InspectorSetInputNode from './InspectorSetInputNode.svelte'
   import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js'
 
   let { definitions }: { definitions: NodeDefinition[] } = $props()
@@ -44,6 +45,8 @@
       <span class="node-label">Comment</span>
     {:else if nodeType === 'folderPathNode'}
       <span class="node-label">Folder Path</span>
+    {:else if nodeType === 'setInputNode'}
+      <span class="node-label">Process As Set</span>
     {/if}
   </div>
 
@@ -62,6 +65,9 @@
 
     {:else if nodeType === 'folderPathNode'}
       <InspectorFolderPathNode selectedNode={selectedNode} />
+
+    {:else if nodeType === 'setInputNode'}
+      <InspectorSetInputNode selectedNode={selectedNode} />
 
     {:else if !definition}
       <span class="empty-hint">No definition found for this node.</span>

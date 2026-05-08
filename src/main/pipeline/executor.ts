@@ -55,6 +55,33 @@ export function topoSort(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] {
   return sorted
 }
 
+// ─── Set batch utilities ───────────────────────────────────────────────────────
+
+/** Group image paths by {prefix}{middle}{suffix} naming convention. */
+function groupBySetPattern(
+  imagePaths: string[],
+  prefix: string,
+  suffixes: string[]
+): Map<string, Record<string, string>> {
+  const map = new Map<string, Record<string, string>>()
+  for (const imgPath of imagePaths) {
+    const ext  = path.extname(imgPath)
+    const base = path.basename(imgPath, ext)
+    if (prefix && !base.startsWith(prefix)) continue
+    const rest = base.slice(prefix.length)
+    for (const s of suffixes) {
+      if (!s) continue
+      if (rest.endsWith(s)) {
+        const mid = rest.slice(0, rest.length - s.length)
+        if (!map.has(mid)) map.set(mid, {})
+        map.get(mid)![s] = imgPath
+        break
+      }
+    }
+  }
+  return map
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function spawnMagick(args: string[]): Promise<void> {
@@ -609,6 +636,41 @@ export class PipelineExecutor {
     const imageBuffers = new Map<string, string>()
     imageBuffers.set('workflow-input:out-0', downscaledPath)
 
+    // In set mode, seed companion images for each suffix port of the setInputNode.
+    // Infer middle name from the selected imagePath so we can locate sibling files.
+    const previewSetNode = sorted.find(n => n.data.definitionId === 'process_as_set')
+    if (previewSetNode) {
+      const setPrefix   = String(previewSetNode.data.params?.prefix ?? '')
+      const setSuffixes = Array.isArray(previewSetNode.data.params?.suffixes)
+        ? (previewSetNode.data.params!.suffixes as string[]).filter(Boolean)
+        : []
+      const imgExt  = path.extname(imagePath)
+      const imgBase = path.basename(imagePath, imgExt)
+      const imgDir  = path.dirname(imagePath)
+      const imgRest = imgBase.startsWith(setPrefix) ? imgBase.slice(setPrefix.length) : imgBase
+      let middleName: string | null = null
+      for (const s of setSuffixes) {
+        if (imgRest.endsWith(s)) { middleName = imgRest.slice(0, imgRest.length - s.length); break }
+      }
+      if (middleName !== null) {
+        for (let i = 0; i < setSuffixes.length; i++) {
+          const companionPath = path.join(imgDir, setPrefix + middleName + setSuffixes[i] + imgExt)
+          const companionExists = await fs.promises.access(companionPath).then(() => true).catch(() => false)
+          if (!companionExists) continue
+          const companionHash = shortHash(companionPath)
+          const companionDownscaled = path.join(TEMP_DIR, `preview_input_${companionHash}.png`)
+          if (!(await fs.promises.access(companionDownscaled).then(() => true).catch(() => false))) {
+            try {
+              await spawnMagick([`${companionPath}[0]`, '-resize', `${PREVIEW_MAX_EDGE_PX}x${PREVIEW_MAX_EDGE_PX}>`, companionDownscaled])
+            } catch { /* companion downscale failure is non-fatal */ }
+          }
+          if (await fs.promises.access(companionDownscaled).then(() => true).catch(() => false)) {
+            imageBuffers.set(`${previewSetNode.id}:out-${i}`, companionDownscaled)
+          }
+        }
+      }
+    }
+
     // Resolve the file path feeding into a node's Nth image input by following edges.
     const getImgBuf = (nodeId: string, inputIdx: number): string => {
       const edge = graph.edges.find(
@@ -631,11 +693,14 @@ export class PipelineExecutor {
     const meta = needsMeta ? await loadImageMeta(imagePath) : undefined
 
     for (const node of sorted) {
+      // process_as_set is a source node — buffers are pre-seeded above; skip processing.
+      if (node.data.definitionId === 'process_as_set') continue
       const def = registry.get(node.data.definitionId)
       if (!def) {
-        // Silently skip framework-internal nodes (workflow-input/output, groups) which have
-        // an empty definitionId and no registry entry. Only warn for genuinely unknown IDs.
-        if (node.data.definitionId) console.warn(`[executor] Unknown node definition: ${node.data.definitionId}`)
+        // Silently skip framework-internal nodes (workflow-input/output, groups)
+        // which have no registry entry. Only warn for genuinely unknown IDs.
+        if (node.data.definitionId)
+          console.warn(`[executor] Unknown node definition: ${node.data.definitionId}`)
         continue
       }
 
@@ -958,6 +1023,7 @@ export class PipelineExecutor {
       const textLines: string[] = []
       let outputFormat: string | null = null
       for (const node of sorted) {
+        if (node.data.definitionId === 'process_as_set') continue
         const def = registry.get(node.data.definitionId)
         if (!def) {
           // workflow-output in text mode acts as a text output sink
@@ -1055,7 +1121,7 @@ export class PipelineExecutor {
     //      invocation instead of one process per node (lazy-buffer approach).
     //   2. Channel split — all 4 channels are extracted in one magick call via -write.
     // Returns the final output path and extension, or null if the image should be suppressed.
-    const executeMultiStream = async (inputPath: string, imageIndex: number): Promise<{ resultPath: string; outputExt: string } | null> => {
+    const executeMultiStream = async (inputPath: string, imageIndex: number, extraSeeds?: Map<string, string>): Promise<{ resultPath: string; outputExt: string } | null> => {
       const tmpId = shortHash(inputPath + String(imageIndex))
       let _seq = 0
       // Allocate a unique PNG temp path for an intermediate result.
@@ -1066,6 +1132,7 @@ export class PipelineExecutor {
       type Lazy = { base: string; args: string[] }
       const buffers = new Map<string, string | Lazy>()
       buffers.set('workflow-input:out-0', inputPath)
+      if (extraSeeds) for (const [k, v] of extraSeeds) buffers.set(k, v)
 
       // Materialise a buffer slot: flush its lazy args into a temp file if needed.
       const mat = async (key: string): Promise<string> => {
@@ -1162,6 +1229,8 @@ export class PipelineExecutor {
       const resolvedParams = new Map<string, Record<string, unknown>>()
 
       for (const node of sorted) {
+        // process_as_set is a source node — buffers are pre-seeded externally; skip processing.
+        if (node.data.definitionId === 'process_as_set') continue
         const def = registry.get(node.data.definitionId)
         if (!def) {
           // workflow-output in text mode acts as a text output sink
@@ -1367,6 +1436,102 @@ export class PipelineExecutor {
       if (finalVal.args.length > 0) await spawnMagick([finalVal.base, ...finalVal.args, finalOut])
       else await fs.promises.copyFile(finalVal.base, finalOut)
       return { resultPath: finalOut, outputExt }
+    }
+
+    // ── Set batch mode ─────────────────────────────────────────────────────────
+    // When a setInputNode is present, group images by naming convention and
+    // execute one run per set instead of one run per image.
+    const setInputNode = sorted.find(n => n.data.definitionId === 'process_as_set')
+    if (setInputNode) {
+      const setPrefix   = String(setInputNode.data.params?.prefix ?? '')
+      const setSuffixes = Array.isArray(setInputNode.data.params?.suffixes)
+        ? (setInputNode.data.params!.suffixes as string[]).filter(Boolean)
+        : []
+      const outParams       = outputNode?.data.params as Record<string, unknown> | undefined
+      const setOutputPrefix = String(outParams?.setOutputPrefix ?? '')
+      const setOutputSuffix = String(outParams?.setOutputSuffix ?? '')
+
+      const setGroups  = groupBySetPattern(imagePaths, setPrefix, setSuffixes)
+      const setEntries = [...setGroups.entries()]
+      const totalSets  = setEntries.length
+
+      this._batchCancelled = false
+      const self = this
+      let setQueueIdx = 0
+      let setCompleted = 0
+      let setFailures  = 0
+      let setSkipped   = 0
+
+      const setConcurrency = Math.min(Math.max(1, os.cpus().length), Math.max(1, totalSets))
+
+      async function processOneSet(): Promise<void> {
+        while (setQueueIdx < setEntries.length) {
+          if (self._batchCancelled) return
+          const setIndex = setQueueIdx
+          const [middleName, suffixMap] = setEntries[setQueueIdx++]
+
+          // First available path serves as the inputPath fallback for unconnected ports.
+          const firstPath = setSuffixes.map(s => suffixMap[s]).find(Boolean) ?? ''
+
+          // Pre-seed one buffer per suffix port; missing suffixes are left unseeded
+          // so their downstream nodes receive the firstPath fallback.
+          const seeds = new Map<string, string>()
+          const setNodeId = setInputNode!.id
+          for (let i = 0; i < setSuffixes.length; i++) {
+            const p = suffixMap[setSuffixes[i]]
+            if (p) seeds.set(`${setNodeId}:out-${i}`, p)
+          }
+
+          try {
+            const targetDir = outputDir ?? (firstPath ? path.dirname(firstPath) : process.cwd())
+            await fs.promises.mkdir(targetDir, { recursive: true })
+
+            if (hasImageOutput) {
+              const msResult = await executeMultiStream(firstPath, setIndex, seeds)
+              if (msResult === null) {
+                setSkipped++
+                onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName })
+                continue
+              }
+              const { resultPath, outputExt: msExt } = msResult
+              const outBase = setOutputPrefix + middleName + setOutputSuffix
+              const outExt  = msExt || path.extname(firstPath)
+              const outPath = path.join(targetDir, outBase + outExt)
+
+              if (overwrite === 'skip') {
+                const exists = await fs.promises.access(outPath).then(() => true).catch(() => false)
+                if (exists) {
+                  setSkipped++
+                  onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName })
+                  continue
+                }
+              }
+              await fs.promises.copyFile(resultPath, outPath)
+              outputFiles.push(outPath)
+            }
+          } catch (err) {
+            setFailures++
+            console.error(`[executor] Failed to process set "${middleName}":`, err)
+          }
+          onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName })
+        }
+      }
+
+      const threadsPerSetProcess = Math.max(1, Math.floor(os.cpus().length / setConcurrency))
+      const prevThreadLimitSet = process.env.MAGICK_THREAD_LIMIT
+      process.env.MAGICK_THREAD_LIMIT = String(threadsPerSetProcess)
+      try {
+        await Promise.all(Array.from({ length: setConcurrency }, processOneSet))
+      } finally {
+        if (prevThreadLimitSet !== undefined) process.env.MAGICK_THREAD_LIMIT = prevThreadLimitSet
+        else delete process.env.MAGICK_THREAD_LIMIT
+      }
+      return {
+        processed: setCompleted - setFailures - setSkipped,
+        skipped: setSkipped,
+        failed: setFailures,
+        outputFiles,
+      }
     }
 
     // Run all images concurrently, capped at 128 for very large batches.

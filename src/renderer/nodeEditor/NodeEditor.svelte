@@ -21,6 +21,7 @@
   import GroupNode from './GroupNode.svelte'
   import FolderPathNode from './FolderPathNode.svelte'
   import CompareNode from './CompareNode.svelte'
+  import SetInputNode from './SetInputNode.svelte'
   import ColoredEdge from './ColoredEdge.svelte'
   import NodeContextMenu from './NodeContextMenu.svelte'
   import { portColor } from './portColors.js'
@@ -37,7 +38,7 @@
   export const OUTPUT_NODE_ID = 'workflow-output'
 
   // ── Custom node / edge types ───────────────────────────────────────────────
-  const nodeTypes = { process: ProcessNode, inputNode: InputNode, outputNode: OutputNode, commentNode: CommentNode, group: GroupNode, folderPathNode: FolderPathNode, compareNode: CompareNode }
+  const nodeTypes = { process: ProcessNode, inputNode: InputNode, outputNode: OutputNode, commentNode: CommentNode, group: GroupNode, folderPathNode: FolderPathNode, compareNode: CompareNode, setInputNode: SetInputNode }
   const edgeTypes = { colored: ColoredEdge }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -623,6 +624,14 @@
     )
     txoNodes.forEach((n) => { void JSON.stringify((n.data?.params as Record<string, unknown>)?.portIds) })
     const ids = txoNodes.map((n) => n.id)
+    tick().then(() => { if (updateNodeInternals && ids.length) updateNodeInternals(ids) })
+  })
+
+  // Re-measure handle positions when setInputNode suffix count changes.
+  $effect(() => {
+    const setNodes = nodes.filter((n) => n.type === 'setInputNode')
+    setNodes.forEach((n) => { void JSON.stringify((n.data?.params as Record<string, unknown>)?.suffixes) })
+    const ids = setNodes.map((n) => n.id)
     tick().then(() => { if (updateNodeInternals && ids.length) updateNodeInternals(ids) })
   })
 
