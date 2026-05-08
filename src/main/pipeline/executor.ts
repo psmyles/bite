@@ -973,25 +973,6 @@ export class PipelineExecutor {
     // Whether the workflow produces an image output (edge to workflow-output in image mode).
     const hasImageOutput = !outputNodeTextMode && graph.edges.some(e => e.target === 'workflow-output')
 
-    // prop_ nodes depend on per-image file metadata (dimensions, name, EXIF, etc.)
-    // mean_value depends on per-image pixel data but NOT on loadImageMeta.
-    // Either kind requires per-image plan evaluation (no shared opArgs).
-    const hasImageMetaNodes = sorted.some((n) => {
-      const def = registry.get(n.data.definitionId)
-      return def?.needs_image_meta === true
-    })
-    // prop_name / prop_path only need path.basename — no ImageMagick identify call required.
-    // All other needs_image_meta nodes (dimensions, bitdepth, EXIF, …) need the full identify.
-    const NAME_PATH_ONLY_EXECUTORS = new Set(['prop_name', 'prop_path'])
-    const hasHeavyMetaNodes = sorted.some((n) => {
-      const def = registry.get(n.data.definitionId)
-      return def?.needs_image_meta === true && !NAME_PATH_ONLY_EXECUTORS.has(def.executor ?? '')
-    })
-    const hasPropNodes = hasImageMetaNodes || sorted.some((n) => {
-      const def = registry.get(n.data.definitionId)
-      return def?.executor === 'mean_value'
-    })
-
     // Nodes that actually contribute to the final output — backward BFS from
     // workflow-output following ALL edges (image AND param-wire).
     // This ensures channel_split that feeds mean_value → gate (via param-wires)
@@ -1013,6 +994,30 @@ export class PipelineExecutor {
         }
       }
     }
+
+    // prop_ nodes depend on per-image file metadata (dimensions, name, EXIF, etc.)
+    // mean_value depends on per-image pixel data but NOT on loadImageMeta.
+    // Either kind requires per-image plan evaluation (no shared opArgs).
+    // Only nodes that contribute to output are relevant — disconnected nodes must not
+    // influence the shared-plan decision or trigger unnecessary metadata calls.
+    const hasImageMetaNodes = sorted.some((n) => {
+      if (!outputContributorIds.has(n.id)) return false
+      const def = registry.get(n.data.definitionId)
+      return def?.needs_image_meta === true
+    })
+    // prop_name / prop_path only need path.basename — no ImageMagick identify call required.
+    // All other needs_image_meta nodes (dimensions, bitdepth, EXIF, …) need the full identify.
+    const NAME_PATH_ONLY_EXECUTORS = new Set(['prop_name', 'prop_path'])
+    const hasHeavyMetaNodes = sorted.some((n) => {
+      if (!outputContributorIds.has(n.id)) return false
+      const def = registry.get(n.data.definitionId)
+      return def?.needs_image_meta === true && !NAME_PATH_ONLY_EXECUTORS.has(def.executor ?? '')
+    })
+    const hasPropNodes = hasImageMetaNodes || sorted.some((n) => {
+      if (!outputContributorIds.has(n.id)) return false
+      const def = registry.get(n.data.definitionId)
+      return def?.executor === 'mean_value'
+    })
 
     // Executors that require executeMultiStream (cannot be handled by the fast-path
     // buildOpArgsForImage): channel_split/merge produce multiple image buffers;
@@ -1052,6 +1057,7 @@ export class PipelineExecutor {
       const textLines: string[] = []
       let outputFormat: string | null = null
       for (const node of sorted) {
+        if (!outputContributorIds.has(node.id)) continue
         if (node.data.definitionId === 'process_as_set') continue
         const def = registry.get(node.data.definitionId)
         if (!def) {
@@ -1258,6 +1264,7 @@ export class PipelineExecutor {
       const resolvedParams = new Map<string, Record<string, unknown>>()
 
       for (const node of sorted) {
+        if (!outputContributorIds.has(node.id)) continue
         // process_as_set is a source node — buffers are pre-seeded externally; skip processing.
         if (node.data.definitionId === 'process_as_set') continue
         const def = registry.get(node.data.definitionId)
