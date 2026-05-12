@@ -212,13 +212,16 @@
   .btn-update {
     background: var(--accent);
     border: none;
-    color: #fff;
+    color: #000;
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
     font-weight: 600;
-    padding: 6px 18px;
+    padding: 0 18px;
+    height: 30px;
     border-radius: 4px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
     transition: opacity 0.12s;
   }
 
@@ -232,9 +235,12 @@
     color: var(--text);
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
-    padding: 6px 18px;
+    padding: 0 18px;
+    height: 30px;
     border-radius: 4px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
     transition: background 0.12s, color 0.12s;
   }
 
