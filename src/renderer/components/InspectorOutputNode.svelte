@@ -504,27 +504,25 @@
             <span class="batch-count-done">{p.completed}</span>
             <span class="batch-count-sep">/</span>
             <span class="batch-count-total">{p.total}</span>
-            <span class="batch-count-label">images</span>
+            <span class="batch-count-label">done</span>
+            <span class="batch-eta">{eta != null ? fmtEta(eta) : `${elapsed}s`}</span>
           </div>
-          <div class="batch-progress-track">
-            <div class="batch-progress-fill" style="width: {Math.round(p.completed / p.total * 100)}%"></div>
-          </div>
-          <div class="batch-pct-label">
-            {Math.round(p.completed / p.total * 100)}%
-            &nbsp;·&nbsp;
-            {eta != null ? fmtEta(eta) : `${elapsed}s`}
-          </div>
-          {#if p.currentFile}
-            <div class="batch-current-file" title={p.currentFile}>{p.currentFile}</div>
+          {#if p.active.length > 0}
+            <div class="img-progress-list">
+              {#each p.active as file (file)}
+                <div class="img-progress-row">
+                  <span class="img-progress-name" title={file}>{file}</span>
+                  <div class="img-progress-bar"><div class="img-progress-fill"></div></div>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div class="batch-starting">Starting…</div>
           {/if}
         {:else}
           <div class="batch-count-row">
             <span class="batch-count-label">Starting…</span>
           </div>
-          <div class="batch-progress-track">
-            <div class="batch-progress-fill" style="width: 0%"></div>
-          </div>
-          <div class="batch-pct-label">{elapsed}s</div>
         {/if}
       </div>
       <div class="batch-modal-footer">
@@ -815,7 +813,7 @@
     padding: 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
 
   .batch-count-row {
@@ -852,36 +850,65 @@
     margin-left: 4px;
   }
 
-  .batch-progress-track {
-    height: 4px;
+  .batch-eta {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text);
+    opacity: 0.6;
+  }
+
+  /* ── Per-image progress rows ── */
+  .img-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    max-height: 180px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .img-progress-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .img-progress-name {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text);
+    opacity: 0.65;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .img-progress-bar {
+    height: 3px;
     border-radius: 2px;
     background: color-mix(in srgb, var(--border) 60%, transparent);
     overflow: hidden;
   }
 
-  .batch-progress-fill {
+  .img-progress-fill {
     height: 100%;
+    width: 35%;
     background: var(--accent);
     border-radius: 2px;
-    transition: width 0.2s;
+    animation: img-slide 1.4s ease-in-out infinite;
   }
 
-  .batch-pct-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
+  @keyframes img-slide {
+    0%   { transform: translateX(-170%); }
+    100% { transform: translateX(390%); }
+  }
+
+  .batch-starting {
+    font-family: var(--font-ui);
+    font-size: 12px;
     color: var(--text);
-    opacity: 0.7;
-  }
-
-  .batch-current-file {
-    margin-top: 6px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    opacity: 0.45;
   }
 
   .batch-modal-footer {

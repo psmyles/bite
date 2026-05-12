@@ -115,6 +115,7 @@ export interface Progress {
   completed: number
   total: number
   currentFile: string
+  active: string[]   // filenames currently being processed
 }
 
 export interface BatchResult {

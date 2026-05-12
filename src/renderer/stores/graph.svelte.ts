@@ -1,6 +1,7 @@
 import type { Node, Edge, Viewport } from '@xyflow/svelte'
 import { getNodeParams, buildResizeParamDefs, type ParamPortDef } from '../nodeEditor/nodeEditorHelpers.js'
 import { paramInHandle, paramOutHandle } from '../nodeEditor/wireTypeUtils.js'
+import type { Progress } from '../../shared/types.js'
 
 /** Stable fingerprint for dirty-checking: strips SvelteFlow runtime fields */
 function graphFingerprint(nodes: Node[], edges: Edge[]): string {
@@ -57,7 +58,7 @@ class GraphStore {
 
   /** Batch execution state — persisted here so it survives Inspector remounts. */
   batchRunning   = $state(false)
-  batchProgress  = $state<{ completed: number; total: number; currentFile: string } | null>(null)
+  batchProgress  = $state<Progress | null>(null)
   batchError     = $state<string | null>(null)
   batchDone      = $state(false)
   batchStartTime = $state<number | null>(null)   // performance.now() when run started

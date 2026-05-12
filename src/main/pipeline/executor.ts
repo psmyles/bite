@@ -1159,8 +1159,9 @@ export class PipelineExecutor {
     const executeMultiStream = async (inputPath: string, imageIndex: number, extraSeeds?: Map<string, string>): Promise<{ resultPath: string; outputExt: string } | null> => {
       const tmpId = shortHash(inputPath + String(imageIndex))
       let _seq = 0
-      // Allocate a unique PNG temp path for an intermediate result.
-      const newTmp = (ext = '.png') => path.join(TEMP_DIR, `batch_ms_${tmpId}_${_seq++}${ext}`)
+      // MIFF (ImageMagick native) is uncompressed and skips PNG encode/decode overhead
+      // for every intermediate step. Only the final output uses the real output extension.
+      const newTmp = (ext = '.miff') => path.join(TEMP_DIR, `batch_ms_${tmpId}_${_seq++}${ext}`)
 
       // Each buffer slot is either a concrete file path (string) or a lazy chain that
       // accumulates magick args to be applied to a base file on demand.
@@ -1174,9 +1175,9 @@ export class PipelineExecutor {
         const v = buffers.get(key)
         if (v === undefined) return inputPath
         if (typeof v === 'string') return v
+        if (v.args.length === 0) { buffers.set(key, v.base); return v.base }
         const out = newTmp()
-        if (v.args.length > 0) await spawnMagick([v.base, ...v.args, out])
-        else await fs.promises.copyFile(v.base, out)
+        await spawnMagick([v.base, ...v.args, out])
         buffers.set(key, out)   // upgrade to concrete path so re-materialisation is free
         return out
       }
@@ -1338,27 +1339,45 @@ export class PipelineExecutor {
 
         if (def.executor === 'channel_split') {
           if (analysisOnlySplitNodes.has(node.id)) {
-            // All consumers are mean_value — skip writing 4 PNG files.
+            // All consumers are mean_value — skip writing channel files entirely.
             // channelMeanSources already maps each out-N to the source image key;
             // mean_value will call loadImageChannelMean directly.
           } else {
-            // All 4 channels in ONE magick call using parenthesised -write branches.
-            const src = await getImg(node.id, 0)
-            const outs = [newTmp(), newTmp(), newTmp(), newTmp()]
-            await spawnMagick([
-              src,
-              '(', '+clone', '-channel', 'Red',   '-separate', '-write', outs[0], '+delete', ')',
-              '(', '+clone', '-channel', 'Green', '-separate', '-write', outs[1], '+delete', ')',
-              '(', '+clone', '-channel', 'Blue',  '-separate', '-write', outs[2], '+delete', ')',
-              '-channel', 'Alpha', '-separate', outs[3],
-            ])
-            for (let i = 0; i < 4; i++) buffers.set(`${node.id}:out-${i}`, outs[i])
+            const CHAN = ['Red', 'Green', 'Blue', 'Alpha']
+            const usedIdxs = [0, 1, 2, 3].filter(i => (imgConsumers.get(`${node.id}:out-${i}`) ?? 0) > 0)
+
+            if (usedIdxs.length === 1) {
+              // Single channel consumed — defer as a lazy chain so the downstream op
+              // (e.g. negate) can fuse onto it, avoiding an intermediate temp file.
+              const src = await getImg(node.id, 0)
+              const i = usedIdxs[0]
+              buffers.set(`${node.id}:out-${i}`, { base: src, args: ['-channel', CHAN[i], '-separate'] })
+            } else if (usedIdxs.length > 1) {
+              // Multiple channels — extract only those actually used in one spawn.
+              const src = await getImg(node.id, 0)
+              const outs = usedIdxs.map(() => newTmp())
+              const lastK = usedIdxs.length - 1
+              const args: string[] = [src]
+              for (let k = 0; k < lastK; k++) {
+                args.push('(', '+clone', '-channel', CHAN[usedIdxs[k]], '-separate', '-write', outs[k], '+delete', ')')
+              }
+              args.push('-channel', CHAN[usedIdxs[lastK]], '-separate', outs[lastK])
+              await spawnMagick(args)
+              for (let k = 0; k < usedIdxs.length; k++) {
+                buffers.set(`${node.id}:out-${usedIdxs[k]}`, outs[k])
+              }
+            }
           }
 
         } else if (def.executor === 'channel_merge') {
           const refPath = await mat('workflow-input:out-0')
 
-          const resolveChannel = async (inputIdx: number): Promise<string> => {
+          // Returns either a concrete path or inline magick args for a constant fill.
+          // Constant channels (param-wired or unconnected) skip the intermediate temp-file
+          // spawn and are inlined as parenthesised sub-expressions in the combine command.
+          type ChanSrc = { kind: 'path'; path: string } | { kind: 'inline'; args: string[] }
+
+          const resolveChannel = async (inputIdx: number): Promise<ChanSrc> => {
             const imgEdge = graph.edges.find((e) => e.target === node.id && e.targetHandle === `in-${inputIdx}`)
             if (imgEdge) {
               if (imgEdge.sourceHandle?.startsWith('param-out-')) {
@@ -1366,28 +1385,32 @@ export class PipelineExecutor {
                 const srcParams = resolvedParams.get(imgEdge.source)
                 const fillVal = Math.max(0, Math.min(1, Number(srcParams?.[paramKey] ?? 0)))
                 const pct = Math.round(fillVal * 100)
-                const out = newTmp()
-                await spawnMagick([refPath, '-evaluate', 'set', `${pct}%`, '-colorspace', 'Gray', out])
-                return out
+                return { kind: 'inline', args: [refPath, '-evaluate', 'set', `${pct}%`, '-colorspace', 'Gray'] }
               }
-              return mat(`${imgEdge.source}:${imgEdge.sourceHandle ?? 'out-0'}`)
+              return { kind: 'path', path: await mat(`${imgEdge.source}:${imgEdge.sourceHandle ?? 'out-0'}`) }
             }
-            const out = newTmp()
-            await spawnMagick([refPath, '-evaluate', 'set', '0%', '-colorspace', 'Gray', out])
-            return out
+            return { kind: 'inline', args: [refPath, '-evaluate', 'set', '0%', '-colorspace', 'Gray'] }
           }
 
-          const r = await resolveChannel(0)
-          const g = await resolveChannel(1)
-          const b = await resolveChannel(2)
+          const expand = (ch: ChanSrc): string[] =>
+            ch.kind === 'path' ? [ch.path] : ['(', ...ch.args, ')']
+
           const channelCount = Number(params.channels ?? 3)
           const aImgEdge = graph.edges.find((e) => e.target === node.id && e.targetHandle === 'in-3')
           const hasAlpha = channelCount >= 4 && !!aImgEdge
-          const a = hasAlpha ? await resolveChannel(3) : null
+          // Resolve all channels concurrently — their materialisations are independent.
+          const idxs = hasAlpha ? [0, 1, 2, 3] : [0, 1, 2]
+          const resolved = await Promise.all(idxs.map(i => resolveChannel(i)))
+          const [r, g, b] = resolved
+          const a = hasAlpha ? resolved[3] : null
           const out = newTmp()
-          await spawnMagick(hasAlpha
-            ? [r, g, b, a!, '-set', 'colorspace', 'sRGB', '-combine', '-alpha', 'on', out]
-            : [r, g, b, '-set', 'colorspace', 'sRGB', '-combine', out])
+          await spawnMagick([
+            ...expand(r), ...expand(g), ...expand(b),
+            ...(hasAlpha && a ? expand(a) : []),
+            '-set', 'colorspace', 'sRGB', '-combine',
+            ...(hasAlpha ? ['-alpha', 'on'] : []),
+            out,
+          ])
           buffers.set(`${node.id}:out-0`, out)
 
         } else if (def.executor === 'mean_value') {
@@ -1465,7 +1488,16 @@ export class PipelineExecutor {
       const finalKey = `${outputEdge.source}:${outputEdge.sourceHandle ?? 'out-0'}`
       const finalVal = buffers.get(finalKey)
       if (!finalVal) return { resultPath: inputPath, outputExt: path.extname(inputPath) }
-      if (typeof finalVal === 'string') return { resultPath: finalVal, outputExt }
+      if (typeof finalVal === 'string') {
+        // If the concrete path is an intermediate format (e.g. .miff) but the output
+        // needs a different format (e.g. .PNG), do a single conversion spawn.
+        if (path.extname(finalVal).toLowerCase() !== outputExt.toLowerCase()) {
+          const finalOut = newTmp(outputExt)
+          await spawnMagick([finalVal, finalOut])
+          return { resultPath: finalOut, outputExt }
+        }
+        return { resultPath: finalVal, outputExt }
+      }
 
       // Final materialisation: use the correct output extension (not always .png).
       const finalOut = newTmp(outputExt)
@@ -1512,8 +1544,9 @@ export class PipelineExecutor {
       let setFailures  = 0
       let setSkipped   = 0
       let _setStartupRecorded = false
+      const activeImages = new Set<string>()
 
-      onProgress({ completed: 0, total: totalSets, currentFile: '' })
+      onProgress({ completed: 0, total: totalSets, currentFile: '', active: [] })
 
       const setConcurrency = Math.min(Math.max(1, os.cpus().length), Math.max(1, totalSets))
 
@@ -1522,6 +1555,8 @@ export class PipelineExecutor {
           if (self._batchCancelled) return
           const setIndex = setQueueIdx
           const [middleName, suffixMap] = setEntries[setQueueIdx++]
+          activeImages.add(middleName)
+          onProgress({ completed: setCompleted, total: totalSets, currentFile: middleName, active: [...activeImages] })
           const imgT0 = timings.enabled ? Date.now() : 0
           if (timings.enabled && !_setStartupRecorded) {
             _setStartupRecorded = true
@@ -1552,7 +1587,8 @@ export class PipelineExecutor {
               const msElapsed = timings.enabled ? Date.now() - msT0 : 0
               if (msResult === null) {
                 setSkipped++
-                onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName })
+                activeImages.delete(middleName)
+                onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName, active: [...activeImages] })
                 continue
               }
               const { resultPath, outputExt: msExt } = msResult
@@ -1566,7 +1602,8 @@ export class PipelineExecutor {
                 if (timings.enabled) fileCheckMs += Date.now() - accessT0
                 if (exists) {
                   setSkipped++
-                  onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName })
+                  activeImages.delete(middleName)
+                  onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName, active: [...activeImages] })
                   continue
                 }
               }
@@ -1585,7 +1622,8 @@ export class PipelineExecutor {
             setFailures++
             console.error(`[executor] Failed to process set "${middleName}":`, err)
           }
-          onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName })
+          activeImages.delete(middleName)
+          onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName, active: [...activeImages] })
         }
       }
 
@@ -1627,7 +1665,8 @@ export class PipelineExecutor {
       timings.recordSetup(Date.now() - batchT0)
     }
 
-    onProgress({ completed: 0, total: imagePaths.length, currentFile: '' })
+    const activeImages = new Set<string>()
+    onProgress({ completed: 0, total: imagePaths.length, currentFile: '', active: [] })
 
     // Resolve rename node params once (shared across all images — index varies per image)
     const renameNode = sorted.find((n) => registry.get(n.data.definitionId)?.executor === 'rename')
@@ -1641,6 +1680,8 @@ export class PipelineExecutor {
         const imageIndex = queueIdx          // 0-based index for rename numbering
         const inputPath  = imagePaths[queueIdx++]
         const fileName   = path.basename(inputPath)
+        activeImages.add(fileName)
+        onProgress({ completed, total: imagePaths.length, currentFile: fileName, active: [...activeImages] })
         const imgT0 = timings.enabled ? Date.now() : 0
         if (timings.enabled && !_startupRecorded) {
           _startupRecorded = true
@@ -1662,7 +1703,8 @@ export class PipelineExecutor {
             const msElapsed = timings.enabled ? Date.now() - msT0 : 0
             if (msResult === null) {
               skipped++
-              onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
+              activeImages.delete(fileName)
+              onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName, active: [...activeImages] })
               continue
             }
             if (hasImageOutput) {
@@ -1677,7 +1719,8 @@ export class PipelineExecutor {
                 if (timings.enabled) fileCheckMs += Date.now() - accessT0
                 if (exists) {
                   skipped++
-                  onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
+                  activeImages.delete(fileName)
+                  onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName, active: [...activeImages] })
                   continue
                 }
               }
@@ -1697,7 +1740,8 @@ export class PipelineExecutor {
             const plan = sharedPlan !== undefined ? sharedPlan : await buildOpArgsForImage(inputPath)
             if (plan === null) {
               skipped++
-              onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
+              activeImages.delete(fileName)
+              onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName, active: [...activeImages] })
               continue
             }
             // Collect text output values from this image's plan.
@@ -1716,7 +1760,8 @@ export class PipelineExecutor {
                 if (timings.enabled) fileCheckMs += Date.now() - accessT0
                 if (exists) {
                   skipped++
-                  onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
+                  activeImages.delete(fileName)
+                  onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName, active: [...activeImages] })
                   continue
                 }
               }
@@ -1749,7 +1794,8 @@ export class PipelineExecutor {
           failures++
           console.error(`[executor] Failed to process ${fileName}:`, err)
         }
-        onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName })
+        activeImages.delete(fileName)
+        onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName, active: [...activeImages] })
       }
     }
 
