@@ -1,4 +1,4 @@
-[ ImageMagick 7.1.2-17 (2026-03-15) ]
+[ ImageMagick 7.1.2-21 (2026-04-21) ]
 
 ImageMagick License
              https://imagemagick.org/license/
@@ -107,7 +107,7 @@ To apply the ImageMagick License to your work, attach the following boilerplate 
    License for the specific language governing permissions and limitations
    under the License.
 
-[ aom 3.13.1 (2025-09-05) ]
+[ aom 3.13.3 (2026-04-02) ]
 
 Copyright (c) 2016, Alliance for Open Media. All rights reserved.
 
@@ -2032,7 +2032,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-[ openexr 3.4.6 (2026-03-01) ]
+[ openexr 3.4.9 (2026-04-17) ]
 
 Copyright (c) Contributors to the OpenEXR Project. All rights reserved.
 
@@ -2273,7 +2273,7 @@ fontconfig/src/ftglue.[ch]
  * PS: This "glue" code is explicitely put in the public domain
  */
 
-[ freetype 2.14.2 (2026-03-01) ]
+[ freetype 2.14.3 (2026-03-22) ]
 
 The FreeType Project LICENSE
                     ----------------------------
@@ -2950,7 +2950,7 @@ necessary.  Here is a sample; alter the names:
 
 That's all there is to it!
 
-[ gdk-pixbuf 2.44.5 (2026-01-29) ]
+[ gdk-pixbuf 2.44.6 (2026-03-31) ]
 
 GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
@@ -3960,7 +3960,7 @@ necessary.  Here is a sample; alter the names:
 
 That's all there is to it!
 
-[ harfbuzz 13.0.1 (2026-03-07) ]
+[ harfbuzz 14.2.0 (2026-04-20) ]
 
 HarfBuzz is licensed under the so-called "Old MIT" license.  Details follow.
 For parts of HarfBuzz that are licensed under different licenses see individual
@@ -5458,7 +5458,7 @@ apply, that proxy's public statement of acceptance of any version is
 permanent authorization for you to choose that version for the
 Library.
 
-[ liblzma 5.8.2 (2025-12-17) ]
+[ liblzma 5.8.3 (2026-04-31) ]
 
 GNU LESSER GENERAL PUBLIC LICENSE
                        Version 2.1, February 1999
@@ -6030,7 +6030,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-[ openjph 0.26.3 (2026-02-17) ]
+[ openjph 0.27.0 (2026-04-14) ]
 
 BSD 2-Clause License
 
@@ -6590,7 +6590,7 @@ possible. They may also add themselves to the list below.
  * DEALINGS IN THE SOFTWARE.
  */
 
-[ libpng 1.6.55 (2026-02-09) ]
+[ libpng 1.6.58 (2026-04-15) ]
 
 COPYRIGHT NOTICE, DISCLAIMER, and LICENSE
 =========================================
@@ -6727,7 +6727,7 @@ to supporting the PNG file format in commercial products.  If you use
 this source code in a product, acknowledgment is not required but would
 be appreciated.
 
-[ libraqm 0.10.4 (2026-02-05) ]
+[ libraqm 0.10.5 (2026-04-11) ]
 
 The MIT License (MIT)
 
@@ -6752,7 +6752,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-[ libraw 0.22.0 (2026-01-13) ]
+[ libraw 0.22.1 (2026-04-06) ]
 
 GNU LESSER GENERAL PUBLIC LICENSE
 		       Version 2.1, February 1999
@@ -7782,7 +7782,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-[ libxml2 2.15.2 (2026-03-03) ]
+[ libxml2 2.15.3 (2026-04-15) ]
 
 Except where otherwise noted in the source code (e.g. the files dict.c and
 list.c, which are covered by a similar licence but with different Copyright
