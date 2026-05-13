@@ -2,25 +2,29 @@
   import { imageStore } from '../stores/images.svelte.js'
   import { IS_ELECTRON } from '../platform.js'
 
+  let panelEl       = $state<HTMLElement | undefined>(undefined)
   let stripEl       = $state<HTMLElement | undefined>(undefined)
   let stripHeight   = $state(0)
   let stripWidth    = $state(0)
   let scrollLeft    = $state(0)
   let isDragOver    = $state(false)
 
-  // Measure strip height (for thumbSize) and width (for visible range calculation).
+  // Measure panel height (for thumbSize) and strip width (for visible range).
+  // We observe the outer panel for height — its size is set by the app layout and
+  // never changes in response to thumbnail sizes, avoiding a ResizeObserver loop.
   $effect(() => {
-    if (!stripEl) return
-    const ro = new ResizeObserver((entries) => {
-      stripHeight = entries[0].contentRect.height
-      stripWidth  = entries[0].contentRect.width
+    if (!panelEl || !stripEl) return
+    const ro = new ResizeObserver(() => {
+      stripHeight = panelEl!.clientHeight
+      stripWidth  = stripEl!.clientWidth
     })
+    ro.observe(panelEl)
     ro.observe(stripEl)
     return () => ro.disconnect()
   })
 
-  // Strip padding (top 5 + bottom 4) + thumb padding (3*2) + gap (3) + name (~13px)
-  const CHROME    = 28
+  // Strip padding (top 5 + bottom 4) + thumb padding (3*2) + gap (3) + name (~13px) + status bar (24px)
+  const CHROME    = 52
   const OVERSCAN  = 8    // items to render outside the visible window on each side
   const STRIP_PAD = 8    // .thumb-strip left/right padding
 
@@ -96,6 +100,7 @@
 <div
   class="filmstrip-panel"
   class:drag-over={isDragOver}
+  bind:this={panelEl}
   ondragover={onDragOver}
   ondragleave={onDragLeave}
   ondrop={onDrop}
