@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { topoSort } from '../main/pipeline/executor.js'
+import { topoSort } from '../main/pipeline/graph-utils.js'
 import type { GraphNode, GraphEdge } from '../shared/types.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

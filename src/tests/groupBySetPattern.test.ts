@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupBySetPattern } from '../main/pipeline/executor.js'
+import { groupBySetPattern } from '../main/pipeline/graph-utils.js'
 
 const paths = (names: string[]) => names.map(n => `/images/${n}`)
 
