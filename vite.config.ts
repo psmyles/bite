@@ -1,10 +1,12 @@
-import { defineConfig } from 'vite'
-import path from 'node:path'
-import { readFileSync } from 'node:fs'
-import electron from 'vite-plugin-electron/simple'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { defineConfig } from 'vite';
+import path from 'node:path';
+import { readFileSync } from 'node:fs';
+import electron from 'vite-plugin-electron/simple';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
-const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string }
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
+  version: string;
+};
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -18,7 +20,7 @@ export default defineConfig({
         // Multiple entries: Electron main process + standalone CLI
         entry: {
           main: 'electron/main.ts',
-          cli:  'src/cli/index.ts',
+          cli: 'src/cli/index.ts',
         },
         vite: {
           build: {
@@ -26,9 +28,9 @@ export default defineConfig({
               output: {
                 preserveModules: true,
                 preserveModulesRoot: 'src',
-              }
-            }
-          }
+              },
+            },
+          },
         },
       },
       preload: {
@@ -39,10 +41,11 @@ export default defineConfig({
       // Ployfill the Electron and Node.js API for Renderer process.
       // If you want use Node.js in Renderer process, the `nodeIntegration` needs to be enabled in the Main process.
       // See 👉 https://github.com/electron-vite/vite-plugin-electron-renderer
-      renderer: process.env.NODE_ENV === 'test'
-        // https://github.com/electron-vite/vite-plugin-electron-renderer/issues/78#issuecomment-2053600808
-        ? undefined
-        : {},
+      renderer:
+        process.env.NODE_ENV === 'test'
+          ? // https://github.com/electron-vite/vite-plugin-electron-renderer/issues/78#issuecomment-2053600808
+            undefined
+          : {},
     }),
   ],
-})
+});

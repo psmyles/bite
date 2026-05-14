@@ -5,7 +5,7 @@
   "description": "Auto-crop to the tight bounding box by removing transparent or near-transparent border pixels",
   "aliases": ["autocrop", "trim transparent", "crop alpha"],
   "category": "Transform",
-  "inputs":  [{ "type": "image", "label": "Input" }],
+  "inputs": [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     {

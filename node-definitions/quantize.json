@@ -5,7 +5,7 @@
   "description": "Reduce the image to N distinct colors with optional dithering for a retro palette look",
   "aliases": ["reduce colors", "color depth", "palette"],
   "category": "Color",
-  "inputs":  [{ "type": "image", "label": "Input" }],
+  "inputs": [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     {

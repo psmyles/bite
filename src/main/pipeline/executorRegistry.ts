@@ -9,21 +9,21 @@
 // on pipeline state) currently remain as hardcoded branches inside executor.ts.
 // A richer async context interface is deferred to a later phase.
 
-import type { NodeDefinition } from '../../shared/types.js'
+import type { NodeDefinition } from '../../shared/types.js';
 
-export type ArgBuilderFn = (def: NodeDefinition, params: Record<string, unknown>) => string[]
+export type ArgBuilderFn = (def: NodeDefinition, params: Record<string, unknown>) => string[];
 
-const registry = new Map<string, ArgBuilderFn>()
+const registry = new Map<string, ArgBuilderFn>();
 
 export function registerExecutor(key: string, fn: ArgBuilderFn): void {
-  if (registry.has(key)) console.warn(`[executorRegistry] Overwriting executor "${key}"`)
-  registry.set(key, fn)
+  if (registry.has(key)) console.warn(`[executorRegistry] Overwriting executor "${key}"`);
+  registry.set(key, fn);
 }
 
 export function getExecutor(key: string): ArgBuilderFn | undefined {
-  return registry.get(key)
+  return registry.get(key);
 }
 
 export function registeredKeys(): string[] {
-  return [...registry.keys()]
+  return [...registry.keys()];
 }

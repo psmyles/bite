@@ -25,10 +25,7 @@
       "type": "enum",
       "widget": "dropdown",
       "default": "horizontal",
-      "options": [
-        "horizontal",
-        "vertical"
-      ]
+      "options": ["horizontal", "vertical"]
     }
   ],
   "command_template": "-flop"

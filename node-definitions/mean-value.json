@@ -8,7 +8,5 @@
   "inputs": [{ "type": "image", "label": "Channel" }],
   "outputs": [],
   "executor": "mean_value",
-  "params": [
-    { "name": "value", "label": "Value", "type": "float", "default": 0, "readonly": true }
-  ]
+  "params": [{ "name": "value", "label": "Value", "type": "float", "default": 0, "readonly": true }]
 }

@@ -1,33 +1,29 @@
 <script lang="ts">
-  import { graphStore } from '../stores/graph.svelte.js'
-  import type { NodeDefinition } from '../../shared/types.js'
-  import InspectorInputNode from './InspectorInputNode.svelte'
-  import InspectorOutputNode from './InspectorOutputNode.svelte'
-  import InspectorParamEditor from './InspectorParamEditor.svelte'
-  import InspectorCommentNode from './InspectorCommentNode.svelte'
-  import InspectorRenameNode from './InspectorRenameNode.svelte'
-  import InspectorResizeNode from './InspectorResizeNode.svelte'
-  import InspectorFolderPathNode from './InspectorFolderPathNode.svelte'
-  import InspectorSetInputNode from './InspectorSetInputNode.svelte'
-  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js'
+  import { graphStore } from '../stores/graph.svelte.js';
+  import type { NodeDefinition } from '../../shared/types.js';
+  import InspectorInputNode from './InspectorInputNode.svelte';
+  import InspectorOutputNode from './InspectorOutputNode.svelte';
+  import InspectorParamEditor from './InspectorParamEditor.svelte';
+  import InspectorCommentNode from './InspectorCommentNode.svelte';
+  import InspectorRenameNode from './InspectorRenameNode.svelte';
+  import InspectorResizeNode from './InspectorResizeNode.svelte';
+  import InspectorFolderPathNode from './InspectorFolderPathNode.svelte';
+  import InspectorSetInputNode from './InspectorSetInputNode.svelte';
+  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
 
-  let { definitions }: { definitions: NodeDefinition[] } = $props()
+  let { definitions }: { definitions: NodeDefinition[] } = $props();
 
-  const selectedNode = $derived(graphStore.selectedNode)
-  const nodeType     = $derived(selectedNode?.type ?? null)
-  const nodeData     = $derived(selectedNode?.data as Record<string, unknown> | undefined)
+  const selectedNode = $derived(graphStore.selectedNode);
+  const nodeType = $derived(selectedNode?.type ?? null);
+  const nodeData = $derived(selectedNode?.data as Record<string, unknown> | undefined);
 
-  const definition = $derived(
-    selectedNode
-      ? definitions.find((d) => d.id === nodeData?.definitionId) ?? null
-      : null
-  )
+  const definition = $derived(selectedNode ? (definitions.find((d) => d.id === nodeData?.definitionId) ?? null) : null);
 
   const outputNodeMode = $derived(
     nodeType === 'outputNode'
-      ? ((nodeData?.params as Record<string, unknown> | undefined)?.outputMode as string) ?? 'image'
+      ? (((nodeData?.params as Record<string, unknown> | undefined)?.outputMode as string) ?? 'image')
       : null
-  )
+  );
 </script>
 
 <div class="inspector">
@@ -39,7 +35,11 @@
       <span class="node-label">{nodeData?.label as string}</span>
     {:else if nodeType === 'outputNode'}
       <span class="node-label">
-        {outputNodeMode === 'text' ? 'Output — Text' : outputNodeMode === 'flipbook' ? 'Output — Flipbook' : 'Output — Image'}
+        {outputNodeMode === 'text'
+          ? 'Output — Text'
+          : outputNodeMode === 'flipbook'
+            ? 'Output — Flipbook'
+            : 'Output — Image'}
       </span>
     {:else if nodeType === 'commentNode'}
       <span class="node-label">Comment</span>
@@ -53,32 +53,26 @@
   <div class="content" class:fill={nodeType === 'inputNode' || outputNodeMode === 'text'}>
     {#if !selectedNode}
       <span class="empty-hint">Select a node to edit its parameters.</span>
-
     {:else if nodeType === 'inputNode'}
       <InspectorInputNode />
-
     {:else if nodeType === 'outputNode'}
-      <InspectorOutputNode selectedNode={selectedNode} />
-
+      <InspectorOutputNode {selectedNode} />
     {:else if nodeType === 'commentNode'}
-      <InspectorCommentNode selectedNode={selectedNode} />
-
+      <InspectorCommentNode {selectedNode} />
     {:else if nodeType === 'folderPathNode'}
-      <InspectorFolderPathNode selectedNode={selectedNode} />
-
+      <InspectorFolderPathNode {selectedNode} />
     {:else if nodeType === 'setInputNode'}
-      <InspectorSetInputNode selectedNode={selectedNode} />
-
+      <InspectorSetInputNode {selectedNode} />
     {:else if !definition}
       <span class="empty-hint">No definition found for this node.</span>
     {:else if definition.id === 'rename'}
-      <InspectorRenameNode {definition} selectedNode={selectedNode} />
+      <InspectorRenameNode {definition} {selectedNode} />
     {:else if definition.id === 'resize'}
-      <InspectorResizeNode selectedNode={selectedNode} />
+      <InspectorResizeNode {selectedNode} />
     {:else if definition.params.filter((p) => !p.portOnly).length === 0}
       <span class="empty-hint">This node has no parameters.</span>
     {:else}
-      <InspectorParamEditor {definition} selectedNode={selectedNode} />
+      <InspectorParamEditor {definition} {selectedNode} />
     {/if}
   </div>
 </div>
@@ -132,7 +126,9 @@
     transition: scrollbar-color 0.2s;
   }
 
-  .content:hover { scrollbar-color: var(--scrollbar-thumb) transparent; }
+  .content:hover {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
 
   .content.fill {
     overflow: hidden;

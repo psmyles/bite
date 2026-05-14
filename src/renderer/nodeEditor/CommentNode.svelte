@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
-  import { NodeResizer, useSvelteFlow } from '@xyflow/svelte'
-  import { graphStore } from '../stores/graph.svelte.js'
+  import { untrack } from 'svelte';
+  import { NodeResizer, useSvelteFlow } from '@xyflow/svelte';
+  import { graphStore } from '../stores/graph.svelte.js';
 
   interface NodeData {
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>;
   }
 
   let {
@@ -13,80 +13,82 @@
     selected = false,
     width,
     height,
-  }: { id?: string; data: NodeData; selected?: boolean; width?: number; height?: number } = $props()
+  }: { id?: string; data: NodeData; selected?: boolean; width?: number; height?: number } = $props();
 
-  const { updateNode } = useSvelteFlow()
+  const { updateNode } = useSvelteFlow();
 
-  let localHeading  = $state(untrack(() => (data.params?.heading ?? 'Comment') as string))
-  let localBody     = $state(untrack(() => (data.params?.body    ?? '')         as string))
-  let editing       = $state(false)
-  let editFocus     = $state<'heading' | 'body'>('heading')
-  let containerEl   = $state<HTMLElement | undefined>(undefined)
-  let headingInput  = $state<HTMLInputElement | undefined>(undefined)
-  let bodyInput     = $state<HTMLTextAreaElement | undefined>(undefined)
+  let localHeading = $state(untrack(() => (data.params?.heading ?? 'Comment') as string));
+  let localBody = $state(untrack(() => (data.params?.body ?? '') as string));
+  let editing = $state(false);
+  let editFocus = $state<'heading' | 'body'>('heading');
+  let containerEl = $state<HTMLElement | undefined>(undefined);
+  let headingInput = $state<HTMLInputElement | undefined>(undefined);
+  let bodyInput = $state<HTMLTextAreaElement | undefined>(undefined);
 
   // Inline style: lock both axes when explicit dimensions are known
   const containerStyle = $derived(
-    width  != null && height != null ? `width: ${width}px; height: ${height}px` :
-    width  != null                   ? `width: ${width}px` :
-    undefined
-  )
+    width != null && height != null
+      ? `width: ${width}px; height: ${height}px`
+      : width != null
+        ? `width: ${width}px`
+        : undefined
+  );
 
   // Sync from store when an external change arrives (undo/redo, workflow load)
   $effect(() => {
-    const h = (data.params?.heading ?? 'Comment') as string
-    const b = (data.params?.body    ?? '')         as string
+    const h = (data.params?.heading ?? 'Comment') as string;
+    const b = (data.params?.body ?? '') as string;
     untrack(() => {
-      if (h !== localHeading) localHeading = h
-      if (b !== localBody)    localBody    = b
-    })
-  })
+      if (h !== localHeading) localHeading = h;
+      if (b !== localBody) localBody = b;
+    });
+  });
 
   // Focus the right input after Svelte renders the editing branch
   $effect(() => {
-    if (!editing) return
+    if (!editing) return;
     Promise.resolve().then(() => {
-      if (editFocus === 'heading') headingInput?.focus()
-      else bodyInput?.focus()
-    })
-  })
+      if (editFocus === 'heading') headingInput?.focus();
+      else bodyInput?.focus();
+    });
+  });
 
   // Exit editing on mousedown outside the node
   $effect(() => {
-    if (!editing) return
+    if (!editing) return;
     function onDocMousedown(e: MouseEvent) {
       if (containerEl && !containerEl.contains(e.target as Node)) {
-        editing = false
+        editing = false;
       }
     }
-    document.addEventListener('mousedown', onDocMousedown, true)
-    return () => document.removeEventListener('mousedown', onDocMousedown, true)
-  })
+    document.addEventListener('mousedown', onDocMousedown, true);
+    return () => document.removeEventListener('mousedown', onDocMousedown, true);
+  });
 
   // On exit edit: grow vertically if content overflows the current height
   $effect(() => {
-    if (editing) return
+    if (editing) return;
     Promise.resolve().then(() => {
-      if (!containerEl || !id) return
-      const scrollH = containerEl.scrollHeight
-      const clientH = containerEl.clientHeight
+      if (!containerEl || !id) return;
+      const scrollH = containerEl.scrollHeight;
+      const clientH = containerEl.clientHeight;
       if (scrollH > clientH) {
-        updateNode(id, { height: scrollH })
+        updateNode(id, { height: scrollH });
       }
-    })
-  })
+    });
+  });
 
   function enterEditing(target: 'heading' | 'body', e: MouseEvent) {
-    e.stopPropagation()
-    editFocus = target
-    editing = true
+    e.stopPropagation();
+    editFocus = target;
+    editing = true;
   }
 
   // Stop all key events from reaching the canvas while editing
   // (prevents Space → context menu, Delete → node delete, Ctrl+Z → undo graph, etc.)
   function onKeydown(e: KeyboardEvent) {
-    e.stopPropagation()
-    if (e.key === 'Escape') editing = false
+    e.stopPropagation();
+    if (e.key === 'Escape') editing = false;
   }
 </script>
 
@@ -119,16 +121,17 @@
     ></textarea>
   {:else}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="comment-heading comment-heading--display"
-      ondblclick={(e) => enterEditing('heading', e)}
-    >{localHeading || 'Comment'}</div>
+    <div class="comment-heading comment-heading--display" ondblclick={(e) => enterEditing('heading', e)}>
+      {localHeading || 'Comment'}
+    </div>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="comment-body comment-body--display"
       class:placeholder={!localBody}
       ondblclick={(e) => enterEditing('body', e)}
-    >{localBody || 'Double click to edit'}</div>
+    >
+      {localBody || 'Double click to edit'}
+    </div>
   {/if}
 </div>
 
@@ -145,7 +148,7 @@
     cursor: grab;
     box-shadow:
       3px 5px 14px rgba(0, 0, 0, 0.55),
-      0  1px  3px rgba(0, 0, 0, 0.30),
+      0 1px 3px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.35);
     transition: box-shadow 0.12s;
   }
@@ -153,8 +156,8 @@
   .comment-node.selected {
     box-shadow:
       3px 5px 14px rgba(0, 0, 0, 0.55),
-      0  0   0  2px #ca8a04,
-      0  1px  3px rgba(0, 0, 0, 0.30),
+      0 0 0 2px #ca8a04,
+      0 1px 3px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.35);
   }
 

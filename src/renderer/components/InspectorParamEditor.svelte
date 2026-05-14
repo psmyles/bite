@@ -1,91 +1,87 @@
 <script lang="ts">
-  import type { Node } from '@xyflow/svelte'
-  import type { NodeDefinition, ParamDefinition, VisibilityRule } from '../../shared/types.js'
-  import { graphStore } from '../stores/graph.svelte.js'
-  import ColorPicker from './ColorPicker.svelte'
-  import Dropdown from './Dropdown.svelte'
-  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js'
-  import { paramInHandle } from '../nodeEditor/wireTypeUtils.js'
+  import type { Node } from '@xyflow/svelte';
+  import type { NodeDefinition, ParamDefinition, VisibilityRule } from '../../shared/types.js';
+  import { graphStore } from '../stores/graph.svelte.js';
+  import ColorPicker from './ColorPicker.svelte';
+  import Dropdown from './Dropdown.svelte';
+  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
+  import { paramInHandle } from '../nodeEditor/wireTypeUtils.js';
 
   let {
     definition,
     selectedNode,
   }: {
-    definition: NodeDefinition
-    selectedNode: Node
-  } = $props()
+    definition: NodeDefinition;
+    selectedNode: Node;
+  } = $props();
 
-  const params = $derived(getNodeParams(selectedNode?.data))
+  const params = $derived(getNodeParams(selectedNode?.data));
 
   function getValue(p: ParamDefinition): unknown {
     // For Properties node readonly outputs, use live values computed from the last preview run.
     if (p.readonly && selectedNode && definition?.executor?.startsWith('prop_')) {
-      const live = graphStore.propValues[selectedNode.id]?.[p.name]
-      if (live !== undefined) return live
+      const live = graphStore.propValues[selectedNode.id]?.[p.name];
+      if (live !== undefined) return live;
     }
-    return p.name in params ? params[p.name] : p.default
+    return p.name in params ? params[p.name] : p.default;
   }
 
   /** Returns true if this param has an incoming wire connected to it. */
   function isWired(p: ParamDefinition): boolean {
-    return graphStore.edges.some(
-      (e) => e.target === selectedNode.id && e.targetHandle === paramInHandle(p.name)
-    )
+    return graphStore.edges.some((e) => e.target === selectedNode.id && e.targetHandle === paramInHandle(p.name));
   }
 
   /** Returns the value arriving via the wire, falling back to the local value. */
   function getWiredValue(p: ParamDefinition): unknown {
-    const edge = graphStore.edges.find(
-      (e) => e.target === selectedNode.id && e.targetHandle === paramInHandle(p.name)
-    )
-    if (!edge) return getValue(p)
-    const sourceNode = graphStore.nodes.find((n) => n.id === edge.source)
-    if (!sourceNode) return getValue(p)
-    const srcParamName = (edge.sourceHandle ?? '').replace('param-out-', '')
-    const srcParams = getNodeParams(sourceNode.data)
-    return srcParams[srcParamName] ?? getValue(p)
+    const edge = graphStore.edges.find((e) => e.target === selectedNode.id && e.targetHandle === paramInHandle(p.name));
+    if (!edge) return getValue(p);
+    const sourceNode = graphStore.nodes.find((n) => n.id === edge.source);
+    if (!sourceNode) return getValue(p);
+    const srcParamName = (edge.sourceHandle ?? '').replace('param-out-', '');
+    const srcParams = getNodeParams(sourceNode.data);
+    return srcParams[srcParamName] ?? getValue(p);
   }
 
   function isAtDefault(p: ParamDefinition): boolean {
-    if (p.default === undefined) return true
-    const cur = getValue(p)
-    return JSON.stringify(cur) === JSON.stringify(p.default)
+    if (p.default === undefined) return true;
+    const cur = getValue(p);
+    return JSON.stringify(cur) === JSON.stringify(p.default);
   }
 
   function resetToDefault(p: ParamDefinition) {
-    if (p.default === undefined) return
-    graphStore.setParam(selectedNode.id, p.name, p.default)
+    if (p.default === undefined) return;
+    graphStore.setParam(selectedNode.id, p.name, p.default);
   }
 
   /** Returns false if a params_visibility rule hides this param given the current param values. */
   function isVisible(p: ParamDefinition): boolean {
-    const rules: VisibilityRule[] = definition.params_visibility ?? []
-    const rule = rules.find((r) => r.show === p.name)
-    if (!rule) return true
-    return params[rule.when.param] === rule.when.eq
+    const rules: VisibilityRule[] = definition.params_visibility ?? [];
+    const rule = rules.find((r) => r.show === p.name);
+    if (!rule) return true;
+    return params[rule.when.param] === rule.when.eq;
   }
 
   function onChange(p: ParamDefinition, raw: string | boolean) {
-    let value: unknown
+    let value: unknown;
     if (p.type === 'int') {
-      const n = parseInt(raw as string, 10)
-      value = isNaN(n) ? (p.default ?? 0) : n
+      const n = parseInt(raw as string, 10);
+      value = isNaN(n) ? (p.default ?? 0) : n;
     } else if (p.type === 'float' || p.type === 'numeric') {
-      const n = parseFloat(raw as string)
-      value = isNaN(n) ? (p.default ?? 0) : n
+      const n = parseFloat(raw as string);
+      value = isNaN(n) ? (p.default ?? 0) : n;
     } else if (p.type === 'bool') {
-      value = raw
+      value = raw;
     } else {
-      value = raw
+      value = raw;
     }
-    graphStore.setParam(selectedNode.id, p.name, value)
+    graphStore.setParam(selectedNode.id, p.name, value);
   }
 
   function onVectorChange(p: ParamDefinition, index: number, rawVal: string) {
-    const current = Array.isArray(getValue(p)) ? [...(getValue(p) as number[])] : []
-    while (current.length <= index) current.push(0)
-    current[index] = parseFloat(rawVal) || 0
-    graphStore.setParam(selectedNode.id, p.name, current)
+    const current = Array.isArray(getValue(p)) ? [...(getValue(p) as number[])] : [];
+    while (current.length <= index) current.push(0);
+    current[index] = parseFloat(rawVal) || 0;
+    graphStore.setParam(selectedNode.id, p.name, current);
   }
 </script>
 
@@ -98,26 +94,28 @@
       {#if p.readonly && !wired && definition?.executor}<span class="output-badge">out</span>{/if}
       {#if !wired && !p.readonly && p.default !== undefined && !isAtDefault(p)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <span
-          class="reset-btn"
-          onclick={() => resetToDefault(p)}
-          title="Reset to default"
-          role="button"
-          tabindex="-1"
-        >↺</span>
+        <span class="reset-btn" onclick={() => resetToDefault(p)} title="Reset to default" role="button" tabindex="-1"
+          >↺</span
+        >
       {/if}
     </label>
 
     {#if wired}
       <!-- Show the value arriving from the connected node -->
       {@const wv = getWiredValue(p)}
-      <div class="wired-value">{Array.isArray(wv) ? (wv as number[]).map(v => (v as number).toFixed(3)).join(', ') : wv}</div>
-
+      <div class="wired-value">
+        {Array.isArray(wv) ? (wv as number[]).map((v) => (v as number).toFixed(3)).join(', ') : wv}
+      </div>
     {:else if p.readonly && definition.executor}
       <!-- Computed output — display only regardless of widget type -->
       {@const cv = getValue(p)}
-      <div class="computed-value">{Array.isArray(cv) ? (cv as number[]).map(v => v.toFixed(3)).join(', ') : typeof cv === 'boolean' ? String(cv) : cv}</div>
-
+      <div class="computed-value">
+        {Array.isArray(cv)
+          ? (cv as number[]).map((v) => v.toFixed(3)).join(', ')
+          : typeof cv === 'boolean'
+            ? String(cv)
+            : cv}
+      </div>
     {:else if p.widget === 'slider'}
       <div class="slider-wrap">
         <input
@@ -138,7 +136,6 @@
           oninput={(e) => onChange(p, (e.target as HTMLInputElement).value)}
         />
       </div>
-
     {:else if p.widget === 'number'}
       <input
         id="param-{p.name}"
@@ -148,14 +145,8 @@
         oninput={(e) => onChange(p, (e.target as HTMLInputElement).value)}
         class="number-input"
       />
-
     {:else if p.widget === 'dropdown'}
-      <Dropdown
-        value={getValue(p) as string}
-        options={p.options ?? []}
-        onchange={(v) => onChange(p, v)}
-      />
-
+      <Dropdown value={getValue(p) as string} options={p.options ?? []} onchange={(v) => onChange(p, v)} />
     {:else if p.widget === 'checkbox'}
       <input
         id="param-{p.name}"
@@ -164,7 +155,6 @@
         onchange={(e) => onChange(p, (e.target as HTMLInputElement).checked)}
         class="checkbox"
       />
-
     {:else if p.widget === 'color-picker'}
       <input
         id="param-{p.name}"
@@ -173,16 +163,17 @@
         oninput={(e) => onChange(p, (e.target as HTMLInputElement).value)}
         class="color-pick"
       />
-
     {:else if p.widget === 'vector' && p.type === 'color'}
       {@const vals = Array.isArray(getValue(p)) ? (getValue(p) as number[]) : [0, 0, 0, 1]}
       <ColorPicker
         value={vals}
-        onchange={(v) => { graphStore.setParam(selectedNode.id, p.name, v) }}
+        onchange={(v) => {
+          graphStore.setParam(selectedNode.id, p.name, v);
+        }}
       />
-
     {:else if p.widget === 'vector'}
-      {@const labels = p.type === 'vector4' ? ['X','Y','Z','W'] : p.type === 'vector3' ? ['X','Y','Z'] : ['X','Y']}
+      {@const labels =
+        p.type === 'vector4' ? ['X', 'Y', 'Z', 'W'] : p.type === 'vector3' ? ['X', 'Y', 'Z'] : ['X', 'Y']}
       {@const vals = Array.isArray(getValue(p)) ? (getValue(p) as number[]) : []}
       <div class="vector-wrap">
         {#each labels as lbl, idx}
@@ -198,7 +189,6 @@
           </div>
         {/each}
       </div>
-
     {:else}
       <!-- text / fallback -->
       <input
@@ -262,7 +252,9 @@
     opacity: 0.6;
     cursor: pointer;
     line-height: 1;
-    transition: opacity 0.12s, color 0.12s;
+    transition:
+      opacity 0.12s,
+      color 0.12s;
     user-select: none;
     flex-shrink: 0;
   }
@@ -288,7 +280,9 @@
     padding: 3px 0;
   }
 
-  .param-row.wired { opacity: 0.75; }
+  .param-row.wired {
+    opacity: 0.75;
+  }
 
   /* ── Slider ── */
   .slider-wrap {
@@ -344,9 +338,14 @@
   }
 
   .slider-val::-webkit-outer-spin-button,
-  .slider-val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .slider-val::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 
-  .slider-val:focus { border-color: var(--accent); }
+  .slider-val:focus {
+    border-color: var(--accent);
+  }
 
   /* ── Number input ── */
   .number-input {
@@ -364,9 +363,14 @@
   }
 
   .number-input::-webkit-outer-spin-button,
-  .number-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .number-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 
-  .number-input:focus { border-color: var(--accent); }
+  .number-input:focus {
+    border-color: var(--accent);
+  }
 
   /* ── Checkbox ── */
   .checkbox {
@@ -425,9 +429,14 @@
   }
 
   .vector-input::-webkit-outer-spin-button,
-  .vector-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .vector-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 
-  .vector-input:focus { border-color: var(--accent); }
+  .vector-input:focus {
+    border-color: var(--accent);
+  }
 
   /* ── Text input ── */
   .text-input {
@@ -442,5 +451,7 @@
     outline: none;
   }
 
-  .text-input:focus { border-color: var(--accent); }
+  .text-input:focus {
+    border-color: var(--accent);
+  }
 </style>

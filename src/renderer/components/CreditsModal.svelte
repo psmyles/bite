@@ -1,42 +1,44 @@
 <script lang="ts">
-  import { IS_ELECTRON } from '../platform.js'
-  import { IPC } from '../../shared/constants.js'
+  import { IS_ELECTRON } from '../platform.js';
+  import { IPC } from '../../shared/constants.js';
 
-  interface Props { onClose: () => void }
-  let { onClose }: Props = $props()
+  interface Props {
+    onClose: () => void;
+  }
+  let { onClose }: Props = $props();
 
   function onBackdropClick(e: MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
+    if (e.target === e.currentTarget) onClose();
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onClose()
+    if (e.key === 'Escape') onClose();
   }
 
   function openUrl(url: string) {
     if (IS_ELECTRON) {
-      window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url)
+      window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url);
     } else {
-      window.open(url, '_blank')
+      window.open(url, '_blank');
     }
   }
 
   const deps = [
-    { name: 'Electron',              license: 'MIT',              url: 'https://www.electronjs.org' },
-    { name: 'Svelte',                license: 'MIT',              url: 'https://svelte.dev' },
-    { name: 'Svelte Flow (@xyflow)', license: 'MIT',              url: 'https://svelteflow.dev' },
-    { name: 'Vite',                  license: 'MIT',              url: 'https://vitejs.dev' },
-    { name: 'TypeScript',            license: 'Apache 2.0',       url: 'https://www.typescriptlang.org' },
-    { name: 'ImageMagick',           license: 'ImageMagick',      url: 'https://imagemagick.org' },
-    { name: 'electron-builder',      license: 'MIT',              url: 'https://www.electron.build' },
-    { name: '@yao-pkg/pkg',          license: 'MIT',              url: 'https://github.com/yao-pkg/pkg' },
-    { name: 'vite-plugin-electron',  license: 'MIT',              url: 'https://github.com/electron-vite/vite-plugin-electron' },
-  ]
+    { name: 'Electron', license: 'MIT', url: 'https://www.electronjs.org' },
+    { name: 'Svelte', license: 'MIT', url: 'https://svelte.dev' },
+    { name: 'Svelte Flow (@xyflow)', license: 'MIT', url: 'https://svelteflow.dev' },
+    { name: 'Vite', license: 'MIT', url: 'https://vitejs.dev' },
+    { name: 'TypeScript', license: 'Apache 2.0', url: 'https://www.typescriptlang.org' },
+    { name: 'ImageMagick', license: 'ImageMagick', url: 'https://imagemagick.org' },
+    { name: 'electron-builder', license: 'MIT', url: 'https://www.electron.build' },
+    { name: '@yao-pkg/pkg', license: 'MIT', url: 'https://github.com/yao-pkg/pkg' },
+    { name: 'vite-plugin-electron', license: 'MIT', url: 'https://github.com/electron-vite/vite-plugin-electron' },
+  ];
 
   const fonts = [
-    { name: 'JetBrains Mono',        license: 'SIL OFL 1.1',     url: 'https://www.jetbrains.com/lp/mono/' },
-    { name: 'Atkinson Hyperlegible', license: 'SIL OFL 1.1',     url: 'https://www.brailleinstitute.org/freefont/' },
-  ]
+    { name: 'JetBrains Mono', license: 'SIL OFL 1.1', url: 'https://www.jetbrains.com/lp/mono/' },
+    { name: 'Atkinson Hyperlegible', license: 'SIL OFL 1.1', url: 'https://www.brailleinstitute.org/freefont/' },
+  ];
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -134,7 +136,9 @@
     padding: 2px 4px;
     border-radius: 3px;
     line-height: 1;
-    transition: color 0.12s, background 0.12s;
+    transition:
+      color 0.12s,
+      background 0.12s;
   }
 
   .close-btn:hover {
@@ -157,20 +161,37 @@
     scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
-  .modal-body::-webkit-scrollbar { width: var(--scrollbar-width); }
-  .modal-body::-webkit-scrollbar-track { background: transparent; }
-  .modal-body::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
-  .modal-body:hover::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
-  .modal-body::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-  .modal-body::-webkit-scrollbar-button { display: none; }
+  .modal-body::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+  }
+  .modal-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .modal-body::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+  }
+  .modal-body:hover::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+  }
+  .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+  .modal-body::-webkit-scrollbar-button {
+    display: none;
+  }
 
-  section { display: flex; flex-direction: column; gap: 8px; }
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 
   .section-heading {
     font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 700;
-    color: #6fb8cc;   /* muted teal — 7.6:1 on --ctx-bg (#1c1c1c) */
+    color: #6fb8cc; /* muted teal — 7.6:1 on --ctx-bg (#1c1c1c) */
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }

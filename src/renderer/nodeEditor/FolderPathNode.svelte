@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { Handle, Position } from '@xyflow/svelte'
-  import { portColor } from './portColors.js'
+  import { Handle, Position } from '@xyflow/svelte';
+  import { portColor } from './portColors.js';
 
-  let { data = {}, selected = false }: { data?: Record<string, unknown>; selected?: boolean } = $props()
+  let { data = {}, selected = false }: { data?: Record<string, unknown>; selected?: boolean } = $props();
 
-  const pathColor  = portColor('path')
-  const params     = $derived((data.params as Record<string, unknown>) ?? {})
-  const folder     = $derived((params.folderPath as string) ?? '')
-  const folderName = $derived(folder ? (folder.split(/[/\\]/).pop() ?? folder) : '')
+  const pathColor = portColor('path');
+  const params = $derived((data.params as Record<string, unknown>) ?? {});
+  const folder = $derived((params.folderPath as string) ?? '');
+  const folderName = $derived(folder ? (folder.split(/[/\\]/).pop() ?? folder) : '');
 </script>
 
 <!-- Folder path output handle -->

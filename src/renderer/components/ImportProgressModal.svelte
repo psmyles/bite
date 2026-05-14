@@ -1,38 +1,41 @@
 <script lang="ts">
-  import { imageStore } from '../stores/images.svelte.js'
-  import { onMount } from 'svelte'
+  import { imageStore } from '../stores/images.svelte.js';
+  import { onMount } from 'svelte';
 
-  const progress = $derived(imageStore.importProgress)
-  const done     = $derived(imageStore.importDone)
-  const pct      = $derived(progress ? Math.round(progress.done / progress.total * 100) : 100)
+  const progress = $derived(imageStore.importProgress);
+  const done = $derived(imageStore.importDone);
+  const pct = $derived(progress ? Math.round((progress.done / progress.total) * 100) : 100);
 
-  let elapsed = $state(0)
-  let timer: ReturnType<typeof setInterval> | null = null
+  let elapsed = $state(0);
+  let timer: ReturnType<typeof setInterval> | null = null;
 
   onMount(() => {
-    timer = setInterval(() => { if (progress) elapsed += 100 }, 100)
-    return () => { if (timer) clearInterval(timer) }
-  })
+    timer = setInterval(() => {
+      if (progress) elapsed += 100;
+    }, 100);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  });
 
   function formatDuration(ms: number): string {
-    const totalSec = ms / 1000
-    if (totalSec < 60) return `${totalSec.toFixed(1)} sec`
-    const minutes = Math.floor(totalSec / 60)
-    const secs    = (totalSec - minutes * 60).toFixed(1)
-    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ${secs} sec`
+    const totalSec = ms / 1000;
+    if (totalSec < 60) return `${totalSec.toFixed(1)} sec`;
+    const minutes = Math.floor(totalSec / 60);
+    const secs = (totalSec - minutes * 60).toFixed(1);
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ${secs} sec`;
   }
 
   const doneLabel = $derived(
     imageStore.lastImportMs !== null
       ? `Imported ${imageStore.lastImportCount} ${imageStore.lastImportCount === 1 ? 'image' : 'images'} in ${formatDuration(imageStore.lastImportMs)}`
       : ''
-  )
+  );
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="backdrop">
-  <div class="modal" role="dialog" aria-modal="true"
-    aria-label={done ? 'Import Complete' : 'Importing Images'}>
+  <div class="modal" role="dialog" aria-modal="true" aria-label={done ? 'Import Complete' : 'Importing Images'}>
     <div class="modal-header">
       <span class="modal-title">{done ? 'Import Complete' : 'Importing Images'}</span>
     </div>
@@ -208,7 +211,9 @@
     font-size: 12px;
     cursor: pointer;
     outline: none;
-    transition: background 0.12s, border-color 0.12s;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
   }
 
   .cancel-btn:hover {
@@ -226,7 +231,9 @@
     font-size: 12px;
     cursor: pointer;
     outline: none;
-    transition: background 0.12s, border-color 0.12s;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
   }
 
   .ok-btn:hover {

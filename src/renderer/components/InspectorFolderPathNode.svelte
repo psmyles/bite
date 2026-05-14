@@ -1,18 +1,18 @@
 <script lang="ts">
-  import type { Node } from '@xyflow/svelte'
-  import { graphStore } from '../stores/graph.svelte.js'
-  import { IPC } from '../../shared/constants.js'
-  import { IS_ELECTRON } from '../platform.js'
-  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js'
+  import type { Node } from '@xyflow/svelte';
+  import { graphStore } from '../stores/graph.svelte.js';
+  import { IPC } from '../../shared/constants.js';
+  import { IS_ELECTRON } from '../platform.js';
+  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
 
-  let { selectedNode }: { selectedNode: Node } = $props()
+  let { selectedNode }: { selectedNode: Node } = $props();
 
-  const params     = $derived(getNodeParams(selectedNode?.data))
-  const folderPath = $derived((params.folderPath as string) ?? '')
+  const params = $derived(getNodeParams(selectedNode?.data));
+  const folderPath = $derived((params.folderPath as string) ?? '');
 
   async function browseFolder() {
-    const folder: string | null = await window.ipcRenderer.invoke(IPC.OPEN_FOLDER_DIALOG)
-    if (folder) graphStore.setParam(selectedNode.id, 'folderPath', folder)
+    const folder: string | null = await window.ipcRenderer.invoke(IPC.OPEN_FOLDER_DIALOG);
+    if (folder) graphStore.setParam(selectedNode.id, 'folderPath', folder);
   }
 </script>
 
@@ -55,7 +55,10 @@
     align-items: center;
   }
 
-  .path-input { flex: 1; min-width: 0; }
+  .path-input {
+    flex: 1;
+    min-width: 0;
+  }
 
   .text-input {
     width: 100%;
@@ -69,7 +72,9 @@
     outline: none;
   }
 
-  .text-input:focus { border-color: var(--accent); }
+  .text-input:focus {
+    border-color: var(--accent);
+  }
 
   .browse-btn {
     flex-shrink: 0;
@@ -87,5 +92,8 @@
     outline: none;
   }
 
-  .browse-btn:hover { border-color: var(--accent); color: var(--text); }
+  .browse-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
 </style>

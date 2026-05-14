@@ -36,10 +36,7 @@
       "type": "enum",
       "widget": "dropdown",
       "default": "3",
-      "options": [
-        "3",
-        "4"
-      ]
+      "options": ["3", "4"]
     }
   ],
   "executor": "channel_merge"

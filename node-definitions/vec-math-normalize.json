@@ -8,7 +8,7 @@
   "outputs": [],
   "executor": "vec_math_normalize",
   "params": [
-    { "name": "vec",    "label": "Vector", "type": "numeric", "widget": "number", "default": 0 },
+    { "name": "vec", "label": "Vector", "type": "numeric", "widget": "number", "default": 0 },
     { "name": "result", "label": "Result", "type": "numeric", "widget": "number", "default": 0, "readonly": true }
   ]
 }

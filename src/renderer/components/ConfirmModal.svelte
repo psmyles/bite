@@ -1,13 +1,13 @@
 <script lang="ts">
   interface Props {
-    message: string
-    onConfirm: () => void
-    onCancel: () => void
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
   }
-  let { message, onConfirm, onCancel }: Props = $props()
+  let { message, onConfirm, onCancel }: Props = $props();
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onCancel()
+    if (e.key === 'Escape') onCancel();
   }
 </script>
 
@@ -99,7 +99,10 @@
     cursor: pointer;
     text-align: center;
     line-height: 1.4;
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    transition:
+      background 0.12s,
+      border-color 0.12s,
+      color 0.12s;
   }
 
   /* Cancel — visually primary so it draws the eye */

@@ -3,9 +3,7 @@
   "label": "Process As Set",
   "category": "Source",
   "description": "Groups filmstrip images by naming convention (prefix + middle name + suffixes) and outputs each suffix image as a separate port.",
-  "inputs": [
-    { "name": "images", "label": "Images", "type": "image" }
-  ],
+  "inputs": [{ "name": "images", "label": "Images", "type": "image" }],
   "outputs": [],
   "executor": "process_as_set",
   "params": [

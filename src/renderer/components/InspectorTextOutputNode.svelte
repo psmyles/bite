@@ -1,230 +1,264 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
-  import type { Node, Edge } from '@xyflow/svelte'
-  import { graphStore } from '../stores/graph.svelte.js'
-  import { imageStore } from '../stores/images.svelte.js'
-  import { IPC } from '../../shared/constants.js'
-  import type { NodeGraph } from '../../shared/types.js'
-  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js'
-  import Dropdown from './Dropdown.svelte'
+  import { untrack } from 'svelte';
+  import type { Node, Edge } from '@xyflow/svelte';
+  import { graphStore } from '../stores/graph.svelte.js';
+  import { imageStore } from '../stores/images.svelte.js';
+  import { IPC } from '../../shared/constants.js';
+  import type { NodeGraph } from '../../shared/types.js';
+  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
+  import Dropdown from './Dropdown.svelte';
 
-  let { selectedNode }: { selectedNode: Node } = $props()
+  let { selectedNode }: { selectedNode: Node } = $props();
 
-  const params = $derived(getNodeParams(selectedNode?.data))
+  const params = $derived(getNodeParams(selectedNode?.data));
 
-  const outputPath              = $derived((params.outputPath       as string)   ?? '')
-  const generateLog             = $derived(Boolean(params.generateLog ?? false))
-  const usePreviewForProcessing = $derived(Boolean(params.usePreviewForProcessing ?? false))
-  const separatorType           = $derived((params.separatorType    as string)   ?? 'comma')
-  const customSep               = $derived((params.customSeparator  as string)   ?? '')
-  const portIds                 = $derived((params.portIds          as string[]) ?? ['txo-0'])
+  const outputPath = $derived((params.outputPath as string) ?? '');
+  const generateLog = $derived(Boolean(params.generateLog ?? false));
+  const usePreviewForProcessing = $derived(Boolean(params.usePreviewForProcessing ?? false));
+  const separatorType = $derived((params.separatorType as string) ?? 'comma');
+  const customSep = $derived((params.customSeparator as string) ?? '');
+  const portIds = $derived((params.portIds as string[]) ?? ['txo-0']);
 
   // Connected ports = all except the last (ghost) one that also have an incoming edge
   const connectedPortIds = $derived(
-    portIds.slice(0, -1).filter((pid) =>
-      graphStore.edges.some((e) => e.target === selectedNode.id && e.targetHandle === pid)
-    )
-  )
+    portIds
+      .slice(0, -1)
+      .filter((pid) => graphStore.edges.some((e) => e.target === selectedNode.id && e.targetHandle === pid))
+  );
 
   // Label of the source node connected to each port
   const portLabels = $derived(
     connectedPortIds.map((portId) => {
-      const edge = graphStore.edges.find((e) => e.target === selectedNode.id && e.targetHandle === portId)
-      if (!edge) return '(unconnected)'
-      const src = graphStore.nodes.find((n) => n.id === edge.source)
-      return (src?.data as Record<string, unknown> | undefined)?.label as string ?? '(unknown)'
+      const edge = graphStore.edges.find((e) => e.target === selectedNode.id && e.targetHandle === portId);
+      if (!edge) return '(unconnected)';
+      const src = graphStore.nodes.find((n) => n.id === edge.source);
+      return ((src?.data as Record<string, unknown> | undefined)?.label as string) ?? '(unknown)';
     })
-  )
+  );
 
   // ── Param setters ──────────────────────────────────────────────────────────
-  function setOutputPath(v: string) { graphStore.setParam(selectedNode.id, 'outputPath', v) }
-  function setSeparatorType(v: string) { graphStore.setParam(selectedNode.id, 'separatorType', v) }
-  function setCustomSep(v: string) { graphStore.setParam(selectedNode.id, 'customSeparator', v) }
+  function setOutputPath(v: string) {
+    graphStore.setParam(selectedNode.id, 'outputPath', v);
+  }
+  function setSeparatorType(v: string) {
+    graphStore.setParam(selectedNode.id, 'separatorType', v);
+  }
+  function setCustomSep(v: string) {
+    graphStore.setParam(selectedNode.id, 'customSeparator', v);
+  }
 
   async function browsePath() {
-    const path = await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_BROWSE) as string | null
-    if (path) setOutputPath(path)
+    const path = (await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_BROWSE)) as string | null;
+    if (path) setOutputPath(path);
   }
 
   // ── Drag-to-reorder connected port blocks ──────────────────────────────────
-  let dragIdx     = $state<number | null>(null)
-  let dragOverPos = $state<number | null>(null)
+  let dragIdx = $state<number | null>(null);
+  let dragOverPos = $state<number | null>(null);
 
   const displayPortIds = $derived.by(() => {
-    const indexed = connectedPortIds.map((pid, i) => ({ pid, origIdx: i }))
-    if (dragIdx === null || dragOverPos === null || dragIdx === dragOverPos) return indexed
-    const [moved] = indexed.splice(dragIdx, 1)
-    indexed.splice(dragOverPos, 0, moved)
-    return indexed
-  })
+    const indexed = connectedPortIds.map((pid, i) => ({ pid, origIdx: i }));
+    if (dragIdx === null || dragOverPos === null || dragIdx === dragOverPos) return indexed;
+    const [moved] = indexed.splice(dragIdx, 1);
+    indexed.splice(dragOverPos, 0, moved);
+    return indexed;
+  });
 
   function onDragStart(i: number, e: DragEvent) {
-    dragIdx = i
-    if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)) }
+    dragIdx = i;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(i));
+    }
   }
 
   function onListDragOver(e: DragEvent) {
-    e.preventDefault()
-    if (dragIdx === null) return
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-    const container = e.currentTarget as HTMLElement
-    const items = Array.from(container.children) as HTMLElement[]
-    let pos = items.length
+    e.preventDefault();
+    if (dragIdx === null) return;
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    const container = e.currentTarget as HTMLElement;
+    const items = Array.from(container.children) as HTMLElement[];
+    let pos = items.length;
     for (let i = 0; i < items.length; i++) {
-      const rect = items[i].getBoundingClientRect()
-      if (e.clientY < rect.top + rect.height / 2) { pos = i; break }
+      const rect = items[i].getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) {
+        pos = i;
+        break;
+      }
     }
-    dragOverPos = pos
+    dragOverPos = pos;
   }
 
   function onListDrop(e: DragEvent) {
-    e.preventDefault()
+    e.preventDefault();
     if (dragIdx !== null && dragOverPos !== null && dragIdx !== dragOverPos) {
       // Reorder the connected ports within portIds (ghost port stays last)
-      const ghost = portIds[portIds.length - 1]
-      const rest  = portIds.slice(0, -1)
-      const next  = [...rest]
-      const [moved] = next.splice(dragIdx, 1)
-      next.splice(dragOverPos, 0, moved)
-      graphStore.setParam(selectedNode.id, 'portIds', [...next, ghost])
+      const ghost = portIds[portIds.length - 1];
+      const rest = portIds.slice(0, -1);
+      const next = [...rest];
+      const [moved] = next.splice(dragIdx, 1);
+      next.splice(dragOverPos, 0, moved);
+      graphStore.setParam(selectedNode.id, 'portIds', [...next, ghost]);
     }
-    dragIdx = dragOverPos = null
+    dragIdx = dragOverPos = null;
   }
 
-  function onDragEnd() { dragIdx = dragOverPos = null }
+  function onDragEnd() {
+    dragIdx = dragOverPos = null;
+  }
 
   // ── Preview ────────────────────────────────────────────────────────────────
-  let previewLines   = $state<string[] | null>(null)
-  let previewLoading = $state(false)
-  let previewTimer: ReturnType<typeof setTimeout> | null = null
+  let previewLines = $state<string[] | null>(null);
+  let previewLoading = $state(false);
+  let previewTimer: ReturnType<typeof setTimeout> | null = null;
 
   function serializeGraph(): NodeGraph {
-    const sfNodes = $state.snapshot(untrack(() => graphStore.nodes)) as Node[]
-    const sfEdges = $state.snapshot(untrack(() => graphStore.edges)) as Edge[]
+    const sfNodes = $state.snapshot(untrack(() => graphStore.nodes)) as Node[];
+    const sfEdges = $state.snapshot(untrack(() => graphStore.edges)) as Edge[];
     return {
       nodes: sfNodes.map((n) => ({
-        id: n.id, type: n.type ?? 'process', position: n.position,
+        id: n.id,
+        type: n.type ?? 'process',
+        position: n.position,
         data: n.data as NodeGraph['nodes'][number]['data'],
       })),
       edges: sfEdges.map((e) => ({
-        id: e.id, source: e.source, sourceHandle: e.sourceHandle ?? undefined,
-        target: e.target, targetHandle: e.targetHandle ?? undefined,
+        id: e.id,
+        source: e.source,
+        sourceHandle: e.sourceHandle ?? undefined,
+        target: e.target,
+        targetHandle: e.targetHandle ?? undefined,
       })),
       viewport: { x: 0, y: 0, zoom: 1 },
-    }
+    };
   }
 
-  const PREVIEW_LIMIT = 10
+  const PREVIEW_LIMIT = 10;
 
   async function runPreview() {
     if (imageStore.images.length === 0 || connectedPortIds.length === 0) {
-      previewLines = null
-      return
+      previewLines = null;
+      return;
     }
-    previewLoading = true
+    previewLoading = true;
     try {
-      const graph = serializeGraph()
-      const lines = await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_PREVIEW, {
+      const graph = serializeGraph();
+      const lines = (await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_PREVIEW, {
         graph,
         imagePaths: imageStore.images.slice(0, PREVIEW_LIMIT).map((img) => img.path),
         nodeId: selectedNode.id,
-      }) as string[]
-      previewLines = lines
+      })) as string[];
+      previewLines = lines;
     } catch {
-      previewLines = null
+      previewLines = null;
     } finally {
-      previewLoading = false
+      previewLoading = false;
     }
   }
 
   // Re-run preview whenever connected ports, separator, or image list changes
   $effect(() => {
-    const _deps = [connectedPortIds.length, separatorType, customSep, imageStore.images.length]
-    void _deps
-    if (previewTimer) clearTimeout(previewTimer)
-    previewTimer = setTimeout(runPreview, 350)
-    return () => { if (previewTimer) clearTimeout(previewTimer) }
-  })
+    const _deps = [connectedPortIds.length, separatorType, customSep, imageStore.images.length];
+    void _deps;
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = setTimeout(runPreview, 350);
+    return () => {
+      if (previewTimer) clearTimeout(previewTimer);
+    };
+  });
 
   // ── Write output ───────────────────────────────────────────────────────────
-  let writeRunning   = $state(false)
-  let writeProgress  = $state<{ done: number; total: number } | null>(null)
-  let writeElapsed   = $state(0)
-  let writeError     = $state<string | null>(null)
-  let writeSuccess   = $state(false)
-  let lastWritten    = $state<string | null>(null)
-  let _writeStartTime = 0
-  let _elapsedTimer: ReturnType<typeof setInterval> | null = null
+  let writeRunning = $state(false);
+  let writeProgress = $state<{ done: number; total: number } | null>(null);
+  let writeElapsed = $state(0);
+  let writeError = $state<string | null>(null);
+  let writeSuccess = $state(false);
+  let lastWritten = $state<string | null>(null);
+  let _writeStartTime = 0;
+  let _elapsedTimer: ReturnType<typeof setInterval> | null = null;
 
   function folderOf(filePath: string): string {
-    const i = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-    return i >= 0 ? filePath.slice(0, i) : filePath
+    const i = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+    return i >= 0 ? filePath.slice(0, i) : filePath;
   }
 
   async function openFolder() {
-    if (lastWritten) await window.ipcRenderer.invoke(IPC.SHELL_OPEN_PATH, folderOf(lastWritten))
+    if (lastWritten) await window.ipcRenderer.invoke(IPC.SHELL_OPEN_PATH, folderOf(lastWritten));
   }
 
   function startElapsedTimer() {
-    _writeStartTime = performance.now()
-    writeElapsed = 0
-    _elapsedTimer = setInterval(() => { writeElapsed = performance.now() - _writeStartTime }, 100)
+    _writeStartTime = performance.now();
+    writeElapsed = 0;
+    _elapsedTimer = setInterval(() => {
+      writeElapsed = performance.now() - _writeStartTime;
+    }, 100);
   }
 
   function stopElapsedTimer() {
-    if (_elapsedTimer) { clearInterval(_elapsedTimer); _elapsedTimer = null }
+    if (_elapsedTimer) {
+      clearInterval(_elapsedTimer);
+      _elapsedTimer = null;
+    }
   }
 
   async function handleWrite() {
-    if (writeRunning) return
-    writeError   = null
-    writeSuccess = false
+    if (writeRunning) return;
+    writeError = null;
+    writeSuccess = false;
 
-    if (!outputPath) { writeError = 'Set an output path first.'; return }
-    if (imageStore.images.length === 0) { writeError = 'No images loaded.'; return }
-    if (connectedPortIds.length === 0)  { writeError = 'Connect at least one input port.'; return }
+    if (!outputPath) {
+      writeError = 'Set an output path first.';
+      return;
+    }
+    if (imageStore.images.length === 0) {
+      writeError = 'No images loaded.';
+      return;
+    }
+    if (connectedPortIds.length === 0) {
+      writeError = 'Connect at least one input port.';
+      return;
+    }
 
-    const total = imageStore.images.length
-    writeRunning  = true
-    writeProgress = { done: 0, total }
-    startElapsedTimer()
+    const total = imageStore.images.length;
+    writeRunning = true;
+    writeProgress = { done: 0, total };
+    startElapsedTimer();
 
     function onProgress(_e: unknown, prog: { done: number; total: number }) {
-      writeProgress = prog
+      writeProgress = prog;
     }
-    window.ipcRenderer.on(IPC.TEXT_OUTPUT_WRITE_PROGRESS, onProgress)
+    window.ipcRenderer.on(IPC.TEXT_OUTPUT_WRITE_PROGRESS, onProgress);
 
     try {
-      const graph = serializeGraph()
-      const result = await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_WRITE, {
+      const graph = serializeGraph();
+      const result = (await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_WRITE, {
         graph,
         imagePaths: imageStore.images.map((img) => img.path),
         nodeId: selectedNode.id,
         generateLog,
-      }) as string
-      lastWritten  = result
-      writeSuccess = true
+      })) as string;
+      lastWritten = result;
+      writeSuccess = true;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg !== 'CANCELLED') writeError = msg
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg !== 'CANCELLED') writeError = msg;
     } finally {
-      writeRunning  = false
-      writeProgress = null
-      stopElapsedTimer()
-      window.ipcRenderer.off(IPC.TEXT_OUTPUT_WRITE_PROGRESS, onProgress)
+      writeRunning = false;
+      writeProgress = null;
+      stopElapsedTimer();
+      window.ipcRenderer.off(IPC.TEXT_OUTPUT_WRITE_PROGRESS, onProgress);
     }
   }
 
   async function cancelWrite() {
-    await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_WRITE_CANCEL)
+    await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_WRITE_CANCEL);
   }
 
-  const SEPARATOR_OPTIONS = ['space', 'comma', 'tab', 'custom']
-  const SEPARATOR_LABELS  = ['Space', 'Comma', 'Tab', 'Custom…']
+  const SEPARATOR_OPTIONS = ['space', 'comma', 'tab', 'custom'];
+  const SEPARATOR_LABELS = ['Space', 'Comma', 'Tab', 'Custom…'];
 </script>
 
 <div class="txo-inspector">
-
   <!-- ── Output Path ─────────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-title">Output File</div>
@@ -244,12 +278,7 @@
   <!-- ── Separator ──────────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-title">Separator</div>
-    <Dropdown
-      options={SEPARATOR_OPTIONS}
-      labels={SEPARATOR_LABELS}
-      value={separatorType}
-      onchange={setSeparatorType}
-    />
+    <Dropdown options={SEPARATOR_OPTIONS} labels={SEPARATOR_LABELS} value={separatorType} onchange={setSeparatorType} />
     {#if separatorType === 'custom'}
       <input
         class="custom-sep-input"
@@ -283,9 +312,9 @@
           >
             <span class="drag-handle" title="Drag to reorder">
               <svg width="6" height="10" viewBox="0 0 6 10" fill="currentColor">
-                <circle cx="1.5" cy="1.5" r="1.2"/><circle cx="4.5" cy="1.5" r="1.2"/>
-                <circle cx="1.5" cy="5"   r="1.2"/><circle cx="4.5" cy="5"   r="1.2"/>
-                <circle cx="1.5" cy="8.5" r="1.2"/><circle cx="4.5" cy="8.5" r="1.2"/>
+                <circle cx="1.5" cy="1.5" r="1.2" /><circle cx="4.5" cy="1.5" r="1.2" />
+                <circle cx="1.5" cy="5" r="1.2" /><circle cx="4.5" cy="5" r="1.2" />
+                <circle cx="1.5" cy="8.5" r="1.2" /><circle cx="4.5" cy="8.5" r="1.2" />
               </svg>
             </span>
             <span class="port-label">{portLabels[origIdx] ?? pid}</span>
@@ -299,8 +328,11 @@
   <div class="section">
     <div class="section-title">Output Log</div>
     <label class="log-toggle">
-      <input type="checkbox" checked={generateLog}
-        onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)} />
+      <input
+        type="checkbox"
+        checked={generateLog}
+        onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)}
+      />
       <span>Generate .log file</span>
     </label>
   </div>
@@ -309,20 +341,19 @@
   <div class="section">
     <div class="section-title">Processing Source</div>
     <label class="log-toggle">
-      <input type="checkbox" checked={usePreviewForProcessing}
-        onchange={(e) => graphStore.setParam(selectedNode.id, 'usePreviewForProcessing', (e.target as HTMLInputElement).checked)} />
+      <input
+        type="checkbox"
+        checked={usePreviewForProcessing}
+        onchange={(e) =>
+          graphStore.setParam(selectedNode.id, 'usePreviewForProcessing', (e.target as HTMLInputElement).checked)}
+      />
       <span>Use preview image for processing</span>
     </label>
   </div>
 
   <!-- ── Write Button ───────────────────────────────────────────────── -->
   <div class="section write-section">
-    <button
-      class="write-btn"
-      class:running={writeRunning}
-      onclick={handleWrite}
-      disabled={writeRunning}
-    >
+    <button class="write-btn" class:running={writeRunning} onclick={handleWrite} disabled={writeRunning}>
       {writeRunning ? 'Writing…' : 'Write Output'}
     </button>
 
@@ -366,7 +397,6 @@
       </div>
     {/if}
   </div>
-
 </div>
 
 {#if writeProgress}
@@ -386,12 +416,11 @@
         <div class="write-progress-track">
           <div
             class="write-progress-fill"
-            style="width: {Math.round(writeProgress.done / writeProgress.total * 100)}%"
+            style="width: {Math.round((writeProgress.done / writeProgress.total) * 100)}%"
           ></div>
         </div>
         <div class="write-pct-label">
-          {Math.round(writeProgress.done / writeProgress.total * 100)}%
-          &nbsp;·&nbsp;
+          {Math.round((writeProgress.done / writeProgress.total) * 100)}% &nbsp;·&nbsp;
           {(writeElapsed / 1000).toFixed(1)}s
         </div>
       </div>
@@ -411,7 +440,7 @@
 
   .section {
     padding: 10px 12px;
-    border-bottom: 1px solid var(--node-border, rgba(255,255,255,0.07));
+    border-bottom: 1px solid var(--node-border, rgba(255, 255, 255, 0.07));
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -436,8 +465,8 @@
 
   .path-input {
     flex: 1;
-    background: var(--input-bg, rgba(255,255,255,0.06));
-    border: 1px solid var(--input-border, rgba(255,255,255,0.12));
+    background: var(--input-bg, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
     border-radius: 3px;
     color: var(--text);
     font-family: var(--font-mono);
@@ -447,7 +476,9 @@
     min-width: 0;
     transition: border-color 0.12s;
   }
-  .path-input:focus { border-color: var(--accent); }
+  .path-input:focus {
+    border-color: var(--accent);
+  }
 
   .io-btn {
     flex-shrink: 0;
@@ -461,14 +492,21 @@
     padding: 5px 10px;
     cursor: pointer;
     text-align: center;
-    transition: border-color 0.1s, background 0.1s, color 0.1s;
+    transition:
+      border-color 0.1s,
+      background 0.1s,
+      color 0.1s;
   }
-  .io-btn:hover { background: #383838; border-color: var(--accent); color: #ffffff; }
+  .io-btn:hover {
+    background: #383838;
+    border-color: var(--accent);
+    color: #ffffff;
+  }
 
   /* ── Custom separator ── */
   .custom-sep-input {
-    background: var(--input-bg, rgba(255,255,255,0.06));
-    border: 1px solid var(--input-border, rgba(255,255,255,0.12));
+    background: var(--input-bg, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
     border-radius: 3px;
     color: var(--text);
     font-family: var(--font-mono);
@@ -479,7 +517,9 @@
     box-sizing: border-box;
     transition: border-color 0.12s;
   }
-  .custom-sep-input:focus { border-color: var(--accent); }
+  .custom-sep-input:focus {
+    border-color: var(--accent);
+  }
 
   /* ── Port list ── */
   .empty-hint {
@@ -492,7 +532,11 @@
     font-style: italic;
   }
 
-  .port-list { display: flex; flex-direction: column; gap: 3px; }
+  .port-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
 
   .port-row {
     display: flex;
@@ -501,10 +545,17 @@
     padding: 4px 3px 4px 2px;
     border-radius: 3px;
     border: 1px solid transparent;
-    transition: background 0.1s, border-color 0.1s;
+    transition:
+      background 0.1s,
+      border-color 0.1s;
   }
-  .port-row:hover { background: rgba(255,255,255,0.04); }
-  .port-row.dragging { opacity: 0.5; border-color: var(--accent); }
+  .port-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .port-row.dragging {
+    opacity: 0.5;
+    border-color: var(--accent);
+  }
 
   .drag-handle {
     color: var(--text-bright);
@@ -514,7 +565,9 @@
     padding: 0 2px;
     line-height: 0;
   }
-  .drag-handle:hover { opacity: 0.7; }
+  .drag-handle:hover {
+    opacity: 0.7;
+  }
 
   .port-label {
     font-family: var(--font-mono);
@@ -545,7 +598,9 @@
     scrollbar-color: transparent transparent;
     transition: scrollbar-color 0.2s;
   }
-  .preview-list:hover { scrollbar-color: var(--scrollbar-thumb) transparent; }
+  .preview-list:hover {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
 
   .preview-line {
     font-family: var(--font-mono);
@@ -582,7 +637,9 @@
   }
 
   /* ── Write section ── */
-  .write-section { gap: 8px; }
+  .write-section {
+    gap: 8px;
+  }
 
   .write-btn {
     width: 100%;
@@ -596,21 +653,40 @@
     padding: 7px 12px;
     cursor: pointer;
     text-align: center;
-    transition: border-color 0.1s, background 0.1s, color 0.1s;
+    transition:
+      border-color 0.1s,
+      background 0.1s,
+      color 0.1s;
   }
-  .write-btn:hover:not(:disabled) { background: #383838; border-color: var(--accent); color: #ffffff; }
-  .write-btn:disabled { opacity: 0.5; cursor: default; }
-  .write-btn.running { border-color: var(--accent); opacity: 0.7; }
+  .write-btn:hover:not(:disabled) {
+    background: #383838;
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+  .write-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .write-btn.running {
+    border-color: var(--accent);
+    opacity: 0.7;
+  }
 
   .status-msg {
     font-family: var(--font-mono);
     font-size: 11px;
     word-break: break-all;
   }
-  .status-msg--error { color: #f87171; }
-  .status-msg--ok    { color: #86efac; }
+  .status-msg--error {
+    color: #f87171;
+  }
+  .status-msg--ok {
+    color: #86efac;
+  }
 
-  .open-folder-btn { width: 100%; }
+  .open-folder-btn {
+    width: 100%;
+  }
 
   /* ── Write progress modal ── */
   .write-backdrop {
@@ -728,7 +804,9 @@
     font-size: 12px;
     cursor: pointer;
     outline: none;
-    transition: background 0.12s, border-color 0.12s;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
   }
 
   .write-cancel-btn:hover {

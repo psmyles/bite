@@ -1,51 +1,55 @@
 <script lang="ts">
-  import { Handle, Position } from '@xyflow/svelte'
-  import { portColor } from './portColors.js'
-  import { graphStore } from '../stores/graph.svelte.js'
+  import { Handle, Position } from '@xyflow/svelte';
+  import { portColor } from './portColors.js';
+  import { graphStore } from '../stores/graph.svelte.js';
 
   let {
     id = '',
     data = {},
     selected = false,
-  }: { id?: string; data?: Record<string, unknown>; selected?: boolean } = $props()
+  }: { id?: string; data?: Record<string, unknown>; selected?: boolean } = $props();
 
-  const imgColor  = portColor('image')
-  const pathColor = portColor('path')
-  const anyColor  = portColor('any')
-  const boolColor = portColor('boolean')
-  const numColor  = portColor('number')
+  const imgColor = portColor('image');
+  const pathColor = portColor('path');
+  const anyColor = portColor('any');
+  const boolColor = portColor('boolean');
+  const numColor = portColor('number');
 
-  const params     = $derived((data.params as Record<string, unknown>) ?? {})
-  const outputMode = $derived((params.outputMode as string) ?? 'image')
+  const params = $derived((data.params as Record<string, unknown>) ?? {});
+  const outputMode = $derived((params.outputMode as string) ?? 'image');
 
   // ── Text mode derived state ──────────────────────────────────────────────────
-  const portIds = $derived((params.portIds as string[]) ?? ['txo-0'])
+  const portIds = $derived((params.portIds as string[]) ?? ['txo-0']);
 
-  const ghostPortId = $derived(portIds[portIds.length - 1])
+  const ghostPortId = $derived(portIds[portIds.length - 1]);
 
   const displayPortIds = $derived(
     [...portIds].sort((a, b) => (parseInt(a.slice(4)) || 0) - (parseInt(b.slice(4)) || 0))
-  )
+  );
 
   const portLabelMap = $derived.by(() => {
     // Build indexes once rather than scanning edges/nodes once per port
-    const inEdgeMap = new Map<string, string>() // targetHandle → source node id
+    const inEdgeMap = new Map<string, string>(); // targetHandle → source node id
     for (const e of graphStore.edges) {
-      if (e.target === id) inEdgeMap.set(e.targetHandle ?? '', e.source)
+      if (e.target === id) inEdgeMap.set(e.targetHandle ?? '', e.source);
     }
-    const nodeMap = new Map(graphStore.nodes.map(n => [n.id, n]))
-    return new Map(portIds.map(portId => {
-      const srcId = inEdgeMap.get(portId)
-      const label = srcId
-        ? ((nodeMap.get(srcId)?.data as Record<string, unknown> | undefined)?.label as string | null ?? null)
-        : null
-      return [portId, label] as [string, string | null]
-    }))
-  })
+    const nodeMap = new Map(graphStore.nodes.map((n) => [n.id, n]));
+    return new Map(
+      portIds.map((portId) => {
+        const srcId = inEdgeMap.get(portId);
+        const label = srcId
+          ? (((nodeMap.get(srcId)?.data as Record<string, unknown> | undefined)?.label as string | null) ?? null)
+          : null;
+        return [portId, label] as [string, string | null];
+      })
+    );
+  });
 
-  function handleTop(i: number): string { return `${43 + i * 30}px` }
+  function handleTop(i: number): string {
+    return `${43 + i * 30}px`;
+  }
 
-  const conditionTop = $derived(`${43 + displayPortIds.length * 30}px`)
+  const conditionTop = $derived(`${43 + displayPortIds.length * 30}px`);
 </script>
 
 {#if graphStore.batchRunning}
@@ -80,7 +84,7 @@
 
     {#each displayPortIds as portId}
       {@const isGhost = portId === ghostPortId}
-      {@const label   = portLabelMap.get(portId)}
+      {@const label = portLabelMap.get(portId)}
       <div class="port-row" class:ghost={isGhost}>
         <span class="port-tag" style="color: {anyColor}">
           {isGhost ? 'New Input' : (label ?? '—')}
@@ -92,7 +96,6 @@
       <span class="cond-tag" style="color: {boolColor}">Condition</span>
     </div>
   </div>
-
 {:else if outputMode === 'flipbook'}
   <!-- ── Flipbook mode: Image + 4 param ports ── -->
   <Handle
@@ -147,7 +150,6 @@
       <span class="port-tag" style="color: {numColor}">Cell Height</span>
     </div>
   </div>
-
 {:else}
   <!-- ── Image mode: existing Image + Folder ports ── -->
   <Handle
@@ -229,7 +231,9 @@
     min-height: 30px;
   }
 
-  .port-row.ghost { opacity: 0.4; }
+  .port-row.ghost {
+    opacity: 0.4;
+  }
 
   .condition-row {
     display: flex;

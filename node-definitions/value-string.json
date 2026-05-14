@@ -6,7 +6,5 @@
   "category": "Values",
   "inputs": [],
   "outputs": [],
-  "params": [
-    { "name": "value", "label": "Value", "type": "string", "widget": "text", "default": "", "readonly": true }
-  ]
+  "params": [{ "name": "value", "label": "Value", "type": "string", "widget": "text", "default": "", "readonly": true }]
 }

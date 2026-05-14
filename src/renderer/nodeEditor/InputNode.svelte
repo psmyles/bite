@@ -1,26 +1,23 @@
 <script lang="ts">
-  import { Handle, Position } from '@xyflow/svelte'
-  import { portColor } from './portColors.js'
-  import { imageStore } from '../stores/images.svelte.js'
+  import { Handle, Position } from '@xyflow/svelte';
+  import { portColor } from './portColors.js';
+  import { imageStore } from '../stores/images.svelte.js';
 
-  let { selected = false }: { data: unknown; selected?: boolean } = $props()
+  let { selected = false }: { data: unknown; selected?: boolean } = $props();
 
-  const imgColor = portColor('image')
+  const imgColor = portColor('image');
 
   const countLabel = $derived(
-    imageStore.images.length === 0 ? 'no images'
-    : imageStore.images.length === 1 ? '1 image'
-    : `${imageStore.images.length} images`
-  )
+    imageStore.images.length === 0
+      ? 'no images'
+      : imageStore.images.length === 1
+        ? '1 image'
+        : `${imageStore.images.length} images`
+  );
 </script>
 
 <!-- Output handle — right side, vertically centered -->
-<Handle
-  type="source"
-  position={Position.Right}
-  id="out-0"
-  style="background: {imgColor}; border-color: {imgColor};"
-/>
+<Handle type="source" position={Position.Right} id="out-0" style="background: {imgColor}; border-color: {imgColor};" />
 
 <div class="node" class:selected>
   <header class="node-head">

@@ -1,13 +1,15 @@
 <script lang="ts">
-  interface Props { onClose: () => void }
-  let { onClose }: Props = $props()
+  interface Props {
+    onClose: () => void;
+  }
+  let { onClose }: Props = $props();
 
   function onBackdropClick(e: MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
+    if (e.target === e.currentTarget) onClose();
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onClose()
+    if (e.key === 'Escape') onClose();
   }
 </script>
 
@@ -22,9 +24,7 @@
     </div>
 
     <div class="modal-body">
-      <p class="description">
-        A node-based image processing tool powered by ImageMagick.
-      </p>
+      <p class="description">A node-based image processing tool powered by ImageMagick.</p>
 
       <p class="version">Version {__APP_VERSION__}</p>
     </div>
@@ -79,7 +79,9 @@
     padding: 2px 4px;
     border-radius: 3px;
     line-height: 1;
-    transition: color 0.12s, background 0.12s;
+    transition:
+      color 0.12s,
+      background 0.12s;
   }
 
   .close-btn:hover {

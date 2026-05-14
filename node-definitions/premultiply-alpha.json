@@ -5,7 +5,7 @@
   "description": "Associate (premultiply) or Disassociate (un-premultiply) alpha for correct compositing in game engines",
   "aliases": ["premultiply", "alpha premult", "straight alpha", "unpremultiply"],
   "category": "Channels",
-  "inputs":  [{ "type": "image", "label": "Input" }],
+  "inputs": [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     {

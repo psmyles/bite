@@ -8,8 +8,8 @@
   "outputs": [],
   "executor": "vec_math_dot",
   "params": [
-    { "name": "a",      "label": "A",      "type": "numeric", "widget": "number", "default": 0 },
-    { "name": "b",      "label": "B",      "type": "numeric", "widget": "number", "default": 0 },
-    { "name": "result", "label": "Result", "type": "float",   "widget": "number", "default": 0, "readonly": true }
+    { "name": "a", "label": "A", "type": "numeric", "widget": "number", "default": 0 },
+    { "name": "b", "label": "B", "type": "numeric", "widget": "number", "default": 0 },
+    { "name": "result", "label": "Result", "type": "float", "widget": "number", "default": 0, "readonly": true }
   ]
 }

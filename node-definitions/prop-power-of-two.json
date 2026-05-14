@@ -9,8 +9,22 @@
   "executor": "prop_power_of_two",
   "needs_image_meta": true,
   "params": [
-    { "name": "width_ok",  "label": "Width PoT",  "type": "bool", "widget": "checkbox", "default": false, "readonly": true },
-    { "name": "height_ok", "label": "Height PoT", "type": "bool", "widget": "checkbox", "default": false, "readonly": true },
-    { "name": "result",    "label": "Both PoT",   "type": "bool", "widget": "checkbox", "default": false, "readonly": true }
+    {
+      "name": "width_ok",
+      "label": "Width PoT",
+      "type": "bool",
+      "widget": "checkbox",
+      "default": false,
+      "readonly": true
+    },
+    {
+      "name": "height_ok",
+      "label": "Height PoT",
+      "type": "bool",
+      "widget": "checkbox",
+      "default": false,
+      "readonly": true
+    },
+    { "name": "result", "label": "Both PoT", "type": "bool", "widget": "checkbox", "default": false, "readonly": true }
   ]
 }

@@ -4,7 +4,7 @@
   "label": "Resize (Nearest Neighbor)",
   "description": "Resize with nearest-neighbor (Point) filter — no interpolation or blurring, ideal for pixel art",
   "category": "Transform",
-  "inputs":  [{ "type": "image", "label": "Input" }],
+  "inputs": [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     {

@@ -1,26 +1,26 @@
-import type { NodeGraph } from './types.js'
+import type { NodeGraph } from './types.js';
 
-export const APP_NAME = 'imgplex'
-export const WORKFLOW_EXTENSION = '.workflow'
-export const PREVIEW_MAX_EDGE_PX = 512
-export const PREVIEW_DEBOUNCE_MS = 75
-export const THUMBNAIL_SIZE_PX = 120
-export const EMPTY_GRAPH: NodeGraph = { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
+export const APP_NAME = 'imgplex';
+export const WORKFLOW_EXTENSION = '.workflow';
+export const PREVIEW_MAX_EDGE_PX = 512;
+export const PREVIEW_DEBOUNCE_MS = 75;
+export const THUMBNAIL_SIZE_PX = 120;
+export const EMPTY_GRAPH: NodeGraph = { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
 
 // Executor IDs — must match the "executor" field in node-definition JSON files
 export const EXECUTOR = {
-  CHANNEL_SPLIT:  'channel_split',
-  CHANNEL_MERGE:  'channel_merge',
-  MEAN_VALUE:     'mean_value',
-  GATE:           'gate',
+  CHANNEL_SPLIT: 'channel_split',
+  CHANNEL_MERGE: 'channel_merge',
+  MEAN_VALUE: 'mean_value',
+  GATE: 'gate',
   FORMAT_CONVERT: 'format_convert',
-  TEXT_OUTPUT:    'text_output',
-  RENAME:         'rename',
-  PROP_NAME:      'prop_name',
-  PROP_PATH:      'prop_path',
+  TEXT_OUTPUT: 'text_output',
+  RENAME: 'rename',
+  PROP_NAME: 'prop_name',
+  PROP_PATH: 'prop_path',
   PROCESS_AS_SET: 'process_as_set',
-  RESIZE:         'resize',
-} as const
+  RESIZE: 'resize',
+} as const;
 
 // IPC channel names
 export const IPC = {
@@ -30,7 +30,7 @@ export const IPC = {
   // Pipeline (Phase 4)
   LOAD_IMAGES: 'pipeline:load-images',
   LOAD_IMAGES_WITH_THUMBNAILS: 'pipeline:load-images-with-thumbnails',
-  LOAD_IMAGES_STREAMING_START:  'pipeline:load-images-streaming-start',
+  LOAD_IMAGES_STREAMING_START: 'pipeline:load-images-streaming-start',
   LOAD_IMAGES_STREAMING_RESULT: 'pipeline:load-images-streaming-result',
   LOAD_IMAGES_STREAMING_CANCEL: 'pipeline:load-images-streaming-cancel',
   GENERATE_THUMBNAIL: 'pipeline:generate-thumbnail',
@@ -39,10 +39,10 @@ export const IPC = {
   EXECUTE_BATCH_CANCEL: 'pipeline:execute-batch-cancel',
   EXPORT_CLI: 'pipeline:export-cli',
   // File dialogs
-  OPEN_IMAGES_DIALOG:  'dialog:open-images',
-  OPEN_FOLDER_DIALOG:  'dialog:open-folder',
-  SCAN_FOLDER_DIALOG:  'dialog:scan-folder',
-  SCAN_FOLDER:         'dialog:scan-folder-only',
+  OPEN_IMAGES_DIALOG: 'dialog:open-images',
+  OPEN_FOLDER_DIALOG: 'dialog:open-folder',
+  SCAN_FOLDER_DIALOG: 'dialog:scan-folder',
+  SCAN_FOLDER: 'dialog:scan-folder-only',
   // Menu actions (main → renderer)
   MENU_NEW: 'menu:new',
   MENU_OPEN_WORKFLOW: 'menu:open-workflow',
@@ -54,9 +54,9 @@ export const IPC = {
   MENU_ABOUT: 'menu:about',
   MENU_CREDITS: 'menu:credits',
   MENU_CHECK_FOR_UPDATES: 'menu:check-for-updates',
-  MENU_EXPORT_CLI_PS:   'menu:export-cli-ps',
+  MENU_EXPORT_CLI_PS: 'menu:export-cli-ps',
   MENU_EXPORT_CLI_BASH: 'menu:export-cli-bash',
-  MENU_EXPORT_CLI_CMD:  'menu:export-cli-cmd',
+  MENU_EXPORT_CLI_CMD: 'menu:export-cli-cmd',
   // Workflow file I/O
   WORKFLOW_SAVE: 'workflow:save',
   WORKFLOW_LOAD: 'workflow:load',
@@ -65,19 +65,19 @@ export const IPC = {
   OPEN_FILE_PATH: 'app:open-file-path',
   // App lifecycle
   APP_QUIT: 'app:quit',
-  UPDATE_AVAILABLE:   'app:update-available',
-  CHECK_FOR_UPDATES:  'app:check-for-updates',
+  UPDATE_AVAILABLE: 'app:update-available',
+  CHECK_FOR_UPDATES: 'app:check-for-updates',
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
-  SHELL_OPEN_PATH:     'shell:open-path',
+  SHELL_OPEN_PATH: 'shell:open-path',
   // Performance timers
-  TIMERS_SET_ENABLED:  'timers:set-enabled',
+  TIMERS_SET_ENABLED: 'timers:set-enabled',
   // Flipbook Atlas node
-  ATLAS_GENERATE:        'atlas:generate',
-  ATLAS_BROWSE:          'atlas:browse',
+  ATLAS_GENERATE: 'atlas:generate',
+  ATLAS_BROWSE: 'atlas:browse',
   // Text Output node
-  TEXT_OUTPUT_WRITE:          'text-output:write',
+  TEXT_OUTPUT_WRITE: 'text-output:write',
   TEXT_OUTPUT_WRITE_PROGRESS: 'text-output:write-progress',
-  TEXT_OUTPUT_WRITE_CANCEL:   'text-output:write-cancel',
-  TEXT_OUTPUT_BROWSE:         'text-output:browse',
-  TEXT_OUTPUT_PREVIEW:        'text-output:preview',
-} as const
+  TEXT_OUTPUT_WRITE_CANCEL: 'text-output:write-cancel',
+  TEXT_OUTPUT_BROWSE: 'text-output:browse',
+  TEXT_OUTPUT_PREVIEW: 'text-output:preview',
+} as const;

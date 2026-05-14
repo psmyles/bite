@@ -1,74 +1,81 @@
 <script lang="ts" module>
   const OPERATOR_SYMBOLS: Record<string, string> = {
-    'equal':            '=',
-    'not equal':        '≠',
-    'greater than':     '>',
-    'less than':        '<',
+    equal: '=',
+    'not equal': '≠',
+    'greater than': '>',
+    'less than': '<',
     'greater or equal': '≥',
-    'less or equal':    '≤',
-  }
+    'less or equal': '≤',
+  };
 </script>
 
 <script lang="ts">
-  import { Handle, Position } from '@xyflow/svelte'
-  import { portColor } from './portColors.js'
-  import { graphStore } from '../stores/graph.svelte.js'
-  import { paramInHandle, paramOutHandle } from './wireTypeUtils.js'
+  import { Handle, Position } from '@xyflow/svelte';
+  import { portColor } from './portColors.js';
+  import { graphStore } from '../stores/graph.svelte.js';
+  import { paramInHandle, paramOutHandle } from './wireTypeUtils.js';
 
   let {
     id = '',
     data = {},
     selected = false,
-  }: { id?: string; data?: Record<string, unknown>; selected?: boolean } = $props()
+  }: { id?: string; data?: Record<string, unknown>; selected?: boolean } = $props();
 
-  const params = $derived((data.params as Record<string, unknown>) ?? {})
+  const params = $derived((data.params as Record<string, unknown>) ?? {});
 
-  const operatorSymbol = $derived(OPERATOR_SYMBOLS[params.operator as string] ?? '?')
+  const operatorSymbol = $derived(OPERATOR_SYMBOLS[params.operator as string] ?? '?');
 
   // ── Wire detection (single pass) ─────────────────────────────────────────────
-  const handleA = paramInHandle('a')
-  const handleB = paramInHandle('b')
+  const handleA = paramInHandle('a');
+  const handleB = paramInHandle('b');
   const { aWired, bWired } = $derived.by(() => {
-    let a = false, b = false
+    let a = false,
+      b = false;
     for (const e of graphStore.edges) {
-      if (e.target !== id) continue
-      if (e.targetHandle === handleA) a = true
-      else if (e.targetHandle === handleB) b = true
-      if (a && b) break
+      if (e.target !== id) continue;
+      if (e.targetHandle === handleA) a = true;
+      else if (e.targetHandle === handleB) b = true;
+      if (a && b) break;
     }
-    return { aWired: a, bWired: b }
-  })
+    return { aWired: a, bWired: b };
+  });
 
   // ── Live values (resolved by preview executor) ───────────────────────────────
-  const liveA = $derived(id ? (graphStore.propValues[id]?.a ?? params.a) : params.a)
-  const liveB = $derived(id ? (graphStore.propValues[id]?.b ?? params.b) : params.b)
-  const liveResult = $derived(id ? (graphStore.propValues[id]?.result ?? params.result) : params.result)
+  const liveA = $derived(id ? (graphStore.propValues[id]?.a ?? params.a) : params.a);
+  const liveB = $derived(id ? (graphStore.propValues[id]?.b ?? params.b) : params.b);
+  const liveResult = $derived(id ? (graphStore.propValues[id]?.result ?? params.result) : params.result);
 
   function formatVal(v: unknown): string | null {
-    if (v === null || v === undefined) return null
-    if (typeof v === 'boolean') return v ? 'true' : 'false'
-    if (typeof v === 'number') return parseFloat(Number(v).toFixed(3)).toString()
-    if (typeof v === 'string') return v.length > 12 ? v.slice(0, 10) + '…' : v
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    if (typeof v === 'number') return parseFloat(Number(v).toFixed(3)).toString();
+    if (typeof v === 'string') return v.length > 12 ? v.slice(0, 10) + '…' : v;
     if (Array.isArray(v)) {
-      return (v as number[]).slice(0, 4).map(n => parseFloat(Number(n).toFixed(2)).toString()).join(', ')
+      return (v as number[])
+        .slice(0, 4)
+        .map((n) => parseFloat(Number(n).toFixed(2)).toString())
+        .join(', ');
     }
-    return null
+    return null;
   }
 
   // Show A/B value only when not wired — the static/internal value
-  const displayA = $derived(!aWired ? formatVal(liveA) : null)
-  const displayB = $derived(!bWired ? formatVal(liveB) : null)
-  const displayResult = $derived(formatVal(liveResult))
+  const displayA = $derived(!aWired ? formatVal(liveA) : null);
+  const displayB = $derived(!bWired ? formatVal(liveB) : null);
+  const displayResult = $derived(formatVal(liveResult));
 
-  const anyColor  = portColor('any')
-  const boolColor = portColor('boolean')
+  const anyColor = portColor('any');
+  const boolColor = portColor('boolean');
 
   // Handle positions — must match ProcessNode's paramHandleTop with no image ports.
-  const HEADER_H = 28, PARAM_PAD = 4, PARAM_ROW_H = 22, HANDLE_OFFSET = 11
-  const paramTop = (i: number) => `${HEADER_H + PARAM_PAD + i * PARAM_ROW_H + HANDLE_OFFSET}px`
-  const topA      = paramTop(0)
-  const topB      = paramTop(1)
-  const topResult = paramTop(2)
+  const HEADER_H = 28,
+    PARAM_PAD = 4,
+    PARAM_ROW_H = 22,
+    HANDLE_OFFSET = 11;
+  const paramTop = (i: number) => `${HEADER_H + PARAM_PAD + i * PARAM_ROW_H + HANDLE_OFFSET}px`;
+  const topA = paramTop(0);
+  const topB = paramTop(1);
+  const topResult = paramTop(2);
 </script>
 
 <!-- A input handle -->

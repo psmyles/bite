@@ -1,21 +1,21 @@
 <script lang="ts">
-  import { graphStore } from '../stores/graph.svelte.js'
-  import type { Node } from '@xyflow/svelte'
-  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js'
+  import { graphStore } from '../stores/graph.svelte.js';
+  import type { Node } from '@xyflow/svelte';
+  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
 
-  let { selectedNode }: { selectedNode: Node } = $props()
+  let { selectedNode }: { selectedNode: Node } = $props();
 
-  const params = $derived(getNodeParams(selectedNode.data))
+  const params = $derived(getNodeParams(selectedNode.data));
 
-  const heading = $derived((params.heading ?? 'Comment') as string)
-  const body    = $derived((params.body    ?? '')         as string)
+  const heading = $derived((params.heading ?? 'Comment') as string);
+  const body = $derived((params.body ?? '') as string);
 
   function onHeadingInput(e: Event) {
-    graphStore.setParam(selectedNode.id, 'heading', (e.target as HTMLInputElement).value)
+    graphStore.setParam(selectedNode.id, 'heading', (e.target as HTMLInputElement).value);
   }
 
   function onBodyInput(e: Event) {
-    graphStore.setParam(selectedNode.id, 'body', (e.target as HTMLTextAreaElement).value)
+    graphStore.setParam(selectedNode.id, 'body', (e.target as HTMLTextAreaElement).value);
   }
 </script>
 
@@ -74,8 +74,8 @@
 
   .field-input,
   .field-textarea {
-    background: var(--input-bg, rgba(255,255,255,0.06));
-    border: 1px solid var(--input-border, rgba(255,255,255,0.12));
+    background: var(--input-bg, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
     border-radius: 3px;
     color: var(--text);
     font-family: var(--font-ui);

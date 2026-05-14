@@ -54,7 +54,7 @@ Nodes are plain JSON files in `node-definitions/`. The app watches this folder a
   "id": "posterize",
   "label": "Posterize",
   "category": "Color",
-  "inputs":  [{ "type": "image", "label": "Input" }],
+  "inputs": [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     { "name": "levels", "label": "Levels", "type": "int", "widget": "slider", "default": 4, "min": 2, "max": 256 }
@@ -67,11 +67,11 @@ Nodes are plain JSON files in `node-definitions/`. The app watches this folder a
 
 ## Tech stack
 
-| | |
-|---|---|
-| [Electron](https://electronjs.org) | Desktop shell |
-| [Vite](https://vitejs.dev) + [vite-plugin-electron](https://github.com/electron-vite/vite-plugin-electron) | Build tooling |
-| [Svelte 5](https://svelte.dev) | UI framework |
-| [@xyflow/svelte](https://svelteflow.dev) | Node graph canvas |
-| [ImageMagick](https://imagemagick.org) | Image processing backend |
-| [electron-builder](https://www.electron.build) | Packaging and installers |
+|                                                                                                            |                          |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------ |
+| [Electron](https://electronjs.org)                                                                         | Desktop shell            |
+| [Vite](https://vitejs.dev) + [vite-plugin-electron](https://github.com/electron-vite/vite-plugin-electron) | Build tooling            |
+| [Svelte 5](https://svelte.dev)                                                                             | UI framework             |
+| [@xyflow/svelte](https://svelteflow.dev)                                                                   | Node graph canvas        |
+| [ImageMagick](https://imagemagick.org)                                                                     | Image processing backend |
+| [electron-builder](https://www.electron.build)                                                             | Packaging and installers |

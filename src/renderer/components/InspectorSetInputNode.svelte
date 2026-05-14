@@ -1,86 +1,83 @@
 <script lang="ts">
-  import type { Node } from '@xyflow/svelte'
-  import { graphStore } from '../stores/graph.svelte.js'
-  import { imageStore } from '../stores/images.svelte.js'
-  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js'
+  import type { Node } from '@xyflow/svelte';
+  import { graphStore } from '../stores/graph.svelte.js';
+  import { imageStore } from '../stores/images.svelte.js';
+  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
 
-  let { selectedNode }: { selectedNode: Node } = $props()
+  let { selectedNode }: { selectedNode: Node } = $props();
 
-  const params  = $derived(getNodeParams(selectedNode?.data))
-  const prefix  = $derived(String(params.prefix ?? ''))
-  const suffixes = $derived(
-    Array.isArray(params.suffixes) ? (params.suffixes as string[]) : []
-  )
+  const params = $derived(getNodeParams(selectedNode?.data));
+  const prefix = $derived(String(params.prefix ?? ''));
+  const suffixes = $derived(Array.isArray(params.suffixes) ? (params.suffixes as string[]) : []);
 
   // ── Suffix editing ────────────────────────────────────────────────────────
 
   function setPrefix(val: string) {
-    graphStore.setParam(selectedNode.id, 'prefix', val)
+    graphStore.setParam(selectedNode.id, 'prefix', val);
   }
 
   function setSuffixes(next: string[]) {
-    graphStore.setParam(selectedNode.id, 'suffixes', next)
+    graphStore.setParam(selectedNode.id, 'suffixes', next);
   }
 
   function addSuffix() {
-    setSuffixes([...suffixes, ''])
+    setSuffixes([...suffixes, '']);
   }
 
   function removeSuffix(i: number) {
-    setSuffixes(suffixes.filter((_, idx) => idx !== i))
+    setSuffixes(suffixes.filter((_, idx) => idx !== i));
   }
 
   function updateSuffix(i: number, val: string) {
-    const next = [...suffixes]
-    next[i] = val
-    setSuffixes(next)
+    const next = [...suffixes];
+    next[i] = val;
+    setSuffixes(next);
   }
 
   // ── Live set preview ──────────────────────────────────────────────────────
 
   interface SetGroup {
-    middle: string
-    slots:  Record<string, string | undefined>  // suffix → imageName
-    complete: boolean
+    middle: string;
+    slots: Record<string, string | undefined>; // suffix → imageName
+    complete: boolean;
   }
 
   const setGroups = $derived.by((): SetGroup[] => {
-    if (suffixes.length === 0) return []
-    const map = new Map<string, Record<string, string>>()
+    if (suffixes.length === 0) return [];
+    const map = new Map<string, Record<string, string>>();
 
     for (const img of imageStore.images) {
-      const name = img.name.replace(/\.[^.]+$/, '')
-      if (prefix && !name.startsWith(prefix)) continue
-      const rest = name.slice(prefix.length)
+      const name = img.name.replace(/\.[^.]+$/, '');
+      if (prefix && !name.startsWith(prefix)) continue;
+      const rest = name.slice(prefix.length);
       for (const s of suffixes) {
-        if (!s) continue
+        if (!s) continue;
         if (rest.endsWith(s)) {
-          const mid = rest.slice(0, rest.length - s.length)
-          if (!map.has(mid)) map.set(mid, {})
-          map.get(mid)![s] = img.name
-          break
+          const mid = rest.slice(0, rest.length - s.length);
+          if (!map.has(mid)) map.set(mid, {});
+          map.get(mid)![s] = img.name;
+          break;
         }
       }
     }
 
-    const activeSuffixes = suffixes.filter(s => s)
+    const activeSuffixes = suffixes.filter((s) => s);
     return [...map.entries()]
       .map(([middle, slots]) => ({
         middle,
         slots,
-        complete: activeSuffixes.every(s => !!slots[s]),
+        complete: activeSuffixes.every((s) => !!slots[s]),
       }))
-      .sort((a, b) => a.middle.localeCompare(b.middle))
-  })
+      .sort((a, b) => a.middle.localeCompare(b.middle));
+  });
 
-  const PREVIEW_LIMIT = 6
-  const previewGroups = $derived(setGroups.slice(0, PREVIEW_LIMIT))
-  const hiddenCount   = $derived(Math.max(0, setGroups.length - PREVIEW_LIMIT))
-  const completeCount = $derived(setGroups.filter(g => g.complete).length)
+  const PREVIEW_LIMIT = 6;
+  const previewGroups = $derived(setGroups.slice(0, PREVIEW_LIMIT));
+  const hiddenCount = $derived(Math.max(0, setGroups.length - PREVIEW_LIMIT));
+  const completeCount = $derived(setGroups.filter((g) => g.complete).length);
 </script>
 
 <div class="inspector-set">
-
   <!-- Prefix -->
   <div class="row">
     <label class="row-label">Prefix</label>
@@ -115,7 +112,7 @@
   </div>
 
   <!-- Matched sets preview -->
-  {#if suffixes.filter(s => s).length > 0}
+  {#if suffixes.filter((s) => s).length > 0}
     <div class="divider"></div>
     <div class="section-label">
       Matched sets
@@ -131,7 +128,7 @@
         <div class="set-row" class:complete={group.complete} class:incomplete={!group.complete}>
           <span class="set-middle">{prefix}{group.middle}</span>
           <div class="set-slots">
-            {#each suffixes.filter(s => s) as s}
+            {#each suffixes.filter((s) => s) as s}
               <span class="slot" class:found={!!group.slots[s]} class:missing={!group.slots[s]}>
                 {s}
               </span>
@@ -144,7 +141,6 @@
       {/if}
     {/if}
   {/if}
-
 </div>
 
 <style>
@@ -268,7 +264,9 @@
     border-radius: 3px;
     cursor: pointer;
     width: 100%;
-    transition: color 0.12s, border-color 0.12s;
+    transition:
+      color 0.12s,
+      border-color 0.12s;
   }
 
   .add-btn:hover {
@@ -300,8 +298,12 @@
     margin-bottom: 2px;
   }
 
-  .set-row.complete   { border-left-color: var(--accent); }
-  .set-row.incomplete { border-left-color: color-mix(in srgb, #f59e0b 60%, transparent); }
+  .set-row.complete {
+    border-left-color: var(--accent);
+  }
+  .set-row.incomplete {
+    border-left-color: color-mix(in srgb, #f59e0b 60%, transparent);
+  }
 
   .set-middle {
     font-family: var(--font-mono);
@@ -325,8 +327,14 @@
     border-radius: 2px;
   }
 
-  .slot.found   { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
-  .slot.missing { background: color-mix(in srgb, #ef4444 12%, transparent); color: #ef4444; }
+  .slot.found {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+  }
+  .slot.missing {
+    background: color-mix(in srgb, #ef4444 12%, transparent);
+    color: #ef4444;
+  }
 
   .more-hint {
     padding: 2px 12px 4px;

@@ -6,7 +6,5 @@
   "category": "Values",
   "inputs": [],
   "outputs": [],
-  "params": [
-    { "name": "value", "label": "Value", "type": "float", "widget": "number", "default": 0, "readonly": true }
-  ]
+  "params": [{ "name": "value", "label": "Value", "type": "float", "widget": "number", "default": 0, "readonly": true }]
 }

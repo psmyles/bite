@@ -1,32 +1,34 @@
 <script lang="ts">
-  import { graphStore } from '../stores/graph.svelte.js'
-  import { IPC } from '../../shared/constants.js'
-  import { IS_ELECTRON } from '../platform.js'
+  import { graphStore } from '../stores/graph.svelte.js';
+  import { IPC } from '../../shared/constants.js';
+  import { IS_ELECTRON } from '../platform.js';
 
-  interface Props { onClose: () => void }
-  let { onClose }: Props = $props()
+  interface Props {
+    onClose: () => void;
+  }
+  let { onClose }: Props = $props();
 
-  const summary = $derived(graphStore.batchSummary!)
-  const elapsedMs = $derived(graphStore.batchElapsedMs)
+  const summary = $derived(graphStore.batchSummary!);
+  const elapsedMs = $derived(graphStore.batchElapsedMs);
 
   function fmtTime(ms: number): string {
-    const s = Math.round(ms / 1000)
-    if (s < 60) return `${s}s`
-    return `${Math.floor(s / 60)}m ${s % 60}s`
+    const s = Math.round(ms / 1000);
+    if (s < 60) return `${s}s`;
+    return `${Math.floor(s / 60)}m ${s % 60}s`;
   }
 
   function onBackdropClick(e: MouseEvent) {
-    if (e.target === e.currentTarget) onClose()
+    if (e.target === e.currentTarget) onClose();
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onClose()
+    if (e.key === 'Escape') onClose();
   }
 
   function openOutputFolder() {
-    const dir = summary.outputDir
-    if (!dir || !IS_ELECTRON) return
-    window.ipcRenderer.invoke(IPC.SHELL_OPEN_PATH, dir)
+    const dir = summary.outputDir;
+    if (!dir || !IS_ELECTRON) return;
+    window.ipcRenderer.invoke(IPC.SHELL_OPEN_PATH, dir);
   }
 </script>
 
@@ -137,7 +139,9 @@
     padding: 2px 4px;
     border-radius: 3px;
     line-height: 1;
-    transition: color 0.12s, background 0.12s;
+    transition:
+      color 0.12s,
+      background 0.12s;
   }
 
   .close-btn:hover {
@@ -182,9 +186,15 @@
     line-height: 1;
   }
 
-  .stat-value.success { color: #81c784; }
-  .stat-value.muted   { color: var(--text); }
-  .stat-value.error   { color: #ff9090; }
+  .stat-value.success {
+    color: #81c784;
+  }
+  .stat-value.muted {
+    color: var(--text);
+  }
+  .stat-value.error {
+    color: #ff9090;
+  }
 
   .stat-label {
     font-family: var(--font-ui);
@@ -264,7 +274,9 @@
     transition: opacity 0.12s;
   }
 
-  .action-btn:hover { opacity: 0.8; }
+  .action-btn:hover {
+    opacity: 0.8;
+  }
 
   .action-btn.primary {
     background: #1e4d99;

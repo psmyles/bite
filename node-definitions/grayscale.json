@@ -25,13 +25,7 @@
       "type": "enum",
       "widget": "dropdown",
       "default": "Rec709Luminance",
-      "options": [
-        "Rec709Luminance",
-        "Rec601Luminance",
-        "Average",
-        "RMS",
-        "Brightness"
-      ]
+      "options": ["Rec709Luminance", "Rec601Luminance", "Average", "RMS", "Brightness"]
     }
   ],
   "command_template": "-grayscale {{method}}"

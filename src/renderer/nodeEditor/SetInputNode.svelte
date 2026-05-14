@@ -1,78 +1,81 @@
 <script lang="ts">
-  import { Handle, Position } from '@xyflow/svelte'
-  import { portColor } from './portColors.js'
-  import { imageStore } from '../stores/images.svelte.js'
+  import { Handle, Position } from '@xyflow/svelte';
+  import { portColor } from './portColors.js';
+  import { imageStore } from '../stores/images.svelte.js';
 
   interface Props {
-    data:      { params?: Record<string, unknown>; description?: string }
-    selected?: boolean
+    data: { params?: Record<string, unknown>; description?: string };
+    selected?: boolean;
   }
-  let { data, selected = false }: Props = $props()
+  let { data, selected = false }: Props = $props();
 
-  const imgColor   = portColor('image')
-  const description = $derived(data.description ?? '')
+  const imgColor = portColor('image');
+  const description = $derived(data.description ?? '');
 
-  let tooltipVisible = $state(false)
-  let tooltipTimer: ReturnType<typeof setTimeout> | undefined
-  let tooltipX = $state(0)
-  let tooltipY = $state(0)
-  let headerEl = $state<HTMLElement | null>(null)
+  let tooltipVisible = $state(false);
+  let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+  let headerEl = $state<HTMLElement | null>(null);
 
   function portal(el: HTMLElement): { destroy(): void } {
-    document.body.appendChild(el)
-    return { destroy() { el.remove() } }
+    document.body.appendChild(el);
+    return {
+      destroy() {
+        el.remove();
+      },
+    };
   }
 
   function onHeaderEnter() {
-    if (!description) return
+    if (!description) return;
     tooltipTimer = setTimeout(() => {
       if (headerEl) {
-        const r = headerEl.getBoundingClientRect()
-        tooltipX = r.left + r.width / 2
-        tooltipY = r.bottom + 6
+        const r = headerEl.getBoundingClientRect();
+        tooltipX = r.left + r.width / 2;
+        tooltipY = r.bottom + 6;
       }
-      tooltipVisible = true
-    }, 1000)
+      tooltipVisible = true;
+    }, 1000);
   }
 
   function onHeaderLeave() {
-    clearTimeout(tooltipTimer)
-    tooltipVisible = false
+    clearTimeout(tooltipTimer);
+    tooltipVisible = false;
   }
 
-  const suffixes = $derived(
-    Array.isArray(data?.params?.suffixes) ? (data.params!.suffixes as string[]) : []
-  )
-  const prefix = $derived(String(data?.params?.prefix ?? ''))
+  const suffixes = $derived(Array.isArray(data?.params?.suffixes) ? (data.params!.suffixes as string[]) : []);
+  const prefix = $derived(String(data?.params?.prefix ?? ''));
 
   // Count how many filmstrip images match any suffix
   const matchCount = $derived(() => {
-    if (!prefix && suffixes.length === 0) return 0
-    let n = 0
-    const seen = new Set<string>()
+    if (!prefix && suffixes.length === 0) return 0;
+    let n = 0;
+    const seen = new Set<string>();
     for (const img of imageStore.images) {
-      const name = img.name.replace(/\.[^.]+$/, '')
-      if (!name.startsWith(prefix)) continue
-      const rest = name.slice(prefix.length)
+      const name = img.name.replace(/\.[^.]+$/, '');
+      if (!name.startsWith(prefix)) continue;
+      const rest = name.slice(prefix.length);
       for (const s of suffixes) {
         if (s && rest.endsWith(s)) {
-          const mid = rest.slice(0, rest.length - s.length)
-          if (!seen.has(mid)) { seen.add(mid); n++ }
-          break
+          const mid = rest.slice(0, rest.length - s.length);
+          if (!seen.has(mid)) {
+            seen.add(mid);
+            n++;
+          }
+          break;
         }
       }
     }
-    return n
-  })
+    return n;
+  });
 
   const setLabel = $derived(
-    matchCount() === 0 ? 'no sets matched'
-    : matchCount() === 1 ? '1 set matched'
-    : `${matchCount()} sets matched`
-  )
+    matchCount() === 0 ? 'no sets matched' : matchCount() === 1 ? '1 set matched' : `${matchCount()} sets matched`
+  );
 
   // Each suffix row is 26px tall; header is 28px
-  const handleTop = (i: number) => 28 + 5 + 26 * i + 13
+  const handleTop = (i: number) => 28 + 5 + 26 * i + 13;
 </script>
 
 <Handle
@@ -92,12 +95,7 @@
 {/each}
 
 <div class="node" class:selected>
-  <header
-    class="node-head"
-    bind:this={headerEl}
-    onmouseenter={onHeaderEnter}
-    onmouseleave={onHeaderLeave}
-  >
+  <header class="node-head" bind:this={headerEl} onmouseenter={onHeaderEnter} onmouseleave={onHeaderLeave}>
     <span class="head-label">Process As Set</span>
   </header>
 

@@ -9,7 +9,7 @@
   "executor": "prop_dimensions",
   "needs_image_meta": true,
   "params": [
-    { "name": "width",  "label": "Width",  "type": "int", "widget": "number", "default": 0, "readonly": true },
+    { "name": "width", "label": "Width", "type": "int", "widget": "number", "default": 0, "readonly": true },
     { "name": "height", "label": "Height", "type": "int", "widget": "number", "default": 0, "readonly": true }
   ]
 }

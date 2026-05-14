@@ -1,7 +1,7 @@
 // Standalone CLI build — outputs a single self-contained CJS bundle that pkg
 // can compile into a native exe.  Svelte and renderer code are not included.
-import { defineConfig } from 'vite'
-import path from 'node:path'
+import { defineConfig } from 'vite';
+import path from 'node:path';
 
 export default defineConfig({
   build: {
@@ -16,7 +16,7 @@ export default defineConfig({
     },
     minify: false,
     target: 'node20',
-    ssr: true,        // prevents browser-specific transforms
+    ssr: true, // prevents browser-specific transforms
     emptyOutDir: true,
   },
-})
+});

@@ -1,85 +1,90 @@
 <script lang="ts">
-  import type { NodeDefinition } from '../../shared/types.js'
+  import type { NodeDefinition } from '../../shared/types.js';
 
-  let { definitions }: { definitions: NodeDefinition[] } = $props()
+  let { definitions }: { definitions: NodeDefinition[] } = $props();
 
-  let search = $state('')
+  let search = $state('');
 
   // ── Tooltip ───────────────────────────────────────────────────────────────
-  let tooltipDef   = $state<NodeDefinition | null>(null)
-  let tooltipX     = $state(0)
-  let tooltipY     = $state(0)
-  let tooltipTimer: ReturnType<typeof setTimeout> | undefined
+  let tooltipDef = $state<NodeDefinition | null>(null);
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+  let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
 
   function portal(el: HTMLElement): { destroy(): void } {
-    document.body.appendChild(el)
-    return { destroy() { el.remove() } }
+    document.body.appendChild(el);
+    return {
+      destroy() {
+        el.remove();
+      },
+    };
   }
 
   function onItemEnter(e: MouseEvent, def: NodeDefinition) {
-    clearTimeout(tooltipTimer)
-    if (!def.description) return
-    const el = e.currentTarget as HTMLElement
+    clearTimeout(tooltipTimer);
+    if (!def.description) return;
+    const el = e.currentTarget as HTMLElement;
     tooltipTimer = setTimeout(() => {
-      const r = el.getBoundingClientRect()
-      tooltipX = Math.min(r.right + 8, window.innerWidth - 328)
-      tooltipY = Math.max(32, Math.min(r.top + r.height / 2, window.innerHeight - 32))
-      tooltipDef = def
-    }, 200)
+      const r = el.getBoundingClientRect();
+      tooltipX = Math.min(r.right + 8, window.innerWidth - 328);
+      tooltipY = Math.max(32, Math.min(r.top + r.height / 2, window.innerHeight - 32));
+      tooltipDef = def;
+    }, 200);
   }
 
   function onItemLeave() {
-    clearTimeout(tooltipTimer)
-    tooltipDef = null
+    clearTimeout(tooltipTimer);
+    tooltipDef = null;
   }
 
   // ── Derived: filter + group ────────────────────────────────────────────────
   const filtered = $derived.by(() => {
-    if (!search.trim()) return definitions
-    const q = search.toLowerCase()
-    return definitions.filter((d) =>
-      d.label.toLowerCase().includes(q) ||
-      d.category.toLowerCase().includes(q) ||
-      (d.aliases?.some(a => a.toLowerCase().includes(q)) ?? false)
-    )
-  })
+    if (!search.trim()) return definitions;
+    const q = search.toLowerCase();
+    return definitions.filter(
+      (d) =>
+        d.label.toLowerCase().includes(q) ||
+        d.category.toLowerCase().includes(q) ||
+        (d.aliases?.some((a) => a.toLowerCase().includes(q)) ?? false)
+    );
+  });
 
   const grouped = $derived(() => {
-    const map = new Map<string, NodeDefinition[]>()
+    const map = new Map<string, NodeDefinition[]>();
     for (const def of filtered) {
-      const list = map.get(def.category) ?? []
-      list.push(def)
-      map.set(def.category, list)
+      const list = map.get(def.category) ?? [];
+      list.push(def);
+      map.set(def.category, list);
     }
     return [...map.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([cat, defs]) => ({
         category: cat,
         defs: defs.sort((a, b) => a.label.localeCompare(b.label)),
-      }))
-  })
+      }));
+  });
 
   // ── Collapsible categories ─────────────────────────────────────────────────
-  let collapsed: Set<string> = $state(new Set())
+  let collapsed: Set<string> = $state(new Set());
 
   function toggleCategory(cat: string) {
-    const next = new Set(collapsed)
-    if (next.has(cat)) next.delete(cat)
-    else next.add(cat)
-    collapsed = next
+    const next = new Set(collapsed);
+    if (next.has(cat)) next.delete(cat);
+    else next.add(cat);
+    collapsed = next;
   }
 
   // When searching, always show all matching groups expanded
   function isOpen(cat: string): boolean {
-    return !!search.trim() || !collapsed.has(cat)
+    return !!search.trim() || !collapsed.has(cat);
   }
 
   // ── Drag ──────────────────────────────────────────────────────────────────
   function onDragStart(e: DragEvent, def: NodeDefinition) {
-    if (!e.dataTransfer) return
-    e.dataTransfer.effectAllowed = 'copy'
-    e.dataTransfer.setData('application/imgplex-node-id', def.id)
-    e.dataTransfer.setData('application/imgplex-node-label', def.label)
+    if (!e.dataTransfer) return;
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/imgplex-node-id', def.id);
+    e.dataTransfer.setData('application/imgplex-node-label', def.label);
   }
 </script>
 
@@ -87,13 +92,7 @@
   <!-- Header + search -->
   <div class="library-header">Node Library</div>
   <div class="search-wrap">
-    <input
-      class="search"
-      type="search"
-      placeholder="Filter nodes…"
-      bind:value={search}
-      aria-label="Filter nodes"
-    />
+    <input class="search" type="search" placeholder="Filter nodes…" bind:value={search} aria-label="Filter nodes" />
   </div>
 
   <!-- Category groups -->
@@ -116,7 +115,10 @@
                 draggable="true"
                 onmouseenter={(e) => onItemEnter(e, def)}
                 onmouseleave={onItemLeave}
-                ondragstart={(e) => { onItemLeave(); onDragStart(e, def) }}
+                ondragstart={(e) => {
+                  onItemLeave();
+                  onDragStart(e, def);
+                }}
               >
                 <span class="node-label">{def.label}</span>
                 <span class="drag-hint">⠿</span>
@@ -134,7 +136,9 @@
     use:portal
     class="node-tooltip-fixed lib-tooltip"
     style="left:{tooltipX}px; top:{tooltipY}px; transform:translateY(-50%)"
-  >{tooltipDef.description}</div>
+  >
+    {tooltipDef.description}
+  </div>
 {/if}
 
 <style>
@@ -296,5 +300,4 @@
     color: var(--text-bright);
     margin: 0;
   }
-
 </style>

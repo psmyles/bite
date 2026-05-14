@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 // Web-only build — no Electron plugin, no main/preload targets.
 // Node definitions are bundled statically via import.meta.glob in browserIpc.ts.
@@ -14,4 +14,4 @@ export default defineConfig({
     outDir: 'dist-web',
     emptyOutDir: true,
   },
-})
+});

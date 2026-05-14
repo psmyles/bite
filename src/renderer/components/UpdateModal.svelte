@@ -1,42 +1,42 @@
 <script lang="ts">
-  import { IS_ELECTRON } from '../platform.js'
-  import { IPC } from '../../shared/constants.js'
+  import { IS_ELECTRON } from '../platform.js';
+  import { IPC } from '../../shared/constants.js';
 
   export type UpdateState =
     | { status: 'checking' }
-    | { status: 'update';  version: string; body: string; url: string }
-    | { status: 'latest';  version: string; body: string; url: string }
-    | { status: 'error' }
+    | { status: 'update'; version: string; body: string; url: string }
+    | { status: 'latest'; version: string; body: string; url: string }
+    | { status: 'error' };
 
   interface Props {
-    state:   UpdateState
-    onClose: () => void
+    state: UpdateState;
+    onClose: () => void;
   }
-  let { state, onClose }: Props = $props()
+  let { state, onClose }: Props = $props();
 
   function onBackdropClick(e: MouseEvent) {
-    if (state.status === 'checking') return  // prevent close while loading
-    if (e.target === e.currentTarget) onClose()
+    if (state.status === 'checking') return; // prevent close while loading
+    if (e.target === e.currentTarget) onClose();
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && state.status !== 'checking') onClose()
+    if (e.key === 'Escape' && state.status !== 'checking') onClose();
   }
 
   function openReleasePage() {
-    if (state.status !== 'update' && state.status !== 'latest') return
-    const url = state.url
-    if (IS_ELECTRON) window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url)
-    else window.open(url, '_blank')
-    onClose()
+    if (state.status !== 'update' && state.status !== 'latest') return;
+    const url = state.url;
+    if (IS_ELECTRON) window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url);
+    else window.open(url, '_blank');
+    onClose();
   }
 
   const titles: Record<UpdateState['status'], string> = {
     checking: 'Checking for Updates',
-    update:   'Update Available',
-    latest:   'You\'re up to date',
-    error:    'Update Check Failed',
-  }
+    update: 'Update Available',
+    latest: "You're up to date",
+    error: 'Update Check Failed',
+  };
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -52,13 +52,11 @@
     </div>
 
     <div class="modal-body">
-
       {#if state.status === 'checking'}
         <div class="checking-row">
           <span class="spinner"></span>
           <span class="checking-text">Contacting GitHub…</span>
         </div>
-
       {:else if state.status === 'update'}
         <p class="tagline">
           A new version is available: <span class="version">{state.version}</span>
@@ -73,7 +71,6 @@
             <pre class="notes-body">{state.body}</pre>
           </div>
         {/if}
-
       {:else if state.status === 'latest'}
         <p class="tagline">
           imgplex <span class="version">{state.version}</span> is the latest version.
@@ -84,13 +81,9 @@
             <pre class="notes-body">{state.body}</pre>
           </div>
         {/if}
-
       {:else}
-        <p class="tagline error-text">
-          Could not reach GitHub. Check your internet connection and try again.
-        </p>
+        <p class="tagline error-text">Could not reach GitHub. Check your internet connection and try again.</p>
       {/if}
-
     </div>
   </div>
 </div>
@@ -144,7 +137,9 @@
     padding: 2px 4px;
     border-radius: 3px;
     line-height: 1;
-    transition: color 0.12s, background 0.12s;
+    transition:
+      color 0.12s,
+      background 0.12s;
   }
 
   .close-btn:hover {
@@ -183,7 +178,9 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .tagline {
@@ -241,7 +238,9 @@
     cursor: pointer;
     display: flex;
     align-items: center;
-    transition: background 0.12s, color 0.12s;
+    transition:
+      background 0.12s,
+      color 0.12s;
   }
 
   .btn-later:hover {

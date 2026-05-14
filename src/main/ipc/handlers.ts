@@ -1,29 +1,34 @@
-import { ipcMain, dialog, app, shell } from 'electron'
-import type { BrowserWindow } from 'electron'
-import fs, { readFileSync, writeFileSync, chmodSync } from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import { spawn } from 'node:child_process'
-import { getMagickBinary } from '../pipeline/magick-path.js'
-import { writeOutputLog } from '../pipeline/output-log.js'
-import { scanFolder } from '../pipeline/scan-folder.js'
-import type { GraphEdge, NodeGraph } from '../../shared/types.js'
-import type { NodeRegistry } from '../nodes/registry.js'
-import { PipelineExecutor } from '../pipeline/executor.js'
-import { topoSort } from '../pipeline/graph-utils.js'
-import { computeNodeParams, loadImageMeta, loadImageMean, loadImageChannelMean, loadMultipleChannelMeans, getSeparator, buildEmptyImageMeta } from '../pipeline/executor-compute.js'
-import { IPC } from '../../shared/constants.js'
-import { timings } from '../pipeline/timing.js'
+import { ipcMain, dialog, app, shell } from 'electron';
+import type { BrowserWindow } from 'electron';
+import fs, { readFileSync, writeFileSync, chmodSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { getMagickBinary } from '../pipeline/magick-path.js';
+import { writeOutputLog } from '../pipeline/output-log.js';
+import { scanFolder } from '../pipeline/scan-folder.js';
+import type { GraphEdge, NodeGraph } from '../../shared/types.js';
+import type { NodeRegistry } from '../nodes/registry.js';
+import { PipelineExecutor } from '../pipeline/executor.js';
+import { topoSort } from '../pipeline/graph-utils.js';
+import {
+  computeNodeParams,
+  loadImageMeta,
+  loadImageMean,
+  loadImageChannelMean,
+  loadMultipleChannelMeans,
+  getSeparator,
+  buildEmptyImageMeta,
+} from '../pipeline/executor-compute.js';
+import { IPC } from '../../shared/constants.js';
+import { timings } from '../pipeline/timing.js';
 
-export function registerRegistryHandlers(
-  registry: NodeRegistry,
-  getWin: () => BrowserWindow | null
-): void {
-  ipcMain.handle(IPC.REGISTRY_GET_ALL, () => registry.getAll())
+export function registerRegistryHandlers(registry: NodeRegistry, getWin: () => BrowserWindow | null): void {
+  ipcMain.handle(IPC.REGISTRY_GET_ALL, () => registry.getAll());
 
   registry.onChange((defs) => {
-    getWin()?.webContents.send(IPC.REGISTRY_UPDATED, defs)
-  })
+    getWin()?.webContents.send(IPC.REGISTRY_UPDATED, defs);
+  });
 }
 
 export function registerPipelineHandlers(
@@ -31,164 +36,233 @@ export function registerPipelineHandlers(
   executor: PipelineExecutor,
   getWin: () => BrowserWindow | null
 ): void {
-  ipcMain.handle(IPC.TIMERS_SET_ENABLED, (_e, enabled: boolean) => { timings.enabled = enabled })
+  ipcMain.handle(IPC.TIMERS_SET_ENABLED, (_e, enabled: boolean) => {
+    timings.enabled = enabled;
+  });
 
   ipcMain.handle(IPC.LOAD_IMAGES, async (_e, paths: string[]) => {
-    return Promise.all(paths.map((p) => executor.loadImage(p)))
-  })
+    return Promise.all(paths.map((p) => executor.loadImage(p)));
+  });
 
   ipcMain.handle(IPC.LOAD_IMAGES_WITH_THUMBNAILS, async (_e, paths: string[], size: number) => {
-    return Promise.all(paths.map((p) => executor.loadImageWithThumbnail(p, size)))
-  })
+    return Promise.all(paths.map((p) => executor.loadImageWithThumbnail(p, size)));
+  });
 
   // ── Streaming import: N concurrent workers, one push per result ──────────
-  let _streamCancelled = false
+  let _streamCancelled = false;
 
-  ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_CANCEL, () => { _streamCancelled = true })
+  ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_CANCEL, () => {
+    _streamCancelled = true;
+  });
 
   ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_START, async (_e, paths: string[], size: number) => {
-    _streamCancelled = false
-    const importT0 = Date.now()
-    if (timings.enabled) timings.startImport(paths.length)
-    const win = getWin()
-    const concurrency = os.cpus().length
+    _streamCancelled = false;
+    const importT0 = Date.now();
+    if (timings.enabled) timings.startImport(paths.length);
+    const win = getWin();
+    const concurrency = os.cpus().length;
     // Batch multiple images per magick spawn to amortize process-spawn overhead.
     // Each worker picks a chunk of BATCH_SIZE images and runs them in one spawn.
-    const BATCH_SIZE = 8
-    let idx = 0
-    const allResults: import('../../shared/types.js').ImageInfo[] = []
+    const BATCH_SIZE = 8;
+    let idx = 0;
+    const allResults: import('../../shared/types.js').ImageInfo[] = [];
 
     async function worker(): Promise<void> {
       while (true) {
-        if (_streamCancelled) break
+        if (_streamCancelled) break;
         // Atomically collect the next batch (sync, no interleaving with other workers)
-        const batch: string[] = []
-        while (batch.length < BATCH_SIZE && idx < paths.length) batch.push(paths[idx++])
-        if (batch.length === 0) break
+        const batch: string[] = [];
+        while (batch.length < BATCH_SIZE && idx < paths.length) batch.push(paths[idx++]);
+        if (batch.length === 0) break;
         try {
-          const results = await executor.loadImageWithThumbnailBatch(batch, size)
+          const results = await executor.loadImageWithThumbnailBatch(batch, size);
           for (const result of results) {
-            allResults.push(result)
-            if (!_streamCancelled) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result)
+            allResults.push(result);
+            if (!_streamCancelled) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result);
           }
         } catch (err) {
-          console.error('[streaming] Batch failed starting at:', batch[0], err)
+          console.error('[streaming] Batch failed starting at:', batch[0], err);
         }
       }
     }
 
-    await Promise.all(Array.from({ length: concurrency }, worker))
-    if (timings.enabled) timings.endImport(Date.now() - importT0)
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    if (timings.enabled) timings.endImport(Date.now() - importT0);
     // Return all results so the renderer can recover any events that arrived
     // after the listener was torn down (IPC send vs invoke-resolve race).
-    return allResults
-  })
+    return allResults;
+  });
 
   ipcMain.handle(IPC.GENERATE_THUMBNAIL, async (_e, imagePath: string, size: number) => {
-    return executor.generateThumbnail(imagePath, size)
-  })
+    return executor.generateThumbnail(imagePath, size);
+  });
 
-  ipcMain.handle(
-    IPC.EXECUTE_PREVIEW,
-    async (_e, graph: NodeGraph, imagePath: string, fromNodeId?: string) => {
-      return executor.executePreview(graph, imagePath, registry, fromNodeId)
-    }
-  )
+  ipcMain.handle(IPC.EXECUTE_PREVIEW, async (_e, graph: NodeGraph, imagePath: string, fromNodeId?: string) => {
+    return executor.executePreview(graph, imagePath, registry, fromNodeId);
+  });
 
-  ipcMain.handle(IPC.EXECUTE_BATCH_CANCEL, () => { executor.cancelBatch() })
+  ipcMain.handle(IPC.EXECUTE_BATCH_CANCEL, () => {
+    executor.cancelBatch();
+  });
 
   ipcMain.handle(
     IPC.EXECUTE_BATCH,
-    async (_e, graph: NodeGraph, imagePaths: string[], outputDir: string | null, overwrite: 'skip' | 'overwrite', generateLog: boolean) => {
-      const t0 = Date.now()
+    async (
+      _e,
+      graph: NodeGraph,
+      imagePaths: string[],
+      outputDir: string | null,
+      overwrite: 'skip' | 'overwrite',
+      generateLog: boolean
+    ) => {
+      const t0 = Date.now();
       const result = await executor.executeBatch(graph, imagePaths, outputDir, overwrite, registry, (progress) => {
-        getWin()?.webContents.send(`${IPC.EXECUTE_BATCH}:progress`, progress)
-      })
+        getWin()?.webContents.send(`${IPC.EXECUTE_BATCH}:progress`, progress);
+      });
       if (generateLog) {
         await writeOutputLog({ outputFiles: result.outputFiles, durationMs: Date.now() - t0, outputDir }).catch((e) => {
-          console.error('[log] Failed to write output log:', e)
-        })
+          console.error('[log] Failed to write output log:', e);
+        });
       }
-      const { outputFiles: _, ...summary } = result
-      return summary
+      const { outputFiles: _, ...summary } = result;
+      return summary;
     }
-  )
+  );
 
   ipcMain.handle(IPC.EXPORT_CLI, async (_e, graph: NodeGraph, shellType: 'powershell' | 'bash' | 'cmd') => {
     const filterMap = {
       powershell: { name: 'PowerShell Script', extensions: ['ps1'] },
-      bash:       { name: 'Shell Script',       extensions: ['sh']  },
-      cmd:        { name: 'Batch File',         extensions: ['bat'] },
-    }
-    const defaultNames = { powershell: 'imgplex-batch.ps1', bash: 'imgplex-batch.sh', cmd: 'imgplex-batch.bat' }
+      bash: { name: 'Shell Script', extensions: ['sh'] },
+      cmd: { name: 'Batch File', extensions: ['bat'] },
+    };
+    const defaultNames = { powershell: 'imgplex-batch.ps1', bash: 'imgplex-batch.sh', cmd: 'imgplex-batch.bat' };
 
     const result = await dialog.showSaveDialog(getWin()!, {
       title: 'Export CLI Script',
       defaultPath: defaultNames[shellType],
       filters: [filterMap[shellType], { name: 'All Files', extensions: ['*'] }],
-    })
-    if (result.canceled || !result.filePath) return null
+    });
+    if (result.canceled || !result.filePath) return null;
 
     // Companion workflow file lives alongside the script with the same base name
-    const scriptBase     = path.basename(result.filePath, path.extname(result.filePath))
-    const workflowFile   = `${scriptBase}.imgplex`
-    const workflowPath   = path.join(path.dirname(result.filePath), workflowFile)
+    const scriptBase = path.basename(result.filePath, path.extname(result.filePath));
+    const workflowFile = `${scriptBase}.imgplex`;
+    const workflowPath = path.join(path.dirname(result.filePath), workflowFile);
 
-    const scriptContent  = executor.exportCLI(shellType, workflowFile)
-    writeFileSync(result.filePath, scriptContent, 'utf-8')
-    writeFileSync(workflowPath, JSON.stringify({ version: '1.0', graph }, null, 2), 'utf-8')
+    const scriptContent = executor.exportCLI(shellType, workflowFile);
+    writeFileSync(result.filePath, scriptContent, 'utf-8');
+    writeFileSync(workflowPath, JSON.stringify({ version: '1.0', graph }, null, 2), 'utf-8');
 
     if (shellType === 'bash') {
-      try { chmodSync(result.filePath, 0o755) } catch { /* non-fatal on Windows */ }
+      try {
+        chmodSync(result.filePath, 0o755);
+      } catch {
+        /* non-fatal on Windows */
+      }
     }
-    return result.filePath
-  })
+    return result.filePath;
+  });
 }
-
 
 const IMAGE_EXTENSIONS = [
   // Common web / display formats
-  'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'svgz', 'ico', 'bmp',
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'webp',
+  'avif',
+  'svg',
+  'svgz',
+  'ico',
+  'bmp',
   // TIFF family
-  'tif', 'tiff',
+  'tif',
+  'tiff',
   // HEIF / Apple
-  'heic', 'heif',
+  'heic',
+  'heif',
   // JPEG variants
-  'jp2', 'j2k', 'jpf', 'jpx', 'jxl',
+  'jp2',
+  'j2k',
+  'jpf',
+  'jpx',
+  'jxl',
   // Professional / compositing
-  'psd', 'psb', 'exr', 'hdr', 'dpx', 'cin',
+  'psd',
+  'psb',
+  'exr',
+  'hdr',
+  'dpx',
+  'cin',
   // Camera RAW
-  'cr2', 'cr3', 'nef', 'nrw', 'arw', 'dng', 'orf', 'raf', 'rw2', 'pef', 'srw',
-  'x3f', '3fr', 'kdc', 'mrw', 'erf', 'rwl',
+  'cr2',
+  'cr3',
+  'nef',
+  'nrw',
+  'arw',
+  'dng',
+  'orf',
+  'raf',
+  'rw2',
+  'pef',
+  'srw',
+  'x3f',
+  '3fr',
+  'kdc',
+  'mrw',
+  'erf',
+  'rwl',
   // Legacy / misc raster
-  'tga', 'pcx', 'ppm', 'pgm', 'pbm', 'pnm', 'sgi', 'rgb', 'rgba',
-  'miff', 'mng', 'jng', 'xbm', 'xpm', 'xwd', 'sun', 'iff', 'lbm',
-  'wbmp', 'pict', 'pct', 'dds', 'fits', 'fts',
-]
+  'tga',
+  'pcx',
+  'ppm',
+  'pgm',
+  'pbm',
+  'pnm',
+  'sgi',
+  'rgb',
+  'rgba',
+  'miff',
+  'mng',
+  'jng',
+  'xbm',
+  'xpm',
+  'xwd',
+  'sun',
+  'iff',
+  'lbm',
+  'wbmp',
+  'pict',
+  'pct',
+  'dds',
+  'fits',
+  'fts',
+];
 
 function readWorkflowFile(filePath: string): { graph: unknown; filePath: string } {
-  const raw = readFileSync(filePath, 'utf-8')
-  const data = JSON.parse(raw) as Record<string, unknown>
+  const raw = readFileSync(filePath, 'utf-8');
+  const data = JSON.parse(raw) as Record<string, unknown>;
   if (!data || typeof data !== 'object' || !data.graph) {
-    throw new Error('Invalid workflow file: missing graph data')
+    throw new Error('Invalid workflow file: missing graph data');
   }
-  return { graph: data.graph, filePath }
+  return { graph: data.graph, filePath };
 }
 
 export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.WORKFLOW_SAVE, async (_e, graph: unknown, filePath: string | null) => {
-    let targetPath = filePath ?? null
+    let targetPath = filePath ?? null;
     if (!targetPath) {
       const result = await dialog.showSaveDialog(getWin()!, {
         filters: [{ name: 'imgplex Workflow', extensions: ['imgplex'] }],
         defaultPath: 'workflow.imgplex',
-      })
-      if (result.canceled || !result.filePath) return null
-      targetPath = result.filePath
+      });
+      if (result.canceled || !result.filePath) return null;
+      targetPath = result.filePath;
     }
-    writeFileSync(targetPath, JSON.stringify({ version: '1.0', graph }, null, 2), 'utf-8')
-    return targetPath
-  })
+    writeFileSync(targetPath, JSON.stringify({ version: '1.0', graph }, null, 2), 'utf-8');
+    return targetPath;
+  });
 
   ipcMain.handle(IPC.WORKFLOW_LOAD, async () => {
     const result = await dialog.showOpenDialog(getWin()!, {
@@ -197,34 +271,34 @@ export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): vo
         { name: 'imgplex Workflow', extensions: ['imgplex'] },
         { name: 'All Files', extensions: ['*'] },
       ],
-    })
-    if (result.canceled || result.filePaths.length === 0) return null
-    return readWorkflowFile(result.filePaths[0])
-  })
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return readWorkflowFile(result.filePaths[0]);
+  });
 
   ipcMain.handle(IPC.WORKFLOW_OPEN_PATH, (_e, filePath: string) => {
-    return readWorkflowFile(filePath)
-  })
+    return readWorkflowFile(filePath);
+  });
 
-  let isQuitting = false
+  let isQuitting = false;
   ipcMain.handle(IPC.APP_QUIT, () => {
-    isQuitting = true
-    app.quit()
-  })
+    isQuitting = true;
+    app.quit();
+  });
 
   // Intercept the window X button — ask renderer to confirm dirty state first
   const setupCloseInterception = () => {
-    const win = getWin()
-    if (!win) return
+    const win = getWin();
+    if (!win) return;
     win.on('close', (e) => {
       if (!isQuitting) {
-        e.preventDefault()
-        win.webContents.send(IPC.MENU_EXIT)
+        e.preventDefault();
+        win.webContents.send(IPC.MENU_EXIT);
       }
-    })
-  }
+    });
+  };
   // The window may not exist yet; call after a tick so createWindow() has run
-  setImmediate(setupCloseInterception)
+  setImmediate(setupCloseInterception);
 }
 
 export function registerDialogHandlers(getWin: () => BrowserWindow | null): void {
@@ -235,82 +309,82 @@ export function registerDialogHandlers(getWin: () => BrowserWindow | null): void
         { name: 'All Supported Images', extensions: IMAGE_EXTENSIONS },
         { name: 'All Files', extensions: ['*'] },
       ],
-    })
-    return result.canceled ? [] : result.filePaths
-  })
+    });
+    return result.canceled ? [] : result.filePaths;
+  });
 
   ipcMain.handle(IPC.OPEN_FOLDER_DIALOG, async () => {
     const result = await dialog.showOpenDialog(getWin()!, {
       properties: ['openDirectory', 'createDirectory'],
-    })
-    return result.canceled ? null : result.filePaths[0]
-  })
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
 
-  ipcMain.handle(IPC.SCAN_FOLDER_DIALOG, async (
-    _e,
-    opts: { recursive: boolean; extensions: string[] },
-  ) => {
+  ipcMain.handle(IPC.SCAN_FOLDER_DIALOG, async (_e, opts: { recursive: boolean; extensions: string[] }) => {
     const result = await dialog.showOpenDialog(getWin()!, {
       properties: ['openDirectory'],
       buttonLabel: 'Select Folder',
-    })
-    if (result.canceled || !result.filePaths[0]) return []
-    return scanFolder(result.filePaths[0], opts.recursive, new Set(opts.extensions.map(e => e.toLowerCase())))
-  })
+    });
+    if (result.canceled || !result.filePaths[0]) return [];
+    return scanFolder(result.filePaths[0], opts.recursive, new Set(opts.extensions.map((e) => e.toLowerCase())));
+  });
 }
 
 export function registerScanHandlers(): void {
-  ipcMain.handle(IPC.SCAN_FOLDER, (
-    _e,
-    opts: { folderPath: string; recursive: boolean; extensions: string[] },
-  ) => {
-    return scanFolder(opts.folderPath, opts.recursive, new Set(opts.extensions.map(e => e.toLowerCase())))
-  })
+  ipcMain.handle(IPC.SCAN_FOLDER, (_e, opts: { folderPath: string; recursive: boolean; extensions: string[] }) => {
+    return scanFolder(opts.folderPath, opts.recursive, new Set(opts.extensions.map((e) => e.toLowerCase())));
+  });
 }
 
 export function registerShellHandlers(): void {
-  ipcMain.handle(IPC.SHELL_OPEN_EXTERNAL, (_e, url: string) => shell.openExternal(url))
-  ipcMain.handle(IPC.SHELL_OPEN_PATH, (_e, folderPath: string) => shell.openPath(folderPath))
+  ipcMain.handle(IPC.SHELL_OPEN_EXTERNAL, (_e, url: string) => shell.openExternal(url));
+  ipcMain.handle(IPC.SHELL_OPEN_PATH, (_e, folderPath: string) => shell.openPath(folderPath));
 }
 
 // ─── Text Output node ──────────────────────────────────────────────────────────
 
 function valueToString(val: unknown): string {
-  if (val === null || val === undefined) return ''
-  if (typeof val === 'boolean') return val ? 'true' : 'false'
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'boolean') return val ? 'true' : 'false';
   if (typeof val === 'number') {
-    return Number.isInteger(val) ? String(val) : val.toFixed(4).replace(/\.?0+$/, '')
+    return Number.isInteger(val) ? String(val) : val.toFixed(4).replace(/\.?0+$/, '');
   }
   if (Array.isArray(val)) {
-    return (val as number[]).map((n) => Number(n).toFixed(4).replace(/\.?0+$/, '')).join(', ')
+    return (val as number[])
+      .map((n) =>
+        Number(n)
+          .toFixed(4)
+          .replace(/\.?0+$/, '')
+      )
+      .join(', ');
   }
-  return String(val)
+  return String(val);
 }
 
 // prop_name and prop_path only need path.basename / the path itself — no magick spawn needed.
-const PROP_PATH_ONLY = new Set(['prop_name', 'prop_path'])
+const PROP_PATH_ONLY = new Set(['prop_name', 'prop_path']);
 
 interface ResolveContext {
-  sorted: ReturnType<typeof topoSort>
-  needsMagickMeta: boolean
-  nodeMap: Map<string, ReturnType<typeof topoSort>[number]>
-  edgesByTarget: Map<string, GraphEdge[]>
+  sorted: ReturnType<typeof topoSort>;
+  needsMagickMeta: boolean;
+  nodeMap: Map<string, ReturnType<typeof topoSort>[number]>;
+  edgesByTarget: Map<string, GraphEdge[]>;
 }
 
 function buildResolveContext(graph: NodeGraph, registry: NodeRegistry): ResolveContext {
-  const sorted = topoSort(graph.nodes, graph.edges)
+  const sorted = topoSort(graph.nodes, graph.edges);
   const needsMagickMeta = sorted.some((n) => {
-    const exec = registry.get(n.data.definitionId)?.executor
-    return exec?.startsWith('prop_') && !PROP_PATH_ONLY.has(exec)
-  })
-  const nodeMap = new Map(graph.nodes.map(n => [n.id, n]))
-  const edgesByTarget = new Map<string, typeof graph.edges>()
+    const exec = registry.get(n.data.definitionId)?.executor;
+    return exec?.startsWith('prop_') && !PROP_PATH_ONLY.has(exec);
+  });
+  const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
+  const edgesByTarget = new Map<string, typeof graph.edges>();
   for (const edge of graph.edges) {
-    const list = edgesByTarget.get(edge.target)
-    if (list) list.push(edge)
-    else edgesByTarget.set(edge.target, [edge])
+    const list = edgesByTarget.get(edge.target);
+    if (list) list.push(edge);
+    else edgesByTarget.set(edge.target, [edge]);
   }
-  return { sorted, needsMagickMeta, nodeMap, edgesByTarget }
+  return { sorted, needsMagickMeta, nodeMap, edgesByTarget };
 }
 
 /** Resolve param values for all non-image nodes in the graph for a single image. */
@@ -320,60 +394,60 @@ async function resolveParamsForImage(
   registry: NodeRegistry,
   ctx?: ResolveContext
 ): Promise<Map<string, Record<string, unknown>>> {
-  const { sorted, needsMagickMeta, nodeMap, edgesByTarget } = ctx ?? buildResolveContext(graph, registry)
-  const resolvedParams = new Map<string, Record<string, unknown>>()
+  const { sorted, needsMagickMeta, nodeMap, edgesByTarget } = ctx ?? buildResolveContext(graph, registry);
+  const resolvedParams = new Map<string, Record<string, unknown>>();
   // Track image output slots blocked by a gate whose condition is false: "nodeId:handleId"
-  const blockedImageSlots = new Set<string>()
+  const blockedImageSlots = new Set<string>();
 
   // mean_value handles its own image read via loadImageChannelMean — it does NOT use meta.
   // Excluded from needsMagickMeta so images blocked by a gate skip loadImageMeta entirely.
-  const meta = needsMagickMeta
-    ? await loadImageMeta(imagePath)
-    : buildEmptyImageMeta(imagePath)
+  const meta = needsMagickMeta ? await loadImageMeta(imagePath) : buildEmptyImageMeta(imagePath);
 
   // Pre-scan all mean_value nodes and batch their channel reads into a single spawn.
-  const meanValueChannelMap = new Map<string, number>() // nodeId → channelIdx (-1 = whole-image mean)
-  const channelIndicesNeeded: number[] = []
+  const meanValueChannelMap = new Map<string, number>(); // nodeId → channelIdx (-1 = whole-image mean)
+  const channelIndicesNeeded: number[] = [];
   for (const node of sorted) {
-    const def = registry.get(node.data.definitionId)
-    if (!def || def.executor !== 'mean_value') continue
-    const inEdges = edgesByTarget.get(node.id) ?? []
-    const imgInEdge = inEdges.find(e => e.targetHandle === 'in-0')
+    const def = registry.get(node.data.definitionId);
+    if (!def || def.executor !== 'mean_value') continue;
+    const inEdges = edgesByTarget.get(node.id) ?? [];
+    const imgInEdge = inEdges.find((e) => e.targetHandle === 'in-0');
     if (imgInEdge) {
-      const srcNode = nodeMap.get(imgInEdge.source)
-      const srcDef = registry.get(srcNode?.data.definitionId ?? '')
-      const channelIdx = parseInt((imgInEdge.sourceHandle ?? '').replace('out-', ''), 10)
+      const srcNode = nodeMap.get(imgInEdge.source);
+      const srcDef = registry.get(srcNode?.data.definitionId ?? '');
+      const channelIdx = parseInt((imgInEdge.sourceHandle ?? '').replace('out-', ''), 10);
       if (srcDef?.executor === 'channel_split' && !isNaN(channelIdx)) {
-        meanValueChannelMap.set(node.id, channelIdx)
-        if (!channelIndicesNeeded.includes(channelIdx)) channelIndicesNeeded.push(channelIdx)
-        continue
+        meanValueChannelMap.set(node.id, channelIdx);
+        if (!channelIndicesNeeded.includes(channelIdx)) channelIndicesNeeded.push(channelIdx);
+        continue;
       }
     }
-    meanValueChannelMap.set(node.id, -1)
+    meanValueChannelMap.set(node.id, -1);
   }
-  const batchedChannelMeans = new Map<number, number>()
+  const batchedChannelMeans = new Map<number, number>();
   if (channelIndicesNeeded.length > 0) {
     try {
-      channelIndicesNeeded.sort((a, b) => a - b)
-      const means = await loadMultipleChannelMeans(imagePath, channelIndicesNeeded)
-      channelIndicesNeeded.forEach((idx, i) => batchedChannelMeans.set(idx, means[i]))
-    } catch { /* fallback to per-channel calls in the loop below */ }
+      channelIndicesNeeded.sort((a, b) => a - b);
+      const means = await loadMultipleChannelMeans(imagePath, channelIndicesNeeded);
+      channelIndicesNeeded.forEach((idx, i) => batchedChannelMeans.set(idx, means[i]));
+    } catch {
+      /* fallback to per-channel calls in the loop below */
+    }
   }
 
   for (const node of sorted) {
-    const def = registry.get(node.data.definitionId)
-    if (!def) continue
+    const def = registry.get(node.data.definitionId);
+    if (!def) continue;
 
-    const inEdges = edgesByTarget.get(node.id) ?? []
-    const rawParams: Record<string, unknown> = { ...(node.data.params ?? {}) }
+    const inEdges = edgesByTarget.get(node.id) ?? [];
+    const rawParams: Record<string, unknown> = { ...(node.data.params ?? {}) };
     for (const edge of inEdges) {
-      const th = edge.targetHandle ?? ''
-      const sh = edge.sourceHandle ?? ''
+      const th = edge.targetHandle ?? '';
+      const sh = edge.sourceHandle ?? '';
       if (th.startsWith('param-in-') && sh.startsWith('param-out-')) {
-        const srcResolved = resolvedParams.get(edge.source)
+        const srcResolved = resolvedParams.get(edge.source);
         if (srcResolved) {
-          const sourceParam = sh.slice('param-out-'.length)
-          if (sourceParam in srcResolved) rawParams[th.slice('param-in-'.length)] = srcResolved[sourceParam]
+          const sourceParam = sh.slice('param-out-'.length);
+          if (sourceParam in srcResolved) rawParams[th.slice('param-in-'.length)] = srcResolved[sourceParam];
         }
       }
     }
@@ -381,82 +455,81 @@ async function resolveParamsForImage(
     // Check whether this node's image input arrives from a blocked gate output
     const imageInputBlocked = inEdges.some(
       (e) => !e.targetHandle?.startsWith('param-') && blockedImageSlots.has(`${e.source}:${e.sourceHandle ?? 'out-0'}`)
-    )
+    );
 
     // Gate: rawParams.condition is already resolved from param-wire edges above,
     // so this handles both wired conditions (upstream value propagated) and
     // static defaults (node's own param value). False → block image output.
     if (def.executor === 'gate') {
-      if (!rawParams.condition) blockedImageSlots.add(`${node.id}:out-0`)
-      resolvedParams.set(node.id, rawParams)
-      continue
+      if (!rawParams.condition) blockedImageSlots.add(`${node.id}:out-0`);
+      resolvedParams.set(node.id, rawParams);
+      continue;
     }
 
     // If image input is blocked, propagate blocking to this node's image outputs and skip
     if (imageInputBlocked) {
       for (let i = 0; i < def.outputs.length; i++) {
         if (def.outputs[i].type === 'image' || def.outputs[i].type === 'mask') {
-          blockedImageSlots.add(`${node.id}:out-${i}`)
+          blockedImageSlots.add(`${node.id}:out-${i}`);
         }
       }
-      resolvedParams.set(node.id, rawParams)
-      continue
+      resolvedParams.set(node.id, rawParams);
+      continue;
     }
 
     const isImageNode =
       def.inputs.some((p) => p.type === 'image' || p.type === 'mask') ||
-      def.outputs.some((p) => p.type === 'image' || p.type === 'mask')
+      def.outputs.some((p) => p.type === 'image' || p.type === 'mask');
 
     if (def.executor === 'mean_value') {
       try {
-        const channelIdx = meanValueChannelMap.get(node.id) ?? -1
-        let value: number
+        const channelIdx = meanValueChannelMap.get(node.id) ?? -1;
+        let value: number;
         if (channelIdx >= 0) {
-          value = batchedChannelMeans.get(channelIdx) ?? await loadImageChannelMean(imagePath, channelIdx)
+          value = batchedChannelMeans.get(channelIdx) ?? (await loadImageChannelMean(imagePath, channelIdx));
         } else {
-          value = await loadImageMean(imagePath)
+          value = await loadImageMean(imagePath);
         }
-        resolvedParams.set(node.id, { ...rawParams, value })
+        resolvedParams.set(node.id, { ...rawParams, value });
       } catch {
-        resolvedParams.set(node.id, rawParams)
+        resolvedParams.set(node.id, rawParams);
       }
-      continue
+      continue;
     }
 
-    const params = computeNodeParams(isImageNode ? undefined : def.executor, rawParams, meta)
-    resolvedParams.set(node.id, params)
+    const params = computeNodeParams(isImageNode ? undefined : def.executor, rawParams, meta);
+    resolvedParams.set(node.id, params);
   }
 
-  return resolvedParams
+  return resolvedParams;
 }
 
-function extractTextPortConfig(
-  txNode: NodeGraph['nodes'][number],
-  graph: NodeGraph,
-  nodeId: string
-) {
-  const p             = (txNode.data.params ?? {}) as Record<string, unknown>
-  const separatorType = (p.separatorType as string) ?? 'comma'
-  const customSep     = (p.customSeparator as string) ?? ''
-  const portIds       = (p.portIds as string[]) ?? []
+function extractTextPortConfig(txNode: NodeGraph['nodes'][number], graph: NodeGraph, nodeId: string) {
+  const p = (txNode.data.params ?? {}) as Record<string, unknown>;
+  const separatorType = (p.separatorType as string) ?? 'comma';
+  const customSep = (p.customSeparator as string) ?? '';
+  const portIds = (p.portIds as string[]) ?? [];
 
-  const connectedPorts = portIds.slice(0, -1).filter((pid) =>
-    graph.edges.some((e) => e.target === nodeId && e.targetHandle === pid)
-  )
+  const connectedPorts = portIds
+    .slice(0, -1)
+    .filter((pid) => graph.edges.some((e) => e.target === nodeId && e.targetHandle === pid));
   const portSources = connectedPorts.map((portId) => {
-    const edge = graph.edges.find((e) => e.target === nodeId && e.targetHandle === portId)
-    if (!edge || !edge.sourceHandle?.startsWith('param-out-')) return null
-    return { sourceNodeId: edge.source, sourceParamKey: edge.sourceHandle.slice('param-out-'.length) }
-  })
+    const edge = graph.edges.find((e) => e.target === nodeId && e.targetHandle === portId);
+    if (!edge || !edge.sourceHandle?.startsWith('param-out-')) return null;
+    return { sourceNodeId: edge.source, sourceParamKey: edge.sourceHandle.slice('param-out-'.length) };
+  });
   const conditionEdge = graph.edges.find(
     (e) => e.target === nodeId && e.targetHandle === 'txo-condition' && e.sourceHandle?.startsWith('param-out-')
-  )
+  );
   const conditionSource = conditionEdge
-    ? { sourceNodeId: conditionEdge.source, sourceParamKey: conditionEdge.sourceHandle?.slice('param-out-'.length) ?? '' }
-    : null
-  const sep = getSeparator(separatorType, customSep)
+    ? {
+        sourceNodeId: conditionEdge.source,
+        sourceParamKey: conditionEdge.sourceHandle?.slice('param-out-'.length) ?? '',
+      }
+    : null;
+  const sep = getSeparator(separatorType, customSep);
 
-  return { connectedPorts, portSources, conditionSource, sep }
+  return { connectedPorts, portSources, conditionSource, sep };
 }
 
 /** Compute the output lines for a Text Output node without writing anything. */
@@ -466,143 +539,152 @@ async function computeTextOutputLines(
   nodeId: string,
   registry: NodeRegistry
 ): Promise<string[]> {
-  const txNode = graph.nodes.find((n) => n.id === nodeId)
-  if (!txNode) throw new Error('Text output node not found in graph.')
+  const txNode = graph.nodes.find((n) => n.id === nodeId);
+  if (!txNode) throw new Error('Text output node not found in graph.');
 
-  if (imagePaths.length === 0) return []
+  if (imagePaths.length === 0) return [];
 
-  const { connectedPorts, portSources, conditionSource, sep } = extractTextPortConfig(txNode, graph, nodeId)
-  if (connectedPorts.length === 0) return []
+  const { connectedPorts, portSources, conditionSource, sep } = extractTextPortConfig(txNode, graph, nodeId);
+  if (connectedPorts.length === 0) return [];
 
-  const ctx = buildResolveContext(graph, registry)
+  const ctx = buildResolveContext(graph, registry);
   const allResolved = await Promise.all(
     imagePaths.map((imagePath) => resolveParamsForImage(graph, imagePath, registry, ctx))
-  )
+  );
 
-  const lines: string[] = []
+  const lines: string[] = [];
   for (const resolvedParams of allResolved) {
     if (conditionSource) {
-      const condResolved = resolvedParams.get(conditionSource.sourceNodeId)
-      const condVal = condResolved?.[conditionSource.sourceParamKey]
-      if (!condVal) continue
+      const condResolved = resolvedParams.get(conditionSource.sourceNodeId);
+      const condVal = condResolved?.[conditionSource.sourceParamKey];
+      if (!condVal) continue;
     }
     const values = portSources.map((ps) => {
-      if (!ps) return ''
-      const resolved = resolvedParams.get(ps.sourceNodeId)
-      return valueToString(resolved?.[ps.sourceParamKey])
-    })
-    lines.push(values.join(sep))
+      if (!ps) return '';
+      const resolved = resolvedParams.get(ps.sourceNodeId);
+      return valueToString(resolved?.[ps.sourceParamKey]);
+    });
+    lines.push(values.join(sep));
   }
 
-  return lines
+  return lines;
 }
 
-export function registerTextOutputHandlers(
-  registry: NodeRegistry,
-  getWin: () => BrowserWindow | null
-): void {
+export function registerTextOutputHandlers(registry: NodeRegistry, getWin: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.TEXT_OUTPUT_BROWSE, async () => {
     const result = await dialog.showSaveDialog(getWin()!, {
       title: 'Choose Output File',
-      filters: [{ name: 'Text File', extensions: ['txt'] }, { name: 'All Files', extensions: ['*'] }],
+      filters: [
+        { name: 'Text File', extensions: ['txt'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
       defaultPath: 'output.txt',
-    })
-    return result.canceled ? null : result.filePath
-  })
+    });
+    return result.canceled ? null : result.filePath;
+  });
 
   ipcMain.handle(
     IPC.TEXT_OUTPUT_PREVIEW,
     async (_e, { graph, imagePaths, nodeId }: { graph: NodeGraph; imagePaths: string[]; nodeId: string }) => {
-      return computeTextOutputLines(graph, imagePaths, nodeId, registry)
+      return computeTextOutputLines(graph, imagePaths, nodeId, registry);
     }
-  )
+  );
 
-  let _writeCancelled = false
-  ipcMain.handle(IPC.TEXT_OUTPUT_WRITE_CANCEL, () => { _writeCancelled = true })
+  let _writeCancelled = false;
+  ipcMain.handle(IPC.TEXT_OUTPUT_WRITE_CANCEL, () => {
+    _writeCancelled = true;
+  });
 
   ipcMain.handle(
     IPC.TEXT_OUTPUT_WRITE,
     async (
       _e,
-      { graph, imagePaths, nodeId, generateLog }: { graph: NodeGraph; imagePaths: string[]; nodeId: string; generateLog?: boolean }
+      {
+        graph,
+        imagePaths,
+        nodeId,
+        generateLog,
+      }: { graph: NodeGraph; imagePaths: string[]; nodeId: string; generateLog?: boolean }
     ) => {
-      const textT0 = Date.now()
-      const txNode = graph.nodes.find((n) => n.id === nodeId)
-      if (!txNode) throw new Error('Text output node not found in graph.')
+      const textT0 = Date.now();
+      const txNode = graph.nodes.find((n) => n.id === nodeId);
+      if (!txNode) throw new Error('Text output node not found in graph.');
 
-      const p = (txNode.data.params ?? {}) as Record<string, unknown>
-      const outputPath = (p.outputPath as string) ?? ''
+      const p = (txNode.data.params ?? {}) as Record<string, unknown>;
+      const outputPath = (p.outputPath as string) ?? '';
 
-      if (!outputPath) throw new Error('No output path set on the Text Output node.')
-      if (imagePaths.length === 0) throw new Error('No images are loaded.')
+      if (!outputPath) throw new Error('No output path set on the Text Output node.');
+      if (imagePaths.length === 0) throw new Error('No images are loaded.');
 
-      const { connectedPorts, portSources, conditionSource, sep } = extractTextPortConfig(txNode, graph, nodeId)
-      if (connectedPorts.length === 0) throw new Error('No input ports are connected.')
+      const { connectedPorts, portSources, conditionSource, sep } = extractTextPortConfig(txNode, graph, nodeId);
+      if (connectedPorts.length === 0) throw new Error('No input ports are connected.');
 
-      _writeCancelled = false
-      const win = getWin()
-      const ctx = buildResolveContext(graph, registry)
-      const total = imagePaths.length
-      const concurrency = Math.min(os.cpus().length, total)
-      const queue = [...imagePaths.keys()] // shared index queue
-      let done = 0
-      const collectedLines: { index: number; line: string }[] = []
+      _writeCancelled = false;
+      const win = getWin();
+      const ctx = buildResolveContext(graph, registry);
+      const total = imagePaths.length;
+      const concurrency = Math.min(os.cpus().length, total);
+      const queue = [...imagePaths.keys()]; // shared index queue
+      let done = 0;
+      const collectedLines: { index: number; line: string }[] = [];
 
       const worker = async (): Promise<void> => {
         while (true) {
-          if (_writeCancelled) return
-          const i = queue.shift()
-          if (i === undefined) return
-          const resolvedParams = await resolveParamsForImage(graph, imagePaths[i], registry, ctx)
-          done++
-          win?.webContents.send(IPC.TEXT_OUTPUT_WRITE_PROGRESS, { done, total })
+          if (_writeCancelled) return;
+          const i = queue.shift();
+          if (i === undefined) return;
+          const resolvedParams = await resolveParamsForImage(graph, imagePaths[i], registry, ctx);
+          done++;
+          win?.webContents.send(IPC.TEXT_OUTPUT_WRITE_PROGRESS, { done, total });
           if (conditionSource) {
-            const condVal = resolvedParams.get(conditionSource.sourceNodeId)?.[conditionSource.sourceParamKey]
-            if (!condVal) continue
+            const condVal = resolvedParams.get(conditionSource.sourceNodeId)?.[conditionSource.sourceParamKey];
+            if (!condVal) continue;
           }
           const values = portSources.map((ps) => {
-            if (!ps) return ''
-            const resolved = resolvedParams.get(ps.sourceNodeId)
-            return valueToString(resolved?.[ps.sourceParamKey])
-          })
-          collectedLines.push({ index: i, line: values.join(sep) })
+            if (!ps) return '';
+            const resolved = resolvedParams.get(ps.sourceNodeId);
+            return valueToString(resolved?.[ps.sourceParamKey]);
+          });
+          collectedLines.push({ index: i, line: values.join(sep) });
         }
-      }
+      };
 
-      await Promise.all(Array.from({ length: concurrency }, worker))
-      const lines = collectedLines.sort((a, b) => a.index - b.index).map(r => r.line)
+      await Promise.all(Array.from({ length: concurrency }, worker));
+      const lines = collectedLines.sort((a, b) => a.index - b.index).map((r) => r.line);
 
-      if (_writeCancelled) throw new Error('CANCELLED')
+      if (_writeCancelled) throw new Error('CANCELLED');
 
-      if (lines.length === 0) throw new Error('No lines were written — all images were filtered out by the condition.')
-      if (!lines.some((l) => l.trim() !== '')) throw new Error('All values resolved to empty — file not written.')
+      if (lines.length === 0) throw new Error('No lines were written — all images were filtered out by the condition.');
+      if (!lines.some((l) => l.trim() !== '')) throw new Error('All values resolved to empty — file not written.');
 
-      let filePath = outputPath
-      if (!filePath.toLowerCase().endsWith('.txt')) filePath += '.txt'
+      let filePath = outputPath;
+      if (!filePath.toLowerCase().endsWith('.txt')) filePath += '.txt';
 
-      await fs.promises.writeFile(filePath, lines.join('\n') + '\n', 'utf-8')
+      await fs.promises.writeFile(filePath, lines.join('\n') + '\n', 'utf-8');
       if (generateLog) {
         await writeOutputLog({
           outputFiles: [filePath],
           durationMs: Date.now() - textT0,
           outputDir: path.dirname(filePath),
-        }).catch((e) => { console.error('[log] Failed to write output log:', e) })
+        }).catch((e) => {
+          console.error('[log] Failed to write output log:', e);
+        });
       }
-      return filePath
+      return filePath;
     }
-  )
+  );
 }
 
 // ── Atlas handlers ─────────────────────────────────────────────────────────────
 
 interface AtlasConfig {
-  outputPath: string
-  rows: number
-  cols: number
-  cellWidth: number
-  cellHeight: number
-  sortBy: string
-  generateLog?: boolean
+  outputPath: string;
+  rows: number;
+  cols: number;
+  cellWidth: number;
+  cellHeight: number;
+  sortBy: string;
+  generateLog?: boolean;
 }
 
 export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void {
@@ -617,68 +699,72 @@ export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void 
         { name: 'All Files', extensions: ['*'] },
       ],
       defaultPath: 'atlas.png',
-    })
-    return result.canceled ? null : result.filePath
-  })
+    });
+    return result.canceled ? null : result.filePath;
+  });
 
   // Generate the atlas using magick montage
-  ipcMain.handle(IPC.ATLAS_GENERATE, async (
-    _e,
-    imagePaths: string[],
-    config: AtlasConfig,
-  ) => {
-    const { outputPath, rows, cols, cellWidth, cellHeight, sortBy, generateLog } = config
-    const atlasT0 = Date.now()
+  ipcMain.handle(IPC.ATLAS_GENERATE, async (_e, imagePaths: string[], config: AtlasConfig) => {
+    const { outputPath, rows, cols, cellWidth, cellHeight, sortBy, generateLog } = config;
+    const atlasT0 = Date.now();
 
-    if (!outputPath?.trim()) throw new Error('No output file path specified.')
-    if (imagePaths.length === 0) throw new Error('No images loaded.')
+    if (!outputPath?.trim()) throw new Error('No output file path specified.');
+    if (imagePaths.length === 0) throw new Error('No images loaded.');
 
     // Sort images
-    const sorted = sortBy === 'name'
-      ? [...imagePaths].sort((a, b) =>
-          path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true, sensitivity: 'base' })
-        )
-      : sortBy === 'name_desc'
+    const sorted =
+      sortBy === 'name'
         ? [...imagePaths].sort((a, b) =>
-            path.basename(b).localeCompare(path.basename(a), undefined, { numeric: true, sensitivity: 'base' })
+            path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true, sensitivity: 'base' })
           )
-        : imagePaths
+        : sortBy === 'name_desc'
+          ? [...imagePaths].sort((a, b) =>
+              path.basename(b).localeCompare(path.basename(a), undefined, { numeric: true, sensitivity: 'base' })
+            )
+          : imagePaths;
 
     // Truncate to grid capacity
-    const selected = sorted.slice(0, rows * cols)
+    const selected = sorted.slice(0, rows * cols);
 
-    const magick = getMagickBinary()
+    const magick = getMagickBinary();
     // -geometry WxH!+0+0 : force exact cell size (stretch), 0px border between tiles
     // -background none   : transparent fill for unfilled cells (PNG/WebP)
     // -tile COLSxROWS    : fixed grid layout
     const args = [
       'montage',
       ...selected,
-      '-tile',       `${cols}x${rows}`,
-      '-geometry',   `${cellWidth}x${cellHeight}!+0+0`,
-      '-background', 'none',
+      '-tile',
+      `${cols}x${rows}`,
+      '-geometry',
+      `${cellWidth}x${cellHeight}!+0+0`,
+      '-background',
+      'none',
       outputPath,
-    ]
+    ];
 
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(magick, args, { stdio: ['ignore', 'ignore', 'pipe'] })
-      let stderr = ''
-      child.stderr?.on('data', (d: Buffer) => { stderr += d.toString() })
+      const child = spawn(magick, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+      let stderr = '';
+      child.stderr?.on('data', (d: Buffer) => {
+        stderr += d.toString();
+      });
       child.on('close', (code) => {
-        if (code === 0) resolve()
-        else reject(new Error(`magick montage exited with code ${code}: ${stderr.slice(0, 300).trim()}`))
-      })
-      child.on('error', (err: Error) => reject(new Error(`Failed to launch magick: ${err.message}`)))
-    })
+        if (code === 0) resolve();
+        else reject(new Error(`magick montage exited with code ${code}: ${stderr.slice(0, 300).trim()}`));
+      });
+      child.on('error', (err: Error) => reject(new Error(`Failed to launch magick: ${err.message}`)));
+    });
 
     if (generateLog) {
       await writeOutputLog({
         outputFiles: [outputPath],
         durationMs: Date.now() - atlasT0,
         outputDir: path.dirname(outputPath),
-      }).catch((e) => { console.error('[log] Failed to write output log:', e) })
+      }).catch((e) => {
+        console.error('[log] Failed to write output log:', e);
+      });
     }
 
-    return outputPath
-  })
+    return outputPath;
+  });
 }

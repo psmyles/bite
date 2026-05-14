@@ -8,8 +8,8 @@
   "outputs": [],
   "executor": "math_power",
   "params": [
-    { "name": "base",     "label": "Base",     "type": "numeric", "widget": "number", "default": 2 },
-    { "name": "exponent", "label": "Exponent", "type": "float",   "widget": "number", "default": 2 },
-    { "name": "result",   "label": "Result",   "type": "numeric", "widget": "number", "default": 4, "readonly": true }
+    { "name": "base", "label": "Base", "type": "numeric", "widget": "number", "default": 2 },
+    { "name": "exponent", "label": "Exponent", "type": "float", "widget": "number", "default": 2 },
+    { "name": "result", "label": "Result", "type": "numeric", "widget": "number", "default": 4, "readonly": true }
   ]
 }

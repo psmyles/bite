@@ -4,7 +4,7 @@
   "category": "Utility",
   "description": "Annotation node — no pipeline effect.",
   "executor": "comment",
-  "inputs":  [],
+  "inputs": [],
   "outputs": [],
-  "params":  []
+  "params": []
 }

@@ -5,7 +5,7 @@
   "description": "Add transparent padding to each side of the image independently",
   "aliases": ["pad", "add border", "expand canvas", "margin"],
   "category": "Transform",
-  "inputs":  [{ "type": "image", "label": "Input" }],
+  "inputs": [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     {

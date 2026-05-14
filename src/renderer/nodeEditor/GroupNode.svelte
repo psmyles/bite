@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
-  import { NodeResizer } from '@xyflow/svelte'
-  import { graphStore } from '../stores/graph.svelte.js'
+  import { untrack } from 'svelte';
+  import { NodeResizer } from '@xyflow/svelte';
+  import { graphStore } from '../stores/graph.svelte.js';
 
   interface NodeData {
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>;
   }
 
   let {
@@ -13,42 +13,44 @@
     selected = false,
     width,
     height,
-  }: { id?: string; data: NodeData; selected?: boolean; width?: number; height?: number } = $props()
+  }: { id?: string; data: NodeData; selected?: boolean; width?: number; height?: number } = $props();
 
-  let localName = $state(untrack(() => (data.params?.name ?? 'Group') as string))
-  let editing   = $state(false)
-  let inputEl   = $state<HTMLInputElement | undefined>(undefined)
+  let localName = $state(untrack(() => (data.params?.name ?? 'Group') as string));
+  let editing = $state(false);
+  let inputEl = $state<HTMLInputElement | undefined>(undefined);
 
   // Sync from store on external changes (undo/redo, load)
   $effect(() => {
-    const n = (data.params?.name ?? 'Group') as string
-    untrack(() => { if (n !== localName) localName = n })
-  })
+    const n = (data.params?.name ?? 'Group') as string;
+    untrack(() => {
+      if (n !== localName) localName = n;
+    });
+  });
 
   // Focus input after Svelte renders the edit branch
   $effect(() => {
-    if (!editing) return
-    Promise.resolve().then(() => inputEl?.focus())
-  })
+    if (!editing) return;
+    Promise.resolve().then(() => inputEl?.focus());
+  });
 
   // Exit edit on outside click
   $effect(() => {
-    if (!editing) return
+    if (!editing) return;
     function onDocMousedown(e: MouseEvent) {
-      if (!(e.target as Element).closest('.group-label-wrap')) editing = false
+      if (!(e.target as Element).closest('.group-label-wrap')) editing = false;
     }
-    document.addEventListener('mousedown', onDocMousedown, true)
-    return () => document.removeEventListener('mousedown', onDocMousedown, true)
-  })
+    document.addEventListener('mousedown', onDocMousedown, true);
+    return () => document.removeEventListener('mousedown', onDocMousedown, true);
+  });
 
   function onKeydown(e: KeyboardEvent) {
-    e.stopPropagation()
-    if (e.key === 'Escape' || e.key === 'Enter') editing = false
+    e.stopPropagation();
+    if (e.key === 'Escape' || e.key === 'Enter') editing = false;
   }
 
   function enterEditing(e: MouseEvent) {
-    e.stopPropagation()
-    editing = true
+    e.stopPropagation();
+    editing = true;
   }
 </script>
 

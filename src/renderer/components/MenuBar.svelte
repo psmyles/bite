@@ -1,45 +1,75 @@
 <script lang="ts">
   interface Props {
-    onNew:           () => void
-    onOpen:          () => void
-    onSave:          () => void
-    onSaveAs:        () => void
-    onDuplicate:     () => void
-    onDelete:        () => void
-    onAbout:            () => void
-    onDocumentation:    () => void
-    onBug:              () => void
-    onCheckForUpdates:  () => void
-    onCredits:          () => void
-    onToggleTimers:     () => void
-    timersEnabled:      boolean
-    title:           string
+    onNew: () => void;
+    onOpen: () => void;
+    onSave: () => void;
+    onSaveAs: () => void;
+    onDuplicate: () => void;
+    onDelete: () => void;
+    onAbout: () => void;
+    onDocumentation: () => void;
+    onBug: () => void;
+    onCheckForUpdates: () => void;
+    onCredits: () => void;
+    onToggleTimers: () => void;
+    timersEnabled: boolean;
+    title: string;
   }
 
-  let { onNew, onOpen, onSave, onSaveAs, onDuplicate, onDelete, onAbout, onDocumentation, onBug, onCheckForUpdates, onCredits, onToggleTimers, timersEnabled, title }: Props = $props()
+  let {
+    onNew,
+    onOpen,
+    onSave,
+    onSaveAs,
+    onDuplicate,
+    onDelete,
+    onAbout,
+    onDocumentation,
+    onBug,
+    onCheckForUpdates,
+    onCredits,
+    onToggleTimers,
+    timersEnabled,
+    title,
+  }: Props = $props();
 
-  let openMenu: string | null = $state(null)
+  let openMenu: string | null = $state(null);
 
   function toggle(name: string) {
-    openMenu = openMenu === name ? null : name
+    openMenu = openMenu === name ? null : name;
   }
 
   function run(fn: () => void) {
-    openMenu = null
-    fn()
+    openMenu = null;
+    fn();
   }
 
   function onWindowClick(e: MouseEvent) {
-    if (!(e.target as Element).closest('.menu-item')) openMenu = null
+    if (!(e.target as Element).closest('.menu-item')) openMenu = null;
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') { openMenu = null; return }
-    if (!e.ctrlKey && !e.metaKey) return
-    if (e.key === 'n') { e.preventDefault(); onNew() }
-    if (e.key === 'o') { e.preventDefault(); onOpen() }
-    if (e.key === 's' && !e.shiftKey) { e.preventDefault(); onSave() }
-    if (e.key === 'S' &&  e.shiftKey) { e.preventDefault(); onSaveAs() }
+    if (e.key === 'Escape') {
+      openMenu = null;
+      return;
+    }
+    if (!e.ctrlKey && !e.metaKey) return;
+    if (e.key === 'n') {
+      e.preventDefault();
+      onNew();
+    }
+    if (e.key === 'o') {
+      e.preventDefault();
+      onOpen();
+    }
+    if (e.key === 's' && !e.shiftKey) {
+      e.preventDefault();
+      onSave();
+    }
+    if (e.key === 'S' && e.shiftKey) {
+      e.preventDefault();
+      onSaveAs();
+    }
   }
 </script>
 
@@ -53,10 +83,10 @@
     <button class="menu-trigger" onclick={() => toggle('file')}>File</button>
     {#if openMenu === 'file'}
       <ul class="dropdown">
-        <li><button onclick={() => run(onNew)}>   New<span class="shortcut">Ctrl+N</span></button></li>
-        <li><button onclick={() => run(onOpen)}>  Open…<span class="shortcut">Ctrl+O</span></button></li>
+        <li><button onclick={() => run(onNew)}> New<span class="shortcut">Ctrl+N</span></button></li>
+        <li><button onclick={() => run(onOpen)}> Open…<span class="shortcut">Ctrl+O</span></button></li>
         <li class="sep"></li>
-        <li><button onclick={() => run(onSave)}>  Save<span class="shortcut">Ctrl+S</span></button></li>
+        <li><button onclick={() => run(onSave)}> Save<span class="shortcut">Ctrl+S</span></button></li>
         <li><button onclick={() => run(onSaveAs)}>Save As…<span class="shortcut">Ctrl+Shift+S</span></button></li>
       </ul>
     {/if}
@@ -67,17 +97,59 @@
     <button class="menu-trigger" onclick={() => toggle('edit')}>Edit</button>
     {#if openMenu === 'edit'}
       <ul class="dropdown">
-        <li><button onclick={() => { openMenu = null; document.execCommand('undo') }}>Undo<span class="shortcut">Ctrl+Z</span></button></li>
-        <li><button onclick={() => { openMenu = null; document.execCommand('redo') }}>Redo<span class="shortcut">Ctrl+Y</span></button></li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+              document.execCommand('undo');
+            }}>Undo<span class="shortcut">Ctrl+Z</span></button
+          >
+        </li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+              document.execCommand('redo');
+            }}>Redo<span class="shortcut">Ctrl+Y</span></button
+          >
+        </li>
         <li class="sep"></li>
-        <li><button onclick={() => { openMenu = null; document.execCommand('cut') }}>Cut<span class="shortcut">Ctrl+X</span></button></li>
-        <li><button onclick={() => { openMenu = null; document.execCommand('copy') }}>Copy<span class="shortcut">Ctrl+C</span></button></li>
-        <li><button onclick={() => { openMenu = null; document.execCommand('paste') }}>Paste<span class="shortcut">Ctrl+V</span></button></li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+              document.execCommand('cut');
+            }}>Cut<span class="shortcut">Ctrl+X</span></button
+          >
+        </li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+              document.execCommand('copy');
+            }}>Copy<span class="shortcut">Ctrl+C</span></button
+          >
+        </li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+              document.execCommand('paste');
+            }}>Paste<span class="shortcut">Ctrl+V</span></button
+          >
+        </li>
         <li class="sep"></li>
         <li><button onclick={() => run(onDuplicate)}>Duplicate<span class="shortcut">Ctrl+D</span></button></li>
         <li><button onclick={() => run(onDelete)}>Delete<span class="shortcut">Del</span></button></li>
         <li class="sep"></li>
-        <li><button onclick={() => { openMenu = null; document.execCommand('selectAll') }}>Select All<span class="shortcut">Ctrl+A</span></button></li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+              document.execCommand('selectAll');
+            }}>Select All<span class="shortcut">Ctrl+A</span></button
+          >
+        </li>
       </ul>
     {/if}
   </div>
@@ -87,11 +159,36 @@
     <button class="menu-trigger" onclick={() => toggle('view')}>View</button>
     {#if openMenu === 'view'}
       <ul class="dropdown">
-        <li><button onclick={() => { openMenu = null }}>Actual Size<span class="shortcut">Ctrl+0</span></button></li>
-        <li><button onclick={() => { openMenu = null }}>Zoom In<span class="shortcut">Ctrl++</span></button></li>
-        <li><button onclick={() => { openMenu = null }}>Zoom Out<span class="shortcut">Ctrl+−</span></button></li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+            }}>Actual Size<span class="shortcut">Ctrl+0</span></button
+          >
+        </li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+            }}>Zoom In<span class="shortcut">Ctrl++</span></button
+          >
+        </li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+            }}>Zoom Out<span class="shortcut">Ctrl+−</span></button
+          >
+        </li>
         <li class="sep"></li>
-        <li><button onclick={() => { openMenu = null; document.documentElement.requestFullscreen?.() }}>Toggle Full Screen<span class="shortcut">F11</span></button></li>
+        <li>
+          <button
+            onclick={() => {
+              openMenu = null;
+              document.documentElement.requestFullscreen?.();
+            }}>Toggle Full Screen<span class="shortcut">F11</span></button
+          >
+        </li>
       </ul>
     {/if}
   </div>

@@ -9,7 +9,14 @@
   "executor": "prop_size",
   "needs_image_meta": true,
   "params": [
-    { "name": "unit",  "label": "Unit",  "type": "enum",  "widget": "dropdown", "default": "bytes", "options": ["bytes", "KB", "MB", "GB"] },
-    { "name": "value", "label": "Size",  "type": "float", "widget": "number",   "default": 0, "readonly": true }
+    {
+      "name": "unit",
+      "label": "Unit",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "bytes",
+      "options": ["bytes", "KB", "MB", "GB"]
+    },
+    { "name": "value", "label": "Size", "type": "float", "widget": "number", "default": 0, "readonly": true }
   ]
 }

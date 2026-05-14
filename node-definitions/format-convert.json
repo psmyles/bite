@@ -26,15 +26,7 @@
       "type": "enum",
       "widget": "dropdown",
       "default": "PNG",
-      "options": [
-        "PNG",
-        "JPEG",
-        "WEBP",
-        "TIFF",
-        "AVIF",
-        "BMP",
-        "TGA"
-      ]
+      "options": ["PNG", "JPEG", "WEBP", "TIFF", "AVIF", "BMP", "TGA"]
     },
     {
       "name": "quality",

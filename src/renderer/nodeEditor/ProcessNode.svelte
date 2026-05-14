@@ -1,85 +1,81 @@
 <script lang="ts">
-  import { Handle, Position } from '@xyflow/svelte'
-  import { portColor } from './portColors.js'
-  import { graphStore } from '../stores/graph.svelte.js'
-  import { getNodeParams, type ParamPortDef } from './nodeEditorHelpers.js'
-  import { paramTypeToWireType, paramInHandle, paramOutHandle } from './wireTypeUtils.js'
+  import { Handle, Position } from '@xyflow/svelte';
+  import { portColor } from './portColors.js';
+  import { graphStore } from '../stores/graph.svelte.js';
+  import { getNodeParams, type ParamPortDef } from './nodeEditorHelpers.js';
+  import { paramTypeToWireType, paramInHandle, paramOutHandle } from './wireTypeUtils.js';
 
   function formatParamValue(type: string, value: unknown): string | null {
-    if (value === null || value === undefined) return null
-    if (type === 'int') return String(Math.round(Number(value)))
+    if (value === null || value === undefined) return null;
+    if (type === 'int') return String(Math.round(Number(value)));
     if (type === 'float' || type === 'numeric') {
-      const n = Number(value)
-      if (isNaN(n)) return null
-      return parseFloat(n.toFixed(2)).toString()
+      const n = Number(value);
+      if (isNaN(n)) return null;
+      return parseFloat(n.toFixed(2)).toString();
     }
     if (type === 'string') {
-      const s = String(value)
-      return s.length > 0 ? (s.length > 14 ? s.slice(0, 12) + '…' : s) : null
+      const s = String(value);
+      return s.length > 0 ? (s.length > 14 ? s.slice(0, 12) + '…' : s) : null;
     }
-    if (type === 'bool') return value ? 'true' : 'false'
+    if (type === 'bool') return value ? 'true' : 'false';
     if (Array.isArray(value)) {
-      const parts = (value as number[]).map((n) => parseFloat(Number(n).toFixed(2)).toString())
-      return parts.join(', ')
+      const parts = (value as number[]).map((n) => parseFloat(Number(n).toFixed(2)).toString());
+      return parts.join(', ');
     }
-    return null
+    return null;
   }
 
   function isChanged(p: ParamPort, params: Record<string, unknown>): boolean {
-    if (p.readonly) return false
-    const cur = params[p.name]
-    if (p.default === undefined) return cur !== undefined && cur !== null
-    return JSON.stringify(cur) !== JSON.stringify(p.default)
+    if (p.readonly) return false;
+    const cur = params[p.name];
+    if (p.default === undefined) return cur !== undefined && cur !== null;
+    return JSON.stringify(cur) !== JSON.stringify(p.default);
   }
 
   function colorToCss(value: unknown): string | null {
-    if (!Array.isArray(value) || value.length < 3) return null
-    const [r, g, b, a = 1] = value as number[]
-    const ri = Math.round(Math.max(0, Math.min(1, r)) * 255)
-    const gi = Math.round(Math.max(0, Math.min(1, g)) * 255)
-    const bi = Math.round(Math.max(0, Math.min(1, b)) * 255)
-    const af = Math.max(0, Math.min(1, a))
-    return `rgba(${ri},${gi},${bi},${af})`
+    if (!Array.isArray(value) || value.length < 3) return null;
+    const [r, g, b, a = 1] = value as number[];
+    const ri = Math.round(Math.max(0, Math.min(1, r)) * 255);
+    const gi = Math.round(Math.max(0, Math.min(1, g)) * 255);
+    const bi = Math.round(Math.max(0, Math.min(1, b)) * 255);
+    const af = Math.max(0, Math.min(1, a));
+    return `rgba(${ri},${gi},${bi},${af})`;
   }
 
   interface NodeData {
-    label: string
-    description?: string
-    inputs?: string[]
-    outputs?: string[]
-    inputLabels?: string[]
-    outputLabels?: string[]
-    paramDefs?: ParamPortDef[]
-    params?: Record<string, unknown>
+    label: string;
+    description?: string;
+    inputs?: string[];
+    outputs?: string[];
+    inputLabels?: string[];
+    outputLabels?: string[];
+    paramDefs?: ParamPortDef[];
+    params?: Record<string, unknown>;
   }
 
-  let {
-    id = '',
-    data,
-    selected = false,
-  }: { id?: string; data: NodeData; selected?: boolean } = $props()
+  let { id = '', data, selected = false }: { id?: string; data: NodeData; selected?: boolean } = $props();
 
-  const isPreviewTarget = $derived(id !== '' && graphStore.activePreviewNodeId === id)
-  const description = $derived(data.description ?? '')
+  const isPreviewTarget = $derived(id !== '' && graphStore.activePreviewNodeId === id);
+  const description = $derived(data.description ?? '');
 
-  const inputs       = $derived(data.inputs       ?? ['image'])
-  const outputs      = $derived(data.outputs      ?? ['image'])
-  const inputLabels  = $derived(data.inputLabels  ?? [])
-  const outputLabels = $derived(data.outputLabels ?? [])
-  const paramDefs    = $derived(data.paramDefs    ?? [])
-  const hasImagePorts = $derived(inputs.length > 0 || outputs.length > 0)
+  const inputs = $derived(data.inputs ?? ['image']);
+  const outputs = $derived(data.outputs ?? ['image']);
+  const inputLabels = $derived(data.inputLabels ?? []);
+  const outputLabels = $derived(data.outputLabels ?? []);
+  const paramDefs = $derived(data.paramDefs ?? []);
+  const hasImagePorts = $derived(inputs.length > 0 || outputs.length > 0);
 
   // Body params: shown as rows in the node body (non-portOnly)
-  const bodyParamDefs  = $derived(paramDefs.filter((p) => !p.portOnly))
+  const bodyParamDefs = $derived(paramDefs.filter((p) => !p.portOnly));
   // Output slots: right-side port handles with labels, not shown as body rows
-  const outputSlotDefs = $derived(paramDefs.filter((p) => p.portOnly))
+  const outputSlotDefs = $derived(paramDefs.filter((p) => p.portOnly));
 
   // Nodes with both image in AND image out are "actionable" — they get the bypass toggle.
-  const isActionable = $derived(inputs.length > 0 && outputs.length > 0)
+  const isActionable = $derived(inputs.length > 0 && outputs.length > 0);
 
   // Local toggle state from params (true = active, missing = active)
   // Treat only explicit false/0 as disabled; undefined/null/missing defaults to enabled
-  const enabled = $derived(data.params?._enabled !== false && data.params?._enabled !== 0)
+  const enabled = $derived(data.params?._enabled !== false && data.params?._enabled !== 0);
 
   // ── Bypass wire detection ─────────────────────────────────────────────────
   // Check if param-in-_enabled has an incoming wire; if so, hide the manual toggle
@@ -87,160 +83,161 @@
   const enabledEdge = $derived(
     isActionable
       ? graphStore.edges.find((e) => e.target === id && e.targetHandle === paramInHandle('_enabled'))
-      : undefined,
-  )
-  const hasEnabledWire = $derived(!!enabledEdge)
+      : undefined
+  );
+  const hasEnabledWire = $derived(!!enabledEdge);
 
   // Best-effort read of the connected wire's current value for visual feedback.
   const wiredEnabledValue = $derived.by(() => {
-    const edge = enabledEdge
-    if (!edge) return true
-    const srcHandle = edge.sourceHandle
-    if (!srcHandle?.startsWith('param-out-')) return true
-    const srcParamName = srcHandle.slice(paramOutHandle('').length)
-    const srcNode = graphStore.nodes.find((n) => n.id === edge.source)
-    const srcParams = getNodeParams(srcNode?.data)
-    const val = srcParams?.[srcParamName]
+    const edge = enabledEdge;
+    if (!edge) return true;
+    const srcHandle = edge.sourceHandle;
+    if (!srcHandle?.startsWith('param-out-')) return true;
+    const srcParamName = srcHandle.slice(paramOutHandle('').length);
+    const srcNode = graphStore.nodes.find((n) => n.id === edge.source);
+    const srcParams = getNodeParams(srcNode?.data);
+    const val = srcParams?.[srcParamName];
     // Treat 0, false, null, undefined as "bypass" (disabled)
-    return val !== false && val !== 0 && val !== null && val !== undefined
-  })
+    return val !== false && val !== 0 && val !== null && val !== undefined;
+  });
 
   // Effective enabled state — wire value takes precedence over manual toggle
-  const effectiveEnabled = $derived(hasEnabledWire ? wiredEnabledValue : enabled)
+  const effectiveEnabled = $derived(hasEnabledWire ? wiredEnabledValue : enabled);
 
   function toggleEnabled(e: MouseEvent) {
-    e.stopPropagation()
-    if (id) graphStore.setParam(id, '_enabled', !enabled)
+    e.stopPropagation();
+    if (id) graphStore.setParam(id, '_enabled', !enabled);
   }
 
   // ── Header tooltip ────────────────────────────────────────────────────────
-  let tooltipVisible = $state(false)
-  let tooltipTimer: ReturnType<typeof setTimeout> | undefined
-  let tooltipX = $state(0)
-  let tooltipY = $state(0)
-  let headerEl = $state<HTMLElement | null>(null)
+  let tooltipVisible = $state(false);
+  let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+  let headerEl = $state<HTMLElement | null>(null);
 
   // Portal action: moves the element to document.body so position:fixed is
   // relative to the viewport, not any CSS-transformed ancestor (Svelte Flow nodes).
   function portal(el: HTMLElement): { destroy(): void } {
-    document.body.appendChild(el)
-    return { destroy() { el.remove() } }
+    document.body.appendChild(el);
+    return {
+      destroy() {
+        el.remove();
+      },
+    };
   }
 
   function onHeaderEnter() {
-    if (!description) return
+    if (!description) return;
     tooltipTimer = setTimeout(() => {
       if (headerEl) {
-        const r = headerEl.getBoundingClientRect()
-        tooltipX = r.left + r.width / 2
-        tooltipY = r.bottom + 6
+        const r = headerEl.getBoundingClientRect();
+        tooltipX = r.left + r.width / 2;
+        tooltipY = r.bottom + 6;
       }
-      tooltipVisible = true
-    }, 1000)
+      tooltipVisible = true;
+    }, 1000);
   }
 
   function onHeaderLeave() {
-    clearTimeout(tooltipTimer)
-    tooltipVisible = false
+    clearTimeout(tooltipTimer);
+    tooltipVisible = false;
   }
 
   // ── Layout constants (px) ─────────────────────────────────────────────────
   // Read from CSS custom properties — theme.css is the single source of truth.
   // If you need to change a value, update --node-layout-* in theme.css only.
   function cssLayoutNum(prop: string): number {
-    return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(prop)) || 0
+    return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(prop)) || 0;
   }
-  const HEADER_H    = cssLayoutNum('--node-layout-header-h')
-  const PORT_PAD    = cssLayoutNum('--node-layout-port-pad')
-  const PORT_ROW_H  = cssLayoutNum('--node-layout-port-row-h')
-  const PARAM_PAD   = cssLayoutNum('--node-layout-param-pad')
-  const PARAM_ROW_H = cssLayoutNum('--node-layout-param-row-h')
-  const SEP_H       = cssLayoutNum('--node-layout-sep-h')
+  const HEADER_H = cssLayoutNum('--node-layout-header-h');
+  const PORT_PAD = cssLayoutNum('--node-layout-port-pad');
+  const PORT_ROW_H = cssLayoutNum('--node-layout-port-row-h');
+  const PARAM_PAD = cssLayoutNum('--node-layout-param-pad');
+  const PARAM_ROW_H = cssLayoutNum('--node-layout-param-row-h');
+  const SEP_H = cssLayoutNum('--node-layout-sep-h');
 
   const imgSectionH = $derived(
-    hasImagePorts
-      ? PORT_PAD * 2 + Math.max(inputs.length, outputs.length, 1) * PORT_ROW_H
-      : 0
-  )
+    hasImagePorts ? PORT_PAD * 2 + Math.max(inputs.length, outputs.length, 1) * PORT_ROW_H : 0
+  );
 
   // Height of the body-params section, including its border-top separator when image ports exist
   const bodyParamSectionH = $derived(
-    bodyParamDefs.length > 0
-      ? (hasImagePorts ? SEP_H : 0) + PARAM_PAD * 2 + bodyParamDefs.length * PARAM_ROW_H
-      : 0
-  )
+    bodyParamDefs.length > 0 ? (hasImagePorts ? SEP_H : 0) + PARAM_PAD * 2 + bodyParamDefs.length * PARAM_ROW_H : 0
+  );
 
   function imgHandleTop(i: number): string {
-    return `${HEADER_H + PORT_PAD + i * PORT_ROW_H + PORT_ROW_H / 2}px`
+    return `${HEADER_H + PORT_PAD + i * PORT_ROW_H + PORT_ROW_H / 2}px`;
   }
 
   function paramHandleTop(i: number): string {
-    const sepOffset = hasImagePorts ? SEP_H : 0
-    return `${HEADER_H + imgSectionH + sepOffset + PARAM_PAD + i * PARAM_ROW_H + PARAM_ROW_H / 2}px`
+    const sepOffset = hasImagePorts ? SEP_H : 0;
+    return `${HEADER_H + imgSectionH + sepOffset + PARAM_PAD + i * PARAM_ROW_H + PARAM_ROW_H / 2}px`;
   }
 
   function outputSlotHandleTop(i: number): string {
     // sep = border-top of the .output-slots div (always present when something precedes it)
-    const sepOffset = (hasImagePorts || bodyParamDefs.length > 0) ? SEP_H : 0
-    return `${HEADER_H + imgSectionH + bodyParamSectionH + sepOffset + PORT_PAD + i * PORT_ROW_H + PORT_ROW_H / 2}px`
+    const sepOffset = hasImagePorts || bodyParamDefs.length > 0 ? SEP_H : 0;
+    return `${HEADER_H + imgSectionH + bodyParamSectionH + sepOffset + PORT_PAD + i * PORT_ROW_H + PORT_ROW_H / 2}px`;
   }
 
   // Maps portOnly component names to their index in the source array
-  const COMPONENT_INDEX: Record<string, number> = { x: 0, y: 1, z: 2, w: 3, r: 0, g: 1, b: 2, a: 3 }
+  const COMPONENT_INDEX: Record<string, number> = { x: 0, y: 1, z: 2, w: 3, r: 0, g: 1, b: 2, a: 3 };
   // Maps portOnly combined names to how many elements to slice from the source array
-  const COMBINED_SLICE: Record<string, number> = { xy: 2, xyz: 3, xyzw: 4, rgb: 3, rgba: 4 }
+  const COMBINED_SLICE: Record<string, number> = { xy: 2, xyz: 3, xyzw: 4, rgb: 3, rgba: 4 };
 
   function resolveSlotValue(p: ParamPort, params: Record<string, unknown>): unknown {
     // Use stored value if already computed (e.g. after executor ran)
-    const stored = params[p.name]
-    if (stored !== null && stored !== undefined) return stored
+    const stored = params[p.name];
+    if (stored !== null && stored !== undefined) return stored;
     // Otherwise derive from the first array-valued body param (e.g. vec, color)
-    const src = bodyParamDefs.map((bp) => params[bp.name]).find((v) => Array.isArray(v)) as number[] | undefined
-    if (!src) return undefined
-    const sliceLen = COMBINED_SLICE[p.name]
-    if (sliceLen !== undefined) return src.slice(0, sliceLen)
-    const idx = COMPONENT_INDEX[p.name]
-    return idx !== undefined ? (src[idx] ?? 0) : undefined
+    const src = bodyParamDefs.map((bp) => params[bp.name]).find((v) => Array.isArray(v)) as number[] | undefined;
+    if (!src) return undefined;
+    const sliceLen = COMBINED_SLICE[p.name];
+    if (sliceLen !== undefined) return src.slice(0, sliceLen);
+    const idx = COMPONENT_INDEX[p.name];
+    return idx !== undefined ? (src[idx] ?? 0) : undefined;
   }
 
   /** Resolve the wire type flowing through a source handle by inspecting the source node's data. */
   function getConnectedWireType(targetHandleId: string): string | null {
-    const edge = graphStore.edges.find(e => e.target === id && e.targetHandle === targetHandleId)
-    if (!edge) return null
-    const srcNode = graphStore.nodes.find(n => n.id === edge.source)
-    if (!srcNode) return null
-    const srcHandle = edge.sourceHandle
-    if (!srcHandle) return null
-    const srcData = srcNode.data as Record<string, unknown>
+    const edge = graphStore.edges.find((e) => e.target === id && e.targetHandle === targetHandleId);
+    if (!edge) return null;
+    const srcNode = graphStore.nodes.find((n) => n.id === edge.source);
+    if (!srcNode) return null;
+    const srcHandle = edge.sourceHandle;
+    if (!srcHandle) return null;
+    const srcData = srcNode.data as Record<string, unknown>;
     if (srcHandle.startsWith('param-out-')) {
-      const pName = srcHandle.slice(paramOutHandle('').length)
-      const pd = (srcData.paramDefs as Array<{name: string; type: string}> | undefined)
-        ?.find(p => p.name === pName)
-      if (!pd) return null
-      if (pd.type === 'any') return null
-      return paramTypeToWireType(pd.type)
+      const pName = srcHandle.slice(paramOutHandle('').length);
+      const pd = (srcData.paramDefs as Array<{ name: string; type: string }> | undefined)?.find(
+        (p) => p.name === pName
+      );
+      if (!pd) return null;
+      if (pd.type === 'any') return null;
+      return paramTypeToWireType(pd.type);
     }
     if (srcHandle.startsWith('out-')) {
-      const idx = parseInt(srcHandle.slice(4))
-      return (srcData.outputs as string[] | undefined)?.[idx] ?? null
+      const idx = parseInt(srcHandle.slice(4));
+      return (srcData.outputs as string[] | undefined)?.[idx] ?? null;
     }
-    return null
+    return null;
   }
 
   function paramPortColor(p: ParamPortDef): string {
     if (p.type === 'any') {
       if (p.readonly) {
-        for (const inp of paramDefs.filter(d => d.type === 'any' && !d.readonly)) {
-          const wt = getConnectedWireType(paramInHandle(inp.name))
-          if (wt) return portColor(wt)
+        for (const inp of paramDefs.filter((d) => d.type === 'any' && !d.readonly)) {
+          const wt = getConnectedWireType(paramInHandle(inp.name));
+          if (wt) return portColor(wt);
         }
       } else {
-        const wt = getConnectedWireType(paramInHandle(p.name))
-        if (wt) return portColor(wt)
+        const wt = getConnectedWireType(paramInHandle(p.name));
+        if (wt) return portColor(wt);
       }
-      return portColor('any')
+      return portColor('any');
     }
-    return portColor(paramTypeToWireType(p.type))
+    return portColor(paramTypeToWireType(p.type));
   }
 </script>
 
@@ -415,11 +412,7 @@
 <!-- Tooltip portaled to document.body so position:fixed is viewport-relative,
      not relative to the CSS-transformed Svelte Flow node ancestor. -->
 {#if tooltipVisible && description}
-  <div
-    use:portal
-    class="node-tooltip-fixed"
-    style="left:{tooltipX}px; top:{tooltipY}px"
-  >{description}</div>
+  <div use:portal class="node-tooltip-fixed" style="left:{tooltipX}px; top:{tooltipY}px">{description}</div>
 {/if}
 
 <style>
@@ -482,7 +475,9 @@
     border-radius: 2px;
     cursor: pointer;
     flex-shrink: 0;
-    transition: border-color 0.12s, background 0.12s;
+    transition:
+      border-color 0.12s,
+      background 0.12s;
     background: transparent;
   }
 
@@ -634,7 +629,7 @@
     text-align: left;
     pointer-events: none;
     z-index: 9999;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   /* ── Previewing badge — floats above the node ── */

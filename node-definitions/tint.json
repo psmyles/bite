@@ -5,7 +5,7 @@
   "description": "Blend a solid color over the image at a given strength using colorize",
   "aliases": ["colorize", "color overlay", "hue tint"],
   "category": "Color",
-  "inputs":  [{ "type": "image", "label": "Input" }],
+  "inputs": [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     {

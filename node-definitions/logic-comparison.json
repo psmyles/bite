@@ -8,9 +8,16 @@
   "outputs": [],
   "executor": "logic_comparison",
   "params": [
-    { "name": "a",        "label": "A",        "type": "any",  "default": null },
-    { "name": "operator", "label": "Operator", "type": "enum", "widget": "dropdown", "default": "equal", "options": ["equal", "not equal", "greater than", "less than", "greater or equal", "less or equal"] },
-    { "name": "b",        "label": "B",        "type": "any",  "default": null },
-    { "name": "result",   "label": "Result",   "type": "bool",  "widget": "checkbox", "default": true, "readonly": true }
+    { "name": "a", "label": "A", "type": "any", "default": null },
+    {
+      "name": "operator",
+      "label": "Operator",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "equal",
+      "options": ["equal", "not equal", "greater than", "less than", "greater or equal", "less or equal"]
+    },
+    { "name": "b", "label": "B", "type": "any", "default": null },
+    { "name": "result", "label": "Result", "type": "bool", "widget": "checkbox", "default": true, "readonly": true }
   ]
 }

@@ -1,99 +1,99 @@
 <script lang="ts">
-  import { imageStore } from '../stores/images.svelte.js'
-  import { IS_ELECTRON } from '../platform.js'
+  import { imageStore } from '../stores/images.svelte.js';
+  import { IS_ELECTRON } from '../platform.js';
 
-  let panelEl       = $state<HTMLElement | undefined>(undefined)
-  let stripEl       = $state<HTMLElement | undefined>(undefined)
-  let stripHeight   = $state(0)
-  let stripWidth    = $state(0)
-  let scrollLeft    = $state(0)
-  let isDragOver    = $state(false)
+  let panelEl = $state<HTMLElement | undefined>(undefined);
+  let stripEl = $state<HTMLElement | undefined>(undefined);
+  let stripHeight = $state(0);
+  let stripWidth = $state(0);
+  let scrollLeft = $state(0);
+  let isDragOver = $state(false);
 
   // Measure panel height (for thumbSize) and strip width (for visible range).
   // We observe the outer panel for height — its size is set by the app layout and
   // never changes in response to thumbnail sizes, avoiding a ResizeObserver loop.
   $effect(() => {
-    if (!panelEl || !stripEl) return
+    if (!panelEl || !stripEl) return;
     const ro = new ResizeObserver(() => {
-      stripHeight = panelEl!.clientHeight
-      stripWidth  = stripEl!.clientWidth
-    })
-    ro.observe(panelEl)
-    ro.observe(stripEl)
-    return () => ro.disconnect()
-  })
+      stripHeight = panelEl!.clientHeight;
+      stripWidth = stripEl!.clientWidth;
+    });
+    ro.observe(panelEl);
+    ro.observe(stripEl);
+    return () => ro.disconnect();
+  });
 
   // Strip padding (top 5 + bottom 4) + thumb padding (3*2) + gap (3) + name (~13px) + status bar (24px)
-  const CHROME    = 52
-  const OVERSCAN  = 8    // items to render outside the visible window on each side
-  const STRIP_PAD = 8    // .thumb-strip left/right padding
+  const CHROME = 52;
+  const OVERSCAN = 8; // items to render outside the visible window on each side
+  const STRIP_PAD = 8; // .thumb-strip left/right padding
 
-  const thumbSize = $derived(Math.max(32, stripHeight - CHROME))
+  const thumbSize = $derived(Math.max(32, stripHeight - CHROME));
   // Per-item stride in the flex row: image + padding (3*2) + border (1*2) + gap (4)
-  const itemWidth = $derived(thumbSize + 12)
+  const itemWidth = $derived(thumbSize + 12);
 
   // Virtual window: indices of items to actually render
   const visibleRange = $derived.by(() => {
-    const total = imageStore.images.length
-    if (total === 0) return { start: 0, end: -1 }
-    const first = Math.floor(Math.max(0, scrollLeft - STRIP_PAD) / itemWidth)
-    const last  = Math.ceil((scrollLeft + stripWidth - STRIP_PAD) / itemWidth)
+    const total = imageStore.images.length;
+    if (total === 0) return { start: 0, end: -1 };
+    const first = Math.floor(Math.max(0, scrollLeft - STRIP_PAD) / itemWidth);
+    const last = Math.ceil((scrollLeft + stripWidth - STRIP_PAD) / itemWidth);
     return {
       start: Math.max(0, first - OVERSCAN),
-      end:   Math.min(total - 1, last + OVERSCAN),
-    }
-  })
+      end: Math.min(total - 1, last + OVERSCAN),
+    };
+  });
 
   // Spacers maintain the total scrollable width without rendering off-screen items
-  const spacerLeft  = $derived(visibleRange.start * itemWidth)
-  const spacerRight = $derived(
-    Math.max(0, (imageStore.images.length - 1 - visibleRange.end) * itemWidth)
-  )
+  const spacerLeft = $derived(visibleRange.start * itemWidth);
+  const spacerRight = $derived(Math.max(0, (imageStore.images.length - 1 - visibleRange.end) * itemWidth));
 
   // Non-passive wheel listener — redirects vertical scroll to horizontal.
   $effect(() => {
-    if (!stripEl) return
+    if (!stripEl) return;
     function onWheel(e: WheelEvent) {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
-      e.preventDefault()
-      stripEl!.scrollLeft += e.deltaY
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      stripEl!.scrollLeft += e.deltaY;
     }
-    stripEl.addEventListener('wheel', onWheel, { passive: false })
-    return () => stripEl!.removeEventListener('wheel', onWheel)
-  })
+    stripEl.addEventListener('wheel', onWheel, { passive: false });
+    return () => stripEl!.removeEventListener('wheel', onWheel);
+  });
 
   function getImagePaths(dt: DataTransfer): string[] {
-    if (!dt.types.includes('Files')) return []
+    if (!dt.types.includes('Files')) return [];
     return [...dt.files]
-      .filter((f) => /\.(jpe?g|png|gif|webp|avif|svg|svgz|ico|bmp|tiff?|heic|heif|jp2|j2k|jpf|jpx|jxl|psd|psb|exr|hdr|dpx|cin|cr[23]|nef|nrw|arw|dng|orf|raf|rw2|pef|srw|x3f|3fr|kdc|mrw|erf|rwl|tga|pcx|pp[mbgn]|pnm|sgi|rgb[a]?|miff|mng|jng|xbm|xpm|xwd|sun|iff|lbm|wbmp|pict?|dds|fits|fts)$/i.test(f.name))
+      .filter((f) =>
+        /\.(jpe?g|png|gif|webp|avif|svg|svgz|ico|bmp|tiff?|heic|heif|jp2|j2k|jpf|jpx|jxl|psd|psb|exr|hdr|dpx|cin|cr[23]|nef|nrw|arw|dng|orf|raf|rw2|pef|srw|x3f|3fr|kdc|mrw|erf|rwl|tga|pcx|pp[mbgn]|pnm|sgi|rgb[a]?|miff|mng|jng|xbm|xpm|xwd|sun|iff|lbm|wbmp|pict?|dds|fits|fts)$/i.test(
+          f.name
+        )
+      )
       .map((f) => (f as unknown as { path: string }).path)
-      .filter(Boolean)
+      .filter(Boolean);
   }
 
   function onDragOver(e: DragEvent) {
-    if (!e.dataTransfer?.types.includes('Files')) return
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'copy'
-    isDragOver = true
+    if (!e.dataTransfer?.types.includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    isDragOver = true;
   }
 
   function onDragLeave(e: DragEvent) {
     if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
-      isDragOver = false
+      isDragOver = false;
     }
   }
 
   function onDrop(e: DragEvent) {
-    e.preventDefault()
-    isDragOver = false
-    if (!e.dataTransfer) return
-    const paths = getImagePaths(e.dataTransfer)
-    if (paths.length) imageStore.add(paths)
+    e.preventDefault();
+    isDragOver = false;
+    if (!e.dataTransfer) return;
+    const paths = getImagePaths(e.dataTransfer);
+    if (paths.length) imageStore.add(paths);
   }
 
-  const countLabel = $derived(
-    imageStore.images.length === 1 ? '1 image' : `${imageStore.images.length} images`
-  )
+  const countLabel = $derived(imageStore.images.length === 1 ? '1 image' : `${imageStore.images.length} images`);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -109,14 +109,14 @@
   <div
     class="thumb-strip"
     bind:this={stripEl}
-    onscroll={(e) => { scrollLeft = (e.currentTarget as HTMLElement).scrollLeft }}
+    onscroll={(e) => {
+      scrollLeft = (e.currentTarget as HTMLElement).scrollLeft;
+    }}
   >
     {#if imageStore.images.length === 0}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       {#if IS_ELECTRON}
-        <span class="empty-hint" onclick={() => imageStore.openDialog()}>
-          Drop images here or click to open…
-        </span>
+        <span class="empty-hint" onclick={() => imageStore.openDialog()}> Drop images here or click to open… </span>
       {:else}
         <span class="empty-hint no-action">Image features require the desktop app.</span>
       {/if}
@@ -136,11 +136,7 @@
           title={img.name}
         >
           {#if img.thumbnailDataUrl}
-            <img
-              src={img.thumbnailDataUrl}
-              alt={img.name}
-              style="width:{thumbSize}px; height:{thumbSize}px"
-            />
+            <img src={img.thumbnailDataUrl} alt={img.name} style="width:{thumbSize}px; height:{thumbSize}px" />
           {:else}
             <div class="thumb-placeholder" style="width:{thumbSize}px; height:{thumbSize}px"></div>
           {/if}
@@ -193,13 +189,28 @@
     transition: scrollbar-color 0.2s;
   }
 
-  .thumb-strip:hover { scrollbar-color: var(--scrollbar-thumb) transparent; }
-  .thumb-strip::-webkit-scrollbar { height: var(--scrollbar-width); }
-  .thumb-strip::-webkit-scrollbar-track { background: transparent; }
-  .thumb-strip::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
-  .thumb-strip:hover::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
-  .thumb-strip::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-  .thumb-strip::-webkit-scrollbar-button { display: none; }
+  .thumb-strip:hover {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  .thumb-strip::-webkit-scrollbar {
+    height: var(--scrollbar-width);
+  }
+  .thumb-strip::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .thumb-strip::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+  }
+  .thumb-strip:hover::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+  }
+  .thumb-strip::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+  .thumb-strip::-webkit-scrollbar-button {
+    display: none;
+  }
 
   .empty-hint {
     font-family: var(--text-hint-family);
@@ -213,8 +224,12 @@
     transition: opacity 0.15s;
   }
 
-  .empty-hint:hover { opacity: 1; }
-  .empty-hint.no-action { cursor: default; }
+  .empty-hint:hover {
+    opacity: 1;
+  }
+  .empty-hint.no-action {
+    cursor: default;
+  }
 
   /* ── Virtual scroll spacers ── */
   .virt-spacer {
@@ -236,8 +251,12 @@
     cursor: pointer;
   }
 
-  .thumb:hover { border-color: var(--border); }
-  .thumb.selected { border-color: var(--accent); }
+  .thumb:hover {
+    border-color: var(--border);
+  }
+  .thumb.selected {
+    border-color: var(--accent);
+  }
 
   .thumb img,
   .thumb-placeholder {
@@ -247,7 +266,9 @@
     flex-shrink: 0;
   }
 
-  .thumb-placeholder { background: var(--panel-header-bg); }
+  .thumb-placeholder {
+    background: var(--panel-header-bg);
+  }
 
   .name {
     flex-shrink: 0;
@@ -261,7 +282,9 @@
     opacity: 0.6;
   }
 
-  .thumb.selected .name { opacity: 1; }
+  .thumb.selected .name {
+    opacity: 1;
+  }
 
   /* ── Status bar ── */
   .status-bar {

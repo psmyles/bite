@@ -1,81 +1,88 @@
 <script lang="ts">
-  import { imageStore } from '../stores/images.svelte.js'
-  import { graphStore } from '../stores/graph.svelte.js'
-  import { IPC } from '../../shared/constants.js'
+  import { imageStore } from '../stores/images.svelte.js';
+  import { graphStore } from '../stores/graph.svelte.js';
+  import { IPC } from '../../shared/constants.js';
 
-  const THUMB_SIZE_OPTIONS = [128, 256, 512, 1024, 2048]
+  const THUMB_SIZE_OPTIONS = [128, 256, 512, 1024, 2048];
   const thumbSizeParam = $derived.by(() => {
-    const node = graphStore.nodes.find(n => n.id === 'workflow-input')
-    const params = (node?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined
-    return Number(params?.thumbnailSize ?? 128)
-  })
+    const node = graphStore.nodes.find((n) => n.id === 'workflow-input');
+    const params = (node?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined;
+    return Number(params?.thumbnailSize ?? 128);
+  });
 
   // ── Format groups ─────────────────────────────────────────────────────────
   const FORMAT_GROUPS = [
-    { label: 'PNG',  exts: ['png'] },
+    { label: 'PNG', exts: ['png'] },
     { label: 'JPEG', exts: ['jpg', 'jpeg'] },
     { label: 'WEBP', exts: ['webp'] },
     { label: 'AVIF', exts: ['avif'] },
     { label: 'TIFF', exts: ['tif', 'tiff'] },
-    { label: 'BMP',  exts: ['bmp'] },
-    { label: 'TGA',  exts: ['tga'] },
-    { label: 'PSD',  exts: ['psd', 'psb'] },
-    { label: 'EXR',  exts: ['exr', 'hdr'] },
-    { label: 'RAW',  exts: ['cr2','cr3','nef','nrw','arw','dng','orf','raf','rw2','pef','srw'] },
-  ] as const
+    { label: 'BMP', exts: ['bmp'] },
+    { label: 'TGA', exts: ['tga'] },
+    { label: 'PSD', exts: ['psd', 'psb'] },
+    { label: 'EXR', exts: ['exr', 'hdr'] },
+    { label: 'RAW', exts: ['cr2', 'cr3', 'nef', 'nrw', 'arw', 'dng', 'orf', 'raf', 'rw2', 'pef', 'srw'] },
+  ] as const;
 
   // ── Folder import state ───────────────────────────────────────────────────
-  let recursive      = $state(false)
-  let activeFormats  = $state(new Set(['PNG', 'JPEG', 'WEBP', 'TIFF']))
-  let folderPath     = $state<string | null>(null)
-  let matchingPaths  = $state<string[]>([])
-  let selecting      = $state(false)   // folder dialog open
-  let counting       = $state(false)   // re-scanning after filter change
+  let recursive = $state(false);
+  let activeFormats = $state(new Set(['PNG', 'JPEG', 'WEBP', 'TIFF']));
+  let folderPath = $state<string | null>(null);
+  let matchingPaths = $state<string[]>([]);
+  let selecting = $state(false); // folder dialog open
+  let counting = $state(false); // re-scanning after filter change
 
-  const importing = $derived(imageStore.importProgress !== null)
+  const importing = $derived(imageStore.importProgress !== null);
 
   function activeExtensions() {
-    return FORMAT_GROUPS
-      .filter(g => activeFormats.has(g.label))
-      .flatMap(g => [...g.exts])
+    return FORMAT_GROUPS.filter((g) => activeFormats.has(g.label)).flatMap((g) => [...g.exts]);
   }
 
   function toggleFormat(label: string) {
-    const next = new Set(activeFormats)
-    if (next.has(label)) { if (next.size > 1) next.delete(label) }
-    else next.add(label)
-    activeFormats = next
+    const next = new Set(activeFormats);
+    if (next.has(label)) {
+      if (next.size > 1) next.delete(label);
+    } else next.add(label);
+    activeFormats = next;
   }
 
   async function chooseFolder() {
-    selecting = true
+    selecting = true;
     try {
-      const picked: string | null = await window.ipcRenderer.invoke(IPC.OPEN_FOLDER_DIALOG)
-      if (picked) folderPath = picked
+      const picked: string | null = await window.ipcRenderer.invoke(IPC.OPEN_FOLDER_DIALOG);
+      if (picked) folderPath = picked;
     } finally {
-      selecting = false
+      selecting = false;
     }
   }
 
   // Re-scan whenever folder, recursion flag, or active formats change
   $effect(() => {
-    const fp = folderPath
-    const rec = recursive
-    const exts = activeExtensions()   // depends on activeFormats
-    if (!fp) { matchingPaths = []; return }
-    counting = true
-    window.ipcRenderer.invoke(IPC.SCAN_FOLDER, { folderPath: fp, recursive: rec, extensions: exts })
-      .then((paths: string[]) => { matchingPaths = paths })
-      .finally(() => { counting = false })
-  })
+    const fp = folderPath;
+    const rec = recursive;
+    const exts = activeExtensions(); // depends on activeFormats
+    if (!fp) {
+      matchingPaths = [];
+      return;
+    }
+    counting = true;
+    window.ipcRenderer
+      .invoke(IPC.SCAN_FOLDER, { folderPath: fp, recursive: rec, extensions: exts })
+      .then((paths: string[]) => {
+        matchingPaths = paths;
+      })
+      .finally(() => {
+        counting = false;
+      });
+  });
 
   async function importFromFolder() {
-    if (matchingPaths.length === 0) return
-    await imageStore.add(matchingPaths)
+    if (matchingPaths.length === 0) return;
+    await imageStore.add(matchingPaths);
   }
 
   function folderDisplayName(p: string) {
-    return p.replace(/\\/g, '/').split('/').pop() ?? p
+    return p.replace(/\\/g, '/').split('/').pop() ?? p;
   }
 </script>
 
@@ -87,7 +94,8 @@
       <select
         class="setting-select"
         value={thumbSizeParam}
-        onchange={(e) => graphStore.setParam('workflow-input', 'thumbnailSize', Number((e.target as HTMLSelectElement).value))}
+        onchange={(e) =>
+          graphStore.setParam('workflow-input', 'thumbnailSize', Number((e.target as HTMLSelectElement).value))}
       >
         {#each THUMB_SIZE_OPTIONS as sz}
           <option value={sz}>{sz}px</option>
@@ -99,12 +107,10 @@
   {#if imageStore.images.length === 0}
     <!-- ── Folder picker (shown when filmstrip is empty) ─────────────────── -->
     <div class="folder-section">
-
       <!-- Folder import group -->
       <div class="import-group">
         <span class="group-label">Folder</span>
         <div class="group-body">
-
           <!-- Step 1: pick a folder -->
           <button class="io-btn" onclick={chooseFolder} disabled={selecting}>
             {selecting ? 'Choosing…' : folderPath ? 'Change Folder…' : 'Select Input Folder…'}
@@ -126,11 +132,9 @@
               <span class="section-label">File formats</span>
               <div class="chip-grid">
                 {#each FORMAT_GROUPS as g}
-                  <button
-                    class="chip"
-                    class:active={activeFormats.has(g.label)}
-                    onclick={() => toggleFormat(g.label)}
-                  >{g.label}</button>
+                  <button class="chip" class:active={activeFormats.has(g.label)} onclick={() => toggleFormat(g.label)}
+                    >{g.label}</button
+                  >
                 {/each}
               </div>
             </div>
@@ -150,11 +154,11 @@
               onclick={importFromFolder}
               disabled={importing || counting || matchingPaths.length === 0}
             >
-              {importing ? 'Importing…' : `Import ${matchingPaths.length} ${matchingPaths.length === 1 ? 'Image' : 'Images'}`}
+              {importing
+                ? 'Importing…'
+                : `Import ${matchingPaths.length} ${matchingPaths.length === 1 ? 'Image' : 'Images'}`}
             </button>
-
           {/if}
-
         </div>
       </div>
 
@@ -162,15 +166,12 @@
       <div class="import-group">
         <span class="group-label">Individual Images</span>
         <div class="group-body">
-          <button class="io-btn" onclick={() => imageStore.openDialog()}>
-            Add Individual Images…
-          </button>
+          <button class="io-btn" onclick={() => imageStore.openDialog()}> Add Individual Images… </button>
         </div>
       </div>
 
       <span class="empty-hint">or drop images onto the filmstrip</span>
     </div>
-
   {:else}
     <!-- ── Loaded image list ──────────────────────────────────────────────── -->
     <div class="input-top">
@@ -236,7 +237,9 @@
     outline: none;
   }
 
-  .setting-select:focus { border-color: var(--accent); }
+  .setting-select:focus {
+    border-color: var(--accent);
+  }
 
   /* ── Shared button ──────────────────────────────────────────────────────── */
   .io-btn {
@@ -252,11 +255,21 @@
     cursor: pointer;
     text-align: left;
     outline: none;
-    transition: border-color 0.1s, background 0.1s, color 0.1s;
+    transition:
+      border-color 0.1s,
+      background 0.1s,
+      color 0.1s;
   }
 
-  .io-btn:hover:not(:disabled) { background: #383838; border-color: var(--accent); color: #ffffff; }
-  .io-btn:disabled { opacity: 0.45; cursor: default; }
+  .io-btn:hover:not(:disabled) {
+    background: #383838;
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+  .io-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
 
   .io-btn.danger:hover:not(:disabled) {
     border-color: #c0392b;
@@ -408,10 +421,16 @@
     cursor: pointer;
     text-align: center;
     outline: none;
-    transition: background 0.1s, border-color 0.1s, color 0.1s;
+    transition:
+      background 0.1s,
+      border-color 0.1s,
+      color 0.1s;
   }
 
-  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
 
   .chip.active {
     background: color-mix(in srgb, #4caf50 18%, transparent);
@@ -446,7 +465,9 @@
     transition: scrollbar-color 0.2s;
   }
 
-  .file-list-wrap:hover { scrollbar-color: var(--scrollbar-thumb) transparent; }
+  .file-list-wrap:hover {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
 
   .file-entry {
     display: flex;
@@ -459,8 +480,12 @@
     transition: background 0.1s;
   }
 
-  .file-entry:hover  { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-  .file-entry.active { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+  .file-entry:hover {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .file-entry.active {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
 
   .file-entry-name {
     font-family: var(--font-mono);
@@ -473,7 +498,9 @@
     min-width: 0;
   }
 
-  .file-entry.active .file-entry-name { color: var(--text); }
+  .file-entry.active .file-entry-name {
+    color: var(--text);
+  }
 
   .file-entry-fmt {
     font-family: var(--font-mono);

@@ -8,7 +8,7 @@
   "outputs": [],
   "executor": "logic_not",
   "params": [
-    { "name": "a",      "label": "A",      "type": "any", "default": null },
-    { "name": "result", "label": "Result", "type": "bool",    "widget": "checkbox", "default": true, "readonly": true }
+    { "name": "a", "label": "A", "type": "any", "default": null },
+    { "name": "result", "label": "Result", "type": "bool", "widget": "checkbox", "default": true, "readonly": true }
   ]
 }

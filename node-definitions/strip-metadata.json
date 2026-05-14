@@ -5,7 +5,7 @@
   "description": "Remove all EXIF data, ICC profiles, and embedded comments from the image",
   "aliases": ["remove exif", "clean metadata", "strip exif"],
   "category": "Format",
-  "inputs":  [{ "type": "image", "label": "Input" }],
+  "inputs": [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
   "params": [],
   "command_template": "-strip"

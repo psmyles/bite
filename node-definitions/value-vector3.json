@@ -10,8 +10,8 @@
   "params": [
     { "name": "vec", "label": "Vector", "type": "vector3", "widget": "vector", "default": [0, 0, 0], "noPort": true },
     { "name": "xyz", "label": "XYZ", "type": "vector3", "readonly": true, "portOnly": true },
-    { "name": "x",   "label": "X",   "type": "float",   "readonly": true, "portOnly": true },
-    { "name": "y",   "label": "Y",   "type": "float",   "readonly": true, "portOnly": true },
-    { "name": "z",   "label": "Z",   "type": "float",   "readonly": true, "portOnly": true }
+    { "name": "x", "label": "X", "type": "float", "readonly": true, "portOnly": true },
+    { "name": "y", "label": "Y", "type": "float", "readonly": true, "portOnly": true },
+    { "name": "z", "label": "Z", "type": "float", "readonly": true, "portOnly": true }
   ]
 }

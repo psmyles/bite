@@ -10,7 +10,7 @@
   "params": [
     { "name": "vec", "label": "Vector", "type": "vector2", "widget": "vector", "default": [0, 0], "noPort": true },
     { "name": "xy", "label": "XY", "type": "vector2", "readonly": true, "portOnly": true },
-    { "name": "x",  "label": "X",  "type": "float",   "readonly": true, "portOnly": true },
-    { "name": "y",  "label": "Y",  "type": "float",   "readonly": true, "portOnly": true }
+    { "name": "x", "label": "X", "type": "float", "readonly": true, "portOnly": true },
+    { "name": "y", "label": "Y", "type": "float", "readonly": true, "portOnly": true }
   ]
 }

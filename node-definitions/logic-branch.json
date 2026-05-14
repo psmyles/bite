@@ -8,9 +8,9 @@
   "outputs": [],
   "executor": "logic_branch",
   "params": [
-    { "name": "condition",   "label": "Condition", "type": "bool",  "widget": "checkbox", "default": false },
-    { "name": "value_true",  "label": "If True",   "type": "any", "default": null },
-    { "name": "value_false", "label": "If False",  "type": "any", "default": null },
-    { "name": "result",      "label": "Result",    "type": "any", "default": null, "readonly": true }
+    { "name": "condition", "label": "Condition", "type": "bool", "widget": "checkbox", "default": false },
+    { "name": "value_true", "label": "If True", "type": "any", "default": null },
+    { "name": "value_false", "label": "If False", "type": "any", "default": null },
+    { "name": "result", "label": "Result", "type": "any", "default": null, "readonly": true }
   ]
 }
