@@ -19,7 +19,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "node scripts/patch-nsis.cjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
   "pkg": {
     "targets": [

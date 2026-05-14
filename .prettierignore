@@ -1,0 +1,13 @@
+.claude/
+.github/
+.husky/
+build/
+dist/
+dist-cli/
+dist-electron/
+dist-web/
+examples/
+node_modules/
+release/
+test_images/
+unity-tools/
