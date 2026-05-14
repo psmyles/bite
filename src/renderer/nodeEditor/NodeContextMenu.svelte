@@ -159,7 +159,31 @@
   // Nodes for the currently hovered/focused category
   const subDefs = $derived(grouped().find(g => g.category === hoveredCategory)?.defs ?? [])
 
+  // ── Tooltip ───────────────────────────────────────────────────────────────
+  let tooltipDef   = $state<NodeDefinition | null>(null)
+  let tooltipX     = $state(0)
+  let tooltipY     = $state(0)
+  let tooltipTimer: ReturnType<typeof setTimeout> | undefined
+
+  function onDefEnter(e: MouseEvent, def: NodeDefinition) {
+    clearTimeout(tooltipTimer)
+    if (!def.description) return
+    const el = e.currentTarget as HTMLElement
+    tooltipTimer = setTimeout(() => {
+      const r = el.getBoundingClientRect()
+      tooltipX = r.right + 8
+      tooltipY = r.top + r.height / 2
+      tooltipDef = def
+    }, 200)
+  }
+
+  function onDefLeave() {
+    clearTimeout(tooltipTimer)
+    tooltipDef = null
+  }
+
   function onCategoryEnter(cat: string, el: HTMLElement) {
+    onDefLeave()
     hoveredCategory = cat
     const rect = el.getBoundingClientRect()
     subMenuY         = rect.top
@@ -296,6 +320,8 @@
             class="ctx-item"
             class:ctx-item--focused={i === activeIndex}
             onclick={() => select(def)}
+            onmouseenter={(e) => onDefEnter(e, def)}
+            onmouseleave={onDefLeave}
             role="menuitem"
           >
             <span class="ctx-item-label">{def.label}</span>
@@ -335,12 +361,21 @@
         class="ctx-item"
         class:ctx-item--focused={i === activeSubIndex && subMenuActive}
         onclick={() => select(def)}
+        onmouseenter={(e) => onDefEnter(e, def)}
+        onmouseleave={onDefLeave}
         role="menuitem"
       >
         {def.label}
       </button>
     {/each}
   </div>
+{/if}
+
+{#if tooltipDef}
+  <div
+    class="node-tooltip-fixed"
+    style="left:{tooltipX}px; top:{tooltipY}px; transform:translateY(-50%)"
+  >{tooltipDef.description}</div>
 {/if}
 
 </div><!-- end portal wrapper -->

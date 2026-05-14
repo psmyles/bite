@@ -5,6 +5,34 @@
 
   let search = $state('')
 
+  // ── Tooltip ───────────────────────────────────────────────────────────────
+  let tooltipDef   = $state<NodeDefinition | null>(null)
+  let tooltipX     = $state(0)
+  let tooltipY     = $state(0)
+  let tooltipTimer: ReturnType<typeof setTimeout> | undefined
+
+  function portal(el: HTMLElement): { destroy(): void } {
+    document.body.appendChild(el)
+    return { destroy() { el.remove() } }
+  }
+
+  function onItemEnter(e: MouseEvent, def: NodeDefinition) {
+    clearTimeout(tooltipTimer)
+    if (!def.description) return
+    const el = e.currentTarget as HTMLElement
+    tooltipTimer = setTimeout(() => {
+      const r = el.getBoundingClientRect()
+      tooltipX = r.right + 8
+      tooltipY = r.top + r.height / 2
+      tooltipDef = def
+    }, 200)
+  }
+
+  function onItemLeave() {
+    clearTimeout(tooltipTimer)
+    tooltipDef = null
+  }
+
   // ── Derived: filter + group ────────────────────────────────────────────────
   const filtered = $derived.by(() => {
     if (!search.trim()) return definitions
@@ -86,8 +114,9 @@
               <div
                 class="node-item"
                 draggable="true"
-                title={def.description ?? def.label}
-                ondragstart={(e) => onDragStart(e, def)}
+                onmouseenter={(e) => onItemEnter(e, def)}
+                onmouseleave={onItemLeave}
+                ondragstart={(e) => { onItemLeave(); onDragStart(e, def) }}
               >
                 <span class="node-label">{def.label}</span>
                 <span class="drag-hint">⠿</span>
@@ -99,6 +128,14 @@
     {/if}
   </div>
 </div>
+
+{#if tooltipDef}
+  <div
+    use:portal
+    class="node-tooltip-fixed lib-tooltip"
+    style="left:{tooltipX}px; top:{tooltipY}px; transform:translateY(-50%)"
+  >{tooltipDef.description}</div>
+{/if}
 
 <style>
   .node-library {
@@ -259,4 +296,5 @@
     color: var(--text-bright);
     margin: 0;
   }
+
 </style>
