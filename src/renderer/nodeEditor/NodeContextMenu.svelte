@@ -69,16 +69,21 @@
 
   // Grow max-height by the space action rows add above the search bar
   const actionCount = $derived((groupable && !!onGroupSelection ? 1 : 0) + (ungroupable && !!onUngroup ? 1 : 0))
-  const panelMaxH   = $derived(MENU_MAX_H + actionCount * ACTION_ROW_H)
 
   // Horizontal clamp
   const menuLeft = $derived(Math.min(x, window.innerWidth - MENU_W - 8))
 
-  // Vertical: flip above cursor if there isn't enough space below
-  const menuTop = $derived(
-    y + panelMaxH + 8 > window.innerHeight
-      ? Math.max(8, y - panelMaxH)
-      : y
+  // Flip above the cursor when there's more viewport space above than below
+  const spaceBelow = $derived(window.innerHeight - y - 8)
+  const spaceAbove = $derived(y - 8)
+  const isFlipped  = $derived(spaceAbove > spaceBelow)
+  // Give the panel all available space in the chosen direction — no fixed cap, no scrollbar when room exists
+  const actualMaxH  = $derived(isFlipped ? spaceAbove : spaceBelow)
+  // When flipped, anchor the bottom of the panel to the cursor; otherwise anchor the top
+  const panelStyle  = $derived(
+    isFlipped
+      ? `left:${menuLeft}px; bottom:${window.innerHeight - y}px; top:auto; max-height:${actualMaxH}px`
+      : `left:${menuLeft}px; top:${y}px; bottom:auto; max-height:${actualMaxH}px`
   )
 
   // Sub-menu: prefer right side, flip left if near right edge
@@ -92,12 +97,12 @@
   // Use CSS `bottom` when flipping so the browser pins the real rendered bottom to the row edge,
   // rather than estimating height and computing `top` (which drifts when estimate != actual).
   const ITEM_H = 32  // estimate only — used to decide whether to flip, not for positioning
-  const subMenuHeight  = $derived(Math.min(subDefs.length * ITEM_H, MENU_MAX_H))
-  const subFlipUp      = $derived(subMenuY + subMenuHeight + 8 > window.innerHeight)
-  const subMenuStyle   = $derived(
+  const subFlipUp    = $derived(subMenuY + subDefs.length * ITEM_H + 8 > window.innerHeight)
+  const subAvailH    = $derived(subFlipUp ? subMenuRowBottom - 8 : window.innerHeight - subMenuY - 8)
+  const subMenuStyle = $derived(
     subFlipUp
-      ? `left:${subLeft}px; bottom:${window.innerHeight - subMenuRowBottom}px; top:auto; max-height:${subMenuHeight}px`
-      : `left:${subLeft}px; top:${subMenuY}px; bottom:auto; max-height:${subMenuHeight}px`
+      ? `left:${subLeft}px; bottom:${window.innerHeight - subMenuRowBottom}px; top:auto; max-height:${subAvailH}px`
+      : `left:${subLeft}px; top:${subMenuY}px; bottom:auto; max-height:${subAvailH}px`
   )
 
   // Auto-focus search on mount
@@ -160,19 +165,23 @@
   const subDefs = $derived(grouped().find(g => g.category === hoveredCategory)?.defs ?? [])
 
   // ── Tooltip ───────────────────────────────────────────────────────────────
-  let tooltipDef   = $state<NodeDefinition | null>(null)
-  let tooltipX     = $state(0)
-  let tooltipY     = $state(0)
+  let tooltipDef  = $state<NodeDefinition | null>(null)
+  let tooltipX    = $state(0)
+  let tooltipY    = $state(0)
+  let tooltipSide = $state<'left' | 'right'>('right')
   let tooltipTimer: ReturnType<typeof setTimeout> | undefined
 
-  function onDefEnter(e: MouseEvent, def: NodeDefinition) {
+  function onDefEnter(e: MouseEvent, def: NodeDefinition, side: 'left' | 'right' = 'right') {
     clearTimeout(tooltipTimer)
     if (!def.description) return
     const el = e.currentTarget as HTMLElement
     tooltipTimer = setTimeout(() => {
       const r = el.getBoundingClientRect()
-      tooltipX = r.right + 8
-      tooltipY = r.top + r.height / 2
+      tooltipSide = side
+      tooltipX = side === 'left'
+        ? Math.max(8, r.left - 8)                              // right edge of tooltip
+        : Math.min(r.right + 8, window.innerWidth - 328)      // left edge of tooltip
+      tooltipY = Math.max(32, Math.min(r.top + r.height / 2, window.innerHeight - 32))
       tooltipDef = def
     }, 200)
   }
@@ -283,7 +292,7 @@
 <div class="ctx-backdrop" onclick={onClose} role="presentation"></div>
 
 <!-- Main menu panel -->
-<div class="ctx-panel" style="left: {menuLeft}px; top: {menuTop}px; max-height: {panelMaxH}px" role="menu">
+<div class="ctx-panel" style={panelStyle} role="menu">
 
   {#if groupable && onGroupSelection}
     <button class="ctx-action" onclick={onGroupSelection} role="menuitem">
@@ -361,7 +370,7 @@
         class="ctx-item"
         class:ctx-item--focused={i === activeSubIndex && subMenuActive}
         onclick={() => select(def)}
-        onmouseenter={(e) => onDefEnter(e, def)}
+        onmouseenter={(e) => onDefEnter(e, def, subLeft > menuLeft ? 'right' : 'left')}
         onmouseleave={onDefLeave}
         role="menuitem"
       >
@@ -374,7 +383,7 @@
 {#if tooltipDef}
   <div
     class="node-tooltip-fixed"
-    style="left:{tooltipX}px; top:{tooltipY}px; transform:translateY(-50%)"
+    style="{tooltipSide === 'right' ? `left:${tooltipX}px` : `right:${window.innerWidth - tooltipX}px`}; top:{tooltipY}px; transform:translateY(-50%)"
   >{tooltipDef.description}</div>
 {/if}
 

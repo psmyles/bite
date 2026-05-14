@@ -22,8 +22,8 @@
     const el = e.currentTarget as HTMLElement
     tooltipTimer = setTimeout(() => {
       const r = el.getBoundingClientRect()
-      tooltipX = r.right + 8
-      tooltipY = r.top + r.height / 2
+      tooltipX = Math.min(r.right + 8, window.innerWidth - 328)
+      tooltipY = Math.max(32, Math.min(r.top + r.height / 2, window.innerHeight - 32))
       tooltipDef = def
     }, 200)
   }
