@@ -123,6 +123,7 @@ export interface BatchResult {
   processed: number
   skipped:   number
   failed:    number
+  errors?:   string[]
 }
 
 export interface PipelineService {

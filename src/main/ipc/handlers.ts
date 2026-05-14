@@ -1,10 +1,12 @@
 import { ipcMain, dialog, app, shell } from 'electron'
 import type { BrowserWindow } from 'electron'
-import fs, { readFileSync, writeFileSync, chmodSync, readdirSync } from 'node:fs'
+import fs, { readFileSync, writeFileSync, chmodSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { getMagickBinary } from '../pipeline/magick-path.js'
+import { writeOutputLog } from '../pipeline/output-log.js'
+import { scanFolder } from '../pipeline/scan-folder.js'
 import type { GraphEdge, NodeGraph } from '../../shared/types.js'
 import type { NodeRegistry } from '../nodes/registry.js'
 import { PipelineExecutor, topoSort } from '../pipeline/executor.js'
@@ -21,47 +23,6 @@ export function registerRegistryHandlers(
   registry.onChange((defs) => {
     getWin()?.webContents.send(IPC.REGISTRY_UPDATED, defs)
   })
-}
-
-async function writeOutputLog(opts: {
-  outputFiles: string[]
-  durationMs: number
-  outputDir: string | null
-}): Promise<void> {
-  if (opts.outputFiles.length === 0) return
-  const now = new Date()
-  const yy  = String(now.getFullYear()).slice(2)
-  const mm  = String(now.getMonth() + 1).padStart(2, '0')
-  const dd  = String(now.getDate()).padStart(2, '0')
-  const hh  = String(now.getHours()).padStart(2, '0')
-  const mn  = String(now.getMinutes()).padStart(2, '0')
-  const logName = `outputlog_${yy}${mm}${dd}_${hh}${mn}.log`
-
-  const totalSec    = opts.durationMs / 1000
-  const mins        = Math.floor(totalSec / 60)
-  const secs        = totalSec % 60
-  const durationStr = mins > 0 ? `${mins}m ${secs.toFixed(0)}s` : `${secs.toFixed(2)}s`
-  const avgStr      = (totalSec / opts.outputFiles.length).toFixed(2) + 's'
-  const folderStr   = opts.outputDir ?? 'Same as source'
-  const useFullPaths = !opts.outputDir
-  const fileLines   = opts.outputFiles.map(f => useFullPaths ? f : path.basename(f))
-
-  const content = [
-    'imgplex Output Log',
-    `Generated: ${now.getFullYear()}-${mm}-${dd} ${hh}:${mn}`,
-    '',
-    `Duration:         ${durationStr}`,
-    `Files output:     ${opts.outputFiles.length}`,
-    `Avg per file:     ${avgStr}`,
-    `Output folder:    ${folderStr}`,
-    '',
-    'Files:',
-    ...fileLines,
-  ].join('\n') + '\n'
-
-  const logDir = opts.outputDir ?? path.dirname(opts.outputFiles[0])
-  await fs.promises.mkdir(logDir, { recursive: true })
-  await fs.promises.writeFile(path.join(logDir, logName), content, 'utf-8')
 }
 
 export function registerPipelineHandlers(
@@ -183,24 +144,6 @@ export function registerPipelineHandlers(
   })
 }
 
-function scanFolder(root: string, recursive: boolean, extSet: Set<string>): string[] {
-  const found: string[] = []
-  function scan(dir: string): void {
-    let entries
-    try { entries = readdirSync(dir, { withFileTypes: true }) } catch { return }
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        if (recursive) scan(full)
-      } else {
-        const ext = path.extname(entry.name).slice(1).toLowerCase()
-        if (extSet.has(ext)) found.push(full)
-      }
-    }
-  }
-  scan(root)
-  return found
-}
 
 const IMAGE_EXTENSIONS = [
   // Common web / display formats

@@ -69,7 +69,13 @@
         </div>
       {/if}
 
-      {#if summary.failed > 0}
+      {#if summary.failed > 0 && summary.errors?.length}
+        <div class="error-list">
+          {#each summary.errors as err}
+            <div class="error-item">{err}</div>
+          {/each}
+        </div>
+      {:else if summary.failed > 0}
         <p class="error-note">Check the DevTools console for per-image error details.</p>
       {/if}
     </div>
@@ -214,6 +220,26 @@
     font-size: 11px;
     color: #ff9090;
     line-height: 1.4;
+  }
+
+  .error-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 120px;
+    overflow-y: auto;
+    border: 1px solid #7a2020;
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: rgba(255, 80, 80, 0.06);
+  }
+
+  .error-item {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #ff9090;
+    line-height: 1.4;
+    word-break: break-all;
   }
 
   /* ── Footer ── */

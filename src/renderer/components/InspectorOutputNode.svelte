@@ -191,13 +191,13 @@
     graphStore.batchElapsedMs = null
 
     try {
-      const result = await window.ipcRenderer.invoke(IPC.EXECUTE_BATCH, graph, imagePaths, outputDir, overwrite, generateLog) as { processed: number; skipped: number; failed: number }
+      const result = await window.ipcRenderer.invoke(IPC.EXECUTE_BATCH, graph, imagePaths, outputDir, overwrite, generateLog) as { processed: number; skipped: number; failed: number; errors?: string[] }
       graphStore.batchDone        = true
       graphStore.batchElapsedMs   = performance.now() - (graphStore.batchStartTime ?? performance.now())
       graphStore.batchSummary     = { ...result, outputDir }
       graphStore.batchSummaryOpen = true
       if (result.failed > 0) {
-        graphStore.batchError = `${result.failed} image${result.failed === 1 ? '' : 's'} failed — check the console for details`
+        graphStore.batchError = `${result.failed} image${result.failed === 1 ? '' : 's'} failed`
       }
     } catch (err) {
       graphStore.batchError       = (err as Error).message

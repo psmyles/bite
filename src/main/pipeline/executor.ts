@@ -939,7 +939,7 @@ export class PipelineExecutor {
     overwrite: 'skip' | 'overwrite',
     registry: NodeRegistry,
     onProgress: (p: Progress) => void
-  ): Promise<{ processed: number; skipped: number; failed: number; outputFiles: string[] }> {
+  ): Promise<{ processed: number; skipped: number; failed: number; errors: string[]; outputFiles: string[] }> {
     const batchT0 = Date.now()
     const outputFiles: string[] = []
     const sorted = topoSort(graph.nodes, graph.edges)
@@ -1530,6 +1530,7 @@ export class PipelineExecutor {
       let setCompleted = 0
       let setFailures  = 0
       let setSkipped   = 0
+      const setErrors: string[] = []
       let _setStartupRecorded = false
       const activeImages = new Set<string>()
 
@@ -1607,6 +1608,8 @@ export class PipelineExecutor {
             }
           } catch (err) {
             setFailures++
+            const msg = err instanceof Error ? err.message : String(err)
+            setErrors.push(`${middleName}: ${msg}`)
             console.error(`[executor] Failed to process set "${middleName}":`, err)
           }
           activeImages.delete(middleName)
@@ -1631,6 +1634,7 @@ export class PipelineExecutor {
         processed: setCompleted - setFailures - setSkipped,
         skipped: setSkipped,
         failed: setFailures,
+        errors: setErrors,
         outputFiles,
       }
     }
@@ -1646,6 +1650,7 @@ export class PipelineExecutor {
     let completed = 0
     let failures = 0
     let skipped = 0
+    const errors: string[] = []
 
     if (timings.enabled) {
       timings.startBatch(imagePaths.length)
@@ -1779,6 +1784,8 @@ export class PipelineExecutor {
           }
         } catch (err) {
           failures++
+          const msg = err instanceof Error ? err.message : String(err)
+          errors.push(`${fileName}: ${msg}`)
           console.error(`[executor] Failed to process ${fileName}:`, err)
         }
         activeImages.delete(fileName)
@@ -1823,7 +1830,7 @@ export class PipelineExecutor {
       const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null)
       timings.endBatch(resolvedOutputDir)
     }
-    return { processed: completed - failures - skipped, skipped, failed: failures, outputFiles }
+    return { processed: completed - failures - skipped, skipped, failed: failures, errors, outputFiles }
   }
 
   // ── CLI script export ────────────────────────────────────────────────────────

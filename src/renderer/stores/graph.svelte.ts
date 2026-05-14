@@ -63,7 +63,7 @@ class GraphStore {
   batchDone      = $state(false)
   batchStartTime = $state<number | null>(null)   // performance.now() when run started
   batchElapsedMs = $state<number | null>(null)   // final duration (ms), set on completion
-  batchSummary     = $state<{ processed: number; skipped: number; failed: number; outputDir: string | null } | null>(null)
+  batchSummary     = $state<{ processed: number; skipped: number; failed: number; errors?: string[]; outputDir: string | null } | null>(null)
   batchSummaryOpen = $state(false)
 
   /** Current open file path (null = unsaved) */

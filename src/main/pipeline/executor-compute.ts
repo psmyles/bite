@@ -243,6 +243,177 @@ export function computeNodeParams(
   }
 }
 
+type P = Record<string, unknown>
+
+function computeMath(key: string, p: P): P {
+  const n = (k: string) => Number(p[k] ?? 0)
+  switch (key) {
+    case 'math_add':      return { ...p, result: numericAdd(numericRaw(p.a), numericRaw(p.b)) }
+    case 'math_subtract': return { ...p, result: numericSub(numericRaw(p.a), numericRaw(p.b)) }
+    case 'math_multiply': return { ...p, result: numericMul(numericRaw(p.a), numericRaw(p.b)) }
+    case 'math_divide':   return { ...p, result: numericDiv(numericRaw(p.a), numericRaw(p.b)) }
+    case 'math_power':    return { ...p, result: numericPow(numericRaw(p.base), n('exponent')) }
+    case 'math_lerp':     return { ...p, result: numericLerp(numericRaw(p.a), numericRaw(p.b), n('t')) }
+    default:              return p
+  }
+}
+
+function computeLogic(key: string, p: P): P {
+  switch (key) {
+    case 'logic_and':    return { ...p, result: numericTruthy(p.a) && numericTruthy(p.b) }
+    case 'logic_or':     return { ...p, result: numericTruthy(p.a) || numericTruthy(p.b) }
+    case 'logic_not':    return { ...p, result: !numericTruthy(p.a) }
+    case 'logic_branch': return { ...p, result: Boolean(p.condition) ? p.value_true : p.value_false }
+    case 'logic_comparison': {
+      const op = String(p.operator ?? '==')
+      const a = numericScalar(p.a), b = numericScalar(p.b)
+      const result =
+        op === 'equal'            ? a === b :
+        op === 'not equal'        ? a !== b :
+        op === 'greater than'     ? a >   b :
+        op === 'less than'        ? a <   b :
+        op === 'greater or equal' ? a >=  b :
+        op === 'less or equal'    ? a <=  b : false
+      return { ...p, result }
+    }
+    default: return p
+  }
+}
+
+function computeVector(key: string, p: P): P {
+  const n = (k: string) => Number(p[k] ?? 0)
+  switch (key) {
+    case 'split_vec': {
+      const inp = p.vec
+      if (Array.isArray(inp)) {
+        const arr = (inp as number[]).map(Number)
+        return { ...p, x: arr[0] ?? 0, y: arr[1] ?? 0, z: arr[2] ?? 0, w: arr[3] ?? 0 }
+      }
+      return { ...p, x: Number(inp ?? 0), y: 0, z: 0, w: 0 }
+    }
+    case 'append_vec': {
+      const dim = Math.max(2, Math.min(4, Math.round(Number(p.dimensions ?? 4))))
+      return { ...p, result: [n('x'), n('y'), n('z'), n('w')].slice(0, dim) }
+    }
+    case 'vec_math_dot': {
+      const a = numericRaw(p.a), b = numericRaw(p.b)
+      if (typeof a === 'number' && typeof b === 'number') return { ...p, result: a * b }
+      const av = Array.isArray(a) ? a : [a as number]
+      const bv = Array.isArray(b) ? b : [b as number]
+      return { ...p, result: av.reduce((sum: number, x: number, i: number) => sum + x * (bv[i] ?? 0), 0) }
+    }
+    case 'vec_math_length': {
+      const vec = numericRaw(p.vec)
+      if (typeof vec === 'number') return { ...p, result: Math.abs(vec) }
+      return { ...p, result: Math.sqrt(vec.reduce((s: number, x: number) => s + x ** 2, 0)) }
+    }
+    case 'vec_math_normalize': {
+      const vec = numericRaw(p.vec)
+      if (typeof vec === 'number') return { ...p, result: vec === 0 ? 0 : vec / Math.abs(vec) }
+      const len = Math.sqrt(vec.reduce((s: number, x: number) => s + x ** 2, 0))
+      return { ...p, result: len === 0 ? vec.map(() => 0) : vec.map((x: number) => x / len) }
+    }
+    default: return p
+  }
+}
+
+function computeProperties(key: string, p: P, meta?: ImageMeta): P {
+  switch (key) {
+    case 'prop_name': {
+      const rawName = meta?.name ?? ''
+      return { ...p, value: p.strip_extension ? rawName.replace(/\.[^.]+$/, '') : rawName }
+    }
+    case 'prop_path': {
+      const fullPath = meta?.path ?? ''
+      return { ...p, value: p.strip_filename ? path.dirname(fullPath) : fullPath }
+    }
+    case 'prop_filetype':   return { ...p, value: meta?.extension ?? '' }
+    case 'prop_bitdepth':   return { ...p, value: meta?.bitDepth  ?? 0  }
+    case 'prop_dimensions': return { ...p, width: meta?.width ?? 0, height: meta?.height ?? 0 }
+    case 'prop_power_of_two': {
+      const isPot = (n: number) => n > 0 && (n & (n - 1)) === 0
+      const width_ok  = isPot(meta?.width  ?? 0)
+      const height_ok = isPot(meta?.height ?? 0)
+      return { ...p, width_ok, height_ok, result: width_ok && height_ok }
+    }
+    case 'prop_resolution': return { ...p, dpi_x: meta?.dpiX ?? 0, dpi_y: meta?.dpiY ?? 0 }
+    case 'prop_size': {
+      const unit  = String(p.unit ?? 'bytes')
+      const bytes = meta?.sizeBytes ?? 0
+      const value = unit === 'KB' ? bytes / 1024
+                  : unit === 'MB' ? bytes / (1024 * 1024)
+                  : unit === 'GB' ? bytes / (1024 * 1024 * 1024)
+                  : bytes
+      return { ...p, value }
+    }
+    case 'prop_exif': {
+      if (!meta) return p
+      const exif = meta.exif
+      const exifStr      = (k: string) => exif[k] ?? ''
+      const exifRational = (k: string): number => {
+        const v = exif[k] ?? ''
+        const m = v.match(/^(\d+)\/(\d+)$/)
+        if (m) { const d = parseInt(m[2]); return d !== 0 ? parseInt(m[1]) / d : 0 }
+        return parseFloat(v) || 0
+      }
+      const exifInt = (k: string): number => parseInt((exif[k] ?? '').split(',')[0]) || 0
+      return {
+        ...p,
+        camera_make:   exifStr('Make'),
+        camera_model:  exifStr('Model'),
+        lens:          exifStr('LensModel') || exifStr('LensMake'),
+        exposure_time: exifStr('ExposureTime'),
+        shutter_speed: exifStr('ShutterSpeedValue'),
+        aperture:      exifRational('FNumber') || exifRational('ApertureValue'),
+        iso:           exifInt('PhotographicSensitivity') || exifInt('ISOSpeedRatings'),
+        focal_length:  exifRational('FocalLength'),
+        date_taken:    exifStr('DateTimeOriginal'),
+      }
+    }
+    default: return p
+  }
+}
+
+function computeValues(key: string, p: P): P {
+  switch (key) {
+    case 'text_output': return p  // wiring resolved upstream; no compute needed
+    case 'text_filter': {
+      const input     = String(p.input    ?? '')
+      const prefix    = String(p.prefix   ?? '')
+      const suffix    = String(p.suffix   ?? '')
+      const contains  = String(p.contains ?? '')
+      const matchCase = Boolean(p.match_case)
+      const norm      = (s: string) => matchCase ? s : s.toLowerCase()
+      const result =
+        (prefix   === '' || norm(input).startsWith(norm(prefix)))  &&
+        (suffix   === '' || norm(input).endsWith(norm(suffix)))    &&
+        (contains === '' || norm(input).includes(norm(contains)))
+      return { ...p, result }
+    }
+    case 'value_color': {
+      const c = Array.isArray(p.color) ? (p.color as number[]).map(Number) : [1, 1, 1, 1]
+      const [r = 1, g = 1, b = 1, a = 1] = c
+      return { ...p, rgba: [r, g, b, a], rgb: [r, g, b], r, g, b, a }
+    }
+    case 'value_vector2': {
+      const v = Array.isArray(p.vec) ? (p.vec as number[]).map(Number) : [0, 0]
+      const [x = 0, y = 0] = v
+      return { ...p, xy: [x, y], x, y }
+    }
+    case 'value_vector3': {
+      const v = Array.isArray(p.vec) ? (p.vec as number[]).map(Number) : [0, 0, 0]
+      const [x = 0, y = 0, z = 0] = v
+      return { ...p, xyz: [x, y, z], x, y, z }
+    }
+    case 'value_vector4': {
+      const v = Array.isArray(p.vec) ? (p.vec as number[]).map(Number) : [0, 0, 0, 0]
+      const [x = 0, y = 0, z = 0, w = 0] = v
+      return { ...p, xyzw: [x, y, z, w], x, y, z, w }
+    }
+    default: return p
+  }
+}
+
 export function computeNodeParamsUnsafe(
   executorKey: string | undefined,
   params: Record<string, unknown>,
@@ -263,169 +434,17 @@ export function computeNodeParamsUnsafe(
     return { ...cleanParams, ...(out as Record<string, unknown>) }
   }
 
-  const n = (k: string) => Number(params[k] ?? 0)
-  const b = (k: string) => Boolean(params[k])
+  const key = executorKey ?? ''
+  if (key.startsWith('math_'))                                          return computeMath(key, params)
+  if (key.startsWith('logic_'))                                         return computeLogic(key, params)
+  if (key === 'split_vec' || key.startsWith('append_') || key.startsWith('vec_math_')) return computeVector(key, params)
+  if (key.startsWith('prop_'))                                          return computeProperties(key, params, meta)
+  if (key.startsWith('value_') || key === 'text_filter' || key === 'text_output') return computeValues(key, params)
 
-  switch (executorKey) {
-    case 'math_add':      return { ...params, result: numericAdd(numericRaw(params.a), numericRaw(params.b)) }
-    case 'math_subtract': return { ...params, result: numericSub(numericRaw(params.a), numericRaw(params.b)) }
-    case 'math_multiply': return { ...params, result: numericMul(numericRaw(params.a), numericRaw(params.b)) }
-    case 'math_divide':   return { ...params, result: numericDiv(numericRaw(params.a), numericRaw(params.b)) }
-    case 'math_power':    return { ...params, result: numericPow(numericRaw(params.base), n('exponent')) }
-    case 'math_lerp':     return { ...params, result: numericLerp(numericRaw(params.a), numericRaw(params.b), n('t')) }
-    case 'logic_and':     return { ...params, result: numericTruthy(params.a) && numericTruthy(params.b) }
-    case 'logic_or':      return { ...params, result: numericTruthy(params.a) || numericTruthy(params.b) }
-    case 'logic_not':     return { ...params, result: !numericTruthy(params.a) }
-    case 'logic_branch':  return { ...params, result: b('condition') ? params.value_true : params.value_false }
-    case 'logic_comparison': {
-      const op = String(params.operator ?? '==')
-      const a = numericScalar(params.a), bv = numericScalar(params.b)
-      const result =
-        op === 'equal'            ? a === bv :
-        op === 'not equal'        ? a !== bv :
-        op === 'greater than'     ? a >   bv :
-        op === 'less than'        ? a <   bv :
-        op === 'greater or equal' ? a >=  bv :
-        op === 'less or equal'    ? a <=  bv : false
-      return { ...params, result }
-    }
-    // ── Split ─────────────────────────────────────────────────────────────────
-    case 'split_vec': {
-      const inp = params.vec
-      if (Array.isArray(inp)) {
-        const arr = (inp as number[]).map(Number)
-        return { ...params, x: arr[0] ?? 0, y: arr[1] ?? 0, z: arr[2] ?? 0, w: arr[3] ?? 0 }
-      }
-      return { ...params, x: Number(inp ?? 0), y: 0, z: 0, w: 0 }
-    }
-    // ── Append ────────────────────────────────────────────────────────────────
-    case 'append_vec': {
-      const dim = Math.max(2, Math.min(4, Math.round(Number(params.dimensions ?? 4))))
-      return { ...params, result: [n('x'), n('y'), n('z'), n('w')].slice(0, dim) }
-    }
-    // ── Dot / Length / Normalize ──────────────────────────────────────────────
-    case 'vec_math_dot': {
-      const a = numericRaw(params.a), b2 = numericRaw(params.b)
-      if (typeof a === 'number' && typeof b2 === 'number') return { ...params, result: a * b2 }
-      const av = Array.isArray(a) ? a : [a as number]
-      const bv = Array.isArray(b2) ? b2 : [b2 as number]
-      return { ...params, result: av.reduce((sum: number, x: number, i: number) => sum + x * (bv[i] ?? 0), 0) }
-    }
-    case 'vec_math_length': {
-      const vec = numericRaw(params.vec)
-      if (typeof vec === 'number') return { ...params, result: Math.abs(vec) }
-      return { ...params, result: Math.sqrt(vec.reduce((s: number, x: number) => s + x ** 2, 0)) }
-    }
-    case 'vec_math_normalize': {
-      const vec = numericRaw(params.vec)
-      if (typeof vec === 'number') return { ...params, result: vec === 0 ? 0 : vec / Math.abs(vec) }
-      const len = Math.sqrt(vec.reduce((s: number, x: number) => s + x ** 2, 0))
-      return { ...params, result: len === 0 ? vec.map(() => 0) : vec.map((x: number) => x / len) }
-    }
-
-    // ── Text Filter ──────────────────────────────────────────────────────────
-    case 'text_output':
-      return params  // wiring resolved upstream; no compute needed
-
-    case 'text_filter': {
-      const input     = String(params.input    ?? '')
-      const prefix    = String(params.prefix   ?? '')
-      const suffix    = String(params.suffix   ?? '')
-      const contains  = String(params.contains ?? '')
-      const matchCase = Boolean(params.match_case)
-      const norm      = (s: string) => matchCase ? s : s.toLowerCase()
-      const result =
-        (prefix   === '' || norm(input).startsWith(norm(prefix)))  &&
-        (suffix   === '' || norm(input).endsWith(norm(suffix)))    &&
-        (contains === '' || norm(input).includes(norm(contains)))
-      return { ...params, result }
-    }
-
-    // ── Properties ───────────────────────────────────────────────────────────
-    case 'prop_name': {
-      const rawName = meta?.name ?? ''
-      const value = params.strip_extension ? rawName.replace(/\.[^.]+$/, '') : rawName
-      return { ...params, value }
-    }
-    case 'prop_path': {
-      const fullPath = meta?.path ?? ''
-      const value = params.strip_filename ? path.dirname(fullPath) : fullPath
-      return { ...params, value }
-    }
-    case 'prop_filetype':   return { ...params, value: meta?.extension ?? '' }
-    case 'prop_bitdepth':   return { ...params, value: meta?.bitDepth  ?? 0  }
-    case 'prop_dimensions': return { ...params, width: meta?.width ?? 0, height: meta?.height ?? 0 }
-    case 'prop_power_of_two': {
-      const isPot = (n: number) => n > 0 && (n & (n - 1)) === 0
-      const width_ok  = isPot(meta?.width  ?? 0)
-      const height_ok = isPot(meta?.height ?? 0)
-      return { ...params, width_ok, height_ok, result: width_ok && height_ok }
-    }
-    case 'prop_resolution': return { ...params, dpi_x: meta?.dpiX ?? 0, dpi_y: meta?.dpiY ?? 0 }
-    case 'prop_size': {
-      const unit  = String(params.unit ?? 'bytes')
-      const bytes = meta?.sizeBytes ?? 0
-      const value = unit === 'KB' ? bytes / 1024
-                  : unit === 'MB' ? bytes / (1024 * 1024)
-                  : unit === 'GB' ? bytes / (1024 * 1024 * 1024)
-                  : bytes
-      return { ...params, value }
-    }
-    case 'prop_exif': {
-      if (!meta) return params
-      const exif = meta.exif
-      const exifStr = (key: string) => exif[key] ?? ''
-      const exifRational = (key: string): number => {
-        const v = exif[key] ?? ''
-        const m = v.match(/^(\d+)\/(\d+)$/)
-        if (m) { const d = parseInt(m[2]); return d !== 0 ? parseInt(m[1]) / d : 0 }
-        return parseFloat(v) || 0
-      }
-      const exifInt = (key: string): number => parseInt((exif[key] ?? '').split(',')[0]) || 0
-      return {
-        ...params,
-        camera_make:   exifStr('Make'),
-        camera_model:  exifStr('Model'),
-        lens:          exifStr('LensModel') || exifStr('LensMake'),
-        exposure_time: exifStr('ExposureTime'),
-        shutter_speed: exifStr('ShutterSpeedValue'),
-        aperture:      exifRational('FNumber') || exifRational('ApertureValue'),
-        iso:           exifInt('PhotographicSensitivity') || exifInt('ISOSpeedRatings'),
-        focal_length:  exifRational('FocalLength'),
-        date_taken:    exifStr('DateTimeOriginal'),
-      }
-    }
-
-    case 'value_color': {
-      const c = Array.isArray(params.color) ? (params.color as number[]).map(Number) : [1, 1, 1, 1]
-      const [r = 1, g = 1, b = 1, a = 1] = c
-      return { ...params, rgba: [r, g, b, a], rgb: [r, g, b], r, g, b, a }
-    }
-
-    case 'value_vector2': {
-      const v = Array.isArray(params.vec) ? (params.vec as number[]).map(Number) : [0, 0]
-      const [x = 0, y = 0] = v
-      return { ...params, xy: [x, y], x, y }
-    }
-
-    case 'value_vector3': {
-      const v = Array.isArray(params.vec) ? (params.vec as number[]).map(Number) : [0, 0, 0]
-      const [x = 0, y = 0, z = 0] = v
-      return { ...params, xyz: [x, y, z], x, y, z }
-    }
-
-    case 'value_vector4': {
-      const v = Array.isArray(params.vec) ? (params.vec as number[]).map(Number) : [0, 0, 0, 0]
-      const [x = 0, y = 0, z = 0, w = 0] = v
-      return { ...params, xyzw: [x, y, z, w], x, y, z, w }
-    }
-
-    default:
-      // executorKey === undefined means image node (caller passes undefined intentionally)
-      // 'comment' is a UI-only node with no computation — skip the warning for it.
-      if (executorKey !== undefined && executorKey !== 'comment') {
-        console.warn(`[executor] Unknown executor key: "${executorKey}" — params returned unchanged. Add a case to computeNodeParams.`)
-      }
-      return params
+  // executorKey === undefined means image node (caller passes undefined intentionally).
+  // 'comment' is a UI-only node with no computation.
+  if (executorKey !== undefined && executorKey !== 'comment') {
+    console.warn(`[executor] Unknown executor key: "${executorKey}" — params returned unchanged. Add a case to computeNodeParams.`)
   }
+  return params
 }
