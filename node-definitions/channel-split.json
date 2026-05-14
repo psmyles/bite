@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Split Channels",
   "description": "Splits an image into its R, G, B, and A channels as separate grayscale images",
+  "aliases": ["separate channels", "extract channels", "unpack channels"],
   "category": "Channels",
   "inputs": [
     {

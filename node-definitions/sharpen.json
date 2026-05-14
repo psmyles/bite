@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Sharpen",
   "description": "Apply unsharp mask sharpening",
+  "aliases": ["unsharp mask", "crisp", "detail"],
   "category": "Filters",
   "icon": "zap",
   "inputs": [

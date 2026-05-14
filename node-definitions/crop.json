@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Crop",
   "description": "Crop a rectangular region from the image",
+  "aliases": ["cut", "slice", "region"],
   "category": "Transform",
   "icon": "crop",
   "inputs": [

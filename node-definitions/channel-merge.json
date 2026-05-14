@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Merge Channels",
   "description": "Combines separate channel images into a single image. Set Channels to 3 for RGB output or 4 for RGBA. Unconnected ports default to solid black (0).",
+  "aliases": ["combine channels", "join channels", "pack channels"],
   "category": "Channels",
   "inputs": [
     {

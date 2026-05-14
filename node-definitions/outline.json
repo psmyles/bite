@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Outline",
   "description": "Add a solid-color border around transparent sprite edges using alpha channel dilation",
+  "aliases": ["edge detect", "border", "stroke", "dilation"],
   "category": "FX",
   "inputs":  [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],

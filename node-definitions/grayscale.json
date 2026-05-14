@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Grayscale",
   "description": "Convert image to grayscale",
+  "aliases": ["desaturate", "black and white", "greyscale", "monochrome"],
   "category": "Color",
   "icon": "circle-half",
   "inputs": [

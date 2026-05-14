@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Extend Canvas",
   "description": "Add transparent padding to each side of the image independently",
+  "aliases": ["pad", "add border", "expand canvas", "margin"],
   "category": "Transform",
   "inputs":  [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],

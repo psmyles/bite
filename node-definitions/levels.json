@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Levels",
   "description": "Adjust black point, white point, and gamma",
+  "aliases": ["curves", "white point", "black point", "input output levels"],
   "category": "Color",
   "icon": "sliders",
   "inputs": [

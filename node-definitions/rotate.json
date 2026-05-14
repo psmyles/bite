@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Rotate",
   "description": "Rotate image by an arbitrary angle",
+  "aliases": ["spin", "turn", "orientation"],
   "category": "Transform",
   "icon": "rotate-cw",
   "inputs": [

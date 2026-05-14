@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Flip",
   "description": "Mirror the image horizontally or vertically",
+  "aliases": ["mirror", "reflect", "horizontal flip", "vertical flip"],
   "category": "Transform",
   "icon": "flip-horizontal",
   "inputs": [

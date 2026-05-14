@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Convert Format",
   "description": "Convert image to a different file format",
+  "aliases": ["export format", "change format", "file format"],
   "category": "Output",
   "icon": "file-output",
   "inputs": [

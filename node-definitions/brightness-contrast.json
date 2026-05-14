@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Brightness / Contrast",
   "description": "Adjust image brightness and contrast",
+  "aliases": ["exposure", "levels adjustment"],
   "category": "Color",
   "icon": "sun",
   "inputs": [

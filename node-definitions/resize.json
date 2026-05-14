@@ -3,6 +3,7 @@
   "version": "1.1.0",
   "label": "Resize",
   "description": "Resize image to target dimensions",
+  "aliases": ["scale", "resample", "dimensions"],
   "category": "Transform",
   "icon": "resize",
   "inputs": [

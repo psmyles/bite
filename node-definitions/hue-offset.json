@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Hue Offset",
   "description": "Shift the hue of an image",
+  "aliases": ["hue shift", "hue rotate", "color shift"],
   "category": "Color",
   "icon": "palette",
   "inputs": [

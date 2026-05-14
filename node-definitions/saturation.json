@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Saturation",
   "description": "Adjust the saturation of an image",
+  "aliases": ["vibrance", "chroma", "color intensity"],
   "category": "Color",
   "icon": "palette",
   "inputs": [

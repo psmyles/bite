@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Solid Image",
   "description": "Outputs a solid grayscale image with uniform brightness, sized to match the workflow input",
+  "aliases": ["fill", "flat color", "constant color"],
   "category": "Channels",
   "inputs": [],
   "outputs": [

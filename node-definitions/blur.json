@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Blur",
   "description": "Apply Gaussian blur",
+  "aliases": ["soften", "gaussian blur", "smooth"],
   "category": "Filters",
   "icon": "droplets",
   "inputs": [

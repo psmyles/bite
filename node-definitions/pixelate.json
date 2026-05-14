@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "label": "Pixelate",
   "description": "Scale down then back up with nearest-neighbor filtering to create intentional pixel-art blockiness",
+  "aliases": ["mosaic", "blocky", "pixel art"],
   "category": "Transform",
   "inputs":  [{ "type": "image", "label": "Input" }],
   "outputs": [{ "type": "image", "label": "Output" }],
