@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import type { NodeGraph } from '../../shared/types.js'
-import { PREVIEW_MAX_EDGE_PX } from '../../shared/constants.js'
+import { PREVIEW_MAX_EDGE_PX, EXECUTOR } from '../../shared/constants.js'
 import { topoSort } from './graph-utils.js'
 import type { NodeRegistry } from '../nodes/registry.js'
 import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js'
@@ -68,7 +68,7 @@ export async function executePreview(
 
   // In set mode, seed companion images for each suffix port of the setInputNode.
   // Infer middle name from the selected imagePath so we can locate sibling files.
-  const previewSetNode = sorted.find(n => n.data.definitionId === 'process_as_set')
+  const previewSetNode = sorted.find(n => n.data.definitionId === EXECUTOR.PROCESS_AS_SET)
   if (previewSetNode) {
     const setPrefix   = String(previewSetNode.data.params?.prefix ?? '')
     const setSuffixes = Array.isArray(previewSetNode.data.params?.suffixes)
@@ -118,13 +118,13 @@ export async function executePreview(
   // Load image metadata lazily — only when at least one Properties node is present.
   const needsMeta = sorted.some((n) => {
     const def = registry.get(n.data.definitionId)
-    return def?.needs_image_meta === true || def?.executor === 'mean_value'
+    return def?.needs_image_meta === true || def?.executor === EXECUTOR.MEAN_VALUE
   })
   const meta = needsMeta ? await loadImageMeta(imagePath) : undefined
 
   for (const node of sorted) {
     // process_as_set is a source node — buffers are pre-seeded above; skip processing.
-    if (node.data.definitionId === 'process_as_set') continue
+    if (node.data.definitionId === EXECUTOR.PROCESS_AS_SET) continue
     const def = registry.get(node.data.definitionId)
     if (!def) {
       // Silently skip framework-internal nodes (workflow-input/output, groups)
@@ -168,7 +168,7 @@ export async function executePreview(
     if (!isImageNode) continue
 
     // ── Channel Split ──────────────────────────────────────────────────────
-    if (def.executor === 'channel_split') {
+    if (def.executor === EXECUTOR.CHANNEL_SPLIT) {
       const inputPath = getImgBuf(node.id, 0)
       const nodeHash = shortHash(inputPath + JSON.stringify(params))
       const CHANNELS = [
@@ -195,7 +195,7 @@ export async function executePreview(
     }
 
     // ── Channel Merge ──────────────────────────────────────────────────────
-    if (def.executor === 'channel_merge') {
+    if (def.executor === EXECUTOR.CHANNEL_MERGE) {
       const refPath = imageBuffers.get('workflow-input:out-0') ?? downscaledPath
 
       // Returns the image for a channel port, or a solid-black placeholder when unconnected.
@@ -259,7 +259,7 @@ export async function executePreview(
     }
 
     // ── Mean Value — reads channel mean, no image output ──────────────────
-    if (def.executor === 'mean_value') {
+    if (def.executor === EXECUTOR.MEAN_VALUE) {
       const inputPath = getImgBuf(node.id, 0)
       try {
         const value = await loadImageMean(inputPath)
@@ -287,7 +287,7 @@ export async function executePreview(
     if (params._enabled === false) {
       // Bypassed: pass image through unchanged
       await fs.promises.copyFile(inputPath, outputPath)
-    } else if (def.executor === 'format_convert') {
+    } else if (def.executor === EXECUTOR.FORMAT_CONVERT) {
       // Preview output is always a .png temp file, so just re-encode at the requested quality.
       // The format label is ignored here — the file extension (.png) is authoritative for magick.
       const quality = Number(params.quality ?? 90)

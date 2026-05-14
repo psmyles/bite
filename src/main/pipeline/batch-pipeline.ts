@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import type { NodeGraph, Progress } from '../../shared/types.js'
+import { EXECUTOR } from '../../shared/constants.js'
 import { topoSort, groupBySetPattern } from './graph-utils.js'
 import type { NodeRegistry } from '../nodes/registry.js'
 import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js'
@@ -32,7 +33,7 @@ export async function executeBatch(
   const outputNode = sorted.find(n => n.id === 'workflow-output')
   const outputNodeTextMode = (outputNode?.data.params as Record<string, unknown> | undefined)?.outputMode === 'text'
   const textOutputNodes = sorted.filter(n =>
-    registry.get(n.data.definitionId)?.executor === 'text_output' ||
+    registry.get(n.data.definitionId)?.executor === EXECUTOR.TEXT_OUTPUT ||
     (n.id === 'workflow-output' && outputNodeTextMode)
   )
   const hasTextOutputNodes = textOutputNodes.length > 0
@@ -73,7 +74,7 @@ export async function executeBatch(
   })
   // prop_name / prop_path only need path.basename — no ImageMagick identify call required.
   // All other needs_image_meta nodes (dimensions, bitdepth, EXIF, …) need the full identify.
-  const NAME_PATH_ONLY_EXECUTORS = new Set(['prop_name', 'prop_path'])
+  const NAME_PATH_ONLY_EXECUTORS = new Set<string>([EXECUTOR.PROP_NAME, EXECUTOR.PROP_PATH])
   const hasHeavyMetaNodes = sorted.some((n) => {
     if (!outputContributorIds.has(n.id)) return false
     const def = registry.get(n.data.definitionId)
@@ -82,14 +83,14 @@ export async function executeBatch(
   const hasPropNodes = hasImageMetaNodes || sorted.some((n) => {
     if (!outputContributorIds.has(n.id)) return false
     const def = registry.get(n.data.definitionId)
-    return def?.executor === 'mean_value'
+    return def?.executor === EXECUTOR.MEAN_VALUE
   })
 
   // Executors that require executeMultiStream (cannot be handled by the fast-path
   // buildOpArgsForImage): channel_split/merge produce multiple image buffers;
   // mean_value reads pixel data per-image and feeds param-wires (gate conditions etc.)
   // — buildOpArgsForImage skips it, leaving downstream gate conditions unset.
-  const MULTI_STREAM_EXECUTORS = new Set(['channel_split', 'channel_merge', 'mean_value'])
+  const MULTI_STREAM_EXECUTORS = new Set<string>([EXECUTOR.CHANNEL_SPLIT, EXECUTOR.CHANNEL_MERGE, EXECUTOR.MEAN_VALUE])
   const hasMultiStreamNodes = sorted.some((n) => {
     if (!outputContributorIds.has(n.id)) return false
     const def = registry.get(n.data.definitionId)
@@ -124,7 +125,7 @@ export async function executeBatch(
     let outputFormat: string | null = null
     for (const node of sorted) {
       if (!outputContributorIds.has(node.id)) continue
-      if (node.data.definitionId === 'process_as_set') continue
+      if (node.data.definitionId === EXECUTOR.PROCESS_AS_SET) continue
       const def = registry.get(node.data.definitionId)
       if (!def) {
         // workflow-output in text mode acts as a text output sink
@@ -177,7 +178,7 @@ export async function executeBatch(
       resolvedParams.set(node.id, params)
       if (!isImageNode) {
         // Collect text_output values — written to disk after the full batch completes.
-        if (def.executor === 'text_output' && params._enabled !== false && Boolean(params._txo_condition ?? params.condition)) {
+        if (def.executor === EXECUTOR.TEXT_OUTPUT && params._enabled !== false && Boolean(params._txo_condition ?? params.condition)) {
           const portIds = (params.portIds ?? []) as string[]
           const sep = getSeparator(String(params.separatorType ?? ''), String(params.customSeparator ?? ''))
           const values = portIds
@@ -190,11 +191,11 @@ export async function executeBatch(
         continue
       }
       // Gate node: when active and condition is false, suppress this image entirely
-      if (def.executor === 'gate' && params._enabled !== false && !params.condition) return null
+      if (def.executor === EXECUTOR.GATE && params._enabled !== false && !params.condition) return null
       // Mean Value — analysis-only, no image output, no opArgs contribution
-      if (def.executor === 'mean_value') continue
+      if (def.executor === EXECUTOR.MEAN_VALUE) continue
       if (params._enabled !== false) {
-        if (def.executor === 'format_convert') {
+        if (def.executor === EXECUTOR.FORMAT_CONVERT) {
           // Record the target format so processOne can set the output extension.
           // Add quality arg unconditionally — ImageMagick ignores it for lossless formats.
           outputFormat = String(params.format ?? 'PNG').toUpperCase()
@@ -222,12 +223,18 @@ export async function executeBatch(
   //      invocation instead of one process per node (lazy-buffer approach).
   //   2. Channel split — all 4 channels are extracted in one magick call via -write.
   // Returns the final output path and extension, or null if the image should be suppressed.
-  const executeMultiStream = async (inputPath: string, imageIndex: number, extraSeeds?: Map<string, string>): Promise<{ resultPath: string; outputExt: string } | null> => {
+  const executeMultiStream = async (inputPath: string, imageIndex: number, extraSeeds?: Map<string, string>): Promise<{ resultPath: string; outputExt: string; cleanup: () => Promise<void> } | null> => {
     const tmpId = shortHash(inputPath + String(imageIndex))
     let _seq = 0
+    const tmpFiles: string[] = []
     // MIFF (ImageMagick native) is uncompressed and skips PNG encode/decode overhead
     // for every intermediate step. Only the final output uses the real output extension.
-    const newTmp = (ext = '.miff') => path.join(TEMP_DIR, `batch_ms_${tmpId}_${_seq++}${ext}`)
+    const newTmp = (ext = '.miff') => {
+      const p = path.join(TEMP_DIR, `batch_ms_${tmpId}_${_seq++}${ext}`)
+      tmpFiles.push(p)
+      return p
+    }
+    const cleanupAll = () => Promise.allSettled(tmpFiles.map(p => fs.promises.unlink(p).catch(() => {})))
 
     // Each buffer slot is either a concrete file path (string) or a lazy chain that
     // accumulates magick args to be applied to a base file on demand.
@@ -273,12 +280,12 @@ export async function executeBatch(
     const analysisOnlySplitNodes = new Set<string>()
     for (const n of sorted) {
       const d = registry.get(n.data.definitionId)
-      if (d?.executor !== 'channel_split') continue
+      if (d?.executor !== EXECUTOR.CHANNEL_SPLIT) continue
       const outEdges = graph.edges.filter(e => e.source === n.id && (e.sourceHandle ?? '').startsWith('out-'))
       if (outEdges.length === 0) continue
       const allMeanValue = outEdges.every(e => {
         const consumer = sorted.find(c => c.id === e.target)
-        return registry.get(consumer?.data.definitionId ?? '')?.executor === 'mean_value'
+        return registry.get(consumer?.data.definitionId ?? '')?.executor === EXECUTOR.MEAN_VALUE
       })
       if (!allMeanValue) continue
       analysisOnlySplitNodes.add(n.id)
@@ -333,7 +340,7 @@ export async function executeBatch(
     for (const node of sorted) {
       if (!outputContributorIds.has(node.id)) continue
       // process_as_set is a source node — buffers are pre-seeded externally; skip processing.
-      if (node.data.definitionId === 'process_as_set') continue
+      if (node.data.definitionId === EXECUTOR.PROCESS_AS_SET) continue
       const def = registry.get(node.data.definitionId)
       if (!def) {
         // workflow-output in text mode acts as a text output sink
@@ -388,7 +395,7 @@ export async function executeBatch(
       resolvedParams.set(node.id, params)
       if (!isImageNode) {
         // Collect text_output values — written to disk after the full batch completes.
-        if (def.executor === 'text_output' && params._enabled !== false && Boolean(params._txo_condition ?? params.condition)) {
+        if (def.executor === EXECUTOR.TEXT_OUTPUT && params._enabled !== false && Boolean(params._txo_condition ?? params.condition)) {
           const portIds = (params.portIds ?? []) as string[]
           const sep = getSeparator(String(params.separatorType ?? ''), String(params.customSeparator ?? ''))
           const values = portIds
@@ -401,9 +408,12 @@ export async function executeBatch(
         continue
       }
 
-      if (def.executor === 'gate' && params._enabled !== false && !params.condition) return null
+      if (def.executor === EXECUTOR.GATE && params._enabled !== false && !params.condition) {
+        await cleanupAll()
+        return null
+      }
 
-      if (def.executor === 'channel_split') {
+      if (def.executor === EXECUTOR.CHANNEL_SPLIT) {
         if (analysisOnlySplitNodes.has(node.id)) {
           // All consumers are mean_value — skip writing channel files entirely.
           // channelMeanSources already maps each out-N to the source image key;
@@ -435,7 +445,7 @@ export async function executeBatch(
           }
         }
 
-      } else if (def.executor === 'channel_merge') {
+      } else if (def.executor === EXECUTOR.CHANNEL_MERGE) {
         const refPath = await mat('workflow-input:out-0')
 
         // Returns either a concrete path or inline magick args for a constant fill.
@@ -479,7 +489,7 @@ export async function executeBatch(
         ])
         buffers.set(`${node.id}:out-0`, out)
 
-      } else if (def.executor === 'mean_value') {
+      } else if (def.executor === EXECUTOR.MEAN_VALUE) {
         try {
           const imgInEdge = graph.edges.find(e => e.target === node.id && e.targetHandle === 'in-0')
           const srcSlot = imgInEdge ? `${imgInEdge.source}:${imgInEdge.sourceHandle ?? 'out-0'}` : undefined
@@ -493,7 +503,7 @@ export async function executeBatch(
           console.warn(`[executor] loadImageMean failed for node ${node.id}:`, err)
         }
 
-      } else if (def.executor === 'format_convert') {
+      } else if (def.executor === EXECUTOR.FORMAT_CONVERT) {
         // Format convert must materialise immediately (changes file type).
         const src = await getImg(node.id, 0)
         const fmt = String(params.format ?? 'PNG').toUpperCase()
@@ -549,27 +559,29 @@ export async function executeBatch(
     const outputEdge = graph.edges.find(
       (e) => e.target === 'workflow-output' && e.targetHandle === 'in-0'
     )
-    if (!outputEdge) return { resultPath: inputPath, outputExt: path.extname(inputPath) }
+    // When there's no output edge or no buffer for it, return the input unchanged (no temps to clean up from output).
+    const cleanup = async () => { await cleanupAll() }
+    if (!outputEdge) return { resultPath: inputPath, outputExt: path.extname(inputPath), cleanup }
 
     const finalKey = `${outputEdge.source}:${outputEdge.sourceHandle ?? 'out-0'}`
     const finalVal = buffers.get(finalKey)
-    if (!finalVal) return { resultPath: inputPath, outputExt: path.extname(inputPath) }
+    if (!finalVal) return { resultPath: inputPath, outputExt: path.extname(inputPath), cleanup }
     if (typeof finalVal === 'string') {
       // If the concrete path is an intermediate format (e.g. .miff) but the output
       // needs a different format (e.g. .PNG), do a single conversion spawn.
       if (path.extname(finalVal).toLowerCase() !== outputExt.toLowerCase()) {
         const finalOut = newTmp(outputExt)
         await spawnMagick([finalVal, finalOut])
-        return { resultPath: finalOut, outputExt }
+        return { resultPath: finalOut, outputExt, cleanup }
       }
-      return { resultPath: finalVal, outputExt }
+      return { resultPath: finalVal, outputExt, cleanup }
     }
 
     // Final materialisation: use the correct output extension (not always .png).
     const finalOut = newTmp(outputExt)
     if (finalVal.args.length > 0) await spawnMagick([finalVal.base, ...finalVal.args, finalOut])
     else await fs.promises.copyFile(finalVal.base, finalOut)
-    return { resultPath: finalOut, outputExt }
+    return { resultPath: finalOut, outputExt, cleanup }
   }
 
   // ── Preview substitution — swap full-size paths for cached thumbnails ────────
@@ -587,7 +599,7 @@ export async function executeBatch(
   // ── Set batch mode ─────────────────────────────────────────────────────────
   // When a setInputNode is present, group images by naming convention and
   // execute one run per set instead of one run per image.
-  const setInputNode = sorted.find(n => n.data.definitionId === 'process_as_set')
+  const setInputNode = sorted.find(n => n.data.definitionId === EXECUTOR.PROCESS_AS_SET)
   if (setInputNode) {
     const setPrefix   = String(setInputNode.data.params?.prefix ?? '')
     const setSuffixes = Array.isArray(setInputNode.data.params?.suffixes)
@@ -659,7 +671,7 @@ export async function executeBatch(
               onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName, active: [...activeImages] })
               continue
             }
-            const { resultPath, outputExt: msExt } = msResult
+            const { resultPath, outputExt: msExt, cleanup } = msResult
             const outBase = setOutputPrefix + middleName + setOutputSuffix
             const outExt  = msExt || path.extname(firstPath)
             const outPath = path.join(targetDir, outBase + outExt)
@@ -672,11 +684,13 @@ export async function executeBatch(
                 setSkipped++
                 activeImages.delete(middleName)
                 onProgress({ completed: ++setCompleted, total: totalSets, currentFile: middleName, active: [...activeImages] })
+                void cleanup()
                 continue
               }
             }
             const copyT0 = timings.enabled ? Date.now() : 0
             await fs.promises.copyFile(resultPath, outPath)
+            void cleanup()
             if (timings.enabled) {
               const imgEntry = timings.beginImage(firstPath || middleName)
               imgEntry.fileCheck(fileCheckMs)
@@ -739,7 +753,7 @@ export async function executeBatch(
   onProgress({ completed: 0, total: imagePaths.length, currentFile: '', active: [] })
 
   // Resolve rename node params once (shared across all images — index varies per image)
-  const renameNode = sorted.find((n) => registry.get(n.data.definitionId)?.executor === 'rename')
+  const renameNode = sorted.find((n) => registry.get(n.data.definitionId)?.executor === EXECUTOR.RENAME)
   const renameParams = renameNode ? (renameNode.data.params as RenameParams) : undefined
 
   let _startupRecorded = false
@@ -778,7 +792,7 @@ export async function executeBatch(
             continue
           }
           if (hasImageOutput) {
-            const { resultPath, outputExt: msExt } = msResult
+            const { resultPath, outputExt: msExt, cleanup } = msResult
             const outExt  = msExt || path.extname(renamedFileName)
             const outBase = path.basename(renamedFileName, path.extname(renamedFileName))
             const outPath = path.join(targetDir, outBase + outExt)
@@ -791,11 +805,13 @@ export async function executeBatch(
                 skipped++
                 activeImages.delete(fileName)
                 onProgress({ completed: ++completed, total: imagePaths.length, currentFile: fileName, active: [...activeImages] })
+                void cleanup()
                 continue
               }
             }
             const copyT0 = timings.enabled ? Date.now() : 0
             await fs.promises.copyFile(resultPath, outPath)
+            void cleanup()
             if (timings.enabled) {
               const imgEntry = timings.beginImage(inputPath)
               imgEntry.fileCheck(fileCheckMs)
@@ -804,6 +820,8 @@ export async function executeBatch(
               imgEntry.done(Date.now() - imgT0)
             }
             outputFiles.push(outPath)
+          } else {
+            void msResult.cleanup()
           }
         } else {
           // Single-command fast path

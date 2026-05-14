@@ -45,8 +45,11 @@ const SEED_NODES: Node[] = [
 ]
 
 class GraphStore {
+  // ── Graph data ────────────────────────────────────────────────────────────
   nodes = $state<Node[]>([])
   edges = $state<Edge[]>([])
+
+  // ── Selection & preview ───────────────────────────────────────────────────
   selectedNodeId = $state<string | null>(null)
   /** User's explicit preview node selection (null = auto-detect last node in chain) */
   previewNodeId = $state<string | null>(null)
@@ -56,7 +59,7 @@ class GraphStore {
    *  Stored separately so updates don't affect graphKey and cause preview re-runs. */
   propValues = $state<Record<string, Record<string, unknown>>>({})
 
-  /** Batch execution state — persisted here so it survives Inspector remounts. */
+  // ── Batch execution ───────────────────────────────────────────────────────
   batchRunning   = $state(false)
   batchProgress  = $state<Progress | null>(null)
   batchError     = $state<string | null>(null)
@@ -66,13 +69,17 @@ class GraphStore {
   batchSummary     = $state<{ processed: number; skipped: number; failed: number; errors?: string[]; outputDir: string | null } | null>(null)
   batchSummaryOpen = $state(false)
 
+  // ── Persistence ───────────────────────────────────────────────────────────
   /** Current open file path (null = unsaved) */
   currentFilePath = $state<string | null>(null)
+
+  // ── Viewport ──────────────────────────────────────────────────────────────
   /** Viewport synced from NodeEditor for saving; set pendingViewport to restore on load */
   viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 })
   /** Set to a Viewport to trigger NodeEditor to call setViewport() */
   pendingViewport = $state<Viewport | null>(null)
 
+  // ── Dirty tracking ────────────────────────────────────────────────────────
   /** Fingerprint of last saved/loaded state for dirty detection */
   _savedJson = $state<string | null>(null)
   _cleanInitialized = $state(false)

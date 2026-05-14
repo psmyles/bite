@@ -13,5 +13,6 @@
 
 import { registerExecutor } from './executorRegistry.js'
 import { buildResizeArgs } from './executor-compute.js'
+import { EXECUTOR } from '../../shared/constants.js'
 
-registerExecutor('resize', (_def, params) => buildResizeArgs(params))
+registerExecutor(EXECUTOR.RESIZE, (_def, params) => buildResizeArgs(params))

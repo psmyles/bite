@@ -7,6 +7,21 @@ export const PREVIEW_DEBOUNCE_MS = 75
 export const THUMBNAIL_SIZE_PX = 120
 export const EMPTY_GRAPH: NodeGraph = { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
 
+// Executor IDs — must match the "executor" field in node-definition JSON files
+export const EXECUTOR = {
+  CHANNEL_SPLIT:  'channel_split',
+  CHANNEL_MERGE:  'channel_merge',
+  MEAN_VALUE:     'mean_value',
+  GATE:           'gate',
+  FORMAT_CONVERT: 'format_convert',
+  TEXT_OUTPUT:    'text_output',
+  RENAME:         'rename',
+  PROP_NAME:      'prop_name',
+  PROP_PATH:      'prop_path',
+  PROCESS_AS_SET: 'process_as_set',
+  RESIZE:         'resize',
+} as const
+
 // IPC channel names
 export const IPC = {
   // Node registry
