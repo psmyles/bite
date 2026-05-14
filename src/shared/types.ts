@@ -41,6 +41,7 @@ export interface NodeDefinition {
   version?: string
   label: string
   description?: string
+  aliases?: string[]
   category: string
   icon?: string
   inputs: PortDefinition[]

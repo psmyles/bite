@@ -130,14 +130,15 @@
   )
 
   // Filter by search text
-  const filtered = $derived(
-    search.trim()
-      ? available.filter(d =>
-          d.label.toLowerCase().includes(search.toLowerCase()) ||
-          d.category.toLowerCase().includes(search.toLowerCase())
-        )
-      : available
-  )
+  const filtered = $derived.by(() => {
+    if (!search.trim()) return available
+    const q = search.toLowerCase()
+    return available.filter(d =>
+      d.label.toLowerCase().includes(q) ||
+      d.category.toLowerCase().includes(q) ||
+      (d.aliases?.some(a => a.toLowerCase().includes(q)) ?? false)
+    )
+  })
 
   // Group into categories (only used when not searching)
   const grouped = $derived(() => {

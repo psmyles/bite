@@ -6,14 +6,15 @@
   let search = $state('')
 
   // ── Derived: filter + group ────────────────────────────────────────────────
-  const filtered = $derived(
-    search.trim()
-      ? definitions.filter((d) =>
-          d.label.toLowerCase().includes(search.toLowerCase()) ||
-          d.category.toLowerCase().includes(search.toLowerCase())
-        )
-      : definitions
-  )
+  const filtered = $derived.by(() => {
+    if (!search.trim()) return definitions
+    const q = search.toLowerCase()
+    return definitions.filter((d) =>
+      d.label.toLowerCase().includes(q) ||
+      d.category.toLowerCase().includes(q) ||
+      (d.aliases?.some(a => a.toLowerCase().includes(q)) ?? false)
+    )
+  })
 
   const grouped = $derived(() => {
     const map = new Map<string, NodeDefinition[]>()
