@@ -11,8 +11,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && vite build --config vite.cli.config.ts && pkg dist-cli/cli-bundle.cjs --target node20-win-x64 --output dist-cli/cli-bundle.exe && electron-builder",
-    "build:web": "vite build --config vite.web.config.ts",
+    "build": "npm run format && tsc && vite build && vite build --config vite.cli.config.ts && pkg dist-cli/cli-bundle.cjs --target node20-win-x64 --output dist-cli/cli-bundle.exe && electron-builder",
+    "build:web": "npm run format && vite build --config vite.web.config.ts",
     "preview": "vite preview",
     "link:cli": "npm link",
     "typecheck": "tsc --noEmit",
