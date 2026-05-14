@@ -23,7 +23,7 @@ const SEED_NODES: Node[] = [
     type: 'inputNode',
     position: { x: 80, y: 180 },
     deletable: false,
-    data: { label: 'Input', inputs: [], outputs: ['image'] },
+    data: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 128 } },
   },
   {
     id: 'workflow-output',

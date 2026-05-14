@@ -1,5 +1,6 @@
 import type { ImageInfo } from '../../shared/types.js'
-import { IPC, THUMBNAIL_SIZE_PX, EMPTY_GRAPH } from '../../shared/constants.js'
+import { IPC, EMPTY_GRAPH } from '../../shared/constants.js'
+import { graphStore } from './graph.svelte.js'
 
 class ImageStore {
   images          = $state<ImageInfo[]>([])
@@ -53,7 +54,10 @@ class ImageStore {
     window.ipcRenderer.on(IPC.LOAD_IMAGES_STREAMING_RESULT, onResult)
 
     try {
-      const allResults: ImageInfo[] = await window.ipcRenderer.invoke(IPC.LOAD_IMAGES_STREAMING_START, paths, THUMBNAIL_SIZE_PX)
+      const inputNode = graphStore.nodes.find(n => n.id === 'workflow-input')
+      const inputParams = (inputNode?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined
+      const thumbSize = Number(inputParams?.thumbnailSize ?? 128)
+      const allResults: ImageInfo[] = await window.ipcRenderer.invoke(IPC.LOAD_IMAGES_STREAMING_START, paths, thumbSize)
       // Backfill any results that arrived after the listener was removed (IPC race).
       if (Array.isArray(allResults)) {
         const addedPaths = new Set(allAdded.map(img => img.path))

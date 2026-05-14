@@ -1,6 +1,14 @@
 <script lang="ts">
   import { imageStore } from '../stores/images.svelte.js'
+  import { graphStore } from '../stores/graph.svelte.js'
   import { IPC } from '../../shared/constants.js'
+
+  const THUMB_SIZE_OPTIONS = [128, 256, 512, 1024, 2048]
+  const thumbSizeParam = $derived.by(() => {
+    const node = graphStore.nodes.find(n => n.id === 'workflow-input')
+    const params = (node?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined
+    return Number(params?.thumbnailSize ?? 128)
+  })
 
   // ── Format groups ─────────────────────────────────────────────────────────
   const FORMAT_GROUPS = [
@@ -72,6 +80,22 @@
 </script>
 
 <div class="input-inspector">
+  <!-- ── Settings ─────────────────────────────────────────────────────────── -->
+  <div class="settings-section">
+    <div class="setting-row">
+      <span class="setting-label">Thumbnail Size</span>
+      <select
+        class="setting-select"
+        value={thumbSizeParam}
+        onchange={(e) => graphStore.setParam('workflow-input', 'thumbnailSize', Number((e.target as HTMLSelectElement).value))}
+      >
+        {#each THUMB_SIZE_OPTIONS as sz}
+          <option value={sz}>{sz}px</option>
+        {/each}
+      </select>
+    </div>
+  </div>
+
   {#if imageStore.images.length === 0}
     <!-- ── Folder picker (shown when filmstrip is empty) ─────────────────── -->
     <div class="folder-section">
@@ -177,6 +201,42 @@
     flex: 1;
     min-height: 0;
   }
+
+  /* ── Settings section ───────────────────────────────────────────────────── */
+  .settings-section {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 26px;
+  }
+
+  .setting-label {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-bright);
+    white-space: nowrap;
+  }
+
+  .setting-select {
+    background: var(--search-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-bright);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 4px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .setting-select:focus { border-color: var(--accent); }
 
   /* ── Shared button ──────────────────────────────────────────────────────── */
   .io-btn {

@@ -6,7 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import type { GraphEdge, GraphNode, ImageInfo, NodeGraph, Progress } from '../../shared/types.js'
-import { PREVIEW_MAX_EDGE_PX, THUMBNAIL_SIZE_PX } from '../../shared/constants.js'
+import { PREVIEW_MAX_EDGE_PX } from '../../shared/constants.js'
 import type { NodeRegistry } from '../nodes/registry.js'
 import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js'
 import { getExecutor } from './executorRegistry.js'
@@ -274,7 +274,7 @@ export class PipelineExecutor {
     size: number
   ): Promise<ImageInfo & { thumbnailDataUrl: string }> {
     const hash      = shortHash(imagePath)
-    const thumbPath = path.join(TEMP_DIR, `thumb_${hash}_${size}.png`)
+    const thumbPath = path.join(TEMP_DIR, `thumb_${hash}_${size}.webp`)
 
     // Check thumb cache first; only fetch srcStat if thumb actually exists
     const thumbStat = await fs.promises.stat(thumbPath).catch(() => null)
@@ -319,9 +319,7 @@ export class PipelineExecutor {
       magickArgs.push(
         `${imagePath}[0]`,
         '-thumbnail', `${size}x${size}>`,
-        '-gravity', 'center',
-        '-background', 'transparent',
-        '-extent', `${size}x${size}`,
+        '-quality', '85',
         thumbPath,
       )
       await new Promise<void>((resolve, reject) => {
@@ -347,9 +345,7 @@ export class PipelineExecutor {
             `${imagePath}[0]`,
             '-print', '%w %h %m\n',
             '-thumbnail', `${size}x${size}>`,
-            '-gravity', 'center',
-            '-background', 'transparent',
-            '-extent', `${size}x${size}`,
+            '-quality', '85',
             thumbPath,
           ],
           { env: { ...process.env, MAGICK_THREAD_LIMIT: '1' } }
@@ -400,7 +396,7 @@ export class PipelineExecutor {
     await fs.promises.mkdir(TEMP_DIR, { recursive: true })
 
     const hashes     = imagePaths.map(p => shortHash(p))
-    const thumbPaths = hashes.map(h => path.join(TEMP_DIR, `thumb_${h}_${size}.png`))
+    const thumbPaths = hashes.map(h => path.join(TEMP_DIR, `thumb_${h}_${size}.webp`))
 
     // ── Phase 1: parallel cache + header checks ──────────────────────────────
     const headerStartMs = Date.now()
@@ -470,8 +466,7 @@ export class PipelineExecutor {
       for (let j = 0; j < fastMisses.length; j++) {
         const i = fastMisses[j]
         batchArgs.push(`${imagePaths[i]}[0]`)
-        batchArgs.push('-thumbnail', `${size}x${size}>`)
-        batchArgs.push('-gravity', 'center', '-background', 'transparent', '-extent', `${size}x${size}`)
+        batchArgs.push('-thumbnail', `${size}x${size}>`, '-quality', '85')
         if (j < fastMisses.length - 1) batchArgs.push('-write', thumbPaths[i], '+delete')
         else                            batchArgs.push(thumbPaths[i])
       }
@@ -514,7 +509,7 @@ export class PipelineExecutor {
               `${imagePaths[i]}[0]`,
               '-print', '%w %h %m\n',
               '-thumbnail', `${size}x${size}>`,
-              '-gravity', 'center', '-background', 'transparent', '-extent', `${size}x${size}`,
+              '-quality', '85',
               thumbPaths[i],
             ],
             { env: { ...process.env, MAGICK_THREAD_LIMIT: '1' } }
@@ -574,7 +569,7 @@ export class PipelineExecutor {
 
   async generateThumbnail(imagePath: string, size: number): Promise<string> {
     const hash = shortHash(imagePath)
-    const thumbPath = path.join(TEMP_DIR, `thumb_${hash}_${size}.png`)
+    const thumbPath = path.join(TEMP_DIR, `thumb_${hash}_${size}.webp`)
 
     // Only regenerate if missing or source is newer
     const [srcStat, thumbStat] = await Promise.all([
@@ -586,19 +581,8 @@ export class PipelineExecutor {
       await fs.promises.mkdir(TEMP_DIR, { recursive: true })
       // [0] selects only the first frame — without it, multi-frame images (e.g.
       // JPEGs with embedded EXIF thumbnails) cause magick to write numbered
-      // output files (thumb_xxx_120-0.png) instead of the expected path.
-      await spawnMagick([
-        `${imagePath}[0]`,
-        '-thumbnail',
-        `${size}x${size}>`,
-        '-gravity',
-        'center',
-        '-background',
-        'transparent',
-        '-extent',
-        `${size}x${size}`,
-        thumbPath,
-      ])
+      // output files instead of the expected path.
+      await spawnMagick([`${imagePath}[0]`, '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPath])
     }
 
     return fileToDataUrl(thumbPath)
@@ -1508,7 +1492,10 @@ export class PipelineExecutor {
 
     // ── Preview substitution — swap full-size paths for cached thumbnails ────────
     if (outputNodeTextMode && (outputNode?.data.params as Record<string, unknown> | undefined)?.usePreviewForProcessing) {
-      const thumbPath = (p: string) => path.join(TEMP_DIR, `thumb_${shortHash(p)}_${THUMBNAIL_SIZE_PX}.png`)
+      const inputNode = graph.nodes.find(n => n.id === 'workflow-input')
+      const inputParams = (inputNode?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined
+      const thumbSizePx = Number(inputParams?.thumbnailSize ?? 128)
+      const thumbPath = (p: string) => path.join(TEMP_DIR, `thumb_${shortHash(p)}_${thumbSizePx}.webp`)
       imagePaths = await Promise.all(imagePaths.map(async (p) => {
         const thumb = thumbPath(p)
         return await fs.promises.access(thumb).then(() => thumb).catch(() => p)
