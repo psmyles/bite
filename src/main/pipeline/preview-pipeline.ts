@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import type { NodeGraph } from '../../shared/types.js';
 import { PREVIEW_MAX_EDGE_PX, EXECUTOR } from '../../shared/constants.js';
-import { topoSort } from './graph-utils.js';
+import { topoSort, applyParamWires } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
 import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js';
 import { getExecutor } from './executorRegistry.js';
@@ -162,24 +162,7 @@ export async function executePreview(
     }
 
     // Inspector values, overridden by any incoming param-wire connections
-    const rawParams: Record<string, unknown> = { ...(node.data.params ?? {}) };
-    for (const edge of graph.edges) {
-      if (edge.target !== node.id) continue;
-      const th = edge.targetHandle ?? '';
-      const sh = edge.sourceHandle ?? '';
-      if (sh.startsWith('param-out-')) {
-        const sourceParam = sh.slice('param-out-'.length);
-        const srcResolved = resolvedParams.get(edge.source);
-        if (srcResolved && sourceParam in srcResolved) {
-          if (th.startsWith('param-in-')) {
-            rawParams[th.slice('param-in-'.length)] = srcResolved[sourceParam];
-          } else if (th.startsWith('txo-')) {
-            // text_output dynamic ports: txo-condition → condition param; txo-N → _txo_N slot
-            rawParams[`_txo_${th.slice('txo-'.length)}`] = srcResolved[sourceParam];
-          }
-        }
-      }
-    }
+    const rawParams = applyParamWires(node, graph.edges, resolvedParams);
 
     // Run pure math/logic/value computation; image nodes return params unchanged
     const isImageNode =

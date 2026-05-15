@@ -164,4 +164,48 @@ describe('executePreview', () => {
     expect(spawnMagick).toHaveBeenCalledOnce();
     expect(fsMockPromises.copyFile).toHaveBeenCalledOnce();
   });
+
+  it('mean_value node result appears in propParams', async () => {
+    const { executePreview } = await import('../main/pipeline/preview-pipeline.js');
+    const { loadImageMean } = await import('../main/pipeline/executor-compute.js');
+    (loadImageMean as ReturnType<typeof vi.fn>).mockResolvedValue(0.42);
+
+    const graph = makeGraph(
+      [
+        {
+          id: 'workflow-input',
+          type: 'workflow-input',
+          position: { x: 0, y: 0 },
+          data: { label: 'Input', definitionId: 'workflow-input', params: {} },
+        },
+        {
+          id: 'mean-1',
+          type: 'mean',
+          position: { x: 0, y: 0 },
+          data: { label: 'Mean', definitionId: 'mean-def', params: {} },
+        },
+        {
+          id: 'workflow-output',
+          type: 'workflow-output',
+          position: { x: 0, y: 0 },
+          data: { label: 'Output', definitionId: 'workflow-output', params: {} },
+        },
+      ],
+      [
+        { id: 'e1', source: 'workflow-input', target: 'mean-1', sourceHandle: 'out-0', targetHandle: 'in-0' },
+        { id: 'e2', source: 'workflow-input', target: 'workflow-output', sourceHandle: 'out-0', targetHandle: 'in-0' },
+      ]
+    );
+    const registry = makeRegistry({
+      'mean-def': {
+        executor: EXECUTOR.MEAN_VALUE,
+        inputs: [{ label: 'In', type: 'image' }],
+        outputs: [{ label: 'Value', type: 'number' }],
+      },
+    });
+    const result = await executePreview(new PreviewCache(), graph, '/img/test.png', registry);
+
+    expect(result.propParams['mean-1']).toBeDefined();
+    expect(result.propParams['mean-1'].value).toBe(0.42);
+  });
 });

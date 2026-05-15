@@ -1,6 +1,50 @@
 import path from 'node:path';
 import type { GraphEdge, GraphNode } from '../../shared/types.js';
 
+/** Backward BFS from startNodeIds; returns all nodes that contribute to those outputs. */
+export function findOutputContributors(edges: GraphEdge[], startNodeIds: string[]): Set<string> {
+  const contributors = new Set<string>();
+  const queue = [...startNodeIds];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (contributors.has(id)) continue;
+    contributors.add(id);
+    for (const e of edges) {
+      if (e.target === id) queue.push(e.source);
+    }
+  }
+  return contributors;
+}
+
+/**
+ * Merge param-wire connections into a node's raw params.
+ * Handles both param-in-* (inspector overrides) and txo-* (text output port slots).
+ */
+export function applyParamWires(
+  node: GraphNode,
+  edges: GraphEdge[],
+  resolvedParams: Map<string, Record<string, unknown>>
+): Record<string, unknown> {
+  const rawParams: Record<string, unknown> = { ...node.data.params };
+  for (const edge of edges) {
+    if (edge.target !== node.id) continue;
+    const th = edge.targetHandle ?? '';
+    const sh = edge.sourceHandle ?? '';
+    if (sh.startsWith('param-out-')) {
+      const sourceParam = sh.slice('param-out-'.length);
+      const srcResolved = resolvedParams.get(edge.source);
+      if (srcResolved && sourceParam in srcResolved) {
+        if (th.startsWith('param-in-')) {
+          rawParams[th.slice('param-in-'.length)] = srcResolved[sourceParam];
+        } else if (th.startsWith('txo-')) {
+          rawParams[`_txo_${th.slice('txo-'.length)}`] = srcResolved[sourceParam];
+        }
+      }
+    }
+  }
+  return rawParams;
+}
+
 export function topoSort(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] {
   const inDegree = new Map<string, number>();
   const adj = new Map<string, string[]>();

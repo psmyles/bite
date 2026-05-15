@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import type { NodeGraph, Progress } from '../../shared/types.js';
 import { EXECUTOR } from '../../shared/constants.js';
-import { topoSort, groupBySetPattern } from './graph-utils.js';
+import { topoSort, groupBySetPattern, findOutputContributors, applyParamWires } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
 import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js';
 import { getExecutor } from './executorRegistry.js';
@@ -56,21 +56,13 @@ export async function executeBatch(
   // is correctly recognised as a contributor and uses the multi-stream path.
   // Nodes that are purely decorative (no path to workflow-output of any kind)
   // are excluded so they don't force the slow path unnecessarily.
-  const outputContributorIds = new Set<string>();
-  {
-    // Start BFS from workflow-output AND any text_output nodes so upstream nodes
-    // (channel_split, mean_value, etc.) that only feed text outputs are correctly
-    // recognised as contributors and trigger the right execution path.
-    const queue = ['workflow-output', ...textOutputNodes.map((n) => n.id)];
-    while (queue.length > 0) {
-      const id = queue.shift()!;
-      if (outputContributorIds.has(id)) continue;
-      outputContributorIds.add(id);
-      for (const e of graph.edges) {
-        if (e.target === id) queue.push(e.source);
-      }
-    }
-  }
+  // Start BFS from workflow-output AND any text_output nodes so upstream nodes
+  // (channel_split, mean_value, etc.) that only feed text outputs are correctly
+  // recognised as contributors and trigger the right execution path.
+  const outputContributorIds = findOutputContributors(graph.edges, [
+    'workflow-output',
+    ...textOutputNodes.map((n) => n.id),
+  ]);
 
   // prop_ nodes depend on per-image file metadata (dimensions, name, EXIF, etc.)
   // mean_value depends on per-image pixel data but NOT on loadImageMeta.
@@ -175,23 +167,7 @@ export async function executeBatch(
         }
         continue;
       }
-      const rawParams: Record<string, unknown> = { ...(node.data.params ?? {}) };
-      for (const edge of graph.edges) {
-        if (edge.target !== node.id) continue;
-        const th = edge.targetHandle ?? '';
-        const sh = edge.sourceHandle ?? '';
-        if (sh.startsWith('param-out-')) {
-          const sourceParam = sh.slice('param-out-'.length);
-          const src = resolvedParams.get(edge.source);
-          if (src && sourceParam in src) {
-            if (th.startsWith('param-in-')) {
-              rawParams[th.slice('param-in-'.length)] = src[sourceParam];
-            } else if (th.startsWith('txo-')) {
-              rawParams[`_txo_${th.slice('txo-'.length)}`] = src[sourceParam];
-            }
-          }
-        }
-      }
+      const rawParams = applyParamWires(node, graph.edges, resolvedParams);
       const isImageNode =
         def.inputs.some((p) => p.type === 'image' || p.type === 'mask') ||
         def.outputs.some((p) => p.type === 'image' || p.type === 'mask');
@@ -409,23 +385,7 @@ export async function executeBatch(
         continue;
       }
 
-      const rawParams: Record<string, unknown> = { ...(node.data.params ?? {}) };
-      for (const edge of graph.edges) {
-        if (edge.target !== node.id) continue;
-        const th = edge.targetHandle ?? '';
-        const sh = edge.sourceHandle ?? '';
-        if (sh.startsWith('param-out-')) {
-          const sp = sh.slice('param-out-'.length);
-          const src = resolvedParams.get(edge.source);
-          if (src && sp in src) {
-            if (th.startsWith('param-in-')) {
-              rawParams[th.slice('param-in-'.length)] = src[sp];
-            } else if (th.startsWith('txo-')) {
-              rawParams[`_txo_${th.slice('txo-'.length)}`] = src[sp];
-            }
-          }
-        }
-      }
+      const rawParams = applyParamWires(node, graph.edges, resolvedParams);
 
       const isImageNode =
         def.inputs.some((p) => p.type === 'image' || p.type === 'mask') ||
