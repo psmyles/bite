@@ -240,14 +240,11 @@
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
     font-weight: 600;
-    padding: 0 18px;
-    height: 30px;
     line-height: 1;
+    padding: 7px 18px 5px;
     border-radius: 4px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    text-align: center;
     transition: opacity 0.12s;
   }
 
@@ -261,14 +258,11 @@
     color: var(--text-bright);
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
-    padding: 0 18px;
-    height: 30px;
     line-height: 1;
+    padding: 7px 18px 5px;
     border-radius: 4px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    text-align: center;
     transition:
       background 0.12s,
       color 0.12s;
