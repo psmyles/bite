@@ -4,7 +4,7 @@
   import Inspector from './components/Inspector.svelte';
   import Preview from './components/Preview.svelte';
   import Filmstrip from './components/Filmstrip.svelte';
-  import type { NodeDefinition, NodeGraph, GraphNode, GraphEdge } from '../shared/types.js';
+  import type { NodeDefinition, NodeGraph, GraphNode, GraphEdge, Progress } from '../shared/types.js';
   import { IPC } from '../shared/constants.js';
   import { graphStore } from './stores/graph.svelte.js';
   import { expandNodeData, sortNodesGroupFirst } from './nodeEditor/nodeEditorHelpers.js';
@@ -38,8 +38,7 @@
 
   // ── Batch progress listener — registered here so it persists across Inspector remounts ──
   $effect(() => {
-    type P = { completed: number; total: number; currentFile: string };
-    const onProgress = (_e: unknown, p: P) => {
+    const onProgress = (_e: unknown, p: Progress) => {
       graphStore.batchProgress = p;
     };
     window.ipcRenderer.on(`${IPC.EXECUTE_BATCH}:progress`, onProgress);
