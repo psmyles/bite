@@ -153,6 +153,33 @@
     flex-direction: column;
     gap: 16px;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.2s;
+  }
+
+  .modal-body:hover {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  .modal-body::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+  }
+  .modal-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .modal-body::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+  }
+  .modal-body:hover::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+  }
+  .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+  .modal-body::-webkit-scrollbar-button {
+    display: none;
   }
 
   .checking-row {
@@ -209,16 +236,18 @@
   .btn-update {
     background: var(--accent);
     border: none;
-    color: #000;
+    color: #111;
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
     font-weight: 600;
     padding: 0 18px;
     height: 30px;
+    line-height: 1;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: center;
     transition: opacity 0.12s;
   }
 
@@ -229,15 +258,17 @@
   .btn-later {
     background: none;
     border: 1px solid var(--ctx-border);
-    color: var(--text);
+    color: var(--text-bright);
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
     padding: 0 18px;
     height: 30px;
+    line-height: 1;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
+    justify-content: center;
     transition:
       background 0.12s,
       color 0.12s;
@@ -276,5 +307,32 @@
     margin: 0;
     max-height: 260px;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.2s;
+  }
+
+  .notes-body:hover {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  .notes-body::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+  }
+  .notes-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .notes-body::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+  }
+  .notes-body:hover::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+  }
+  .notes-body::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+  .notes-body::-webkit-scrollbar-button {
+    display: none;
   }
 </style>
