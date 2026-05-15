@@ -1,7 +1,5 @@
-// Pure numeric/vector helpers and computeNodeParams — no I/O, no ImageMagick.
-import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { getMagickBinary } from './magick-path.js';
+import { spawnMagickCapture } from './magick-spawn.js';
 
 // ─── Polymorphic numeric helpers ──────────────────────────────────────────────
 
@@ -77,15 +75,7 @@ export interface ImageMeta {
 }
 
 export async function loadImageMeta(imagePath: string): Promise<ImageMeta> {
-  const basicOutput = await new Promise<string>((resolve, reject) => {
-    const proc = spawn(getMagickBinary(), ['identify', '-format', '%B\n%w\n%h\n%z\n%e\n%x\n%y', imagePath]);
-    const out: string[] = [];
-    const err: string[] = [];
-    proc.stdout.on('data', (c: Buffer) => out.push(c.toString()));
-    proc.stderr.on('data', (c: Buffer) => err.push(c.toString()));
-    proc.on('close', (code) => (code === 0 ? resolve(out.join('').trim()) : reject(new Error(err.join('').trim()))));
-    proc.on('error', reject);
-  });
+  const basicOutput = (await spawnMagickCapture(['identify', '-format', '%B\n%w\n%h\n%z\n%e\n%x\n%y', imagePath])).trim();
 
   // identify may return multiple frames; take the first set of 7 lines
   const lines = basicOutput.split('\n');
@@ -99,13 +89,7 @@ export async function loadImageMeta(imagePath: string): Promise<ImageMeta> {
 
   const exif: Record<string, string> = {};
   try {
-    const exifOutput = await new Promise<string>((resolve, reject) => {
-      const proc = spawn(getMagickBinary(), ['identify', '-format', '%[EXIF:*]', imagePath]);
-      const out: string[] = [];
-      proc.stdout.on('data', (c: Buffer) => out.push(c.toString()));
-      proc.on('close', () => resolve(out.join('').trim()));
-      proc.on('error', reject);
-    });
+    const exifOutput = (await spawnMagickCapture(['identify', '-format', '%[EXIF:*]', imagePath]).catch(() => '')).trim();
     // Each line: "exif:Key=Value"
     for (const line of exifOutput.split('\n')) {
       const eqIdx = line.indexOf('=');
@@ -135,15 +119,7 @@ export async function loadImageMeta(imagePath: string): Promise<ImageMeta> {
 // ─── Image statistics (mean brightness / channel means) ───────────────────────
 
 export async function loadImageMean(imagePath: string): Promise<number> {
-  const output = await new Promise<string>((resolve, reject) => {
-    const proc = spawn(getMagickBinary(), [`${imagePath}[0]`, '-format', '%[fx:mean]', 'info:']);
-    const out: string[] = [];
-    const err: string[] = [];
-    proc.stdout.on('data', (c: Buffer) => out.push(c.toString()));
-    proc.stderr.on('data', (c: Buffer) => err.push(c.toString()));
-    proc.on('close', (code) => (code === 0 ? resolve(out.join('').trim()) : reject(new Error(err.join('').trim()))));
-    proc.on('error', reject);
-  });
+  const output = await spawnMagickCapture([`${imagePath}[0]`, '-format', '%[fx:mean]', 'info:']);
   return parseFloat(output) || 0;
 }
 
@@ -151,15 +127,7 @@ const CHANNEL_FX = ['mean.r', 'mean.g', 'mean.b', 'mean.a'] as const;
 
 export async function loadImageChannelMean(imagePath: string, channelIdx: number): Promise<number> {
   const fx = CHANNEL_FX[channelIdx] ?? 'mean';
-  const output = await new Promise<string>((resolve, reject) => {
-    const proc = spawn(getMagickBinary(), [`${imagePath}[0]`, '-format', `%[fx:${fx}]`, 'info:']);
-    const out: string[] = [];
-    const err: string[] = [];
-    proc.stdout.on('data', (c: Buffer) => out.push(c.toString()));
-    proc.stderr.on('data', (c: Buffer) => err.push(c.toString()));
-    proc.on('close', (code) => (code === 0 ? resolve(out.join('').trim()) : reject(new Error(err.join('').trim()))));
-    proc.on('error', reject);
-  });
+  const output = await spawnMagickCapture([`${imagePath}[0]`, '-format', `%[fx:${fx}]`, 'info:']);
   return parseFloat(output) || 0;
 }
 
@@ -172,15 +140,7 @@ export async function loadMultipleChannelMeans(
   if (channelIndices.length === 0) return [];
   if (channelIndices.length === 1) return [await loadImageChannelMean(imagePath, channelIndices[0])];
   const format = channelIndices.map((i) => `%[fx:${CHANNEL_FX[i] ?? 'mean'}]`).join('\n');
-  const output = await new Promise<string>((resolve, reject) => {
-    const proc = spawn(getMagickBinary(), [`${imagePath}[0]`, '-format', format, 'info:']);
-    const out: string[] = [];
-    const err: string[] = [];
-    proc.stdout.on('data', (c: Buffer) => out.push(c.toString()));
-    proc.stderr.on('data', (c: Buffer) => err.push(c.toString()));
-    proc.on('close', (code) => (code === 0 ? resolve(out.join('').trim()) : reject(new Error(err.join('').trim()))));
-    proc.on('error', reject);
-  });
+  const output = await spawnMagickCapture([`${imagePath}[0]`, '-format', format, 'info:']);
   return output.split('\n').map((v) => parseFloat(v) || 0);
 }
 
