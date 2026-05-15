@@ -75,7 +75,9 @@ export interface ImageMeta {
 }
 
 export async function loadImageMeta(imagePath: string): Promise<ImageMeta> {
-  const basicOutput = (await spawnMagickCapture(['identify', '-format', '%B\n%w\n%h\n%z\n%e\n%x\n%y', imagePath])).trim();
+  const basicOutput = (
+    await spawnMagickCapture(['identify', '-format', '%B\n%w\n%h\n%z\n%e\n%x\n%y', imagePath])
+  ).trim();
 
   // identify may return multiple frames; take the first set of 7 lines
   const lines = basicOutput.split('\n');
@@ -89,7 +91,9 @@ export async function loadImageMeta(imagePath: string): Promise<ImageMeta> {
 
   const exif: Record<string, string> = {};
   try {
-    const exifOutput = (await spawnMagickCapture(['identify', '-format', '%[EXIF:*]', imagePath]).catch(() => '')).trim();
+    const exifOutput = (
+      await spawnMagickCapture(['identify', '-format', '%[EXIF:*]', imagePath]).catch(() => '')
+    ).trim();
     // Each line: "exif:Key=Value"
     for (const line of exifOutput.split('\n')) {
       const eqIdx = line.indexOf('=');

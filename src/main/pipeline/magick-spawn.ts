@@ -38,7 +38,10 @@ export function spawnMagickCapture(args: string[], timeoutMs?: number): Promise<
     const err: string[] = [];
     let timer: ReturnType<typeof setTimeout> | undefined;
     if (timeoutMs !== undefined) {
-      timer = setTimeout(() => { proc.kill(); reject(new Error(`magick timed out after ${timeoutMs}ms`)); }, timeoutMs);
+      timer = setTimeout(() => {
+        proc.kill();
+        reject(new Error(`magick timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
     }
     proc.stdout.on('data', (chunk: Buffer) => out.push(chunk.toString()));
     proc.stderr.on('data', (chunk: Buffer) => err.push(chunk.toString()));
@@ -47,6 +50,9 @@ export function spawnMagickCapture(args: string[], timeoutMs?: number): Promise<
       if (code === 0) resolve(out.join(''));
       else reject(new Error(`magick exited ${code}: ${err.join('').trim()}`));
     });
-    proc.on('error', (e) => { clearTimeout(timer); reject(new Error(`Failed to spawn magick: ${e.message}. Is ImageMagick v7 in PATH?`)); });
+    proc.on('error', (e) => {
+      clearTimeout(timer);
+      reject(new Error(`Failed to spawn magick: ${e.message}. Is ImageMagick v7 in PATH?`));
+    });
   });
 }
