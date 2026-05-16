@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import type { NodeGraph } from '../../shared/types.js';
 import { log } from '../logger.js';
-import { PREVIEW_MAX_EDGE_PX, EXECUTOR } from '../../shared/constants.js';
+import { EXECUTOR } from '../../shared/constants.js';
 import { topoSort, applyParamWires } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
 import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js';
@@ -22,15 +22,13 @@ export async function executePreview(
   fromNodeId?: string
 ): Promise<{ dataUrl: string; propParams: Record<string, Record<string, unknown>> }> {
   await fs.promises.mkdir(TEMP_DIR, { recursive: true });
-  log(
-    'info',
-    `[preview] start: ${path.basename(imagePath)} | ${graph.nodes.length} node(s)${fromNodeId ? ` (from ${fromNodeId})` : ''}`
-  );
-
-  // Always downscale proportionally first — this keeps the data URL small and
-  // ensures the image has the correct aspect ratio (no square padding).
+  const inputNode = graph.nodes.find((n) => n.id === 'workflow-input');
+  const thumbnailSize = Number((inputNode?.data.params as Record<string, unknown> | undefined)?.thumbnailSize ?? 128);
+  // Reuse the import thumbnail WebP as the preview input — avoids a second magick
+  // spawn when the image was already imported. Falls back to generating it if missing
+  // (e.g. preview triggered before import, or thumbnail size changed).
   const inputHash = shortHash(imagePath);
-  const downscaledPath = path.join(TEMP_DIR, `preview_input_${inputHash}.png`);
+  const downscaledPath = path.join(TEMP_DIR, `thumb_${inputHash}_${thumbnailSize}.webp`);
   const downscaledExists = await fs.promises
     .access(downscaledPath)
     .then(() => true)
@@ -40,8 +38,10 @@ export async function executePreview(
     try {
       await spawnMagick([
         `${imagePath}[0]`,
-        '-resize',
-        `${PREVIEW_MAX_EDGE_PX}x${PREVIEW_MAX_EDGE_PX}>`,
+        '-thumbnail',
+        `${thumbnailSize}x${thumbnailSize}>`,
+        '-quality',
+        '85',
         downscaledPath,
       ]);
     } catch (err) {
@@ -54,8 +54,17 @@ export async function executePreview(
     }
   }
 
+  const thumbStatus = downscaledExists ? 'cached' : 'generated';
+  log(
+    'info',
+    `[preview] start: ${path.basename(imagePath)} | ${graph.nodes.length} node(s) | thumb ${thumbStatus}: ${path.basename(downscaledPath)}${fromNodeId ? ` (from ${fromNodeId})` : ''}`
+  );
+
   // No nodes — return the proportionally-downscaled source directly.
-  if (graph.nodes.length === 0) return { dataUrl: await fileToDataUrl(downscaledPath), propParams: {} };
+  if (graph.nodes.length === 0) {
+    log('info', `[preview] done: ${path.basename(imagePath)} (no nodes)`);
+    return { dataUrl: await fileToDataUrl(downscaledPath), propParams: {} };
+  }
 
   const sorted = topoSort(graph.nodes, graph.edges);
 
@@ -102,7 +111,7 @@ export async function executePreview(
           .catch(() => false);
         if (!companionExists) continue;
         const companionHash = shortHash(companionPath);
-        const companionDownscaled = path.join(TEMP_DIR, `preview_input_${companionHash}.png`);
+        const companionDownscaled = path.join(TEMP_DIR, `thumb_${companionHash}_${thumbnailSize}.webp`);
         if (
           !(await fs.promises
             .access(companionDownscaled)
@@ -112,8 +121,10 @@ export async function executePreview(
           try {
             await spawnMagick([
               `${companionPath}[0]`,
-              '-resize',
-              `${PREVIEW_MAX_EDGE_PX}x${PREVIEW_MAX_EDGE_PX}>`,
+              '-thumbnail',
+              `${thumbnailSize}x${thumbnailSize}>`,
+              '-quality',
+              '85',
               companionDownscaled,
             ]);
           } catch {
