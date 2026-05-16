@@ -806,13 +806,12 @@ export async function executeBatch(
       // Apply rename transform to determine the output filename stem
       const renamedFileName = renameParams ? computeNewName(fileName, renameParams, imageIndex) : fileName;
       try {
-        const targetDir = outputDir ?? path.dirname(inputPath);
-        const checkT0 = timings.enabled ? Date.now() : 0;
-        await fs.promises.mkdir(targetDir, { recursive: true });
-        let fileCheckMs = timings.enabled ? Date.now() - checkT0 : 0;
-
         if (hasMultiStreamNodes) {
           // Multi-stream path — runs concurrently; unique tmpId per image prevents collisions
+          const targetDir = outputDir ?? path.dirname(inputPath);
+          const checkT0 = timings.enabled ? Date.now() : 0;
+          await fs.promises.mkdir(targetDir, { recursive: true });
+          let fileCheckMs = timings.enabled ? Date.now() - checkT0 : 0;
           const msT0 = timings.enabled ? Date.now() : 0;
           const msResult = await executeMultiStream(inputPath, imageIndex);
           const msElapsed = timings.enabled ? Date.now() - msT0 : 0;
@@ -868,7 +867,8 @@ export async function executeBatch(
             void msResult.cleanup();
           }
         } else {
-          // Single-command fast path
+          // Single-command fast path — evaluate the plan before creating the output directory
+          // so gate-suppressed images are skipped without attempting mkdir on a non-existent path.
           const plan = sharedPlan !== undefined ? sharedPlan : await buildOpArgsForImage(inputPath);
           if (plan === null) {
             skipped++;
@@ -886,6 +886,10 @@ export async function executeBatch(
             collectedTextLines.push({ index: imageIndex, value: line });
           }
           if (hasImageOutput) {
+            const targetDir = outputDir ?? path.dirname(inputPath);
+            const checkT0 = timings.enabled ? Date.now() : 0;
+            await fs.promises.mkdir(targetDir, { recursive: true });
+            let fileCheckMs = timings.enabled ? Date.now() - checkT0 : 0;
             const { opArgs, outputFormat } = plan;
             const outExt = outputFormat
               ? (FORMAT_EXT[outputFormat] ?? path.extname(renamedFileName))
