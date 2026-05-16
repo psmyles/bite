@@ -89,9 +89,11 @@
       .filter-label.info {
         color: #aaa;
       }
+
       .filter-label.warn {
         color: #f0c040;
       }
+
       .filter-label.error {
         color: #e05a5a;
       }
@@ -114,7 +116,7 @@
       }
 
       .ts {
-        color: #555;
+        color: #777;
         flex-shrink: 0;
         font-size: 11px;
         padding-top: 1px;
@@ -133,9 +135,11 @@
       .entry.info .badge {
         color: #777;
       }
+
       .entry.warn .badge {
         color: #f0c040;
       }
+
       .entry.error .badge {
         color: #e05a5a;
       }
@@ -146,12 +150,18 @@
         word-break: break-word;
       }
 
+      .msg .tag {
+        color: #02ccff;
+      }
+
       .entry.info .msg {
         color: #e0e0e0;
       }
+
       .entry.warn .msg {
         color: #f0c040;
       }
+
       .entry.error .msg {
         color: #e05a5a;
       }
@@ -159,9 +169,11 @@
       body.hide-info .entry.info {
         display: none;
       }
+
       body.hide-warn .entry.warn {
         display: none;
       }
+
       body.hide-error .entry.error {
         display: none;
       }
@@ -169,18 +181,22 @@
       ::-webkit-scrollbar {
         width: 6px;
       }
+
       ::-webkit-scrollbar-track {
         background: transparent;
       }
+
       ::-webkit-scrollbar-thumb {
         background: #333;
         border-radius: 3px;
       }
+
       ::-webkit-scrollbar-thumb:hover {
         background: #444;
       }
     </style>
   </head>
+
   <body>
     <div id="toolbar">
       <span class="label">Filter</span>
@@ -224,7 +240,16 @@
 
         const msg = document.createElement('span');
         msg.className = 'msg';
-        msg.textContent = entry.msg;
+        const tagMatch = entry.msg.match(/^(\[[^\]]+\])([\s\S]*)/);
+        if (tagMatch) {
+          const tagSpan = document.createElement('span');
+          tagSpan.className = 'tag';
+          tagSpan.textContent = tagMatch[1];
+          msg.appendChild(tagSpan);
+          msg.appendChild(document.createTextNode(tagMatch[2]));
+        } else {
+          msg.textContent = entry.msg;
+        }
 
         div.appendChild(ts);
         div.appendChild(badge);
