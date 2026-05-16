@@ -1,7 +1,9 @@
 import { app, BrowserWindow, Menu, globalShortcut, dialog, shell, ipcMain } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
+import { initLogger, log, setLogWindow, getEntries } from '../src/main/logger.js';
 import { NodeRegistry } from '../src/main/nodes/registry.js';
 import { PipelineExecutor } from '../src/main/pipeline/executor.js';
 import {
@@ -102,6 +104,24 @@ const registry = new NodeRegistry();
 const executor = new PipelineExecutor();
 
 let win: BrowserWindow | null;
+let logWin: BrowserWindow | null = null;
+
+function openLogWindow() {
+  if (logWin && !logWin.isDestroyed()) { logWin.focus(); return; }
+  logWin = new BrowserWindow({
+    width: 900,
+    height: 600,
+    title: 'imgplex — Log',
+    webPreferences: { preload: path.join(__dirname, 'preload.mjs') },
+  });
+  setLogWindow(logWin);
+  logWin.on('closed', () => { setLogWindow(null); logWin = null; });
+  if (VITE_DEV_SERVER_URL) {
+    logWin.loadURL(`${VITE_DEV_SERVER_URL}log-viewer.html`);
+  } else {
+    logWin.loadFile(path.join(RENDERER_DIST, 'log-viewer.html'));
+  }
+}
 
 function buildMenu() {
   const send = (channel: string) => () => win?.webContents.send(channel);
@@ -182,6 +202,8 @@ function buildMenu() {
             timings.enabled = item.checked;
           },
         },
+        { type: 'separator' },
+        { label: 'View Log', click: () => openLogWindow() },
       ],
     },
   ];
@@ -268,8 +290,20 @@ async function checkForUpdates() {
 }
 
 app.whenReady().then(async () => {
+  initLogger(app.getPath('logs'));
+  const _cLog = console.log.bind(console);
+  const _cWarn = console.warn.bind(console);
+  const _cError = console.error.bind(console);
+  console.log = (...a: unknown[]) => { _cLog(...a); log('info', ...a); };
+  console.warn = (...a: unknown[]) => { _cWarn(...a); log('warn', ...a); };
+  console.error = (...a: unknown[]) => { _cError(...a); log('error', ...a); };
+
   // Load node definitions before opening the window
   await registry.load(nodeDefinitionsDir);
+
+  log('info', `imgplex ${app.getVersion()} | ${process.platform}/${process.arch}`);
+  log('info', `resourcesPath: ${(process as NodeJS.Process & { resourcesPath?: string }).resourcesPath ?? 'undefined (dev)'}`);
+  log('info', `nodeDefinitionsDir: ${nodeDefinitionsDir} | exists: ${fs.existsSync(nodeDefinitionsDir)}`);
 
   // Hot-reload definitions when node-definitions folder changes
   registry.watch(nodeDefinitionsDir);
@@ -282,6 +316,8 @@ app.whenReady().then(async () => {
   registerShellHandlers();
   registerTextOutputHandlers(registry, () => win);
   registerAtlasHandlers(() => win);
+
+  ipcMain.handle(IPC.LOG_GET_ENTRIES, () => getEntries());
 
   ipcMain.handle(IPC.CHECK_FOR_UPDATES, async () => {
     try {

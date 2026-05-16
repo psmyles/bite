@@ -80,4 +80,7 @@ export const IPC = {
   TEXT_OUTPUT_WRITE_CANCEL: 'text-output:write-cancel',
   TEXT_OUTPUT_BROWSE: 'text-output:browse',
   TEXT_OUTPUT_PREVIEW: 'text-output:preview',
+  // Log viewer
+  LOG_ENTRY: 'log:entry',
+  LOG_GET_ENTRIES: 'log:get-entries',
 } as const;
