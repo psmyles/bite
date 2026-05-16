@@ -107,7 +107,10 @@ let win: BrowserWindow | null;
 let logWin: BrowserWindow | null = null;
 
 function openLogWindow() {
-  if (logWin && !logWin.isDestroyed()) { logWin.focus(); return; }
+  if (logWin && !logWin.isDestroyed()) {
+    logWin.focus();
+    return;
+  }
   logWin = new BrowserWindow({
     width: 900,
     height: 600,
@@ -115,7 +118,10 @@ function openLogWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.mjs') },
   });
   setLogWindow(logWin);
-  logWin.on('closed', () => { setLogWindow(null); logWin = null; });
+  logWin.on('closed', () => {
+    setLogWindow(null);
+    logWin = null;
+  });
   if (VITE_DEV_SERVER_URL) {
     logWin.loadURL(`${VITE_DEV_SERVER_URL}log-viewer.html`);
   } else {
@@ -294,15 +300,27 @@ app.whenReady().then(async () => {
   const _cLog = console.log.bind(console);
   const _cWarn = console.warn.bind(console);
   const _cError = console.error.bind(console);
-  console.log = (...a: unknown[]) => { _cLog(...a); log('info', ...a); };
-  console.warn = (...a: unknown[]) => { _cWarn(...a); log('warn', ...a); };
-  console.error = (...a: unknown[]) => { _cError(...a); log('error', ...a); };
+  console.log = (...a: unknown[]) => {
+    _cLog(...a);
+    log('info', ...a);
+  };
+  console.warn = (...a: unknown[]) => {
+    _cWarn(...a);
+    log('warn', ...a);
+  };
+  console.error = (...a: unknown[]) => {
+    _cError(...a);
+    log('error', ...a);
+  };
 
   // Load node definitions before opening the window
   await registry.load(nodeDefinitionsDir);
 
   log('info', `imgplex ${app.getVersion()} | ${process.platform}/${process.arch}`);
-  log('info', `resourcesPath: ${(process as NodeJS.Process & { resourcesPath?: string }).resourcesPath ?? 'undefined (dev)'}`);
+  log(
+    'info',
+    `resourcesPath: ${(process as NodeJS.Process & { resourcesPath?: string }).resourcesPath ?? 'undefined (dev)'}`
+  );
   log('info', `nodeDefinitionsDir: ${nodeDefinitionsDir} | exists: ${fs.existsSync(nodeDefinitionsDir)}`);
 
   // Hot-reload definitions when node-definitions folder changes

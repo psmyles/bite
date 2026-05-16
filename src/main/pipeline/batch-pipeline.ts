@@ -19,6 +19,7 @@ import {
   type ImageMeta,
 } from './executor-compute.js';
 import { spawnMagick } from './magick-spawn.js';
+import { log } from '../logger.js';
 import { computeNewName, type RenameParams } from '../../shared/renameUtils.js';
 import { timings } from './timing.js';
 import { TEMP_DIR, shortHash } from './thumbnail-service.js';
@@ -33,6 +34,10 @@ export async function executeBatch(
   isCancelled: () => boolean
 ): Promise<{ processed: number; skipped: number; failed: number; errors: string[]; outputFiles: string[] }> {
   const batchT0 = Date.now();
+  log(
+    'info',
+    `[batch] start: ${imagePaths.length} image(s), output: ${outputDir ?? 'same as source'}, overwrite: ${overwrite}`
+  );
   const outputFiles: string[] = [];
   const sorted = topoSort(graph.nodes, graph.edges);
 
@@ -646,9 +651,10 @@ export async function executeBatch(
         if (isCancelled()) return;
         const setIndex = setQueueIdx;
         const [middleName, suffixMap] = setEntries[setQueueIdx++];
+        log('info', `[batch] processing set (${setQueueIdx}/${totalSets}): ${middleName}`);
         activeImages.add(middleName);
         onProgress({ completed: setCompleted, total: totalSets, currentFile: middleName, active: [...activeImages] });
-        const imgT0 = timings.enabled ? Date.now() : 0;
+        const imgT0 = Date.now();
         if (timings.enabled && !_setStartupRecorded) {
           _setStartupRecorded = true;
           timings.recordStartup(Date.now() - batchT0);
@@ -678,6 +684,7 @@ export async function executeBatch(
             const msElapsed = timings.enabled ? Date.now() - msT0 : 0;
             if (msResult === null) {
               setSkipped++;
+              log('info', `[batch] skipped set (gate): ${middleName}`);
               activeImages.delete(middleName);
               onProgress({
                 completed: ++setCompleted,
@@ -701,6 +708,7 @@ export async function executeBatch(
               if (timings.enabled) fileCheckMs += Date.now() - accessT0;
               if (exists) {
                 setSkipped++;
+                log('info', `[batch] skipped set (exists): ${middleName}`);
                 activeImages.delete(middleName);
                 onProgress({
                   completed: ++setCompleted,
@@ -722,6 +730,7 @@ export async function executeBatch(
               imgEntry.copy(Date.now() - copyT0);
               imgEntry.done(Date.now() - imgT0);
             }
+            log('info', `[batch] done set (${Date.now() - imgT0}ms): ${middleName} → ${outPath}`);
             outputFiles.push(outPath);
           }
         } catch (err) {
@@ -748,6 +757,10 @@ export async function executeBatch(
       const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null);
       timings.endBatch(resolvedOutputDir);
     }
+    log(
+      'info',
+      `[batch] complete (set mode): ${setCompleted - setFailures - setSkipped} processed, ${setSkipped} skipped, ${setFailures} failed in ${Date.now() - batchT0}ms`
+    );
     return {
       processed: setCompleted - setFailures - setSkipped,
       skipped: setSkipped,
@@ -788,9 +801,10 @@ export async function executeBatch(
       const imageIndex = queueIdx; // 0-based index for rename numbering
       const inputPath = imagePaths[queueIdx++];
       const fileName = path.basename(inputPath);
+      log('info', `[batch] processing (${imageIndex + 1}/${imagePaths.length}): ${fileName}`);
       activeImages.add(fileName);
       onProgress({ completed, total: imagePaths.length, currentFile: fileName, active: [...activeImages] });
-      const imgT0 = timings.enabled ? Date.now() : 0;
+      const imgT0 = Date.now();
       if (timings.enabled && !_startupRecorded) {
         _startupRecorded = true;
         timings.recordStartup(Date.now() - batchT0);
@@ -817,6 +831,7 @@ export async function executeBatch(
           const msElapsed = timings.enabled ? Date.now() - msT0 : 0;
           if (msResult === null) {
             skipped++;
+            log('info', `[batch] skipped (gate): ${fileName}`);
             activeImages.delete(fileName);
             onProgress({
               completed: ++completed,
@@ -841,6 +856,7 @@ export async function executeBatch(
               if (timings.enabled) fileCheckMs += Date.now() - accessT0;
               if (exists) {
                 skipped++;
+                log('info', `[batch] skipped (exists): ${fileName}`);
                 activeImages.delete(fileName);
                 onProgress({
                   completed: ++completed,
@@ -862,6 +878,7 @@ export async function executeBatch(
               imgEntry.copy(Date.now() - copyT0);
               imgEntry.done(Date.now() - imgT0);
             }
+            log('info', `[batch] done (${Date.now() - imgT0}ms): ${fileName} → ${outPath}`);
             outputFiles.push(outPath);
           } else {
             void msResult.cleanup();
@@ -872,6 +889,7 @@ export async function executeBatch(
           const plan = sharedPlan !== undefined ? sharedPlan : await buildOpArgsForImage(inputPath);
           if (plan === null) {
             skipped++;
+            log('info', `[batch] skipped (gate): ${fileName}`);
             activeImages.delete(fileName);
             onProgress({
               completed: ++completed,
@@ -906,6 +924,7 @@ export async function executeBatch(
               if (timings.enabled) fileCheckMs += Date.now() - accessT0;
               if (exists) {
                 skipped++;
+                log('info', `[batch] skipped (exists): ${fileName}`);
                 activeImages.delete(fileName);
                 onProgress({
                   completed: ++completed,
@@ -938,6 +957,7 @@ export async function executeBatch(
                 imgEntry.done(Date.now() - imgT0);
               }
             }
+            log('info', `[batch] done (${Date.now() - imgT0}ms): ${fileName} → ${outPath}`);
             outputFiles.push(outPath);
           }
         }
@@ -994,5 +1014,9 @@ export async function executeBatch(
     const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null);
     timings.endBatch(resolvedOutputDir);
   }
+  log(
+    'info',
+    `[batch] complete: ${completed - failures - skipped} processed, ${skipped} skipped, ${failures} failed in ${Date.now() - batchT0}ms`
+  );
   return { processed: completed - failures - skipped, skipped, failed: failures, errors, outputFiles };
 }

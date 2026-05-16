@@ -18,6 +18,7 @@ import {
 } from '../pipeline/executor-compute.js';
 import { IPC } from '../../shared/constants.js';
 import { writeOutputLog } from '../pipeline/output-log.js';
+import { log } from '../logger.js';
 
 function valueToString(val: unknown): string {
   if (val === null || val === undefined) return '';
@@ -295,6 +296,7 @@ export function registerTextOutputHandlers(registry: NodeRegistry, getWin: () =>
       const { connectedPorts, portSources, conditionSource, sep } = extractTextPortConfig(txNode, graph, nodeId);
       if (connectedPorts.length === 0) throw new Error('No input ports are connected.');
 
+      log('info', `[text-output] write start: ${imagePaths.length} image(s) → ${outputPath}`);
       _writeCancelled = false;
       const win = getWin();
       const ctx = buildResolveContext(graph, registry);
@@ -328,7 +330,10 @@ export function registerTextOutputHandlers(registry: NodeRegistry, getWin: () =>
       await Promise.all(Array.from({ length: concurrency }, worker));
       const lines = collectedLines.sort((a, b) => a.index - b.index).map((r) => r.line);
 
-      if (_writeCancelled) throw new Error('CANCELLED');
+      if (_writeCancelled) {
+        log('warn', '[text-output] write cancelled');
+        throw new Error('CANCELLED');
+      }
 
       if (lines.length === 0) throw new Error('No lines were written — all images were filtered out by the condition.');
       if (!lines.some((l) => l.trim() !== '')) throw new Error('All values resolved to empty — file not written.');
@@ -337,6 +342,7 @@ export function registerTextOutputHandlers(registry: NodeRegistry, getWin: () =>
       if (!filePath.toLowerCase().endsWith('.txt')) filePath += '.txt';
 
       await fs.promises.writeFile(filePath, lines.join('\n') + '\n', 'utf-8');
+      log('info', `[text-output] written: ${lines.length} line(s) → ${filePath}`);
       if (generateLog) {
         await writeOutputLog({
           outputFiles: [filePath],

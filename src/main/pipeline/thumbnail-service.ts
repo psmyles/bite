@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { ImageInfo } from '../../shared/types.js';
+import { log } from '../logger.js';
 import { getMagickBinary } from './magick-path.js';
 import { readHeaderDimensions, fileToDataUrl } from './image-header.js';
 import { spawnMagick } from './magick-spawn.js';
@@ -212,6 +213,11 @@ export async function loadImageWithThumbnailBatch(
       }
     }
   }
+  const cached = imagePaths.length - fastMisses.length - slowMisses.length;
+  log(
+    'info',
+    `[import] ${imagePaths.length} file(s): ${fastMisses.length} fast-miss, ${slowMisses.length} slow-miss, ${cached} cached`
+  );
 
   // ── Phase 2b: meta-only identify for slow-path cached images ─────────────
   for (const i of metaOnlyMisses) {
@@ -270,6 +276,7 @@ export async function loadImageWithThumbnailBatch(
 
     if (batchOk) {
       fastThumbMs = Date.now() - batchSpawnT0;
+      log('info', `[import] batch thumb spawn: ${fastMisses.length} file(s) in ${fastThumbMs}ms`);
       for (const i of fastMisses) {
         _metaCache.set(imagePaths[i], { width: hdrs[i]!.width, height: hdrs[i]!.height, format: hdrs[i]!.format });
       }

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { NodeGraph } from '../../shared/types.js';
+import { log } from '../logger.js';
 import { PREVIEW_MAX_EDGE_PX, EXECUTOR } from '../../shared/constants.js';
 import { topoSort, applyParamWires } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
@@ -21,6 +22,10 @@ export async function executePreview(
   fromNodeId?: string
 ): Promise<{ dataUrl: string; propParams: Record<string, Record<string, unknown>> }> {
   await fs.promises.mkdir(TEMP_DIR, { recursive: true });
+  log(
+    'info',
+    `[preview] start: ${path.basename(imagePath)} | ${graph.nodes.length} node(s)${fromNodeId ? ` (from ${fromNodeId})` : ''}`
+  );
 
   // Always downscale proportionally first — this keeps the data URL small and
   // ensures the image has the correct aspect ratio (no square padding).
@@ -350,5 +355,6 @@ export async function executePreview(
     }
   }
 
+  log('info', `[preview] done: ${path.basename(imagePath)}`);
   return { dataUrl: await fileToDataUrl(finalPath), propParams };
 }

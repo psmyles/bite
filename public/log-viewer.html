@@ -16,7 +16,13 @@
         font-style: normal;
       }
 
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
       body {
         background: #141414;
@@ -55,16 +61,22 @@
         font-size: 11px;
       }
 
-      .filter-label input[type="checkbox"] {
+      .filter-label input[type='checkbox'] {
         accent-color: #555;
         width: 13px;
         height: 13px;
         cursor: pointer;
       }
 
-      .filter-label.info  { color: #aaa; }
-      .filter-label.warn  { color: #f0c040; }
-      .filter-label.error { color: #e05a5a; }
+      .filter-label.info {
+        color: #aaa;
+      }
+      .filter-label.warn {
+        color: #f0c040;
+      }
+      .filter-label.error {
+        color: #e05a5a;
+      }
 
       #log-list {
         flex: 1;
@@ -79,7 +91,9 @@
         line-height: 1.55;
       }
 
-      .entry:hover { background: #1c1c1c; }
+      .entry:hover {
+        background: #1c1c1c;
+      }
 
       .ts {
         color: #555;
@@ -98,9 +112,15 @@
         white-space: nowrap;
       }
 
-      .entry.info  .badge { color: #777; }
-      .entry.warn  .badge { color: #f0c040; }
-      .entry.error .badge { color: #e05a5a; }
+      .entry.info .badge {
+        color: #777;
+      }
+      .entry.warn .badge {
+        color: #f0c040;
+      }
+      .entry.error .badge {
+        color: #e05a5a;
+      }
 
       .msg {
         flex: 1;
@@ -108,32 +128,47 @@
         word-break: break-word;
       }
 
-      .entry.info  .msg { color: #e0e0e0; }
-      .entry.warn  .msg { color: #f0c040; }
-      .entry.error .msg { color: #e05a5a; }
+      .entry.info .msg {
+        color: #e0e0e0;
+      }
+      .entry.warn .msg {
+        color: #f0c040;
+      }
+      .entry.error .msg {
+        color: #e05a5a;
+      }
 
-      body.hide-info  .entry.info  { display: none; }
-      body.hide-warn  .entry.warn  { display: none; }
-      body.hide-error .entry.error { display: none; }
+      body.hide-info .entry.info {
+        display: none;
+      }
+      body.hide-warn .entry.warn {
+        display: none;
+      }
+      body.hide-error .entry.error {
+        display: none;
+      }
 
-      ::-webkit-scrollbar { width: 6px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-      ::-webkit-scrollbar-thumb:hover { background: #444; }
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #444;
+      }
     </style>
   </head>
   <body>
     <div id="toolbar">
       <span class="label">Filter</span>
-      <label class="filter-label info">
-        <input type="checkbox" data-level="info" checked /> Info
-      </label>
-      <label class="filter-label warn">
-        <input type="checkbox" data-level="warn" checked /> Warning
-      </label>
-      <label class="filter-label error">
-        <input type="checkbox" data-level="error" checked /> Error
-      </label>
+      <label class="filter-label info"> <input type="checkbox" data-level="info" checked /> Info </label>
+      <label class="filter-label warn"> <input type="checkbox" data-level="warn" checked /> Warning </label>
+      <label class="filter-label error"> <input type="checkbox" data-level="error" checked /> Error </label>
     </div>
     <div id="log-list"></div>
 

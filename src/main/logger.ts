@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export interface LogEntry { ts: string; level: 'info' | 'warn' | 'error'; msg: string }
+export interface LogEntry {
+  ts: string;
+  level: 'info' | 'warn' | 'error';
+  msg: string;
+}
 
 interface LogWindow {
   isDestroyed(): boolean;
@@ -18,13 +22,19 @@ export function initLogger(logDir: string): void {
   logStream.write(`\n--- Session ${new Date().toISOString()} ---\n`);
 }
 
-export function setLogWindow(win: LogWindow | null): void { logWin = win; }
-export function getEntries(): LogEntry[] { return entries; }
+export function setLogWindow(win: LogWindow | null): void {
+  logWin = win;
+}
+export function getEntries(): LogEntry[] {
+  return entries;
+}
 
 export function log(level: LogEntry['level'], ...args: unknown[]): void {
   const ts = new Date().toISOString();
   const msg = args
-    .map((a) => a instanceof Error ? `${a.message}\n${a.stack ?? ''}` : typeof a === 'object' ? JSON.stringify(a) : String(a))
+    .map((a) =>
+      a instanceof Error ? `${a.message}\n${a.stack ?? ''}` : typeof a === 'object' ? JSON.stringify(a) : String(a)
+    )
     .join(' ');
   const entry: LogEntry = { ts, level, msg };
   entries.push(entry);

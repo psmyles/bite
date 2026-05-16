@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { log } from '../logger.js';
 
 export async function writeOutputLog(opts: {
   outputFiles: string[];
@@ -41,4 +42,8 @@ export async function writeOutputLog(opts: {
   const logDir = opts.outputDir ?? path.dirname(opts.outputFiles[0]);
   await fs.promises.mkdir(logDir, { recursive: true });
   await fs.promises.writeFile(path.join(logDir, logName), content, 'utf-8');
+  log(
+    'info',
+    `[output-log] wrote ${opts.outputFiles.length} file(s) in ${durationStr} → ${path.join(logDir, logName)}`
+  );
 }

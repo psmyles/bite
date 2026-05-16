@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { writeOutputLog } from '../pipeline/output-log.js';
+import { log } from '../logger.js';
 import { scanFolder } from '../pipeline/scan-folder.js';
 import type { NodeGraph } from '../../shared/types.js';
 import type { NodeRegistry } from '../nodes/registry.js';
@@ -51,6 +52,7 @@ export function registerPipelineHandlers(
   ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_START, async (_e, paths: string[], size: number) => {
     _streamCancelled = false;
     const importT0 = Date.now();
+    log('info', `[import] streaming start: ${paths.length} file(s)`);
     if (timings.enabled) timings.startImport(paths.length);
     const win = getWin();
     const concurrency = os.cpus().length;
@@ -71,6 +73,7 @@ export function registerPipelineHandlers(
           const results = await executor.loadImageWithThumbnailBatch(batch, size);
           for (const result of results) {
             allResults.push(result);
+            log('info', `[import] ${result.name} ${result.width}×${result.height} ${result.format}`);
             if (!_streamCancelled) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result);
           }
         } catch (err) {
@@ -80,6 +83,7 @@ export function registerPipelineHandlers(
     }
 
     await Promise.all(Array.from({ length: concurrency }, worker));
+    log('info', `[import] complete: ${allResults.length} file(s) in ${Date.now() - importT0}ms`);
     if (timings.enabled) timings.endImport(Date.now() - importT0);
     // Return all results so the renderer can recover any events that arrived
     // after the listener was torn down (IPC send vs invoke-resolve race).

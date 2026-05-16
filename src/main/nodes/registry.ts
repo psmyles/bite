@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { NodeDefinition, VisibilityRule } from '../../shared/types.js';
+import { log } from '../logger.js';
 
 type ChangeListener = (definitions: NodeDefinition[]) => void;
 
@@ -34,8 +35,10 @@ export class NodeRegistry {
         if (!filename?.endsWith('.json')) return;
         if (this.debounceTimer) clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(async () => {
+          log('info', `[registry] Hot-reload triggered: ${filename ?? 'unknown file'} changed`);
           await this.load(nodeDefinitionsDir);
           this.notify();
+          log('info', `[registry] Hot-reload complete: ${this.definitions.size} definition(s) active`);
         }, 100);
       });
       console.log(`[registry] Watching ${nodeDefinitionsDir}`);

@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { getMagickBinary } from '../pipeline/magick-path.js';
 import { IPC } from '../../shared/constants.js';
 import { writeOutputLog } from '../pipeline/output-log.js';
+import { log } from '../logger.js';
 
 interface AtlasConfig {
   outputPath: string;
@@ -35,6 +36,10 @@ export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void 
   ipcMain.handle(IPC.ATLAS_GENERATE, async (_e, imagePaths: string[], config: AtlasConfig) => {
     const { outputPath, rows, cols, cellWidth, cellHeight, sortBy, generateLog } = config;
     const atlasT0 = Date.now();
+    log(
+      'info',
+      `[atlas] generate start: ${imagePaths.length} image(s), ${cols}×${rows} grid (${cellWidth}×${cellHeight}px) → ${outputPath}`
+    );
 
     if (!outputPath?.trim()) throw new Error('No output file path specified.');
     if (imagePaths.length === 0) throw new Error('No images loaded.');
@@ -77,10 +82,18 @@ export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void 
         stderr += d.toString();
       });
       child.on('close', (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`magick montage exited with code ${code}: ${stderr.slice(0, 300).trim()}`));
+        if (code === 0) {
+          log('info', `[atlas] done in ${Date.now() - atlasT0}ms → ${outputPath}`);
+          resolve();
+        } else {
+          log('error', `[atlas] failed (code ${code}): ${stderr.slice(0, 300).trim()}`);
+          reject(new Error(`magick montage exited with code ${code}: ${stderr.slice(0, 300).trim()}`));
+        }
       });
-      child.on('error', (err: Error) => reject(new Error(`Failed to launch magick: ${err.message}`)));
+      child.on('error', (err: Error) => {
+        log('error', `[atlas] spawn failed: ${err.message}`);
+        reject(new Error(`Failed to launch magick: ${err.message}`));
+      });
     });
 
     if (generateLog) {
