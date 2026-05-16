@@ -52,6 +52,24 @@
         text-transform: uppercase;
       }
 
+      #btn-clear {
+        margin-left: auto;
+        background: none;
+        border: 1px solid #333;
+        border-radius: 3px;
+        color: #666;
+        font-family: inherit;
+        font-size: 11px;
+        padding: 2px 8px;
+        cursor: pointer;
+        letter-spacing: 0.04em;
+      }
+
+      #btn-clear:hover {
+        border-color: #555;
+        color: #aaa;
+      }
+
       .filter-label {
         display: flex;
         align-items: center;
@@ -169,6 +187,7 @@
       <label class="filter-label info"> <input type="checkbox" data-level="info" checked /> Info </label>
       <label class="filter-label warn"> <input type="checkbox" data-level="warn" checked /> Warning </label>
       <label class="filter-label error"> <input type="checkbox" data-level="error" checked /> Error </label>
+      <button id="btn-clear">Clear</button>
     </div>
     <div id="log-list"></div>
 
@@ -179,6 +198,10 @@
         cb.addEventListener('change', () => {
           document.body.classList.toggle('hide-' + cb.dataset.level, !cb.checked);
         });
+      });
+
+      document.getElementById('btn-clear').addEventListener('click', () => {
+        logList.innerHTML = '';
       });
 
       function formatTs(iso) {
