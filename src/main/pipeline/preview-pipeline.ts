@@ -23,7 +23,7 @@ export async function executePreview(
 ): Promise<{ dataUrl: string; propParams: Record<string, Record<string, unknown>> }> {
   await fs.promises.mkdir(TEMP_DIR, { recursive: true });
   const inputNode = graph.nodes.find((n) => n.id === 'workflow-input');
-  const thumbnailSize = Number((inputNode?.data.params as Record<string, unknown> | undefined)?.thumbnailSize ?? 128);
+  const thumbnailSize = Number((inputNode?.data.params as Record<string, unknown> | undefined)?.thumbnailSize ?? 256);
   // Reuse the import thumbnail WebP as the preview input — avoids a second magick
   // spawn when the image was already imported. Falls back to generating it if missing
   // (e.g. preview triggered before import, or thumbnail size changed).

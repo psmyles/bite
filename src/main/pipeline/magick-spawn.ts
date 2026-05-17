@@ -2,13 +2,19 @@ import { spawn } from 'node:child_process';
 import { getMagickBinary } from './magick-path.js';
 import { log } from '../logger.js';
 
-export function spawnMagick(args: string[], bucket?: { add(ms: number): void }, timeoutMs?: number): Promise<void> {
+export function spawnMagick(
+  args: string[],
+  bucket?: { add(ms: number): void },
+  timeoutMs?: number,
+  verboseOut?: string[]
+): Promise<void> {
   const t0 = Date.now();
   const label = `${args[0] ?? ''}${args.length > 1 ? ` → ${args[args.length - 1]}` : ''} (${args.length} args)`;
   log('info', `[magick] spawn: ${label}`);
   return new Promise((resolve, reject) => {
     const proc = spawn(getMagickBinary(), args);
     const stderr: string[] = [];
+    const stdout: string[] = [];
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     if (timeoutMs !== undefined) {
@@ -20,12 +26,14 @@ export function spawnMagick(args: string[], bucket?: { add(ms: number): void }, 
       }, timeoutMs);
     }
 
+    proc.stdout.on('data', (chunk: Buffer) => stdout.push(chunk.toString()));
     proc.stderr.on('data', (chunk: Buffer) => stderr.push(chunk.toString()));
     proc.on('close', (code) => {
       clearTimeout(timer);
       if (bucket) bucket.add(Date.now() - t0);
       if (code === 0) {
         log('info', `[magick] done in ${Date.now() - t0}ms: ${label}`);
+        if (verboseOut) verboseOut.push(stdout.join('') + stderr.join(''));
         resolve();
       } else {
         log('error', `[magick] exited ${code} in ${Date.now() - t0}ms: ${stderr.join('').trim().slice(0, 300)}`);

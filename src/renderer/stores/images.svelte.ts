@@ -56,7 +56,7 @@ class ImageStore {
     try {
       const inputNode = graphStore.nodes.find((n) => n.id === 'workflow-input');
       const inputParams = (inputNode?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined;
-      const thumbSize = Number(inputParams?.thumbnailSize ?? 128);
+      const thumbSize = Number(inputParams?.thumbnailSize ?? 256);
       const allResults: ImageInfo[] = await window.ipcRenderer.invoke(
         IPC.LOAD_IMAGES_STREAMING_START,
         paths,

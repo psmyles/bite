@@ -24,6 +24,46 @@ import { computeNewName, type RenameParams } from '../../shared/renameUtils.js';
 import { timings } from './timing.js';
 import { TEMP_DIR, shortHash } from './thumbnail-service.js';
 
+/**
+ * Parse the compact IM7 verbose line into labeled fields.
+ * Format: input=>output FORMAT WxH WxH+X+Y DEPTH colorspace... FILESIZE USERu ELAPSED
+ */
+function formatVerboseEntry(fileName: string, rawText: string): string {
+  const lines = rawText
+    .trim()
+    .split('\n')
+    .filter((l) => l.trim());
+  const line = lines[0] ?? '';
+  const arrowIdx = line.indexOf('=>');
+  let out = `[verbose] ${fileName}\n`;
+
+  if (arrowIdx !== -1) {
+    const rest = line.slice(arrowIdx + 2).trim();
+    const parts = rest.split(/\s+/);
+    // parts: [outputPath, FORMAT, WxH, WxH+X+Y, DEPTH, ...colorspace, FILESIZE, USERu, ELAPSED]
+    if (parts.length >= 9) {
+      const [, format, canvas, , depth, ...middle] = parts;
+      const elapsedRaw = middle[middle.length - 1] ?? '';
+      const fileSize = middle[middle.length - 3] ?? '';
+      const colorspace = middle.slice(0, middle.length - 3).join(' ');
+      // Parse M:SS.mmm elapsed into plain seconds
+      const [minPart, secPart] = elapsedRaw.split(':');
+      const elapsedSec = (parseInt(minPart ?? '0', 10) * 60 + parseFloat(secPart ?? '0')).toFixed(3);
+      out += `  format:      ${format}\n`;
+      out += `  dimensions:  ${canvas}\n`;
+      out += `  depth:       ${depth}\n`;
+      if (colorspace) out += `  colorspace:  ${colorspace}\n`;
+      out += `  file size:   ${fileSize}\n`;
+      out += `  time:        ${elapsedSec} sec\n`;
+    } else {
+      out += lines.map((l) => '  ' + l).join('\n') + '\n';
+    }
+  } else {
+    out += lines.map((l) => '  ' + l).join('\n') + '\n';
+  }
+  return out;
+}
+
 export async function executeBatch(
   graph: NodeGraph,
   imagePaths: string[],
@@ -39,6 +79,7 @@ export async function executeBatch(
     `[batch] start: ${imagePaths.length} image(s), output: ${outputDir ?? 'same as source'}, overwrite: ${overwrite}`
   );
   const outputFiles: string[] = [];
+  const batchVerboseEntries: string[] = [];
   const sorted = topoSort(graph.nodes, graph.edges);
 
   // Text Output nodes — treated as "output sinks" so upstream nodes (mean_value, etc.)
@@ -236,7 +277,8 @@ export async function executeBatch(
   const executeMultiStream = async (
     inputPath: string,
     imageIndex: number,
-    extraSeeds?: Map<string, string>
+    extraSeeds?: Map<string, string>,
+    verboseOut?: string[]
   ): Promise<{ resultPath: string; outputExt: string; cleanup: () => Promise<void> } | null> => {
     const tmpId = shortHash(inputPath + String(imageIndex));
     let _seq = 0;
@@ -267,7 +309,8 @@ export async function executeBatch(
         return v.base;
       }
       const out = newTmp();
-      await spawnMagick([v.base, ...v.args, out]);
+      const matVerboseArgs = verboseOut ? ['-verbose'] : [];
+      await spawnMagick([v.base, ...matVerboseArgs, ...v.args, out], undefined, undefined, verboseOut);
       buffers.set(key, out); // upgrade to concrete path so re-materialisation is free
       return out;
     };
@@ -529,7 +572,13 @@ export async function executeBatch(
         };
         outputExt = fmtExts[fmt] ?? outputExt;
         const out = newTmp(outputExt);
-        await spawnMagick([src, '-quality', String(params.quality ?? 90), `${fmt}:${out}`]);
+        const fmtVerboseArgs = verboseOut ? ['-verbose'] : [];
+        await spawnMagick(
+          [src, ...fmtVerboseArgs, '-quality', String(params.quality ?? 90), `${fmt}:${out}`],
+          undefined,
+          undefined,
+          verboseOut
+        );
         buffers.set(`${node.id}:out-0`, out);
       } else if (params._enabled !== false) {
         // Standard image op — fuse into a lazy chain when safe to do so.
@@ -582,7 +631,8 @@ export async function executeBatch(
       // needs a different format (e.g. .PNG), do a single conversion spawn.
       if (path.extname(finalVal).toLowerCase() !== outputExt.toLowerCase()) {
         const finalOut = newTmp(outputExt);
-        await spawnMagick([finalVal, finalOut]);
+        const extVerboseArgs = verboseOut ? ['-verbose'] : [];
+        await spawnMagick([finalVal, ...extVerboseArgs, finalOut], undefined, undefined, verboseOut);
         return { resultPath: finalOut, outputExt, cleanup };
       }
       return { resultPath: finalVal, outputExt, cleanup };
@@ -590,8 +640,15 @@ export async function executeBatch(
 
     // Final materialisation: use the correct output extension (not always .png).
     const finalOut = newTmp(outputExt);
-    if (finalVal.args.length > 0) await spawnMagick([finalVal.base, ...finalVal.args, finalOut]);
-    else await fs.promises.copyFile(finalVal.base, finalOut);
+    if (finalVal.args.length > 0) {
+      const finalVerboseArgs = verboseOut ? ['-verbose'] : [];
+      await spawnMagick(
+        [finalVal.base, ...finalVerboseArgs, ...finalVal.args, finalOut],
+        undefined,
+        undefined,
+        verboseOut
+      );
+    } else await fs.promises.copyFile(finalVal.base, finalOut);
     return { resultPath: finalOut, outputExt, cleanup };
   };
 
@@ -599,7 +656,7 @@ export async function executeBatch(
   if (outputNodeTextMode && (outputNode?.data.params as Record<string, unknown> | undefined)?.usePreviewForProcessing) {
     const inputNode = graph.nodes.find((n) => n.id === 'workflow-input');
     const inputParams = (inputNode?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined;
-    const thumbSizePx = Number(inputParams?.thumbnailSize ?? 128);
+    const thumbSizePx = Number(inputParams?.thumbnailSize ?? 256);
     const thumbPath = (p: string) => path.join(TEMP_DIR, `thumb_${shortHash(p)}_${thumbSizePx}.webp`);
     imagePaths = await Promise.all(
       imagePaths.map(async (p) => {
@@ -827,7 +884,13 @@ export async function executeBatch(
           await fs.promises.mkdir(targetDir, { recursive: true });
           let fileCheckMs = timings.enabled ? Date.now() - checkT0 : 0;
           const msT0 = timings.enabled ? Date.now() : 0;
-          const msResult = await executeMultiStream(inputPath, imageIndex);
+          const msVerboseCapture: string[] = [];
+          const msResult = await executeMultiStream(
+            inputPath,
+            imageIndex,
+            undefined,
+            timings.enabled ? msVerboseCapture : undefined
+          );
           const msElapsed = timings.enabled ? Date.now() - msT0 : 0;
           if (msResult === null) {
             skipped++;
@@ -880,6 +943,10 @@ export async function executeBatch(
             }
             log('info', `[batch] done (${Date.now() - imgT0}ms): ${fileName} → ${outPath}`);
             outputFiles.push(outPath);
+            if (timings.enabled && msVerboseCapture.length > 0) {
+              const verboseText = msVerboseCapture.join('').trim();
+              if (verboseText) batchVerboseEntries.push(formatVerboseEntry(fileName, verboseText));
+            }
           } else {
             void msResult.cleanup();
           }
@@ -938,7 +1005,18 @@ export async function executeBatch(
 
             if (opArgs.length > 0 || outputFormat) {
               const fmtOut = outputFormat ? `${outputFormat}:${outPath}` : outPath;
-              await spawnMagick([inputPath, ...opArgs, fmtOut], magickBucket ?? undefined);
+              const verboseCapture: string[] = [];
+              const verboseArgs = timings.enabled ? ['-verbose'] : [];
+              await spawnMagick(
+                [inputPath, ...verboseArgs, ...opArgs, fmtOut],
+                magickBucket ?? undefined,
+                undefined,
+                timings.enabled ? verboseCapture : undefined
+              );
+              if (timings.enabled && verboseCapture.length > 0) {
+                const verboseText = verboseCapture.join('').trim();
+                if (verboseText) batchVerboseEntries.push(formatVerboseEntry(fileName, verboseText));
+              }
               if (timings.enabled && magickBucket) {
                 const imgEntry = timings.beginImage(inputPath);
                 imgEntry.fileCheck(fileCheckMs);
@@ -1013,6 +1091,11 @@ export async function executeBatch(
   if (timings.enabled) {
     const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null);
     timings.endBatch(resolvedOutputDir);
+    if (batchVerboseEntries.length > 0 && resolvedOutputDir) {
+      fs.promises
+        .appendFile(path.join(resolvedOutputDir, 'perf.log'), batchVerboseEntries.join('\n') + '\n')
+        .catch(() => {});
+    }
   }
   log(
     'info',
