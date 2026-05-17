@@ -123,7 +123,7 @@ project-root/
 │   │   │   ├── imageNodeExecutors.ts — Registers executors for image-processing nodes with logic beyond a template
 │   │   │   ├── command-builder.ts   — Converts command_template / command_js + resolved params into string[] of ImageMagick args
 │   │   │   ├── cache.ts             — Node-level output cache (PreviewCache) keyed by nodeId:inputHash
-│   │   │   ├── timing.ts            — Optional perf instrumentation (timings.enabled); logs batch phases and per-image magick time
+│   │   │   ├── timing.ts            — Optional perf instrumentation (timings.enabled); writes perf.log with batch timing summary and per-image ImageMagick verbose output
 │   │   │   ├── output-log.ts        — Writes a timestamped output log file to the output directory after a batch completes
 │   │   │   ├── scan-folder.ts       — scanFolder(root, recursive, extSet): recursively lists files matching a set of extensions
 │   │   │   └── magick-path.ts       — Resolves bundled resources/win/magick/magick.exe in production, system magick in dev
