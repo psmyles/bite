@@ -33,7 +33,12 @@ export function spawnMagick(
       if (bucket) bucket.add(Date.now() - t0);
       if (code === 0) {
         log('info', `[magick] done in ${Date.now() - t0}ms: ${label}`);
-        if (verboseOut) verboseOut.push(stdout.join('') + stderr.join(''));
+        if (verboseOut) {
+          const capturedStdout = stdout.join('');
+          const capturedStderr = stderr.join('');
+          log('info', `[magick] verbose capture: stdout=${capturedStdout.length}B stderr=${capturedStderr.length}B`);
+          verboseOut.push(capturedStdout + capturedStderr);
+        }
         resolve();
       } else {
         log('error', `[magick] exited ${code} in ${Date.now() - t0}ms: ${stderr.join('').trim().slice(0, 300)}`);

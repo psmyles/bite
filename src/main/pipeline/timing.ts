@@ -101,7 +101,7 @@ export class TimingCollector {
     };
   }
 
-  endBatch(outputDir: string | null): void {
+  endBatch(outputDir: string | null, verboseEntries?: string[]): void {
     const b = this._currentBatch;
     if (!b) return;
     this._currentBatch = null;
@@ -159,7 +159,9 @@ export class TimingCollector {
     console.log(block);
 
     if (outputDir) {
-      fs.promises.appendFile(path.join(outputDir, 'perf.log'), block + '\n\n').catch(() => {});
+      const extra =
+        verboseEntries && verboseEntries.length > 0 ? verboseEntries.join('\n') + '\n' : '';
+      fs.promises.appendFile(path.join(outputDir, 'perf.log'), block + '\n\n' + extra).catch(() => {});
     }
   }
 

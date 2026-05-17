@@ -53,7 +53,7 @@ function formatVerboseEntry(fileName: string, rawText: string): string {
       out += `  dimensions:  ${canvas}\n`;
       out += `  depth:       ${depth}\n`;
       if (colorspace) out += `  colorspace:  ${colorspace}\n`;
-      out += `  file size:   ${fileSize}\n`;
+      out += `  file size:   ${fileSize.replace(/([0-9.]+)([A-Za-z]+)/, '$1 $2')}\n`;
       out += `  time:        ${elapsedSec} sec\n`;
     } else {
       out += lines.map((l) => '  ' + l).join('\n') + '\n';
@@ -310,7 +310,7 @@ export async function executeBatch(
       }
       const out = newTmp();
       const matVerboseArgs = verboseOut ? ['-verbose'] : [];
-      await spawnMagick([v.base, ...matVerboseArgs, ...v.args, out], undefined, undefined, verboseOut);
+      await spawnMagick([...matVerboseArgs, v.base, ...v.args, out], undefined, undefined, verboseOut);
       buffers.set(key, out); // upgrade to concrete path so re-materialisation is free
       return out;
     };
@@ -574,7 +574,7 @@ export async function executeBatch(
         const out = newTmp(outputExt);
         const fmtVerboseArgs = verboseOut ? ['-verbose'] : [];
         await spawnMagick(
-          [src, ...fmtVerboseArgs, '-quality', String(params.quality ?? 90), `${fmt}:${out}`],
+          [...fmtVerboseArgs, src, '-quality', String(params.quality ?? 90), `${fmt}:${out}`],
           undefined,
           undefined,
           verboseOut
@@ -632,7 +632,7 @@ export async function executeBatch(
       if (path.extname(finalVal).toLowerCase() !== outputExt.toLowerCase()) {
         const finalOut = newTmp(outputExt);
         const extVerboseArgs = verboseOut ? ['-verbose'] : [];
-        await spawnMagick([finalVal, ...extVerboseArgs, finalOut], undefined, undefined, verboseOut);
+        await spawnMagick([...extVerboseArgs, finalVal, finalOut], undefined, undefined, verboseOut);
         return { resultPath: finalOut, outputExt, cleanup };
       }
       return { resultPath: finalVal, outputExt, cleanup };
@@ -643,7 +643,7 @@ export async function executeBatch(
     if (finalVal.args.length > 0) {
       const finalVerboseArgs = verboseOut ? ['-verbose'] : [];
       await spawnMagick(
-        [finalVal.base, ...finalVerboseArgs, ...finalVal.args, finalOut],
+        [...finalVerboseArgs, finalVal.base, ...finalVal.args, finalOut],
         undefined,
         undefined,
         verboseOut
@@ -1008,7 +1008,7 @@ export async function executeBatch(
               const verboseCapture: string[] = [];
               const verboseArgs = timings.enabled ? ['-verbose'] : [];
               await spawnMagick(
-                [inputPath, ...verboseArgs, ...opArgs, fmtOut],
+                [...verboseArgs, inputPath, ...opArgs, fmtOut],
                 magickBucket ?? undefined,
                 undefined,
                 timings.enabled ? verboseCapture : undefined
@@ -1090,12 +1090,7 @@ export async function executeBatch(
 
   if (timings.enabled) {
     const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null);
-    timings.endBatch(resolvedOutputDir);
-    if (batchVerboseEntries.length > 0 && resolvedOutputDir) {
-      fs.promises
-        .appendFile(path.join(resolvedOutputDir, 'perf.log'), batchVerboseEntries.join('\n') + '\n')
-        .catch(() => {});
-    }
+    timings.endBatch(resolvedOutputDir, batchVerboseEntries.length > 0 ? batchVerboseEntries : undefined);
   }
   log(
     'info',
