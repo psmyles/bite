@@ -159,8 +159,7 @@ export class TimingCollector {
     console.log(block);
 
     if (outputDir) {
-      const extra =
-        verboseEntries && verboseEntries.length > 0 ? verboseEntries.join('\n') + '\n' : '';
+      const extra = verboseEntries && verboseEntries.length > 0 ? verboseEntries.join('\n') + '\n' : '';
       fs.promises.appendFile(path.join(outputDir, 'perf.log'), block + '\n\n' + extra).catch(() => {});
     }
   }
