@@ -22,16 +22,7 @@ export default defineConfig({
           main: 'electron/main.ts',
           cli: 'src/cli/index.ts',
         },
-        vite: {
-          build: {
-            rollupOptions: {
-              output: {
-                preserveModules: true,
-                preserveModulesRoot: 'src',
-              },
-            },
-          },
-        },
+        vite: {},
       },
       preload: {
         // Shortcut of `build.rollupOptions.input`.

@@ -5,7 +5,7 @@
   "description": "A GUI batch workflow builder that uses Imagemagick for processing",
   "private": true,
   "version": "0.1.5",
-  "type": "module",
+  "type": "commonjs",
   "bin": {
     "imgplex": "./dist-electron/cli.js"
   },
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@yao-pkg/pkg": "^6.14.1",
-    "electron": "^30.0.1",
+    "electron": "^42.1.0",
     "electron-builder": "^24.13.3",
     "eslint": "^10.3.0",
     "eslint-plugin-svelte": "^3.17.1",
