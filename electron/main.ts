@@ -115,6 +115,7 @@ function openLogWindow() {
     width: 900,
     height: 600,
     title: 'imgplex — Log',
+    autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.mjs') },
   });
   setLogWindow(logWin);
