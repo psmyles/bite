@@ -17,6 +17,7 @@ import {
   registerAtlasHandlers,
 } from '../src/main/ipc/handlers.js';
 import { timings } from '../src/main/pipeline/timing.js';
+import { TEMP_DIR } from '../src/main/pipeline/thumbnail-service.js';
 import { IPC } from '../src/shared/constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -298,6 +299,13 @@ async function checkForUpdates() {
 
 app.whenReady().then(async () => {
   initLogger(app.getPath('logs'));
+
+  // Remove orphaned batch intermediate files left by a previous crash.
+  fs.readdir(TEMP_DIR, (_err, files) => {
+    for (const f of files ?? []) {
+      if (f.startsWith('batch_ms_')) fs.unlink(path.join(TEMP_DIR, f), () => {});
+    }
+  });
   const _cLog = console.log.bind(console);
   const _cWarn = console.warn.bind(console);
   const _cError = console.error.bind(console);

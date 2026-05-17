@@ -43,14 +43,17 @@ export function registerPipelineHandlers(
   });
 
   // ── Streaming import: N concurrent workers, one push per result ──────────
-  let _streamCancelled = false;
+  // Generation counter prevents a second import from interfering with the first.
+  // Each stream start captures its own generation; workers bail if the counter moves.
+  let _streamGeneration = 0;
 
   ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_CANCEL, () => {
-    _streamCancelled = true;
+    _streamGeneration++;
   });
 
   ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_START, async (_e, paths: string[], size: number) => {
-    _streamCancelled = false;
+    const myGen = ++_streamGeneration;
+    const isCancelled = () => _streamGeneration !== myGen;
     const importT0 = Date.now();
     log('info', `[import] streaming start: ${paths.length} file(s)`);
     if (timings.enabled) timings.startImport(paths.length);
@@ -64,7 +67,7 @@ export function registerPipelineHandlers(
 
     async function worker(): Promise<void> {
       while (true) {
-        if (_streamCancelled) break;
+        if (isCancelled()) break;
         // Atomically collect the next batch (sync, no interleaving with other workers)
         const batch: string[] = [];
         while (batch.length < BATCH_SIZE && idx < paths.length) batch.push(paths[idx++]);
@@ -74,7 +77,7 @@ export function registerPipelineHandlers(
           for (const result of results) {
             allResults.push(result);
             log('info', `[import] ${result.name} ${result.width}×${result.height} ${result.format}`);
-            if (!_streamCancelled) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result);
+            if (!isCancelled()) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result);
           }
         } catch (err) {
           console.error('[streaming] Batch failed starting at:', batch[0], err);

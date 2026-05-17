@@ -38,6 +38,7 @@ export function log(level: LogEntry['level'], ...args: unknown[]): void {
     .join(' ');
   const entry: LogEntry = { ts, level, msg };
   entries.push(entry);
+  if (entries.length > 1000) entries.shift();
   logStream?.write(`[${ts}] [${level.toUpperCase()}] ${msg}\n`);
   if (logWin && !logWin.isDestroyed()) logWin.webContents.send('log:entry', entry);
 }
