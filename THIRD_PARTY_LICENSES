@@ -1,0 +1,83 @@
+THIRD-PARTY LICENSES
+====================
+
+This product includes software developed by the ImageMagick Studio LLC.
+
+imgplex uses the following open source software. For MIT-licensed packages a
+link to the upstream license is provided. For bundled binaries the full license
+text is reproduced below as required by those licenses.
+
+
+--------------------------------------------------------------------------------
+BUNDLED BINARIES
+--------------------------------------------------------------------------------
+
+ImageMagick  (resources/win/magick/)
+https://imagemagick.org
+
+Copyright 1999 ImageMagick Studio LLC, a non-profit organization dedicated to
+making software imaging solutions freely available.
+
+Licensed under the ImageMagick License (the "License"); you may not use this
+file except in compliance with the License. You may obtain a copy of the
+License at:
+
+  https://imagemagick.org/script/license.php
+
+In plain terms, the ImageMagick license lets you use, copy, modify, and
+distribute ImageMagick — including commercially — provided that:
+
+  1. The above copyright notice appears in all copies.
+  2. The ImageMagick name and logo are not used to endorse or promote products
+     derived from this software without prior written permission from
+     ImageMagick Studio LLC.
+  3. The following acknowledgement appears in the product documentation:
+
+       "This product includes software developed by the ImageMagick Studio LLC."
+
+ImageMagick is provided "as is" without warranty of any kind, express or
+implied. ImageMagick Studio LLC shall not be liable for any damages arising
+from the use of this software.
+
+Full license text: https://imagemagick.org/script/license.php
+
+
+--------------------------------------------------------------------------------
+NPM PACKAGES  (MIT License)
+--------------------------------------------------------------------------------
+
+The following packages are used under the MIT License. Each package's full
+license text is available at the URL shown.
+
+Electron
+  https://github.com/electron/electron/blob/main/LICENSE
+
+Svelte
+  https://github.com/sveltejs/svelte/blob/main/LICENSE.md
+
+@xyflow/svelte  (Svelte Flow)
+  https://github.com/xyflow/xyflow/blob/main/LICENSE
+
+Vite
+  https://github.com/vitejs/vite/blob/main/LICENSE
+
+vite-plugin-electron
+  https://github.com/electron-vite/vite-plugin-electron/blob/main/LICENSE
+
+electron-builder
+  https://github.com/electron-userland/electron-builder/blob/master/LICENSE
+
+@yao-pkg/pkg
+  https://github.com/yao-pkg/pkg/blob/main/LICENSE
+
+Vitest
+  https://github.com/vitest-dev/vitest/blob/main/LICENSE
+
+TypeScript
+  https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt
+
+ESLint
+  https://github.com/eslint/eslint/blob/main/LICENSE
+
+Prettier
+  https://github.com/prettier/prettier/blob/main/LICENSE

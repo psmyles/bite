@@ -18,6 +18,7 @@ import {
 } from '../src/main/ipc/handlers.js';
 import { timings } from '../src/main/pipeline/timing.js';
 import { TEMP_DIR } from '../src/main/pipeline/thumbnail-service.js';
+import { spawnMagickCapture } from '../src/main/pipeline/magick-spawn.js';
 import { IPC } from '../src/shared/constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -345,6 +346,18 @@ app.whenReady().then(async () => {
   registerAtlasHandlers(() => win);
 
   ipcMain.handle(IPC.LOG_GET_ENTRIES, () => getEntries());
+
+  ipcMain.handle(IPC.GET_APP_VERSIONS, async () => {
+    const magick = await spawnMagickCapture(['--version'])
+      .then((out) => out.match(/ImageMagick (\S+)/)?.[1] ?? 'unknown')
+      .catch(() => 'unknown');
+    return {
+      magick,
+      electron: process.versions.electron,
+      chrome: process.versions.chrome,
+      node: process.versions.node,
+    };
+  });
 
   ipcMain.handle(IPC.CHECK_FOR_UPDATES, async () => {
     try {

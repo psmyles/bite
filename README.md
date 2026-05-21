@@ -1,8 +1,10 @@
 # imgplex
 
-A node-based batch image processing desktop app. Build visual pipelines by connecting nodes on a canvas, then run them against a folder of images.
+Imgplex is a node-based batch image workflow creator and processor. All the processing is handled by ImageMagick, imgplex just makes the string of commands needed to pass onto ImageMagick.
 
-Built with Electron, Svelte 5, and ImageMagick.
+Built with Electron, Svelte, and ImageMagick.
+
+Imgplex was orignially designed to
 
 ---
 
@@ -64,14 +66,3 @@ Nodes are plain JSON files in `node-definitions/`. The app watches this folder a
 ```
 
 `command_template` is a fragment of ImageMagick arguments with `{{param_name}}` placeholders. For nodes with conditional logic, use `command_js` (returns `string[]`). For pure-value computation nodes, use `compute_js`.
-
-## Tech stack
-
-|                                                                                                            |                          |
-| ---------------------------------------------------------------------------------------------------------- | ------------------------ |
-| [Electron](https://electronjs.org)                                                                         | Desktop shell            |
-| [Vite](https://vitejs.dev) + [vite-plugin-electron](https://github.com/electron-vite/vite-plugin-electron) | Build tooling            |
-| [Svelte 5](https://svelte.dev)                                                                             | UI framework             |
-| [@xyflow/svelte](https://svelteflow.dev)                                                                   | Node graph canvas        |
-| [ImageMagick](https://imagemagick.org)                                                                     | Image processing backend |
-| [electron-builder](https://www.electron.build)                                                             | Packaging and installers |

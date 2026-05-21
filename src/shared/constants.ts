@@ -83,4 +83,6 @@ export const IPC = {
   // Log viewer
   LOG_ENTRY: 'log:entry',
   LOG_GET_ENTRIES: 'log:get-entries',
+  // About
+  GET_APP_VERSIONS: 'app:get-versions',
 } as const;

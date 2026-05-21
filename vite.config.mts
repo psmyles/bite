@@ -4,14 +4,17 @@ import { readFileSync } from 'node:fs';
 import electron from 'vite-plugin-electron/simple';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
-const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
-  version: string;
-};
+const readPkg = (p: string) => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf-8')) as Record<string, string>;
+const { version } = readPkg('./package.json');
+const svelteVersion = readPkg('./node_modules/svelte/package.json').version;
+const xyflowVersion = readPkg('./node_modules/@xyflow/svelte/package.json').version;
 
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
+    __SVELTE_VERSION__: JSON.stringify(svelteVersion),
+    __XYFLOW_VERSION__: JSON.stringify(xyflowVersion),
   },
   plugins: [
     svelte(),

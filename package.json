@@ -3,6 +3,7 @@
   "productName": "imgplex",
   "author": "psmyles",
   "description": "A GUI batch workflow builder that uses Imagemagick for processing",
+  "license": "MIT",
   "private": true,
   "version": "0.1.5",
   "type": "commonjs",
