@@ -190,7 +190,7 @@ function buildMenu() {
         {
           label: 'Documentation',
           click: () => {
-            shell.openExternal('https://github.com/psmyles/imgplex/wiki');
+            shell.openExternal('https://github.com/psmyles/imgplex/tree/main/docs');
           },
         },
         {
