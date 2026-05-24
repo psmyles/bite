@@ -4,8 +4,6 @@ Imgplex is a node-based batch image workflow creator and processor. All the proc
 
 Built with Electron, Svelte, and ImageMagick.
 
-Imgplex was orignially designed to
-
 ---
 
 ## Features
