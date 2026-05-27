@@ -120,7 +120,10 @@ project-root/
 │   │   │   ├── magick-spawn.ts      — spawnMagick (Promise<void>) and spawnMagickCapture (Promise<string>) helpers; centralises binary resolution
 │   │   │   ├── thumbnail-service.ts — Thumbnail generation and image loading; module-level _metaCache per path
 │   │   │   ├── preview-pipeline.ts  — executePreview as a standalone function; per-node output caching via PreviewCache
-│   │   │   ├── batch-pipeline.ts    — executeBatch(graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog, isCancelled); fast/slow/multi-stream paths; no hardcoded node IDs
+│   │   │   ├── batch-pipeline.ts    — executeBatch orchestrator (~450 lines); builds BatchContext, delegates to multistream-pipeline / set-pipeline; owns fast-path buildOpArgsForImage and regular processOne loop
+│   │   │   ├── multistream-pipeline.ts — BatchContext interface + executeMultiStream; lazy-chain command fusion, channel split batching, per-image mean value pre-computation
+│   │   │   ├── set-pipeline.ts      — executeSetBatch; groups images by naming convention, runs one executeMultiStream per set
+│   │   │   ├── resolve-params.ts    — resolveNodeParams(node, def, edges, resolvedParams, meta): shared param-resolution step used by batch, preview, and text-output pipelines
 │   │   │   ├── executor-compute.ts  — Pure numeric/vector helpers and computeNodeParams (reads image metadata via magick identify)
 │   │   │   ├── executor-cli.ts      — CLI script generators (PowerShell / Bash / CMD)
 │   │   │   ├── executorRegistry.ts  — ArgBuilderFn registry for nodes needing custom argument building beyond command_template/command_js
@@ -178,6 +181,8 @@ project-root/
 │       │   ├── ColoredEdge.svelte       — Type-coloured wire rendering
 │       │   ├── NodeContextMenu.svelte   — Right-click creation/action menu (wire-drop + canvas); includes Workflow node section
 │       │   ├── DropHelper.svelte        — Rendered inside <SvelteFlow> for store context; exposes screenToFlowPosition, setViewport, updateNodeInternals (via useUpdateNodeInternals()) to parent
+│       │   ├── connectionValidation.ts  — isValidConnection, handleToWireType, resolveEffectiveWireType and all type-compatibility helpers (pure functions, no Svelte reactivity)
+│       │   ├── undoRedoManager.ts       — UndoRedoManager class: push / schedulePush (deferred batching) / undo / redo
 │       │   ├── portColors.ts            — Wire color map keyed by data type
 │       │   ├── wireTypeUtils.ts         — Wire-type compatibility, paramTypeToWireType, paramInHandle/paramOutHandle
 │       │   ├── nodeEditorHelpers.ts     — buildNodeData, expandNodeData, buildResizeParamDefs, sortNodesGroupFirst, firstMatchingHandle
