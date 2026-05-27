@@ -87,7 +87,7 @@ if (process.platform === 'darwin') {
 // │ │
 // │ ├─┬ dist-electron
 // │ │ ├── main.js
-// │ │ └── preload.mjs
+// │ │ └── preload.js
 //
 process.env.APP_ROOT = path.join(__dirname, '..');
 
@@ -118,7 +118,7 @@ function openLogWindow() {
     height: 600,
     title: 'imgplex — Log',
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.mjs') },
+    webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
   setLogWindow(logWin);
   logWin.on('closed', () => {
@@ -224,7 +224,7 @@ function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
