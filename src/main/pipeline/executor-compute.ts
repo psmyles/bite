@@ -1,5 +1,7 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { spawnMagickCapture } from './magick-spawn.js';
+import { readHeaderDimensions } from './image-header.js';
 
 // ─── Polymorphic numeric helpers ──────────────────────────────────────────────
 
@@ -167,16 +169,39 @@ export function getSeparator(type: string, custom: string): string {
 }
 
 /**
- * Builds a lightweight ImageMeta from the filesystem path alone —
- * no ImageMagick spawn. Suitable for prop_name / prop_path nodes only.
+ * Builds a lightweight ImageMeta using only cheap I/O — no ImageMagick spawn.
+ * Reads sizeBytes from fs.stat and width/height from the file header.
+ * Suitable for prop_name, prop_path, prop_size, prop_filetype, prop_dimensions,
+ * and prop_power_of_two nodes; anything needing bitDepth/DPI/EXIF still needs loadImageMeta.
  */
-export function buildEmptyImageMeta(imagePath: string): ImageMeta {
+export async function buildEmptyImageMeta(imagePath: string): Promise<ImageMeta> {
+  let sizeBytes = 0;
+  let width = 0;
+  let height = 0;
+
+  if (imagePath !== '') {
+    try {
+      sizeBytes = (await fs.promises.stat(imagePath)).size;
+    } catch {
+      /* non-fatal */
+    }
+    try {
+      const dims = await readHeaderDimensions(imagePath);
+      if (dims) {
+        width = dims.width;
+        height = dims.height;
+      }
+    } catch {
+      /* non-fatal — unsupported format stays at 0 */
+    }
+  }
+
   return {
     path: imagePath,
     name: path.basename(imagePath),
-    sizeBytes: 0,
-    width: 0,
-    height: 0,
+    sizeBytes,
+    width,
+    height,
     bitDepth: 0,
     extension: path.extname(imagePath).slice(1).toLowerCase(),
     dpiX: 0,

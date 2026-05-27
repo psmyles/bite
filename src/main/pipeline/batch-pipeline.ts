@@ -120,13 +120,20 @@ export async function executeBatch(
     const def = registry.get(n.data.definitionId);
     return def?.needs_image_meta === true;
   });
-  // prop_name / prop_path only need path.basename — no ImageMagick identify call required.
-  // All other needs_image_meta nodes (dimensions, bitdepth, EXIF, …) need the full identify.
-  const NAME_PATH_ONLY_EXECUTORS = new Set<string>([EXECUTOR.PROP_NAME, EXECUTOR.PROP_PATH]);
+  // These nodes only need cheap I/O (fs.stat + header read) — no ImageMagick identify needed.
+  // Heavy nodes (prop_bitdepth, prop_resolution, prop_exif) still need the full identify.
+  const LIGHT_META_EXECUTORS = new Set<string>([
+    EXECUTOR.PROP_NAME,
+    EXECUTOR.PROP_PATH,
+    EXECUTOR.PROP_SIZE,
+    EXECUTOR.PROP_FILETYPE,
+    EXECUTOR.PROP_DIMENSIONS,
+    EXECUTOR.PROP_POWER_OF_TWO,
+  ]);
   const hasHeavyMetaNodes = sorted.some((n) => {
     if (!outputContributorIds.has(n.id)) return false;
     const def = registry.get(n.data.definitionId);
-    return def?.needs_image_meta === true && !NAME_PATH_ONLY_EXECUTORS.has(def.executor ?? '');
+    return def?.needs_image_meta === true && !LIGHT_META_EXECUTORS.has(def.executor ?? '');
   });
   const hasPropNodes =
     hasImageMetaNodes ||
@@ -176,8 +183,8 @@ export async function executeBatch(
         console.warn(`[executor] loadImageMeta failed for ${imagePath} (non-fatal, prop nodes use defaults):`, err);
       }
     } else if (hasImageMetaNodes && imagePath !== '') {
-      // prop_name / prop_path only — no ImageMagick spawn needed.
-      meta = buildEmptyImageMeta(imagePath);
+      // light-meta nodes only — no ImageMagick spawn needed.
+      meta = await buildEmptyImageMeta(imagePath);
     }
     const resolvedParams = new Map<string, Record<string, unknown>>();
     const opArgs: string[] = [];
@@ -367,8 +374,8 @@ export async function executeBatch(
         console.warn(`[executor] loadImageMeta failed for ${inputPath} (non-fatal):`, err);
       }
     } else if (hasImageMetaNodes) {
-      // prop_name / prop_path only — no ImageMagick spawn needed.
-      meta = buildEmptyImageMeta(inputPath);
+      // light-meta nodes only — no ImageMagick spawn needed.
+      meta = await buildEmptyImageMeta(inputPath);
     }
 
     // Pre-compute all channel means for analysis-only split nodes in a single magick

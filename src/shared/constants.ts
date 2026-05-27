@@ -18,6 +18,10 @@ export const EXECUTOR = {
   RENAME: 'rename',
   PROP_NAME: 'prop_name',
   PROP_PATH: 'prop_path',
+  PROP_SIZE: 'prop_size',
+  PROP_FILETYPE: 'prop_filetype',
+  PROP_DIMENSIONS: 'prop_dimensions',
+  PROP_POWER_OF_TWO: 'prop_power_of_two',
   PROCESS_AS_SET: 'process_as_set',
   RESIZE: 'resize',
 } as const;

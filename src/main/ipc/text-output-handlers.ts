@@ -38,8 +38,15 @@ function valueToString(val: unknown): string {
   return String(val);
 }
 
-// prop_name and prop_path only need path.basename / the path itself — no magick spawn needed.
-const PROP_PATH_ONLY = new Set(['prop_name', 'prop_path']);
+// These nodes need only cheap I/O — no magick spawn needed.
+const LIGHT_META_EXECUTORS = new Set([
+  'prop_name',
+  'prop_path',
+  'prop_size',
+  'prop_filetype',
+  'prop_dimensions',
+  'prop_power_of_two',
+]);
 
 interface ResolveContext {
   sorted: ReturnType<typeof topoSort>;
@@ -52,7 +59,7 @@ function buildResolveContext(graph: NodeGraph, registry: NodeRegistry): ResolveC
   const sorted = topoSort(graph.nodes, graph.edges);
   const needsMagickMeta = sorted.some((n) => {
     const exec = registry.get(n.data.definitionId)?.executor;
-    return exec?.startsWith('prop_') && !PROP_PATH_ONLY.has(exec);
+    return exec?.startsWith('prop_') && !LIGHT_META_EXECUTORS.has(exec);
   });
   const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
   const edgesByTarget = new Map<string, typeof graph.edges>();
@@ -78,7 +85,7 @@ async function resolveParamsForImage(
 
   // mean_value handles its own image read via loadImageChannelMean — it does NOT use meta.
   // Excluded from needsMagickMeta so images blocked by a gate skip loadImageMeta entirely.
-  const meta = needsMagickMeta ? await loadImageMeta(imagePath) : buildEmptyImageMeta(imagePath);
+  const meta = needsMagickMeta ? await loadImageMeta(imagePath) : await buildEmptyImageMeta(imagePath);
 
   // Pre-scan all mean_value nodes and batch their channel reads into a single spawn.
   const meanValueChannelMap = new Map<string, number>(); // nodeId → channelIdx (-1 = whole-image mean)
