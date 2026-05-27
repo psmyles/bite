@@ -153,7 +153,6 @@ project-root/
 │       │   ├── InspectorImageOutputNode.svelte — Output path, overwrite mode, log generation; no Run button (toolbar-driven)
 │       │   ├── InspectorTextOutputNode.svelte  — Text output settings; uses traceInputNodeId for connected image list; dynamic value port management
 │       │   ├── InspectorFlipbookOutputNode.svelte — Flipbook atlas settings (grid, padding, format)
-│       │   ├── InspectorOutputNode.svelte   — Legacy; superseded by the three separate output inspectors above
 │       │   ├── InspectorParamEditor.svelte  — Dynamic param widgets for ProcessNode
 │       │   ├── InspectorCommentNode.svelte      — Comment node text editing
 │       │   ├── InspectorRenameNode.svelte       — Rename node block editor
@@ -174,7 +173,6 @@ project-root/
 │       │   ├── ImageOutputNode.svelte   — Image file output node; amber header tint; output path footer
 │       │   ├── TextOutputNode.svelte    — Text/metadata output node; in-0 image input + dynamic txo-* value ports; output file footer
 │       │   ├── FlipbookOutputNode.svelte — Flipbook atlas output node; grid dimensions footer
-│       │   ├── OutputNode.svelte        — Legacy sink node (superseded by the three separate output node types above)
 │       │   ├── FolderPathNode.svelte    — Folder path source node (path port output)
 │       │   ├── GroupNode.svelte         — Resizable labelled container; children move with group
 │       │   ├── CommentNode.svelte       — Resizable sticky note with editable text

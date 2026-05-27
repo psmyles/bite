@@ -1,11 +1,10 @@
 <script lang="ts">
   import type { Node } from '@xyflow/svelte';
-  import type { NodeDefinition } from '../../shared/types.js';
   import { graphStore } from '../stores/graph.svelte.js';
   import { imageStore } from '../stores/images.svelte.js';
   import { previewRenames, type RenameParams, type NameBlock } from '../../shared/renameUtils.js';
 
-  let { definition, selectedNode }: { definition: NodeDefinition; selectedNode: Node } = $props();
+  let { selectedNode }: { selectedNode: Node } = $props();
 
   const params = $derived(((selectedNode?.data as Record<string, unknown>)?.params ?? {}) as Record<string, unknown>);
 

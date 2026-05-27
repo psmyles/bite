@@ -11,8 +11,6 @@
   import InspectorResizeNode from './InspectorResizeNode.svelte';
   import InspectorFolderPathNode from './InspectorFolderPathNode.svelte';
   import InspectorSetInputNode from './InspectorSetInputNode.svelte';
-  import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
-
   let { definitions }: { definitions: NodeDefinition[] } = $props();
 
   const selectedNode = $derived(graphStore.selectedNode);

@@ -289,7 +289,7 @@ function computeLogic(key: string, p: P): P {
     case 'logic_not':
       return { ...p, result: !numericTruthy(p.a) };
     case 'logic_branch':
-      return { ...p, result: Boolean(p.condition) ? p.value_true : p.value_false };
+      return { ...p, result: p.condition ? p.value_true : p.value_false };
     case 'logic_comparison': {
       const op = String(p.operator ?? '==');
       const a = numericScalar(p.a),

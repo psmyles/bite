@@ -69,11 +69,6 @@
   }
   const MENU_W = cssVal('--ctx-width', 200);
   const SUB_W = cssVal('--ctx-sub-width', 190);
-  const MENU_MAX_H = cssVal('--ctx-max-height', 360);
-  const ACTION_ROW_H = 33; // button (≈32px) + separator (1px)
-
-  // Grow max-height by the space action rows add above the search bar
-  const actionCount = $derived((groupable && !!onGroupSelection ? 1 : 0) + (ungroupable && !!onUngroup ? 1 : 0));
 
   // Horizontal clamp
   const menuLeft = $derived(Math.min(x, window.innerWidth - MENU_W - 8));
