@@ -79,13 +79,29 @@
     return !!search.trim() || !collapsed.has(cat);
   }
 
-  // ── Drag ──────────────────────────────────────────────────────────────────
+  // ── Drag (JSON-defined nodes) ──────────────────────────────────────────────
   function onDragStart(e: DragEvent, def: NodeDefinition) {
     if (!e.dataTransfer) return;
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/imgplex-node-id', def.id);
     e.dataTransfer.setData('application/imgplex-node-label', def.label);
   }
+
+  // ── Workflow nodes (always visible, not filtered by search) ───────────────
+  const WORKFLOW_NODES = [
+    { type: 'inputNode', label: 'Input', desc: 'Source of images for the workflow' },
+    { type: 'imageOutputNode', label: 'Image Output', desc: 'Write processed images to disk' },
+    { type: 'textOutputNode', label: 'Text Output', desc: 'Write text/metadata values to a file' },
+    { type: 'flipbookOutputNode', label: 'Flipbook Output', desc: 'Assemble images into a flipbook atlas' },
+  ] as const;
+
+  function onWorkflowDragStart(e: DragEvent, nodeType: string) {
+    if (!e.dataTransfer) return;
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/imgplex-node-type', nodeType);
+  }
+
+  let workflowCollapsed = $state(false);
 </script>
 
 <div class="node-library">
@@ -97,6 +113,30 @@
 
   <!-- Category groups -->
   <div class="categories">
+    <!-- ── Workflow section (pinned at top, not filtered by search) ── -->
+    {#if !search.trim()}
+      <div class="category">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="category-label" onclick={() => (workflowCollapsed = !workflowCollapsed)}>
+          <span class="collapse-icon">{workflowCollapsed ? '+' : '−'}</span>
+          Workflow
+        </div>
+        {#if !workflowCollapsed}
+          {#each WORKFLOW_NODES as wn}
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="node-item"
+              draggable="true"
+              ondragstart={(e) => onWorkflowDragStart(e, wn.type)}
+            >
+              <span class="node-label">{wn.label}</span>
+              <span class="drag-hint">⠿</span>
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {/if}
+
     {#if grouped().length === 0}
       <p class="empty">{search ? 'No matching nodes.' : 'No nodes loaded.'}</p>
     {:else}

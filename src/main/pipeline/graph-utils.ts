@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { GraphEdge, GraphNode } from '../../shared/types.js';
+import type { GraphEdge, GraphNode, NodeGraph } from '../../shared/types.js';
 
 /** Backward BFS from startNodeIds; returns all nodes that contribute to those outputs. */
 export function findOutputContributors(edges: GraphEdge[], startNodeIds: string[]): Set<string> {
@@ -74,6 +74,28 @@ export function topoSort(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] {
   }
 
   return sorted;
+}
+
+/**
+ * BFS backwards from outputNodeId through image edges to find the connected inputNode.
+ * Returns the inputNode's ID, or null if none found.
+ */
+export function traceInputNode(graph: NodeGraph, outputNodeId: string): string | null {
+  const visited = new Set<string>();
+  const queue = [outputNodeId];
+  while (queue.length > 0) {
+    const nodeId = queue.shift()!;
+    if (visited.has(nodeId)) continue;
+    visited.add(nodeId);
+    const node = graph.nodes.find((n) => n.id === nodeId);
+    if (node?.type === 'inputNode') return nodeId;
+    for (const edge of graph.edges) {
+      if (edge.target === nodeId && !edge.sourceHandle?.startsWith('param-')) {
+        queue.push(edge.source);
+      }
+    }
+  }
+  return null;
 }
 
 export function groupBySetPattern(

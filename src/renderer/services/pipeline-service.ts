@@ -17,22 +17,33 @@ export class ElectronPipelineService implements PipelineService {
 
   async executeBatch(
     graph: NodeGraph,
+    outputNodeId: string,
+    inputNodeId: string,
     imagePaths: string[],
-    outputDir: string,
+    outputDir: string | null,
+    overwrite: 'skip' | 'overwrite',
+    generateLog: boolean,
     onProgressCb: (p: Progress) => void
   ): Promise<void> {
-    // Progress updates come via a separate IPC event channel
     const onProgress = (_e: unknown, p: Progress) => onProgressCb(p);
     window.ipcRenderer.on(`${IPC.EXECUTE_BATCH}:progress`, onProgress);
     try {
-      await window.ipcRenderer.invoke(IPC.EXECUTE_BATCH, graph, imagePaths, outputDir);
+      await window.ipcRenderer.invoke(
+        IPC.EXECUTE_BATCH,
+        graph,
+        outputNodeId,
+        inputNodeId,
+        imagePaths,
+        outputDir,
+        overwrite,
+        generateLog
+      );
     } finally {
       window.ipcRenderer.off(`${IPC.EXECUTE_BATCH}:progress`, onProgress);
     }
   }
 
   exportCLI(graph: NodeGraph): string {
-    // Synchronous — run via invoke in practice; stub returns empty for now
     void graph;
     return '';
   }

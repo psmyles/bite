@@ -3,17 +3,14 @@
   import { portColor } from './portColors.js';
   import { imageStore } from '../stores/images.svelte.js';
 
-  let { selected = false }: { data: unknown; selected?: boolean } = $props();
+  let { id = '', selected = false }: { id?: string; data?: unknown; selected?: boolean } = $props();
 
   const imgColor = portColor('image');
 
-  const countLabel = $derived(
-    imageStore.images.length === 0
-      ? 'no images'
-      : imageStore.images.length === 1
-        ? '1 image'
-        : `${imageStore.images.length} images`
-  );
+  const countLabel = $derived.by(() => {
+    const count = imageStore.getImages(id).length;
+    return count === 0 ? 'no images' : count === 1 ? '1 image' : `${count} images`;
+  });
 </script>
 
 <!-- Output handle — right side, vertically centered -->

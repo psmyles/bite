@@ -133,7 +133,16 @@ async function main(): Promise<void> {
 
   process.stdout.write(`Processing ${images.length} image(s)...\n`);
 
-  await executor.executeBatch(graph, images, outputAbs, overwrite, registry, ({ completed, total, currentFile }) => {
+  const outputNodeId =
+    graph.nodes.find((n) => n.type === 'imageOutputNode')?.id ??
+    graph.nodes.find((n) => n.id === 'workflow-output')?.id ??
+    'workflow-output';
+  const inputNodeId =
+    graph.nodes.find((n) => n.type === 'inputNode')?.id ??
+    graph.nodes.find((n) => n.id === 'workflow-input')?.id ??
+    'workflow-input';
+
+  await executor.executeBatch(graph, outputNodeId, inputNodeId, images, outputAbs, overwrite, registry, ({ completed, total, currentFile }) => {
     const pct = Math.round((completed / total) * 100)
       .toString()
       .padStart(3);

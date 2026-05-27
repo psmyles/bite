@@ -16,7 +16,9 @@
   import DropHelper from './DropHelper.svelte';
   import ProcessNode from './ProcessNode.svelte';
   import InputNode from './InputNode.svelte';
-  import OutputNode from './OutputNode.svelte';
+  import ImageOutputNode from './ImageOutputNode.svelte';
+  import TextOutputNode from './TextOutputNode.svelte';
+  import FlipbookOutputNode from './FlipbookOutputNode.svelte';
   import CommentNode from './CommentNode.svelte';
   import GroupNode from './GroupNode.svelte';
   import FolderPathNode from './FolderPathNode.svelte';
@@ -36,18 +38,32 @@
   } from './wireTypeUtils.js';
   import type { NodeDefinition } from '../../shared/types.js';
   import { graphStore } from '../stores/graph.svelte.js';
+  import { imageStore } from '../stores/images.svelte.js';
 
   let { definitions }: { definitions: NodeDefinition[] } = $props();
 
-  // ── Special node IDs (permanent, undeletable) ─────────────────────────────
-  export const INPUT_NODE_ID = 'workflow-input';
-  export const OUTPUT_NODE_ID = 'workflow-output';
+  // ── Workflow node types (guard against deletion of last instance) ──────────
+  const WORKFLOW_TYPES = new Set(['inputNode', 'imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
+
+  // ── Synthetic NodeDefinition objects for the context menu ─────────────────
+  // IDs are prefixed with '_workflow_' so onMenuSelect can detect and dispatch them.
+  const WORKFLOW_DEFS: NodeDefinition[] = [
+    { id: '_workflow_inputNode',        label: 'Input',           category: 'Workflow', description: 'Source of images for the workflow', inputs: [], outputs: [{ type: 'image', label: 'Image' }], params: [] },
+    { id: '_workflow_imageOutputNode',  label: 'Image Output',    category: 'Workflow', description: 'Write processed images to disk',     inputs: [{ type: 'image', label: 'Image' }], outputs: [], params: [] },
+    { id: '_workflow_textOutputNode',   label: 'Text Output',     category: 'Workflow', description: 'Write text/metadata values to a file', inputs: [{ type: 'image', label: 'Image' }], outputs: [], params: [] },
+    { id: '_workflow_flipbookOutputNode', label: 'Flipbook Output', category: 'Workflow', description: 'Assemble images into a flipbook atlas', inputs: [{ type: 'image', label: 'Image' }], outputs: [], params: [] },
+  ];
+
+  // Merge workflow defs at the front so "Workflow" sorts to the top
+  const allDefinitions = $derived([...WORKFLOW_DEFS, ...definitions]);
 
   // ── Custom node / edge types ───────────────────────────────────────────────
   const nodeTypes = {
     process: ProcessNode,
     inputNode: InputNode,
-    outputNode: OutputNode,
+    imageOutputNode: ImageOutputNode,
+    textOutputNode: TextOutputNode,
+    flipbookOutputNode: FlipbookOutputNode,
     commentNode: CommentNode,
     group: GroupNode,
     folderPathNode: FolderPathNode,
@@ -197,28 +213,9 @@
   }
 
   // ── Graph state — local, synced bidirectionally with graphStore ───────────
-  let nodes: Node[] = $state.raw([
-    {
-      id: INPUT_NODE_ID,
-      type: 'inputNode',
-      position: { x: 80, y: 180 },
-      deletable: false,
-      data: { label: 'Input', inputs: [], outputs: ['image'] },
-    },
-    {
-      id: OUTPUT_NODE_ID,
-      type: 'outputNode',
-      position: { x: 640, y: 180 },
-      deletable: false,
-      data: {
-        label: 'Output',
-        inputs: ['image'],
-        outputs: [],
-        params: { outputPath: 'source', customPath: '', overwrite: 'skip' },
-      },
-    },
-  ]);
-  let edges: Edge[] = $state.raw([]);
+  // Initialize from graphStore so seed nodes are picked up without duplication.
+  let nodes: Node[] = $state.raw(graphStore.nodes);
+  let edges: Edge[] = $state.raw(graphStore.edges);
 
   // Push local → store (SvelteFlow mutations: drag, delete, etc.)
   $effect(() => {
@@ -251,19 +248,16 @@
 
   // ── Text output node: keep portIds in sync with actual edge connections ──────
   // Runs whenever edges change. Removes middle unconnected ports and ensures
-  // exactly one unconnected ghost port exists at the bottom of each text_output node.
+  // exactly one unconnected ghost port exists at the bottom of each textOutputNode.
   $effect(() => {
     const currentEdges = edges; // reactive dep — re-runs on any edge change
     untrack(() => {
-      const txNodes = nodes.filter(
-        (n) => n.id === 'workflow-output' && (n.data as Record<string, unknown>).params?.outputMode === 'text'
-      );
+      const txNodes = nodes.filter((n) => n.type === 'textOutputNode');
       if (txNodes.length === 0) return;
 
       let changed = false;
       const updated = nodes.map((n) => {
-        if (!(n.id === 'workflow-output' && (n.data as Record<string, unknown>).params?.outputMode === 'text'))
-          return n;
+        if (n.type !== 'textOutputNode') return n;
         const p = (n.data.params ?? {}) as Record<string, unknown>;
         const portIds = [...((p.portIds as string[]) ?? ['txo-0'])];
         let nextPortIndex = (p.nextPortIndex as number) ?? 1;
@@ -350,13 +344,13 @@
   const GROUP_PADDING = 40;
 
   const groupable = $derived(
-    nodes.some((n) => n.selected && n.id !== INPUT_NODE_ID && n.id !== OUTPUT_NODE_ID && n.type !== 'group')
+    nodes.some((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '') && n.type !== 'group')
   );
   const ungroupable = $derived(nodes.some((n) => n.selected && n.type === 'group'));
 
   function groupSelection() {
     const toGroup = nodes.filter(
-      (n) => n.selected && n.id !== INPUT_NODE_ID && n.id !== OUTPUT_NODE_ID && n.type !== 'group'
+      (n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '') && n.type !== 'group'
     );
     if (toGroup.length === 0) return;
 
@@ -528,11 +522,40 @@
   function onMenuSelect(def: NodeDefinition) {
     if (!menuState) return;
     const pos = menuState.canvasPos;
-    const newId = `${def.id}-${Date.now()}`;
     // Wire-drop: top-left of new node lands on the drop point so the input handle
     // is right where the wire ended. Otherwise center the node on the spawn point.
     const position = wireSource ? { x: pos.x, y: pos.y } : { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 };
 
+    // ── Workflow node (synthetic def with _workflow_ prefix) ──────────────────
+    if (def.id.startsWith('_workflow_')) {
+      const workflowType = def.id.slice('_workflow_'.length);
+      const defaults = WORKFLOW_NODE_DEFAULTS[workflowType];
+      if (!defaults) return;
+      const newId = `${workflowType}-${Date.now()}`;
+      nodes = [...nodes, { id: newId, type: workflowType, position, data: { ...defaults } }];
+
+      // Auto-connect for wire-drop: image input nodes have 'out-0', output nodes have 'in-0'
+      if (wireSource) {
+        const wt = wireType ?? 'image';
+        if (wt === 'image') {
+          const newHandle = workflowType === 'inputNode' ? 'out-0' : 'in-0';
+          const connection =
+            wireSource.handleType === 'source'
+              ? { source: wireSource.nodeId, sourceHandle: wireSource.handleId, target: newId, targetHandle: newHandle }
+              : { source: newId, sourceHandle: newHandle, target: wireSource.nodeId, targetHandle: wireSource.handleId };
+          if (workflowType !== 'inputNode' || wireSource.handleType !== 'source') {
+            if (isValidConnection(connection)) {
+              edges = addEdge({ ...connection, ...edgeStyle(wt) }, edges);
+            }
+          }
+        }
+      }
+      pushHistory();
+      return;
+    }
+
+    // ── Regular (JSON-defined) node ───────────────────────────────────────────
+    const newId = `${def.id}-${Date.now()}`;
     const isComment = def.id === 'comment';
     nodes = [
       ...nodes,
@@ -665,17 +688,20 @@
   let setViewport: ((v: Viewport) => void) | null = $state(null);
   let updateNodeInternals: ((ids: string | string[]) => void) | null = $state(null);
 
-  // Re-measure handle positions whenever the output node's port order changes (text mode).
+  // Re-measure handle positions whenever a textOutputNode's port order changes.
   // @xyflow only remeasures handles on node resize; CSS top changes need an explicit nudge.
+  // IMPORTANT: use graphStore.nodes (not local `nodes`) so that only Inspector-driven portIds
+  // changes trigger this effect — NOT SvelteFlow's dimension updates, which flow through the
+  // local `nodes` binding and would cause an infinite loop.
+  const _textOutputPortIdSig = $derived(
+    graphStore.nodes
+      .filter((n) => n.type === 'textOutputNode')
+      .map((n) => `${n.id}:${JSON.stringify((n.data?.params as Record<string, unknown>)?.portIds ?? [])}`)
+      .join('|')
+  );
   $effect(() => {
-    // Track portIds of workflow-output when in text mode as a reactive dependency
-    const txoNodes = nodes.filter(
-      (n) => n.id === 'workflow-output' && (n.data as Record<string, unknown>).params?.outputMode === 'text'
-    );
-    txoNodes.forEach((n) => {
-      void JSON.stringify((n.data?.params as Record<string, unknown>)?.portIds);
-    });
-    const ids = txoNodes.map((n) => n.id);
+    void _textOutputPortIdSig;
+    const ids = untrack(() => graphStore.nodes.filter((n) => n.type === 'textOutputNode').map((n) => n.id));
     tick().then(() => {
       if (updateNodeInternals && ids.length) updateNodeInternals(ids);
     });
@@ -707,8 +733,7 @@
       const nodeType = nodes.find((n) => n.id === nodeId)?.type;
       if (
         nodeId &&
-        nodeId !== INPUT_NODE_ID &&
-        nodeId !== OUTPUT_NODE_ID &&
+        !WORKFLOW_TYPES.has(nodeType ?? '') &&
         nodeType !== 'commentNode' &&
         checkNodeEnabled(nodeId)
       ) {
@@ -760,10 +785,10 @@
     const selectedGroupIds = new Set(selectedGroups.map((g) => g.id));
     const groupMap = new Map(selectedGroups.map((g) => [g.id, g]));
 
-    // Non-group nodes to delete: selected, not Input/Output, not children of a selected group
+    // Non-group nodes to delete: selected, passes deletion guard, not children of a selected group
     const toDelete = new Set(
       nodes
-        .filter((n) => n.selected && n.type !== 'group' && n.id !== INPUT_NODE_ID && n.id !== OUTPUT_NODE_ID)
+        .filter((n) => n.selected && n.type !== 'group' && graphStore.canDeleteNode(n.id))
         .filter((n) => !n.parentId || !selectedGroupIds.has(n.parentId))
         .map((n) => n.id)
     );
@@ -789,6 +814,11 @@
       });
 
     edges = edges.filter((e) => !selectedEdgeIds.has(e.id) && !toDelete.has(e.source) && !toDelete.has(e.target));
+
+    // Free image lists for deleted input nodes
+    for (const id of toDelete) {
+      if (nodes.find((n) => n.id === id)?.type === 'inputNode') imageStore.removeNode(id);
+    }
 
     pushHistory();
   }
@@ -833,10 +863,10 @@
       return;
     }
 
-    // Ctrl/Cmd+D — duplicate selected nodes (never duplicates Input/Output)
+    // Ctrl/Cmd+D — duplicate selected nodes (never duplicates workflow nodes)
     if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      duplicateNodes(nodes.filter((n) => n.selected && n.id !== INPUT_NODE_ID && n.id !== OUTPUT_NODE_ID));
+      duplicateNodes(nodes.filter((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '')));
     }
   }
 
@@ -878,12 +908,38 @@
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
   }
 
+  // Default params for workflow nodes dropped from the library
+  const WORKFLOW_NODE_DEFAULTS: Record<string, { label: string; inputs: string[]; outputs: string[]; params: Record<string, unknown> }> = {
+    inputNode: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 256 } },
+    imageOutputNode: { label: 'Image Output', inputs: ['image'], outputs: [], params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false } },
+    textOutputNode: { label: 'Text Output', inputs: ['image'], outputs: [], params: { outputPath: '', portIds: ['txo-0'], nextPortIndex: 1, separatorType: 'comma', customSeparator: '', generateLog: false } },
+    flipbookOutputNode: { label: 'Flipbook Output', inputs: ['image'], outputs: [], params: { flipbookOutputPath: '', cols: 4, rows: 4, cellWidth: 128, cellHeight: 128, sortBy: 'import_order', generateLog: false } },
+  };
+
   function onDrop(e: DragEvent) {
     e.preventDefault();
+    if (!screenToCanvas) return;
+
+    // Workflow node dropped from the "Workflow" section of the library
+    const workflowType = e.dataTransfer?.getData('application/imgplex-node-type');
+    if (workflowType && WORKFLOW_NODE_DEFAULTS[workflowType]) {
+      const canvasPos = screenToCanvas({ x: e.clientX, y: e.clientY });
+      const position = { x: canvasPos.x - NODE_W / 2, y: canvasPos.y - NODE_H / 2 };
+      const defaults = WORKFLOW_NODE_DEFAULTS[workflowType];
+      const newNode: Node = {
+        id: `${workflowType}-${Date.now()}`,
+        type: workflowType,
+        position,
+        data: { ...defaults },
+      };
+      nodes = [...nodes, newNode];
+      pushHistory();
+      return;
+    }
 
     const definitionId = e.dataTransfer?.getData('application/imgplex-node-id');
     const label = e.dataTransfer?.getData('application/imgplex-node-label');
-    if (!definitionId || !screenToCanvas) return;
+    if (!definitionId) return;
 
     const canvasPos = screenToCanvas({ x: e.clientX, y: e.clientY });
     const position = {
@@ -930,14 +986,12 @@
   // ── Menu IPC: duplicate / delete ───────────────────────────────────────────
   $effect(() => {
     function onDuplicate() {
-      const selected = nodes.filter((n) => n.selected && n.id !== INPUT_NODE_ID && n.id !== OUTPUT_NODE_ID);
+      const selected = nodes.filter((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? ''));
       // If nothing selected, duplicate the focused/last selected node
       const targets =
         selected.length > 0
           ? selected
-          : graphStore.selectedNodeId &&
-              graphStore.selectedNodeId !== INPUT_NODE_ID &&
-              graphStore.selectedNodeId !== OUTPUT_NODE_ID
+          : graphStore.selectedNodeId && !WORKFLOW_TYPES.has(nodes.find((n) => n.id === graphStore.selectedNodeId)?.type ?? '')
             ? nodes.filter((n) => n.id === graphStore.selectedNodeId)
             : [];
       duplicateNodes(targets);
@@ -945,13 +999,18 @@
 
     function onDelete() {
       const targetIds = new Set(
-        nodes.filter((n) => n.selected && n.id !== INPUT_NODE_ID && n.id !== OUTPUT_NODE_ID).map((n) => n.id)
+        nodes
+          .filter((n) => n.selected && graphStore.canDeleteNode(n.id))
+          .map((n) => n.id)
       );
       if (targetIds.size === 0 && graphStore.selectedNodeId) {
         const id = graphStore.selectedNodeId;
-        if (id !== INPUT_NODE_ID && id !== OUTPUT_NODE_ID) targetIds.add(id);
+        if (graphStore.canDeleteNode(id)) targetIds.add(id);
       }
       if (targetIds.size === 0) return;
+      for (const id of targetIds) {
+        if (nodes.find((n) => n.id === id)?.type === 'inputNode') imageStore.removeNode(id);
+      }
       nodes = nodes.filter((n) => !targetIds.has(n.id));
       edges = edges.filter((e) => !targetIds.has(e.source) && !targetIds.has(e.target));
       graphStore.selectedNodeId = null;
@@ -1019,7 +1078,7 @@
       x={menuState.x}
       y={menuState.y}
       filterType={menuState.filterType}
-      {definitions}
+      definitions={allDefinitions}
       onSelect={onMenuSelect}
       onClose={closeMenu}
       {groupable}

@@ -14,7 +14,6 @@ import {
   loadImageMean,
   loadImageChannelMean,
   loadMultipleChannelMeans,
-  getSeparator,
   buildEmptyImageMeta,
   type ImageMeta,
 } from './executor-compute.js';
@@ -66,6 +65,8 @@ function formatVerboseEntry(fileName: string, rawText: string): string {
 
 export async function executeBatch(
   graph: NodeGraph,
+  outputNodeId: string,
+  inputNodeId: string,
   imagePaths: string[],
   outputDir: string | null, // null = same directory as each source image
   overwrite: 'skip' | 'overwrite',
@@ -82,33 +83,17 @@ export async function executeBatch(
   const batchVerboseEntries: string[] = [];
   const sorted = topoSort(graph.nodes, graph.edges);
 
-  // Text Output nodes — treated as "output sinks" so upstream nodes (mean_value, etc.)
-  // that only feed text outputs are recognised as output contributors.
-  // Also includes workflow-output when it is in text mode.
-  const outputNode = sorted.find((n) => n.id === 'workflow-output');
-  const outputNodeTextMode = (outputNode?.data.params as Record<string, unknown> | undefined)?.outputMode === 'text';
-  const textOutputNodes = sorted.filter(
-    (n) =>
-      registry.get(n.data.definitionId)?.executor === EXECUTOR.TEXT_OUTPUT ||
-      (n.id === 'workflow-output' && outputNodeTextMode)
-  );
-  const hasTextOutputNodes = textOutputNodes.length > 0;
-  // Whether the workflow produces an image output (edge to workflow-output in image mode).
-  const hasImageOutput = !outputNodeTextMode && graph.edges.some((e) => e.target === 'workflow-output');
+  const outputNode = sorted.find((n) => n.id === outputNodeId);
+  // Whether the workflow produces an image output (edge to outputNodeId in-0).
+  const hasImageOutput = graph.edges.some((e) => e.target === outputNodeId && e.targetHandle === 'in-0');
 
   // Nodes that actually contribute to the final output — backward BFS from
-  // workflow-output following ALL edges (image AND param-wire).
+  // outputNodeId following ALL edges (image AND param-wire).
   // This ensures channel_split that feeds mean_value → gate (via param-wires)
   // is correctly recognised as a contributor and uses the multi-stream path.
-  // Nodes that are purely decorative (no path to workflow-output of any kind)
+  // Nodes that are purely decorative (no path to outputNodeId of any kind)
   // are excluded so they don't force the slow path unnecessarily.
-  // Start BFS from workflow-output AND any text_output nodes so upstream nodes
-  // (channel_split, mean_value, etc.) that only feed text outputs are correctly
-  // recognised as contributors and trigger the right execution path.
-  const outputContributorIds = findOutputContributors(graph.edges, [
-    'workflow-output',
-    ...textOutputNodes.map((n) => n.id),
-  ]);
+  const outputContributorIds = findOutputContributors(graph.edges, [outputNodeId]);
 
   // prop_ nodes depend on per-image file metadata (dimensions, name, EXIF, etc.)
   // mean_value depends on per-image pixel data but NOT on loadImageMeta.
@@ -167,11 +152,7 @@ export async function executeBatch(
   interface BatchPlan {
     opArgs: string[];
     outputFormat: string | null; // e.g. 'PNG' — non-null only when format_convert is active
-    textLines: string[]; // values collected from text_output nodes (condition=true)
   }
-
-  // Lines collected across all images; written to disk after the batch completes.
-  const collectedTextLines: Array<{ index: number; value: string }> = [];
 
   // Returns null when a Gate node suppresses the image (don't write output).
   async function buildOpArgsForImage(imagePath: string): Promise<BatchPlan | null> {
@@ -188,38 +169,12 @@ export async function executeBatch(
     }
     const resolvedParams = new Map<string, Record<string, unknown>>();
     const opArgs: string[] = [];
-    const textLines: string[] = [];
     let outputFormat: string | null = null;
     for (const node of sorted) {
       if (!outputContributorIds.has(node.id)) continue;
       if (node.data.definitionId === EXECUTOR.PROCESS_AS_SET) continue;
       const def = registry.get(node.data.definitionId);
-      if (!def) {
-        // workflow-output in text mode acts as a text output sink
-        if (node.id === 'workflow-output' && outputNodeTextMode) {
-          const rawParams: Record<string, unknown> = { ...(node.data.params ?? {}) };
-          for (const edge of graph.edges) {
-            if (edge.target !== node.id) continue;
-            const th = edge.targetHandle ?? '',
-              sh = edge.sourceHandle ?? '';
-            if (sh.startsWith('param-out-') && th.startsWith('txo-')) {
-              const src = resolvedParams.get(edge.source);
-              if (src) rawParams[`_txo_${th.slice('txo-'.length)}`] = src[sh.slice('param-out-'.length)];
-            }
-          }
-          if (Boolean(rawParams._txo_condition ?? true)) {
-            const portIds = (rawParams.portIds ?? []) as string[];
-            const sep = getSeparator(String(rawParams.separatorType ?? ''), String(rawParams.customSeparator ?? ''));
-            const line = portIds
-              .map((pid) => rawParams[`_txo_${pid.slice('txo-'.length)}`])
-              .filter((v) => v !== undefined && v !== null && v !== '')
-              .map((v) => String(v))
-              .join(sep);
-            if (line) textLines.push(line);
-          }
-        }
-        continue;
-      }
+      if (!def) continue;
       const rawParams = applyParamWires(node, graph.edges, resolvedParams);
       const isImageNode =
         def.inputs.some((p) => p.type === 'image' || p.type === 'mask') ||
@@ -228,24 +183,7 @@ export async function executeBatch(
         !isImageNode && def.compute_js ? { ...rawParams, __compute_js__: def.compute_js } : rawParams;
       const params = computeNodeParams(isImageNode ? undefined : def.executor, computeInput, meta);
       resolvedParams.set(node.id, params);
-      if (!isImageNode) {
-        // Collect text_output values — written to disk after the full batch completes.
-        if (
-          def.executor === EXECUTOR.TEXT_OUTPUT &&
-          params._enabled !== false &&
-          Boolean(params._txo_condition ?? params.condition)
-        ) {
-          const portIds = (params.portIds ?? []) as string[];
-          const sep = getSeparator(String(params.separatorType ?? ''), String(params.customSeparator ?? ''));
-          const values = portIds
-            .map((pid) => params[`_txo_${pid.slice('txo-'.length)}`])
-            .filter((v) => v !== undefined && v !== null && v !== '')
-            .map((v) => String(v));
-          const line = values.join(sep);
-          if (line) textLines.push(line);
-        }
-        continue;
-      }
+      if (!isImageNode) continue;
       // Gate node: when active and condition is false, suppress this image entirely
       if (def.executor === EXECUTOR.GATE && params._enabled !== false && !params.condition) return null;
       // Mean Value — analysis-only, no image output, no opArgs contribution
@@ -268,7 +206,7 @@ export async function executeBatch(
         }
       }
     }
-    return { opArgs, outputFormat, textLines };
+    return { opArgs, outputFormat };
   }
 
   // Fast path: no Properties nodes — evaluate once, reuse for all images.
@@ -303,7 +241,7 @@ export async function executeBatch(
     // accumulates magick args to be applied to a base file on demand.
     type Lazy = { base: string; args: string[] };
     const buffers = new Map<string, string | Lazy>();
-    buffers.set('workflow-input:out-0', inputPath);
+    buffers.set(`${inputNodeId}:out-0`, inputPath);
     if (extraSeeds) for (const [k, v] of extraSeeds) buffers.set(k, v);
 
     // Materialise a buffer slot: flush its lazy args into a temp file if needed.
@@ -359,7 +297,7 @@ export async function executeBatch(
       const splitInEdge = graph.edges.find((e) => e.target === n.id && e.targetHandle === 'in-0');
       const splitSrcKey = splitInEdge
         ? `${splitInEdge.source}:${splitInEdge.sourceHandle ?? 'out-0'}`
-        : 'workflow-input:out-0';
+        : `${inputNodeId}:out-0`;
       for (const e of outEdges) {
         const chIdx = parseInt((e.sourceHandle ?? 'out-0').replace('out-', ''));
         channelMeanSources.set(`${n.id}:${e.sourceHandle ?? 'out-0'}`, { srcKey: splitSrcKey, channelIdx: chIdx });
@@ -413,32 +351,7 @@ export async function executeBatch(
       // process_as_set is a source node — buffers are pre-seeded externally; skip processing.
       if (node.data.definitionId === EXECUTOR.PROCESS_AS_SET) continue;
       const def = registry.get(node.data.definitionId);
-      if (!def) {
-        // workflow-output in text mode acts as a text output sink
-        if (node.id === 'workflow-output' && outputNodeTextMode) {
-          const rawParams: Record<string, unknown> = { ...(node.data.params ?? {}) };
-          for (const edge of graph.edges) {
-            if (edge.target !== node.id) continue;
-            const th = edge.targetHandle ?? '',
-              sh = edge.sourceHandle ?? '';
-            if (sh.startsWith('param-out-') && th.startsWith('txo-')) {
-              const src = resolvedParams.get(edge.source);
-              if (src) rawParams[`_txo_${th.slice('txo-'.length)}`] = src[sh.slice('param-out-'.length)];
-            }
-          }
-          if (Boolean(rawParams._txo_condition ?? true)) {
-            const portIds = (rawParams.portIds ?? []) as string[];
-            const sep = getSeparator(String(rawParams.separatorType ?? ''), String(rawParams.customSeparator ?? ''));
-            const line = portIds
-              .map((pid) => rawParams[`_txo_${pid.slice('txo-'.length)}`])
-              .filter((v) => v !== undefined && v !== null && v !== '')
-              .map((v) => String(v))
-              .join(sep);
-            if (line) collectedTextLines.push({ index: imageIndex, value: line });
-          }
-        }
-        continue;
-      }
+      if (!def) continue;
 
       const rawParams = applyParamWires(node, graph.edges, resolvedParams);
 
@@ -449,24 +362,7 @@ export async function executeBatch(
         !isImageNode && def.compute_js ? { ...rawParams, __compute_js__: def.compute_js } : rawParams;
       const params = computeNodeParams(isImageNode ? undefined : def.executor, computeInput, meta);
       resolvedParams.set(node.id, params);
-      if (!isImageNode) {
-        // Collect text_output values — written to disk after the full batch completes.
-        if (
-          def.executor === EXECUTOR.TEXT_OUTPUT &&
-          params._enabled !== false &&
-          Boolean(params._txo_condition ?? params.condition)
-        ) {
-          const portIds = (params.portIds ?? []) as string[];
-          const sep = getSeparator(String(params.separatorType ?? ''), String(params.customSeparator ?? ''));
-          const values = portIds
-            .map((pid) => params[`_txo_${pid.slice('txo-'.length)}`])
-            .filter((v) => v !== undefined && v !== null && v !== '')
-            .map((v) => String(v));
-          const line = values.join(sep);
-          if (line) collectedTextLines.push({ index: imageIndex, value: line });
-        }
-        continue;
-      }
+      if (!isImageNode) continue;
 
       if (def.executor === EXECUTOR.GATE && params._enabled !== false && !params.condition) {
         await cleanupAll();
@@ -505,7 +401,7 @@ export async function executeBatch(
           }
         }
       } else if (def.executor === EXECUTOR.CHANNEL_MERGE) {
-        const refPath = await mat('workflow-input:out-0');
+        const refPath = await mat(`${inputNodeId}:out-0`);
 
         // Returns either a concrete path or inline magick args for a constant fill.
         // Constant channels (param-wired or unconnected) skip the intermediate temp-file
@@ -590,7 +486,7 @@ export async function executeBatch(
       } else if (params._enabled !== false) {
         // Standard image op — fuse into a lazy chain when safe to do so.
         const imgInEdge = graph.edges.find((e) => e.target === node.id && e.targetHandle === 'in-0');
-        const srcKey = imgInEdge ? `${imgInEdge.source}:${imgInEdge.sourceHandle ?? 'out-0'}` : 'workflow-input:out-0';
+        const srcKey = imgInEdge ? `${imgInEdge.source}:${imgInEdge.sourceHandle ?? 'out-0'}` : `${inputNodeId}:out-0`;
         const outKey = `${node.id}:out-0`;
         const registeredFn = def.executor ? getExecutor(def.executor) : undefined;
         const opArgs = registeredFn
@@ -618,12 +514,12 @@ export async function executeBatch(
       } else {
         // Bypassed — pass source slot through unchanged (preserves any lazy chain).
         const imgInEdge = graph.edges.find((e) => e.target === node.id && e.targetHandle === 'in-0');
-        const srcKey = imgInEdge ? `${imgInEdge.source}:${imgInEdge.sourceHandle ?? 'out-0'}` : 'workflow-input:out-0';
+        const srcKey = imgInEdge ? `${imgInEdge.source}:${imgInEdge.sourceHandle ?? 'out-0'}` : `${inputNodeId}:out-0`;
         buffers.set(`${node.id}:out-0`, buffers.get(srcKey) ?? inputPath);
       }
     }
 
-    const outputEdge = graph.edges.find((e) => e.target === 'workflow-output' && e.targetHandle === 'in-0');
+    const outputEdge = graph.edges.find((e) => e.target === outputNodeId && e.targetHandle === 'in-0');
     // When there's no output edge or no buffer for it, return the input unchanged (no temps to clean up from output).
     const cleanup = async () => {
       await cleanupAll();
@@ -658,23 +554,6 @@ export async function executeBatch(
     } else await fs.promises.copyFile(finalVal.base, finalOut);
     return { resultPath: finalOut, outputExt, cleanup };
   };
-
-  // ── Preview substitution — swap full-size paths for cached thumbnails ────────
-  if (outputNodeTextMode && (outputNode?.data.params as Record<string, unknown> | undefined)?.usePreviewForProcessing) {
-    const inputNode = graph.nodes.find((n) => n.id === 'workflow-input');
-    const inputParams = (inputNode?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined;
-    const thumbSizePx = Number(inputParams?.thumbnailSize ?? 256);
-    const thumbPath = (p: string) => path.join(TEMP_DIR, `thumb_${shortHash(p)}_${thumbSizePx}.webp`);
-    imagePaths = await Promise.all(
-      imagePaths.map(async (p) => {
-        const thumb = thumbPath(p);
-        return await fs.promises
-          .access(thumb)
-          .then(() => thumb)
-          .catch(() => p);
-      })
-    );
-  }
 
   // ── Set batch mode ─────────────────────────────────────────────────────────
   // When a setInputNode is present, group images by naming convention and
@@ -973,10 +852,6 @@ export async function executeBatch(
             });
             continue;
           }
-          // Collect text output values from this image's plan.
-          for (const line of plan.textLines) {
-            collectedTextLines.push({ index: imageIndex, value: line });
-          }
           if (hasImageOutput) {
             const targetDir = outputDir ?? path.dirname(inputPath);
             const checkT0 = timings.enabled ? Date.now() : 0;
@@ -1075,26 +950,6 @@ export async function executeBatch(
     if (prevThreadLimit !== undefined) process.env.MAGICK_THREAD_LIMIT = prevThreadLimit;
     else delete process.env.MAGICK_THREAD_LIMIT;
   }
-  // Write collected text output lines to disk (preserving input order).
-  if (hasTextOutputNodes && collectedTextLines.length > 0) {
-    collectedTextLines.sort((a, b) => a.index - b.index);
-    const toNode = textOutputNodes[0];
-    const toParams = toNode.data.params as Record<string, unknown>;
-    // outputPath is the user-configured path in the node inspector;
-    // fall back to file_path (old param name) then a safe default.
-    const filePath = String(toParams.outputPath ?? toParams.file_path ?? 'output.txt');
-    const appendMode = Boolean(toParams.append ?? false);
-    const content = collectedTextLines.map((l) => l.value).join('\n') + '\n';
-    try {
-      const dir = path.dirname(path.resolve(filePath));
-      await fs.promises.mkdir(dir, { recursive: true });
-      await fs.promises.writeFile(filePath, content, { flag: appendMode ? 'a' : 'w' });
-      outputFiles.push(filePath);
-    } catch (err) {
-      console.error('[executor] Failed to write text output file:', err);
-    }
-  }
-
   if (timings.enabled) {
     const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null);
     timings.endBatch(resolvedOutputDir, batchVerboseEntries.length > 0 ? batchVerboseEntries : undefined);

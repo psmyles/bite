@@ -3,9 +3,11 @@
   import { graphStore } from '../stores/graph.svelte.js';
   import { IPC } from '../../shared/constants.js';
 
+  let { nodeId }: { nodeId: string } = $props();
+
   const THUMB_SIZE_OPTIONS = [128, 256, 512, 1024, 2048];
   const thumbSizeParam = $derived.by(() => {
-    const node = graphStore.nodes.find((n) => n.id === 'workflow-input');
+    const node = graphStore.nodes.find((n) => n.id === nodeId);
     const params = (node?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined;
     return Number(params?.thumbnailSize ?? 128);
   });
@@ -78,7 +80,7 @@
 
   async function importFromFolder() {
     if (matchingPaths.length === 0) return;
-    await imageStore.add(matchingPaths);
+    await imageStore.add(matchingPaths, nodeId);
   }
 
   function folderDisplayName(p: string) {
@@ -95,7 +97,7 @@
         class="setting-select"
         value={thumbSizeParam}
         onchange={(e) =>
-          graphStore.setParam('workflow-input', 'thumbnailSize', Number((e.target as HTMLSelectElement).value))}
+          graphStore.setParam(nodeId, 'thumbnailSize', Number((e.target as HTMLSelectElement).value))}
       >
         {#each THUMB_SIZE_OPTIONS as sz}
           <option value={sz}>{sz}px</option>
@@ -104,7 +106,7 @@
     </div>
   </div>
 
-  {#if imageStore.images.length === 0}
+  {#if imageStore.getImages(nodeId).length === 0}
     <!-- ── Folder picker (shown when filmstrip is empty) ─────────────────── -->
     <div class="folder-section">
       <!-- Folder import group -->
@@ -166,7 +168,7 @@
       <div class="import-group">
         <span class="group-label">Individual Images</span>
         <div class="group-body">
-          <button class="io-btn" onclick={() => imageStore.openDialog()}> Add Individual Images… </button>
+          <button class="io-btn" onclick={() => imageStore.openDialog(nodeId)}> Add Individual Images… </button>
         </div>
       </div>
 
@@ -175,16 +177,16 @@
   {:else}
     <!-- ── Loaded image list ──────────────────────────────────────────────── -->
     <div class="input-top">
-      <button class="io-btn" onclick={() => imageStore.openDialog()}>Add Images…</button>
-      <button class="io-btn danger" onclick={() => imageStore.clear()}>Clear All</button>
+      <button class="io-btn" onclick={() => imageStore.openDialog(nodeId)}>Add Images…</button>
+      <button class="io-btn danger" onclick={() => imageStore.clear(nodeId)}>Clear All</button>
     </div>
     <div class="file-list-wrap">
-      {#each imageStore.images as img, i}
+      {#each imageStore.getImages(nodeId) as img, i}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="file-entry"
-          class:active={i === imageStore.selectedIndex}
-          onclick={() => imageStore.select(i)}
+          class:active={imageStore.activeInputNodeId === nodeId && i === imageStore.selectedIndex}
+          onclick={() => { imageStore.setActive(nodeId); imageStore.select(i); }}
           title={img.path}
         >
           <span class="file-entry-name">{img.name}</span>

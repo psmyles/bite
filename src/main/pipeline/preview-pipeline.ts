@@ -19,10 +19,16 @@ export async function executePreview(
   graph: NodeGraph,
   imagePath: string,
   registry: NodeRegistry,
-  fromNodeId?: string
+  fromNodeId?: string,
+  inputNodeId?: string
 ): Promise<{ dataUrl: string; propParams: Record<string, Record<string, unknown>> }> {
   await fs.promises.mkdir(TEMP_DIR, { recursive: true });
-  const inputNode = graph.nodes.find((n) => n.id === 'workflow-input');
+  // Resolve the input node: prefer the explicitly passed ID, then find any inputNode type, fall back to legacy ID.
+  const resolvedInputNodeId =
+    inputNodeId ??
+    graph.nodes.find((n) => n.type === 'inputNode')?.id ??
+    'workflow-input';
+  const inputNode = graph.nodes.find((n) => n.id === resolvedInputNodeId);
   const thumbnailSize = Number((inputNode?.data.params as Record<string, unknown> | undefined)?.thumbnailSize ?? 256);
   // Reuse the import thumbnail WebP as the preview input — avoids a second magick
   // spawn when the image was already imported. Falls back to generating it if missing
@@ -81,7 +87,7 @@ export async function executePreview(
   // Multi-stream image buffer: keyed "nodeId:out-N" → temp file path.
   // This allows fan-out (channel_split) and fan-in (channel_merge) topologies.
   const imageBuffers = new Map<string, string>();
-  imageBuffers.set('workflow-input:out-0', downscaledPath);
+  imageBuffers.set(`${resolvedInputNodeId}:out-0`, downscaledPath);
 
   // In set mode, seed companion images for each suffix port of the setInputNode.
   // Infer middle name from the selected imagePath so we can locate sibling files.
@@ -221,7 +227,7 @@ export async function executePreview(
 
     // ── Channel Merge ──────────────────────────────────────────────────────
     if (def.executor === EXECUTOR.CHANNEL_MERGE) {
-      const refPath = imageBuffers.get('workflow-input:out-0') ?? downscaledPath;
+      const refPath = imageBuffers.get(`${resolvedInputNodeId}:out-0`) ?? downscaledPath;
 
       // Returns the image for a channel port, or a solid-black placeholder when unconnected.
       const resolveChannel = async (inputIdx: number): Promise<string> => {
@@ -334,10 +340,15 @@ export async function executePreview(
     imageBuffers.set(`${node.id}:out-0`, outputPath);
   }
 
-  // Resolve the final output from the edge feeding into workflow-output's image input.
-  // When the graph is filtered to a preview sub-graph, workflow-output is excluded, so
-  // fall back to the last image-producing node in topological order.
-  const outputEdge = graph.edges.find((e) => e.target === 'workflow-output' && e.targetHandle === 'in-0');
+  // Resolve the final output from the edge feeding into the output node's image input.
+  // Try imageOutputNode first, then legacy workflow-output, then fall back to the last
+  // image-producing node in topological order.
+  const outputNodeId =
+    graph.nodes.find((n) => n.type === 'imageOutputNode')?.id ??
+    graph.nodes.find((n) => n.id === 'workflow-output')?.id;
+  const outputEdge = outputNodeId
+    ? graph.edges.find((e) => e.target === outputNodeId && e.targetHandle === 'in-0')
+    : undefined;
   let finalPath: string;
   if (outputEdge) {
     finalPath = imageBuffers.get(`${outputEdge.source}:${outputEdge.sourceHandle ?? 'out-0'}`) ?? downscaledPath;

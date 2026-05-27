@@ -6,9 +6,14 @@
   import { IPC } from '../../shared/constants.js';
   import type { NodeGraph } from '../../shared/types.js';
   import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
+  import { traceInputNodeId } from '../workflowUtils.js';
   import Dropdown from './Dropdown.svelte';
 
   let { selectedNode }: { selectedNode: Node } = $props();
+
+  // Find which input node's images to use for preview and write
+  const tracedInputNodeId = $derived(traceInputNodeId(graphStore.nodes, graphStore.edges, selectedNode.id));
+  const activeImages = $derived(tracedInputNodeId ? imageStore.getImages(tracedInputNodeId) : imageStore.images);
 
   const params = $derived(getNodeParams(selectedNode?.data));
 
@@ -136,7 +141,7 @@
   const PREVIEW_LIMIT = 10;
 
   async function runPreview() {
-    if (imageStore.images.length === 0 || connectedPortIds.length === 0) {
+    if (activeImages.length === 0 || connectedPortIds.length === 0) {
       previewLines = null;
       return;
     }
@@ -145,7 +150,7 @@
       const graph = serializeGraph();
       const lines = (await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_PREVIEW, {
         graph,
-        imagePaths: imageStore.images.slice(0, PREVIEW_LIMIT).map((img) => img.path),
+        imagePaths: activeImages.slice(0, PREVIEW_LIMIT).map((img) => img.path),
         nodeId: selectedNode.id,
       })) as string[];
       previewLines = lines;
@@ -158,7 +163,7 @@
 
   // Re-run preview whenever connected ports, separator, or image list changes
   $effect(() => {
-    const _deps = [connectedPortIds.length, separatorType, customSep, imageStore.images.length];
+    const _deps = [connectedPortIds.length, separatorType, customSep, activeImages.length];
     void _deps;
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = setTimeout(runPreview, 350);
@@ -210,7 +215,7 @@
       writeError = 'Set an output path first.';
       return;
     }
-    if (imageStore.images.length === 0) {
+    if (activeImages.length === 0) {
       writeError = 'No images loaded.';
       return;
     }
@@ -219,7 +224,7 @@
       return;
     }
 
-    const total = imageStore.images.length;
+    const total = activeImages.length;
     writeRunning = true;
     writeProgress = { done: 0, total };
     startElapsedTimer();
@@ -233,7 +238,7 @@
       const graph = serializeGraph();
       const result = (await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_WRITE, {
         graph,
-        imagePaths: imageStore.images.map((img) => img.path),
+        imagePaths: activeImages.map((img) => img.path),
         nodeId: selectedNode.id,
         generateLog,
       })) as string;
@@ -369,12 +374,12 @@
   <div class="section preview-section">
     <div class="section-title">
       {#if previewLines !== null}
-        Preview — {imageStore.images.length > PREVIEW_LIMIT
-          ? `first ${PREVIEW_LIMIT} of ${imageStore.images.length} files`
+        Preview — {activeImages.length > PREVIEW_LIMIT
+          ? `first ${PREVIEW_LIMIT} of ${activeImages.length} files`
           : `${previewLines.length} line${previewLines.length !== 1 ? 's' : ''}`}
       {:else if previewLoading}
         Preview…
-      {:else if imageStore.images.length === 0}
+      {:else if activeImages.length === 0}
         Preview (no files loaded)
       {:else}
         Preview (connect a port)
@@ -391,7 +396,7 @@
       <div class="preview-hint">Computing…</div>
     {:else}
       <div class="preview-hint">
-        {imageStore.images.length === 0
+        {activeImages.length === 0
           ? 'Load images to see a preview.'
           : 'Connect at least one port to see a preview.'}
       </div>

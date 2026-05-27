@@ -3,7 +3,7 @@
    * Rendered inside <SvelteFlow> so it has access to the store context.
    * Exposes screenToFlowPosition, setViewport, and updateNodeInternals to the parent via callbacks.
    */
-  import { useSvelteFlow, type Viewport } from '@xyflow/svelte';
+  import { useSvelteFlow, useUpdateNodeInternals, type Viewport } from '@xyflow/svelte';
 
   interface Props {
     onReady: (fn: (pos: { x: number; y: number }) => { x: number; y: number }) => void;
@@ -12,7 +12,8 @@
   }
   let { onReady, onViewportReady, onUpdateNodeInternalsReady }: Props = $props();
 
-  const { screenToFlowPosition, setViewport, updateNodeInternals } = useSvelteFlow();
+  const { screenToFlowPosition, setViewport } = useSvelteFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
 
   $effect(() => {
     onReady((pos) => screenToFlowPosition(pos, { snapToGrid: false }));

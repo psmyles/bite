@@ -17,6 +17,7 @@
   import ConfirmModal from './components/ConfirmModal.svelte';
   import ImportProgressModal from './components/ImportProgressModal.svelte';
   import { imageStore } from './stores/images.svelte.js';
+  import Toolbar from './components/Toolbar.svelte';
 
   // ── Node definitions — loaded once here, passed to NodeLibrary + NodeEditor ──
   let definitions: NodeDefinition[] = $state([]);
@@ -45,7 +46,28 @@
     return () => window.ipcRenderer.off(`${IPC.EXECUTE_BATCH}:progress`, onProgress);
   });
 
+  // ── Active input node tracking ────────────────────────────────────────────
+  // When the user selects an input node, make its images the active filmstrip.
+  $effect(() => {
+    const nodeId = graphStore.selectedNodeId;
+    if (!nodeId) return;
+    const node = graphStore.nodes.find((n) => n.id === nodeId);
+    if (node?.type === 'inputNode') imageStore.setActive(nodeId);
+  });
+
+  // Ensure the filmstrip always has a valid active input node (e.g. on startup or after deletion).
+  $effect(() => {
+    const nodes = graphStore.nodes;
+    const activeId = imageStore.activeInputNodeId;
+    if (!activeId || !nodes.find((n) => n.id === activeId)) {
+      const firstInput = nodes.find((n) => n.type === 'inputNode');
+      if (firstInput) imageStore.setActive(firstInput.id);
+    }
+  });
+
   // ── Workflow helpers ───────────────────────────────────────────────────────
+
+  const WORKFLOW_TYPES_APP = new Set(['inputNode', 'imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
 
   function buildNodeGraph(): NodeGraph {
     // Sort: group nodes before their children so load order is correct
@@ -53,18 +75,15 @@
     return {
       nodes: sortedNodes.map((n) => {
         const d = n.data as Record<string, unknown>;
-        // Slim node data: only persist what can't be re-derived from the definition.
-        // workflow-input has no user state; workflow-output and regular nodes save params only.
+        // Workflow + group nodes: save label + params. Regular nodes: also save definitionId.
         const slimData: GraphNode['data'] =
-          n.id === 'workflow-input'
-            ? { label: 'Input', definitionId: '', params: {} }
-            : n.id === 'workflow-output'
-              ? { label: 'Output', definitionId: '', params: (d.params ?? {}) as Record<string, unknown> }
-              : {
-                  label: String(d.label ?? ''),
-                  definitionId: String(d.definitionId ?? ''),
-                  params: (d.params ?? {}) as Record<string, unknown>,
-                };
+          WORKFLOW_TYPES_APP.has(n.type ?? '') || n.type === 'group'
+            ? { label: String(d.label ?? ''), definitionId: '', params: (d.params ?? {}) as Record<string, unknown> }
+            : {
+                label: String(d.label ?? ''),
+                definitionId: String(d.definitionId ?? ''),
+                params: (d.params ?? {}) as Record<string, unknown>,
+              };
         return {
           id: n.id,
           type: n.type ?? 'process',
@@ -118,24 +137,25 @@
       const saved = n.data as Record<string, unknown>;
       const savedParams = (saved.params ?? {}) as Record<string, unknown>;
       let data: Record<string, unknown>;
-      if (n.id === 'workflow-input') {
-        data = { label: 'Input', inputs: [], outputs: ['image'] };
-      } else if (n.id === 'workflow-output') {
+      if (n.type === 'inputNode') {
+        data = { label: String(saved.label ?? 'Input'), inputs: [], outputs: ['image'], params: { thumbnailSize: 256, ...savedParams } };
+      } else if (n.type === 'imageOutputNode') {
         data = {
-          label: 'Output',
-          inputs: ['image'],
-          outputs: [],
-          params: {
-            outputPath: 'source',
-            customPath: '',
-            overwrite: 'skip',
-            outputMode: 'image',
-            portIds: ['txo-0'],
-            nextPortIndex: 1,
-            separatorType: 'comma',
-            customSeparator: '',
-            ...savedParams,
-          },
+          label: String(saved.label ?? 'Image Output'),
+          inputs: ['image'], outputs: [],
+          params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false, ...savedParams },
+        };
+      } else if (n.type === 'textOutputNode') {
+        data = {
+          label: String(saved.label ?? 'Text Output'),
+          inputs: ['image'], outputs: [],
+          params: { outputPath: '', portIds: ['txo-0'], nextPortIndex: 1, separatorType: 'comma', customSeparator: '', generateLog: false, usePreviewForProcessing: false, ...savedParams },
+        };
+      } else if (n.type === 'flipbookOutputNode') {
+        data = {
+          label: String(saved.label ?? 'Flipbook Output'),
+          inputs: ['image'], outputs: [],
+          params: { flipbookOutputPath: '', cols: 4, rows: 4, cellWidth: 128, cellHeight: 128, sortBy: 'import_order', generateLog: false, ...savedParams },
         };
       } else if (n.type === 'group') {
         data = { label: String(saved.label ?? 'Group'), definitionId: '', params: savedParams };
@@ -154,7 +174,6 @@
         ...(n.extent ? { extent: 'parent' as const } : {}),
         ...(n.type === 'group' ? { zIndex: 0 } : {}),
         data,
-        ...(n.id === 'workflow-input' || n.id === 'workflow-output' ? { deletable: false } : {}),
       };
     });
     graphStore.edges = graph.edges;
@@ -399,6 +418,8 @@
       title={document.title}
     />
   {/if}
+
+  <Toolbar {definitions} />
 
   <div class="shell" bind:clientHeight={shellHeight}>
     <!-- ── Main area: (library | canvas) over filmstrip ── -->

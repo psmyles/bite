@@ -97,8 +97,8 @@ export function registerPipelineHandlers(
     return executor.generateThumbnail(imagePath, size);
   });
 
-  ipcMain.handle(IPC.EXECUTE_PREVIEW, async (_e, graph: NodeGraph, imagePath: string, fromNodeId?: string) => {
-    return executor.executePreview(graph, imagePath, registry, fromNodeId);
+  ipcMain.handle(IPC.EXECUTE_PREVIEW, async (_e, graph: NodeGraph, imagePath: string, fromNodeId?: string, inputNodeId?: string) => {
+    return executor.executePreview(graph, imagePath, registry, fromNodeId, inputNodeId);
   });
 
   ipcMain.handle(IPC.EXECUTE_BATCH_CANCEL, () => {
@@ -110,13 +110,15 @@ export function registerPipelineHandlers(
     async (
       _e,
       graph: NodeGraph,
+      outputNodeId: string,
+      inputNodeId: string,
       imagePaths: string[],
       outputDir: string | null,
       overwrite: 'skip' | 'overwrite',
       generateLog: boolean
     ) => {
       const t0 = Date.now();
-      const result = await executor.executeBatch(graph, imagePaths, outputDir, overwrite, registry, (progress) => {
+      const result = await executor.executeBatch(graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, registry, (progress) => {
         getWin()?.webContents.send(`${IPC.EXECUTE_BATCH}:progress`, progress);
       });
       if (generateLog) {

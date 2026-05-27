@@ -8,8 +8,7 @@
   import { isNodeEffectivelyEnabled } from '../nodeEditor/nodeEnabledState.js';
   import { IS_ELECTRON } from '../platform.js';
 
-  const INPUT_NODE_ID = 'workflow-input';
-  const OUTPUT_NODE_ID = 'workflow-output';
+  const OUTPUT_TYPES = new Set(['imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
 
   function toNodeGraph(sfNodes: Node[], sfEdges: Edge[]): NodeGraph {
     return {
@@ -49,7 +48,7 @@
       if (seen.has(current)) return null;
       seen.add(current);
       const inEdge = sfEdges.find((e) => e.target === current && (e.targetHandle ?? '').startsWith('in-'));
-      if (!inEdge || inEdge.source === INPUT_NODE_ID) return null;
+      if (!inEdge || sfNodes.find((n) => n.id === inEdge.source)?.type === 'inputNode') return null;
       const pred = inEdge.source;
       if (isNodeEffectivelyEnabled(pred, sfNodes, sfEdges)) return pred;
       current = pred;
@@ -62,9 +61,10 @@
    * Bypassed nodes are skipped when auto-detecting the default preview node.
    */
   function buildPreviewGraph(sfNodes: Node[], sfEdges: Edge[], userPreviewId: string | null): PreviewGraphResult {
-    // BFS forward from Input — find all reachable nodes
+    // BFS forward from all Input nodes — find all reachable nodes
     const reachable = new Set<string>();
-    const q: string[] = [INPUT_NODE_ID];
+    const inputNodeIds = sfNodes.filter((n) => n.type === 'inputNode').map((n) => n.id);
+    const q: string[] = [...inputNodeIds];
     while (q.length > 0) {
       const id = q.shift()!;
       if (reachable.has(id)) continue;
@@ -74,15 +74,16 @@
       }
     }
 
-    // Default preview node: walk backward from Output's image input, skipping
+    // Default preview node: walk backward from any output node's image input, skipping
     // bypassed nodes, until we land on a non-bypassed process node.
     let defaultPreviewId: string | null = null;
     for (const e of sfEdges) {
+      const targetNode = sfNodes.find((n) => n.id === e.target);
       if (
-        e.target === OUTPUT_NODE_ID &&
+        targetNode && OUTPUT_TYPES.has(targetNode.type ?? '') &&
         (e.targetHandle ?? '').startsWith('in-') &&
         reachable.has(e.source) &&
-        e.source !== INPUT_NODE_ID
+        sfNodes.find((n) => n.id === e.source)?.type !== 'inputNode'
       ) {
         defaultPreviewId = isNodeEffectivelyEnabled(e.source, sfNodes, sfEdges)
           ? e.source
@@ -99,7 +100,7 @@
       for (let i = processReachable.length - 1; i >= 0; i--) {
         const n = processReachable[i];
         const hasSuccessor = sfEdges.some(
-          (e) => e.source === n.id && reachable.has(e.target) && e.target !== OUTPUT_NODE_ID
+          (e) => e.source === n.id && reachable.has(e.target) && !OUTPUT_TYPES.has(sfNodes.find((nd) => nd.id === e.target)?.type ?? '')
         );
         if (!hasSuccessor) {
           defaultPreviewId = n.id;
@@ -116,11 +117,12 @@
     // - If user's choice is bypassed → fall back to nearest non-bypassed predecessor.
     // - Otherwise → use auto-detected default.
     let effectivePreviewId: string | null;
+    const userPreviewNodeType = sfNodes.find((n) => n.id === userPreviewId)?.type ?? '';
     if (
       userPreviewId &&
       reachable.has(userPreviewId) &&
-      userPreviewId !== INPUT_NODE_ID &&
-      userPreviewId !== OUTPUT_NODE_ID
+      userPreviewNodeType !== 'inputNode' &&
+      !OUTPUT_TYPES.has(userPreviewNodeType)
     ) {
       effectivePreviewId = isNodeEffectivelyEnabled(userPreviewId, sfNodes, sfEdges)
         ? userPreviewId

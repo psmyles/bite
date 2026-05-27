@@ -26,40 +26,35 @@ function graphFingerprint(nodes: Node[], edges: Edge[]): string {
   });
 }
 
-const SEED_NODES: Node[] = [
-  {
-    id: 'workflow-input',
-    type: 'inputNode',
-    position: { x: 80, y: 180 },
-    deletable: false,
-    data: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 256 } },
-  },
-  {
-    id: 'workflow-output',
-    type: 'outputNode',
-    position: { x: 640, y: 180 },
-    deletable: false,
-    data: {
-      label: 'Output',
-      inputs: ['image'],
-      outputs: [],
-      params: {
-        outputPath: 'source',
-        customPath: '',
-        overwrite: 'skip',
-        outputMode: 'image',
-        portIds: ['txo-0'],
-        nextPortIndex: 1,
-        separatorType: 'comma',
-        customSeparator: '',
+const INPUT_TYPES = new Set(['inputNode']);
+const OUTPUT_TYPES = new Set(['imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
+
+function makeSeedNodes(): Node[] {
+  const ts = Date.now();
+  return [
+    {
+      id: `input-${ts}`,
+      type: 'inputNode',
+      position: { x: 80, y: 180 },
+      data: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 256 } },
+    },
+    {
+      id: `imageOutput-${ts + 1}`,
+      type: 'imageOutputNode',
+      position: { x: 640, y: 180 },
+      data: {
+        label: 'Image Output',
+        inputs: ['image'],
+        outputs: [],
+        params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false },
       },
     },
-  },
-];
+  ];
+}
 
 class GraphStore {
   // ── Graph data ────────────────────────────────────────────────────────────
-  nodes = $state<Node[]>([]);
+  nodes = $state<Node[]>(makeSeedNodes());
   edges = $state<Edge[]>([]);
 
   // ── Selection & preview ───────────────────────────────────────────────────
@@ -123,15 +118,29 @@ class GraphStore {
     this.currentFilePath = filePath;
   }
 
-  /** Reset graph to the initial seed state (Input + Output nodes, no edges). */
+  /** Reset graph to the initial seed state (Input + ImageOutput nodes, no edges). */
   resetToSeed(): void {
-    this.nodes = SEED_NODES.map((n) => ({ ...n }));
+    this.nodes = makeSeedNodes();
     this.edges = [];
     this.selectedNodeId = null;
     this.previewNodeId = null;
     this.propValues = {};
     this.pendingViewport = { x: 0, y: 0, zoom: 1 };
     this.markClean(null);
+  }
+
+  /**
+   * Returns false when deleting this node would violate the minimum-one constraint.
+   * The last inputNode and the last output node (any type) cannot be deleted.
+   */
+  canDeleteNode(nodeId: string): boolean {
+    const node = this.nodes.find((n) => n.id === nodeId);
+    if (!node) return true;
+    if (INPUT_TYPES.has(node.type ?? ''))
+      return this.nodes.filter((n) => INPUT_TYPES.has(n.type ?? '')).length > 1;
+    if (OUTPUT_TYPES.has(node.type ?? ''))
+      return this.nodes.filter((n) => OUTPUT_TYPES.has(n.type ?? '')).length > 1;
+    return true;
   }
 
   setPropValues(nodeId: string, values: Record<string, unknown>): void {

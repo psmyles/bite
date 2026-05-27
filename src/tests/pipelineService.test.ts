@@ -24,7 +24,7 @@ describe('ElectronPipelineService.executeBatch', () => {
   it('registers a progress listener and removes it after a successful invoke', async () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     const svc = new ElectronPipelineService();
-    await svc.executeBatch({} as never, [], '', vi.fn());
+    await svc.executeBatch({} as never, 'out-1', 'in-1', [], null, 'skip', false, vi.fn());
 
     expect(mockOn).toHaveBeenCalledOnce();
     expect(mockOn).toHaveBeenCalledWith(BATCH_PROGRESS_CHANNEL, expect.any(Function));
@@ -39,7 +39,9 @@ describe('ElectronPipelineService.executeBatch', () => {
   it('removes the progress listener even when invoke rejects (finally block runs)', async () => {
     mockInvoke.mockRejectedValueOnce(new Error('batch failed'));
     const svc = new ElectronPipelineService();
-    await expect(svc.executeBatch({} as never, [], '', vi.fn())).rejects.toThrow('batch failed');
+    await expect(
+      svc.executeBatch({} as never, 'out-1', 'in-1', [], null, 'skip', false, vi.fn())
+    ).rejects.toThrow('batch failed');
 
     expect(mockOff).toHaveBeenCalledOnce();
   });
@@ -48,8 +50,8 @@ describe('ElectronPipelineService.executeBatch', () => {
     // Two sequential calls — each should have exactly one on/off pair
     mockInvoke.mockResolvedValue(undefined);
     const svc = new ElectronPipelineService();
-    await svc.executeBatch({} as never, [], '', vi.fn());
-    await svc.executeBatch({} as never, [], '', vi.fn());
+    await svc.executeBatch({} as never, 'out-1', 'in-1', [], null, 'skip', false, vi.fn());
+    await svc.executeBatch({} as never, 'out-2', 'in-2', [], null, 'skip', false, vi.fn());
 
     expect(mockOn).toHaveBeenCalledTimes(2);
     expect(mockOff).toHaveBeenCalledTimes(2);

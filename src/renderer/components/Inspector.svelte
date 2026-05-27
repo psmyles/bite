@@ -2,7 +2,9 @@
   import { graphStore } from '../stores/graph.svelte.js';
   import type { NodeDefinition } from '../../shared/types.js';
   import InspectorInputNode from './InspectorInputNode.svelte';
-  import InspectorOutputNode from './InspectorOutputNode.svelte';
+  import InspectorImageOutputNode from './InspectorImageOutputNode.svelte';
+  import InspectorTextOutputNode from './InspectorTextOutputNode.svelte';
+  import InspectorFlipbookOutputNode from './InspectorFlipbookOutputNode.svelte';
   import InspectorParamEditor from './InspectorParamEditor.svelte';
   import InspectorCommentNode from './InspectorCommentNode.svelte';
   import InspectorRenameNode from './InspectorRenameNode.svelte';
@@ -19,44 +21,41 @@
 
   const definition = $derived(selectedNode ? (definitions.find((d) => d.id === nodeData?.definitionId) ?? null) : null);
 
-  const outputNodeMode = $derived(
-    nodeType === 'outputNode'
-      ? (((nodeData?.params as Record<string, unknown> | undefined)?.outputMode as string) ?? 'image')
-      : null
-  );
+  function nodeLabel(): string {
+    if (nodeType === 'inputNode') return (nodeData?.label as string | undefined) ?? 'Input';
+    if (nodeType === 'imageOutputNode') return 'Image Output';
+    if (nodeType === 'textOutputNode') return 'Text Output';
+    if (nodeType === 'flipbookOutputNode') return 'Flipbook Output';
+    if (nodeType === 'commentNode') return 'Comment';
+    if (nodeType === 'folderPathNode') return 'Folder Path';
+    if (nodeType === 'setInputNode') return 'Process As Set';
+    if (definition) return definition.label;
+    return '';
+  }
 </script>
 
 <div class="inspector">
   <div class="panel-header">
     <span>Inspector</span>
-    {#if definition}
-      <span class="node-label">{definition.label}</span>
-    {:else if nodeType === 'inputNode'}
-      <span class="node-label">{nodeData?.label as string}</span>
-    {:else if nodeType === 'outputNode'}
-      <span class="node-label">
-        {outputNodeMode === 'text'
-          ? 'Output — Text'
-          : outputNodeMode === 'flipbook'
-            ? 'Output — Flipbook'
-            : 'Output — Image'}
-      </span>
-    {:else if nodeType === 'commentNode'}
-      <span class="node-label">Comment</span>
-    {:else if nodeType === 'folderPathNode'}
-      <span class="node-label">Folder Path</span>
-    {:else if nodeType === 'setInputNode'}
-      <span class="node-label">Process As Set</span>
+    {#if nodeType}
+      <span class="node-label">{nodeLabel()}</span>
     {/if}
   </div>
 
-  <div class="content" class:fill={nodeType === 'inputNode' || outputNodeMode === 'text'}>
+  <div
+    class="content"
+    class:fill={nodeType === 'inputNode' || nodeType === 'textOutputNode'}
+  >
     {#if !selectedNode}
       <span class="empty-hint">Select a node to edit its parameters.</span>
     {:else if nodeType === 'inputNode'}
-      <InspectorInputNode />
-    {:else if nodeType === 'outputNode'}
-      <InspectorOutputNode {selectedNode} />
+      <InspectorInputNode nodeId={selectedNode.id} />
+    {:else if nodeType === 'imageOutputNode'}
+      <InspectorImageOutputNode {selectedNode} />
+    {:else if nodeType === 'textOutputNode'}
+      <InspectorTextOutputNode {selectedNode} />
+    {:else if nodeType === 'flipbookOutputNode'}
+      <InspectorFlipbookOutputNode {selectedNode} />
     {:else if nodeType === 'commentNode'}
       <InspectorCommentNode {selectedNode} />
     {:else if nodeType === 'folderPathNode'}
