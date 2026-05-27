@@ -7,7 +7,9 @@ A batch image workflow builder application built around a visual node graph edit
 ### Core Features
 
 - **Visual node graph editor** — chain image operations by connecting nodes
-- **Filmstrip view** — thumbnail strip of queued images along the bottom
+- **Multi-input / multi-output workflows** — any number of Input nodes (each with its own filmstrip) and any mix of Image Output, Text Output, and Flipbook Output nodes, wired independently
+- **Toolbar Run Workflow** — single button validates and executes all output nodes sequentially; shows a dialog when some are invalid
+- **Filmstrip view** — per-input-node thumbnail strip; tracks whichever Input node is selected
 - **Real-time preview** — selected image rendered through the current node network, node-level cached
 - **JSON-based node definitions** — add new nodes without recompiling
 - **CLI command export** — export any graph as an ImageMagick shell script (PS / Bash / CMD)
@@ -20,7 +22,9 @@ A batch image workflow builder application built around a visual node graph edit
 ### UI Layout
 
 ```
-┌──────────────┬───────────────────────────┬──────────────────┐
+┌─────────────────────────────────────────────────────────────┐
+│              Toolbar (Run Workflow / progress)              │
+├──────────────┬───────────────────────────┬──────────────────┤
 │              │                           │    Inspector     │
 │  Node        │     Node Graph Editor     │  (parameters of  │
 │  Library     │     (@xyflow/svelte)      │  selected node)  │
@@ -28,7 +32,7 @@ A batch image workflow builder application built around a visual node graph edit
 │              │                           │  Image Preview   │
 │              │                           │  (real-time)     │
 ├──────────────┴───────────────────────────┴──────────────────┤
-│                    Filmstrip (thumbnails)                   │
+│              Filmstrip (active Input node thumbnails)       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -116,7 +120,7 @@ project-root/
 │   │   │   ├── magick-spawn.ts      — spawnMagick (Promise<void>) and spawnMagickCapture (Promise<string>) helpers; centralises binary resolution
 │   │   │   ├── thumbnail-service.ts — Thumbnail generation and image loading; module-level _metaCache per path
 │   │   │   ├── preview-pipeline.ts  — executePreview as a standalone function; per-node output caching via PreviewCache
-│   │   │   ├── batch-pipeline.ts    — executeBatch as a standalone function; fast/slow/multi-stream paths; accepts isCancelled callback
+│   │   │   ├── batch-pipeline.ts    — executeBatch(graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog, isCancelled); fast/slow/multi-stream paths; no hardcoded node IDs
 │   │   │   ├── executor-compute.ts  — Pure numeric/vector helpers and computeNodeParams (reads image metadata via magick identify)
 │   │   │   ├── executor-cli.ts      — CLI script generators (PowerShell / Bash / CMD)
 │   │   │   ├── executorRegistry.ts  — ArgBuilderFn registry for nodes needing custom argument building beyond command_template/command_js
@@ -133,23 +137,27 @@ project-root/
 │   │       └── atlas-handlers.ts    — IPC handlers for the atlas (contact sheet) generation feature
 │   └── renderer/
 │       ├── main.ts        — Svelte app mount entry point
-│       ├── App.svelte     — 3-panel resizable layout; workflow save/load; menu IPC listeners
+│       ├── App.svelte     — Toolbar + 3-panel resizable layout; workflow save/load; menu IPC listeners; two $effects for active input node tracking (selecting an inputNode calls imageStore.setActive; falls back to first inputNode if active is deleted)
 │       ├── assets/
 │       │   ├── theme.css  — CSS custom properties (colors, typography, layout sizes, port colors)
 │       │   └── fonts.css  — @font-face for JetBrainsMono-Regular and AtkinsonHyperlegibleNext-Regular
 │       ├── components/
-│       │   ├── NodeLibrary.svelte       — Categorised node list with search filter; drag-to-canvas
-│       │   ├── Inspector.svelte         — Dispatches to per-node inspector based on selected type
-│       │   ├── InspectorInputNode.svelte    — Folder import workflow + individual image add
-│       │   ├── InspectorOutputNode.svelte   — Output path, overwrite mode, and text-output mode (file path, separator, port order, preview, write)
+│       │   ├── Toolbar.svelte               — 32px bar above canvas; Run Workflow button, progress bar, elapsed timer, Cancel; shows RunWorkflowDialog when some output nodes invalid
+│       │   ├── RunWorkflowDialog.svelte     — Modal listing each output node's readiness (✅/⚠️ + reason); "Run N nodes" / Cancel
+│       │   ├── NodeLibrary.svelte           — Pinned Workflow section (Input, Image Output, Text Output, Flipbook Output) + categorised JSON-defined nodes; drag-to-canvas; collapsible, search-filtered
+│       │   ├── Inspector.svelte             — Routes to the correct inspector by node.type
+│       │   ├── InspectorInputNode.svelte    — Takes nodeId prop; scopes all image ops (add/clear/select) to that node
+│       │   ├── InspectorImageOutputNode.svelte — Output path, overwrite mode, log generation; no Run button (toolbar-driven)
+│       │   ├── InspectorTextOutputNode.svelte  — Text output settings; uses traceInputNodeId for connected image list; dynamic value port management
+│       │   ├── InspectorFlipbookOutputNode.svelte — Flipbook atlas settings (grid, padding, format)
+│       │   ├── InspectorOutputNode.svelte   — Legacy; superseded by the three separate output inspectors above
 │       │   ├── InspectorParamEditor.svelte  — Dynamic param widgets for ProcessNode
 │       │   ├── InspectorCommentNode.svelte      — Comment node text editing
 │       │   ├── InspectorRenameNode.svelte       — Rename node block editor
 │       │   ├── InspectorResizeNode.svelte       — Resize node inspector (mode/preserve switcher, dynamic port visibility)
-│       │   ├── InspectorTextOutputNode.svelte   — Text output node inspector
 │       │   ├── InspectorFolderPathNode.svelte   — Folder path node inspector
 │       │   ├── Preview.svelte           — Live preview image; triggers pipeline re-run on node/image change
-│       │   ├── Filmstrip.svelte         — Horizontal thumbnail strip; click-to-select
+│       │   ├── Filmstrip.svelte         — Horizontal thumbnail strip; shows active input node's images; click-to-select
 │       │   ├── Dropdown.svelte          — Reusable styled dropdown
 │       │   ├── ColorPicker.svelte       — HSL/hex color picker
 │       │   ├── MenuBar.svelte           — Custom menubar (File / Help) rendered in renderer
@@ -157,25 +165,29 @@ project-root/
 │       │   ├── AboutModal.svelte        — About dialog (version, links to GitHub)
 │       │   └── CreditsModal.svelte      — Credits modal (open source deps + fonts) with system-browser links
 │       ├── nodeEditor/
-│       │   ├── NodeEditor.svelte        — Svelte Flow canvas; drag-drop, context menu, undo/redo, grouping
+│       │   ├── NodeEditor.svelte        — Svelte Flow canvas; drag-drop, context menu, undo/redo, grouping; deletion guard; workflow node drag/drop and context menu
 │       │   ├── ProcessNode.svelte       — Standard processing node (image ports, param rows, bypass tick)
-│       │   ├── InputNode.svelte         — Source node (image count footer)
-│       │   ├── OutputNode.svelte        — Sink node; Image mode (output path, overwrite) or Text mode (dynamic value ports, write per-image params to a .txt file)
+│       │   ├── InputNode.svelte         — Image source node; shows per-node image count via imageStore.getImages(id)
+│       │   ├── ImageOutputNode.svelte   — Image file output node; amber header tint; output path footer
+│       │   ├── TextOutputNode.svelte    — Text/metadata output node; in-0 image input + dynamic txo-* value ports; output file footer
+│       │   ├── FlipbookOutputNode.svelte — Flipbook atlas output node; grid dimensions footer
+│       │   ├── OutputNode.svelte        — Legacy sink node (superseded by the three separate output node types above)
 │       │   ├── FolderPathNode.svelte    — Folder path source node (path port output)
 │       │   ├── GroupNode.svelte         — Resizable labelled container; children move with group
 │       │   ├── CommentNode.svelte       — Resizable sticky note with editable text
 │       │   ├── ColoredEdge.svelte       — Type-coloured wire rendering
-│       │   ├── NodeContextMenu.svelte   — Right-click creation/action menu (wire-drop + canvas)
-│       │   ├── DropHelper.svelte        — Invisible overlay for drag-drop coordinate capture
+│       │   ├── NodeContextMenu.svelte   — Right-click creation/action menu (wire-drop + canvas); includes Workflow node section
+│       │   ├── DropHelper.svelte        — Rendered inside <SvelteFlow> for store context; exposes screenToFlowPosition, setViewport, updateNodeInternals (via useUpdateNodeInternals()) to parent
 │       │   ├── portColors.ts            — Wire color map keyed by data type
 │       │   ├── wireTypeUtils.ts         — Wire-type compatibility, paramTypeToWireType, paramInHandle/paramOutHandle
 │       │   ├── nodeEditorHelpers.ts     — buildNodeData, expandNodeData, buildResizeParamDefs, sortNodesGroupFirst, firstMatchingHandle
 │       │   └── nodeEnabledState.ts      — Bypass state helpers
 │       ├── stores/
-│       │   ├── graph.svelte.ts          — Node graph state (Svelte 5 runes)
-│       │   └── images.svelte.ts         — Image list, selection, and streaming import state
+│       │   ├── graph.svelte.ts          — GraphStore: nodes (seeded via makeSeedNodes()), edges, selection, batch state, viewport; canDeleteNode() guards last inputNode / last output node of any type
+│       │   └── images.svelte.ts         — Per-node image storage: Map<nodeId, ImageInfo[]>; activeInputNodeId tracks the filmstrip; getImages(nodeId), setActive(nodeId), add(paths, nodeId), clear(nodeId), removeNode(nodeId)
 │       ├── services/
-│       │   └── pipeline-service.ts      — ElectronPipelineService: IPC bridge for batch execution
+│       │   └── pipeline-service.ts      — ElectronPipelineService: IPC bridge; executeBatch passes outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog
+│       ├── workflowUtils.ts             — traceInputNodeId(nodes, edges, outputNodeId): BFS backwards through image edges to find the connected inputNode ID
 │       ├── platform.ts                  — IS_ELECTRON flag (detects Electron vs browser context)
 │       └── browserIpc.ts               — Browser shim for window.ipcRenderer (workflow builder without Electron)
 ├── src/tests/             — Vitest unit tests for pure-function modules
@@ -285,7 +297,20 @@ Each node is described by a JSON file in `node-definitions/`:
 | `numeric`                  | Near-white | `#e2e8f0` |
 | `any`                      | Slate      | `#aaaaaa` |
 
-### Available Node Categories
+### Built-in Workflow Node Types
+
+These four types are registered directly in `NodeEditor.svelte` (not from JSON). They appear in the pinned **Workflow** section of the Node Library and in the canvas context menu.
+
+| Type                | Role                                      | Deletable?                              |
+| ------------------- | ----------------------------------------- | --------------------------------------- |
+| `inputNode`         | Image source; each has its own filmstrip  | Not if it's the last one                |
+| `imageOutputNode`   | Writes processed images to disk           | Not if it's the last output node of any type |
+| `textOutputNode`    | Writes text/metadata values to a file     | Not if it's the last output node of any type |
+| `flipbookOutputNode`| Assembles images into a flipbook atlas    | Not if it's the last output node of any type |
+
+All output nodes require an explicit image wire on `in-0`. Execution is triggered from the Toolbar, not the inspector. `traceInputNodeId` is used to determine which input node's image list feeds each output node.
+
+### JSON-Defined Node Categories
 
 | Category        | Nodes                                                                  |
 | --------------- | ---------------------------------------------------------------------- |
@@ -446,7 +471,7 @@ Additional behaviours:
 | `pipeline:load-images-streaming-cancel` | invoke    | Cancel an in-progress streaming import                              |
 | `pipeline:generate-thumbnail`           | invoke    | Generate a single thumbnail (used for preview warm-up)              |
 | `pipeline:execute-preview`              | invoke    | Run preview pipeline                                                |
-| `pipeline:execute-batch`                | invoke    | Run batch pipeline                                                  |
+| `pipeline:execute-batch`                | invoke    | Run batch pipeline; payload: graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog |
 | `pipeline:execute-batch:progress`       | push      | Progress updates during batch                                       |
 | `pipeline:export-cli`                   | invoke    | Export CLI script (PS/Bash/CMD)                                     |
 | `dialog:open-images`                    | invoke    | File open dialog for images                                         |
@@ -472,7 +497,9 @@ Additional behaviours:
 ## 11. Key Patterns & Gotchas
 
 - **`$state.raw` for nodes/edges** — `@xyflow/svelte` requires `$state.raw` (not `$state`) on the nodes and edges arrays to avoid deep-reactivity performance overhead. Both are always fully reassigned, never mutated in place.
-- **`useSvelteFlow()` scope** — Only works inside children of `<SvelteFlow>`; use `bind:viewport` for drop coordinates in the canvas wrapper.
+- **`useSvelteFlow()` scope** — Only works inside children of `<SvelteFlow>`; use `bind:viewport` for drop coordinates in the canvas wrapper. `useUpdateNodeInternals()` is a separate hook — it is **not** part of `useSvelteFlow()`.
+- **`updateNodeInternals` effects must track `graphStore.nodes`, not the local SvelteFlow-bound `nodes`.** Tracking local `nodes` causes an infinite loop: `updateNodeInternals` → SvelteFlow updates node dimensions → `nodes` changes → effect re-fires. Use a `$derived` signature string from `graphStore.nodes` and read node IDs with `untrack()`.
+- **`$derived` cannot reference itself.** Fallbacks in derived expressions must reference a different value — never the derived variable itself.
 - **Viewport → canvas coords** — `x = (clientX - rect.left - vp.x) / vp.zoom`
 - **Wire preview start point** — Query `[data-handleid]` via DOM and use `getBoundingClientRect()`; do not compute from canvas coordinates.
 - **Store files** — Do not use `.svelte.ts` or `.ts` store files imported from `.svelte` components — Vite cannot resolve them. Use prop drilling or Svelte context instead.
@@ -537,10 +564,18 @@ Build outputs:
 - Port color WCAG AAA contrast (all port type colors ≥ 7:1 on node background)
 - Input inspector: two-step folder import (pick → scan → import) with format chip filters
 - Post-batch summary dialog (processed / skipped / failed counts + open output folder button)
-- Text output mode in the Output node — switch the Output node to Text mode to write per-image param values to a `.txt` file with configurable separator, condition port, and live preview
 - Streaming import with native header parsing (PNG/BMP/WEBP/JPEG/TGA) and batch magick spawning; ~1.6s for ~2000 images (~27× faster than sequential per-image spawning)
 - Multi-stream batch pipeline with command fusion (lazy chaining) and single-spawn channel split
 - File association — double-clicking a `.imgplex` file opens the workflow in the app; single-instance enforcement on Windows/Linux brings the existing window to the front for subsequent opens
+- **Multi-input / multi-output workflow refactor:**
+  - Any number of `inputNode` instances, each with its own independent filmstrip; filmstrip tracks the last-selected Input node
+  - Three separate output node types: `imageOutputNode` (writes images to disk), `textOutputNode` (writes per-image metadata to a .txt file), `flipbookOutputNode` (assembles images into an atlas)
+  - All output nodes require an explicit image wire on `in-0`
+  - `traceInputNodeId` BFS helper resolves which input node feeds a given output node
+  - Toolbar **Run Workflow** button validates all output nodes, shows `RunWorkflowDialog` when some are invalid, runs valid nodes sequentially
+  - Workflow nodes (Input, Image Output, Text Output, Flipbook Output) draggable from the Node Library **Workflow** section and available in the canvas context menu
+  - Deletion guard: last Input node and last output node (of any type) cannot be deleted
+  - `graphStore.canDeleteNode()` / `imageStore.removeNode()` wired into all delete paths
 - Unit tests: Vitest with 265 tests across 13 test files
 
 ### Pending — Priority Order
