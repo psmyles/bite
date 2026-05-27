@@ -29,13 +29,13 @@
   import { portColor } from './portColors.js';
   import { isNodeEffectivelyEnabled } from './nodeEnabledState.js';
   import { nodeTypeForDef, buildNodeData, firstMatchingHandle } from './nodeEditorHelpers.js';
+  import { numericWireTypes } from './wireTypeUtils.js';
   import {
-    numericWireTypes,
-    scalarTypes,
-    wireTypesCompatible,
-    paramTypeToWireType,
-    paramInHandle,
-  } from './wireTypeUtils.js';
+    isValidConnection as validateConnection,
+    handleToWireType,
+    resolveEffectiveWireType,
+  } from './connectionValidation.js';
+  import { UndoRedoManager } from './undoRedoManager.js';
   import type { NodeDefinition } from '../../shared/types.js';
   import { graphStore } from '../stores/graph.svelte.js';
   import { imageStore } from '../stores/images.svelte.js';
@@ -48,10 +48,42 @@
   // ── Synthetic NodeDefinition objects for the context menu ─────────────────
   // IDs are prefixed with '_workflow_' so onMenuSelect can detect and dispatch them.
   const WORKFLOW_DEFS: NodeDefinition[] = [
-    { id: '_workflow_inputNode',        label: 'Input',           category: 'Workflow', description: 'Source of images for the workflow', inputs: [], outputs: [{ type: 'image', label: 'Image' }], params: [] },
-    { id: '_workflow_imageOutputNode',  label: 'Image Output',    category: 'Workflow', description: 'Write processed images to disk',     inputs: [{ type: 'image', label: 'Image' }], outputs: [], params: [] },
-    { id: '_workflow_textOutputNode',   label: 'Text Output',     category: 'Workflow', description: 'Write text/metadata values to a file', inputs: [{ type: 'image', label: 'Image' }], outputs: [], params: [] },
-    { id: '_workflow_flipbookOutputNode', label: 'Flipbook Output', category: 'Workflow', description: 'Assemble images into a flipbook atlas', inputs: [{ type: 'image', label: 'Image' }], outputs: [], params: [] },
+    {
+      id: '_workflow_inputNode',
+      label: 'Input',
+      category: 'Workflow',
+      description: 'Source of images for the workflow',
+      inputs: [],
+      outputs: [{ type: 'image', label: 'Image' }],
+      params: [],
+    },
+    {
+      id: '_workflow_imageOutputNode',
+      label: 'Image Output',
+      category: 'Workflow',
+      description: 'Write processed images to disk',
+      inputs: [{ type: 'image', label: 'Image' }],
+      outputs: [],
+      params: [],
+    },
+    {
+      id: '_workflow_textOutputNode',
+      label: 'Text Output',
+      category: 'Workflow',
+      description: 'Write text/metadata values to a file',
+      inputs: [{ type: 'image', label: 'Image' }],
+      outputs: [],
+      params: [],
+    },
+    {
+      id: '_workflow_flipbookOutputNode',
+      label: 'Flipbook Output',
+      category: 'Workflow',
+      description: 'Assemble images into a flipbook atlas',
+      inputs: [{ type: 'image', label: 'Image' }],
+      outputs: [],
+      params: [],
+    },
   ];
 
   // Merge workflow defs at the front so "Workflow" sorts to the top
@@ -76,134 +108,6 @@
   const NODE_W = 150;
   const NODE_H = 58; // header (~32px) + ports row (~26px)
 
-  /** Infer wire type from the handle that started the drag. */
-  function handleToWireType(nodeId: string, handleId: string | null, handleType: string | null): string {
-    // Named special handles
-    if (handleId === 'folder-in') return 'path';
-    // Text output ports
-    if (handleId === 'txo-condition') return 'boolean';
-    if (handleId?.startsWith('txo-')) return 'any';
-
-    const src = nodes.find((n) => n.id === nodeId);
-    const nodeData = src?.data as Record<string, unknown> | undefined;
-    if (handleId?.startsWith('param-')) {
-      const paramName = handleId.replace(/^param-(in|out)-/, '');
-      if (paramName === '_enabled') return 'boolean';
-      const pd = (nodeData?.paramDefs as Array<{ name: string; type: string }> | undefined)?.find(
-        (p) => p.name === paramName
-      );
-      if (!pd) return 'number';
-      return paramTypeToWireType(pd.type);
-    }
-    return handleType === 'source'
-      ? ((nodeData?.outputs as string[] | undefined)?.[0] ?? 'image')
-      : ((nodeData?.inputs as string[] | undefined)?.[0] ?? 'image');
-  }
-
-  /** BFS from `startId` following edge sources; returns true if `goalId` is reachable. */
-  function canReach(startId: string, goalId: string): boolean {
-    const visited = new Set<string>();
-    const queue = [startId];
-    while (queue.length > 0) {
-      const cur = queue.shift()!;
-      if (cur === goalId) return true;
-      if (visited.has(cur)) continue;
-      visited.add(cur);
-      for (const e of edges) {
-        if (e.source === cur && !visited.has(e.target)) queue.push(e.target);
-      }
-    }
-    return false;
-  }
-
-  /**
-   * When a port is typed 'any', look at sibling 'any' input params that are already
-   * wired to determine the effective constrained wire type. Used to correctly filter
-   * the context menu when wire-dropping from an 'any' port that has constraints.
-   */
-  function resolveEffectiveWireType(nodeId: string, handleId: string | null): string {
-    const raw = handleToWireType(nodeId, handleId, null);
-    if (raw !== 'any') return raw;
-    const nodeData = nodes.find((n) => n.id === nodeId)?.data as Record<string, unknown> | undefined;
-    const paramDefs = nodeData?.paramDefs as Array<{ name: string; type: string; readonly?: boolean }> | undefined;
-    if (!paramDefs) return 'any';
-    for (const p of paramDefs.filter((pd) => pd.type === 'any' && !pd.readonly)) {
-      const edge = edges.find((e) => e.target === nodeId && e.targetHandle === paramInHandle(p.name));
-      if (!edge) continue;
-      const t = handleToWireType(edge.source, edge.sourceHandle ?? null, 'source');
-      if (t !== 'any') return t;
-    }
-    return 'any';
-  }
-
-  type AnyParamDef = { name: string; type: string; readonly?: boolean };
-
-  /** channel_merge special case: scalar numeric wires can drive image inputs as gray fill 0–1. */
-  function isChannelMergeScalarInput(conn: Connection, srcType: string, tgtType: string): boolean {
-    return (
-      tgtType === 'image' &&
-      scalarTypes.has(srcType) &&
-      !!conn.targetHandle?.startsWith('in-') &&
-      (nodes.find((n) => n.id === conn.target)?.data as Record<string, unknown>)?.definitionId === 'channel_merge'
-    );
-  }
-
-  /** All other 'any' inputs on the target node must carry a type compatible with srcType. */
-  function siblingAnyInputsCompatible(conn: Connection, srcType: string): boolean {
-    const paramDefs = (nodes.find((n) => n.id === conn.target)?.data as Record<string, unknown>)?.paramDefs as
-      | AnyParamDef[]
-      | undefined;
-    const siblings = paramDefs?.filter(
-      (p) => p.type === 'any' && !p.readonly && `param-in-${p.name}` !== conn.targetHandle
-    );
-    for (const sib of siblings ?? []) {
-      const sibEdge = edges.find((e) => e.target === conn.target && e.targetHandle === `param-in-${sib.name}`);
-      if (!sibEdge) continue;
-      if (!wireTypesCompatible(srcType, handleToWireType(sibEdge.source, sibEdge.sourceHandle ?? null, 'source')))
-        return false;
-    }
-    return true;
-  }
-
-  /**
-   * When an 'any' input gets a concrete type, the node's 'any' outputs are constrained.
-   * Verify all existing edges from those outputs remain compatible with resolvedSrc.
-   * Example: Branch Result→folder already wired; connecting image→If True must be rejected.
-   */
-  function downstreamAnyOutputsCompatible(conn: Connection, resolvedSrc: string): boolean {
-    if (resolvedSrc === 'any') return true;
-    const paramDefs = (nodes.find((n) => n.id === conn.target)?.data as Record<string, unknown>)?.paramDefs as
-      | AnyParamDef[]
-      | undefined;
-    for (const p of paramDefs?.filter((p) => p.type === 'any' && p.readonly) ?? []) {
-      for (const outEdge of edges.filter((e) => e.source === conn.target && e.sourceHandle === `param-out-${p.name}`)) {
-        if (!wireTypesCompatible(resolvedSrc, handleToWireType(outEdge.target, outEdge.targetHandle ?? null, 'target')))
-          return false;
-      }
-    }
-    return true;
-  }
-
-  /** Returns true only when the connection is type-compatible, non-self, and cycle-free. */
-  function isValidConnection(connection: Connection): boolean {
-    if (connection.source === connection.target) return false;
-    if (canReach(connection.target, connection.source)) return false;
-
-    const srcType = handleToWireType(connection.source, connection.sourceHandle ?? null, 'source');
-    const tgtType = handleToWireType(connection.target, connection.targetHandle ?? null, 'target');
-    const resolvedSrc =
-      srcType === 'any' ? resolveEffectiveWireType(connection.source, connection.sourceHandle ?? null) : srcType;
-    const resolvedTgt =
-      tgtType === 'any' ? resolveEffectiveWireType(connection.target, connection.targetHandle ?? null) : tgtType;
-
-    if (!isChannelMergeScalarInput(connection, srcType, tgtType) && !wireTypesCompatible(resolvedSrc, resolvedTgt))
-      return false;
-    if (tgtType === 'any' && !siblingAnyInputsCompatible(connection, srcType)) return false;
-    if (tgtType === 'any' && !downstreamAnyOutputsCompatible(connection, resolvedSrc)) return false;
-
-    return true;
-  }
-
   function edgeStyle(type: string) {
     const c = portColor(type);
     return {
@@ -213,6 +117,20 @@
   }
 
   // ── Graph state — local, synced bidirectionally with graphStore ───────────
+  // WHY two-way sync? @xyflow/svelte owns its node/edge arrays; it cannot
+  // accept a Svelte store binding. We must keep a LOCAL copy that SvelteFlow
+  // mutates (drag, connect, etc.) and mirror it into graphStore for the
+  // Inspector and Toolbar. Conversely, Inspector writes go to graphStore first
+  // (new array reference) and must be pulled back into the local binding.
+  //
+  // WHY `untrack`? Without it, the push-effect reads graphStore inside a
+  // reactive context, which makes it re-fire when graphStore changes — and the
+  // pull-effect does the mirror image. The result is an infinite loop:
+  //   SvelteFlow → nodes change → push-effect → graphStore.nodes = n
+  //   → pull-effect fires → nodes = n (same ref, no-op, but still fires…)
+  // `untrack` breaks the cycle: each effect only tracks ONE side and writes
+  // the other side without establishing a dependency on it.
+  //
   // Initialize from graphStore so seed nodes are picked up without duplication.
   let nodes: Node[] = $state.raw(graphStore.nodes);
   let edges: Edge[] = $state.raw(graphStore.edges);
@@ -293,48 +211,27 @@
   }
 
   // ── Undo / Redo ───────────────────────────────────────────────────────────
-  const MAX_HISTORY = 100;
-  const history: { nodes: Node[]; edges: Edge[] }[] = [];
-  let historyIdx = -1;
-
-  function snapshot() {
-    return {
-      nodes: JSON.parse(JSON.stringify(nodes)) as Node[],
-      edges: JSON.parse(JSON.stringify(edges)) as Edge[],
-    };
-  }
+  const undoRedo = new UndoRedoManager();
 
   function pushHistory() {
-    history.splice(historyIdx + 1); // discard any redo future
-    history.push(snapshot());
-    if (history.length > MAX_HISTORY) history.shift();
-    historyIdx = history.length - 1;
+    undoRedo.push(nodes, edges);
   }
-
-  // Deferred variant: batches rapid back-to-back calls (e.g. node+edge deleted
-  // in the same tick) into a single history entry.
-  let _pendingPush = false;
   function scheduleHistoryPush() {
-    if (_pendingPush) return;
-    _pendingPush = true;
-    Promise.resolve().then(() => {
-      _pendingPush = false;
-      pushHistory();
-    });
+    undoRedo.schedulePush(() => ({ nodes, edges }));
   }
-
   function undo() {
-    if (historyIdx <= 0) return;
-    historyIdx--;
-    nodes = history[historyIdx].nodes;
-    edges = history[historyIdx].edges;
+    const s = undoRedo.undo();
+    if (s) {
+      nodes = s.nodes;
+      edges = s.edges;
+    }
   }
-
   function redo() {
-    if (historyIdx >= history.length - 1) return;
-    historyIdx++;
-    nodes = history[historyIdx].nodes;
-    edges = history[historyIdx].edges;
+    const s = undoRedo.redo();
+    if (s) {
+      nodes = s.nodes;
+      edges = s.edges;
+    }
   }
 
   // Capture initial empty-canvas state so the first undo returns to blank.
@@ -343,15 +240,11 @@
   // ── Node grouping ──────────────────────────────────────────────────────────
   const GROUP_PADDING = 40;
 
-  const groupable = $derived(
-    nodes.some((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '') && n.type !== 'group')
-  );
+  const groupable = $derived(nodes.some((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '') && n.type !== 'group'));
   const ungroupable = $derived(nodes.some((n) => n.selected && n.type === 'group'));
 
   function groupSelection() {
-    const toGroup = nodes.filter(
-      (n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '') && n.type !== 'group'
-    );
+    const toGroup = nodes.filter((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '') && n.type !== 'group');
     if (toGroup.length === 0) return;
 
     // Bounding box around all selected nodes
@@ -542,9 +435,14 @@
           const connection =
             wireSource.handleType === 'source'
               ? { source: wireSource.nodeId, sourceHandle: wireSource.handleId, target: newId, targetHandle: newHandle }
-              : { source: newId, sourceHandle: newHandle, target: wireSource.nodeId, targetHandle: wireSource.handleId };
+              : {
+                  source: newId,
+                  sourceHandle: newHandle,
+                  target: wireSource.nodeId,
+                  targetHandle: wireSource.handleId,
+                };
           if (workflowType !== 'inputNode' || wireSource.handleType !== 'source') {
-            if (isValidConnection(connection)) {
+            if (validateConnection(connection, nodes, edges)) {
               edges = addEdge({ ...connection, ...edgeStyle(wt) }, edges);
             }
           }
@@ -578,7 +476,7 @@
           wireSource.handleType === 'source'
             ? { source: wireSource.nodeId, sourceHandle: wireSource.handleId, target: newId, targetHandle: newHandle }
             : { source: newId, sourceHandle: newHandle, target: wireSource.nodeId, targetHandle: wireSource.handleId };
-        if (isValidConnection(connection)) {
+        if (validateConnection(connection, nodes, edges)) {
           edges = addEdge({ ...connection, ...edgeStyle(wt) }, edges);
         }
       }
@@ -590,7 +488,7 @@
   function onConnect(connection: Connection) {
     wireMade = true;
 
-    const type = handleToWireType(connection.source, connection.sourceHandle ?? null, 'source');
+    const type = handleToWireType(connection.source, connection.sourceHandle ?? null, 'source', nodes);
     const style = edgeStyle(type);
 
     // Remove any existing edge going into the same target handle (single-input rule).
@@ -630,7 +528,7 @@
   ) {
     if (params.nodeId) {
       wireSource = { nodeId: params.nodeId, handleId: params.handleId, handleType: params.handleType };
-      wireType = handleToWireType(params.nodeId, params.handleId, params.handleType);
+      wireType = handleToWireType(params.nodeId, params.handleId, params.handleType, nodes);
     }
     wireMade = false;
   }
@@ -642,7 +540,7 @@
         // Resolve a more specific type if the 'any' port has sibling constraints
         const effectiveWireType =
           wireType === 'any' && wireSource
-            ? resolveEffectiveWireType(wireSource.nodeId, wireSource.handleId)
+            ? resolveEffectiveWireType(wireSource.nodeId, wireSource.handleId, nodes, edges)
             : wireType;
         openMenu(e.clientX, e.clientY, effectiveWireType);
         // Keep wireSource + wireType alive so onMenuSelect can create the edge
@@ -731,12 +629,7 @@
     if (nodeEl) {
       const nodeId = nodeEl.getAttribute('data-id');
       const nodeType = nodes.find((n) => n.id === nodeId)?.type;
-      if (
-        nodeId &&
-        !WORKFLOW_TYPES.has(nodeType ?? '') &&
-        nodeType !== 'commentNode' &&
-        checkNodeEnabled(nodeId)
-      ) {
+      if (nodeId && !WORKFLOW_TYPES.has(nodeType ?? '') && nodeType !== 'commentNode' && checkNodeEnabled(nodeId)) {
         // Toggle: double-click the current preview node again to revert to auto
         graphStore.previewNodeId = graphStore.previewNodeId === nodeId ? null : nodeId;
       }
@@ -909,11 +802,44 @@
   }
 
   // Default params for workflow nodes dropped from the library
-  const WORKFLOW_NODE_DEFAULTS: Record<string, { label: string; inputs: string[]; outputs: string[]; params: Record<string, unknown> }> = {
+  const WORKFLOW_NODE_DEFAULTS: Record<
+    string,
+    { label: string; inputs: string[]; outputs: string[]; params: Record<string, unknown> }
+  > = {
     inputNode: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 256 } },
-    imageOutputNode: { label: 'Image Output', inputs: ['image'], outputs: [], params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false } },
-    textOutputNode: { label: 'Text Output', inputs: ['image'], outputs: [], params: { outputPath: '', portIds: ['txo-0'], nextPortIndex: 1, separatorType: 'comma', customSeparator: '', generateLog: false } },
-    flipbookOutputNode: { label: 'Flipbook Output', inputs: ['image'], outputs: [], params: { flipbookOutputPath: '', cols: 4, rows: 4, cellWidth: 128, cellHeight: 128, sortBy: 'import_order', generateLog: false } },
+    imageOutputNode: {
+      label: 'Image Output',
+      inputs: ['image'],
+      outputs: [],
+      params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false },
+    },
+    textOutputNode: {
+      label: 'Text Output',
+      inputs: ['image'],
+      outputs: [],
+      params: {
+        outputPath: '',
+        portIds: ['txo-0'],
+        nextPortIndex: 1,
+        separatorType: 'comma',
+        customSeparator: '',
+        generateLog: false,
+      },
+    },
+    flipbookOutputNode: {
+      label: 'Flipbook Output',
+      inputs: ['image'],
+      outputs: [],
+      params: {
+        flipbookOutputPath: '',
+        cols: 4,
+        rows: 4,
+        cellWidth: 128,
+        cellHeight: 128,
+        sortBy: 'import_order',
+        generateLog: false,
+      },
+    },
   };
 
   function onDrop(e: DragEvent) {
@@ -991,18 +917,15 @@
       const targets =
         selected.length > 0
           ? selected
-          : graphStore.selectedNodeId && !WORKFLOW_TYPES.has(nodes.find((n) => n.id === graphStore.selectedNodeId)?.type ?? '')
+          : graphStore.selectedNodeId &&
+              !WORKFLOW_TYPES.has(nodes.find((n) => n.id === graphStore.selectedNodeId)?.type ?? '')
             ? nodes.filter((n) => n.id === graphStore.selectedNodeId)
             : [];
       duplicateNodes(targets);
     }
 
     function onDelete() {
-      const targetIds = new Set(
-        nodes
-          .filter((n) => n.selected && graphStore.canDeleteNode(n.id))
-          .map((n) => n.id)
-      );
+      const targetIds = new Set(nodes.filter((n) => n.selected && graphStore.canDeleteNode(n.id)).map((n) => n.id));
       if (targetIds.size === 0 && graphStore.selectedNodeId) {
         const id = graphStore.selectedNodeId;
         if (graphStore.canDeleteNode(id)) targetIds.add(id);
@@ -1049,7 +972,7 @@
     onnodedragstop={onNodeDragStop}
     onnoderesizeend={() => scheduleHistoryPush()}
     {onselectionchange}
-    {isValidConnection}
+    isValidConnection={(conn) => validateConnection(conn, nodes, edges)}
     colorMode="dark"
     zoomOnDoubleClick={false}
     proOptions={{ hideAttribution: true }}

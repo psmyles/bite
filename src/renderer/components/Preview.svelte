@@ -80,7 +80,8 @@
     for (const e of sfEdges) {
       const targetNode = sfNodes.find((n) => n.id === e.target);
       if (
-        targetNode && OUTPUT_TYPES.has(targetNode.type ?? '') &&
+        targetNode &&
+        OUTPUT_TYPES.has(targetNode.type ?? '') &&
         (e.targetHandle ?? '').startsWith('in-') &&
         reachable.has(e.source) &&
         sfNodes.find((n) => n.id === e.source)?.type !== 'inputNode'
@@ -100,7 +101,10 @@
       for (let i = processReachable.length - 1; i >= 0; i--) {
         const n = processReachable[i];
         const hasSuccessor = sfEdges.some(
-          (e) => e.source === n.id && reachable.has(e.target) && !OUTPUT_TYPES.has(sfNodes.find((nd) => nd.id === e.target)?.type ?? '')
+          (e) =>
+            e.source === n.id &&
+            reachable.has(e.target) &&
+            !OUTPUT_TYPES.has(sfNodes.find((nd) => nd.id === e.target)?.type ?? '')
         );
         if (!hasSuccessor) {
           defaultPreviewId = n.id;

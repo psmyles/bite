@@ -136,10 +136,8 @@ class GraphStore {
   canDeleteNode(nodeId: string): boolean {
     const node = this.nodes.find((n) => n.id === nodeId);
     if (!node) return true;
-    if (INPUT_TYPES.has(node.type ?? ''))
-      return this.nodes.filter((n) => INPUT_TYPES.has(n.type ?? '')).length > 1;
-    if (OUTPUT_TYPES.has(node.type ?? ''))
-      return this.nodes.filter((n) => OUTPUT_TYPES.has(n.type ?? '')).length > 1;
+    if (INPUT_TYPES.has(node.type ?? '')) return this.nodes.filter((n) => INPUT_TYPES.has(n.type ?? '')).length > 1;
+    if (OUTPUT_TYPES.has(node.type ?? '')) return this.nodes.filter((n) => OUTPUT_TYPES.has(n.type ?? '')).length > 1;
     return true;
   }
 

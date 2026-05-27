@@ -6,7 +6,7 @@ import path from 'node:path';
 
 import type { GraphEdge, NodeGraph } from '../../shared/types.js';
 import type { NodeRegistry } from '../nodes/registry.js';
-import { topoSort } from '../pipeline/graph-utils.js';
+import { topoSort, applyParamWires } from '../pipeline/graph-utils.js';
 import {
   computeNodeParams,
   loadImageMeta,
@@ -123,18 +123,7 @@ async function resolveParamsForImage(
     if (!def) continue;
 
     const inEdges = edgesByTarget.get(node.id) ?? [];
-    const rawParams: Record<string, unknown> = { ...(node.data.params ?? {}) };
-    for (const edge of inEdges) {
-      const th = edge.targetHandle ?? '';
-      const sh = edge.sourceHandle ?? '';
-      if (th.startsWith('param-in-') && sh.startsWith('param-out-')) {
-        const srcResolved = resolvedParams.get(edge.source);
-        if (srcResolved) {
-          const sourceParam = sh.slice('param-out-'.length);
-          if (sourceParam in srcResolved) rawParams[th.slice('param-in-'.length)] = srcResolved[sourceParam];
-        }
-      }
-    }
+    const rawParams = applyParamWires(node, graph.edges, resolvedParams);
 
     // Check whether this node's image input arrives from a blocked gate output
     const imageInputBlocked = inEdges.some(

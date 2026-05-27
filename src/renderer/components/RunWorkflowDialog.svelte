@@ -182,7 +182,9 @@
     cursor: pointer;
     outline: none;
   }
-  .btn-cancel:hover { border-color: var(--accent); }
+  .btn-cancel:hover {
+    border-color: var(--accent);
+  }
 
   .btn-run {
     padding: 5px 16px;
@@ -197,6 +199,11 @@
     outline: none;
     transition: opacity 0.15s;
   }
-  .btn-run:hover:not(:disabled) { opacity: 0.85; }
-  .btn-run:disabled { opacity: 0.4; cursor: default; }
+  .btn-run:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+  .btn-run:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 </style>

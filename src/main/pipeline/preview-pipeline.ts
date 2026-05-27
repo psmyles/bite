@@ -4,12 +4,13 @@ import path from 'node:path';
 import type { NodeGraph } from '../../shared/types.js';
 import { log } from '../logger.js';
 import { EXECUTOR } from '../../shared/constants.js';
-import { topoSort, applyParamWires } from './graph-utils.js';
+import { topoSort } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
 import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js';
 import { getExecutor } from './executorRegistry.js';
 import { PreviewCache } from './cache.js';
-import { computeNodeParams, loadImageMeta, loadImageMean } from './executor-compute.js';
+import { loadImageMeta, loadImageMean } from './executor-compute.js';
+import { resolveNodeParams } from './resolve-params.js';
 import { spawnMagick } from './magick-spawn.js';
 import { fileToDataUrl } from './image-header.js';
 import { TEMP_DIR, shortHash } from './thumbnail-service.js';
@@ -24,10 +25,7 @@ export async function executePreview(
 ): Promise<{ dataUrl: string; propParams: Record<string, Record<string, unknown>> }> {
   await fs.promises.mkdir(TEMP_DIR, { recursive: true });
   // Resolve the input node: prefer the explicitly passed ID, then find any inputNode type, fall back to legacy ID.
-  const resolvedInputNodeId =
-    inputNodeId ??
-    graph.nodes.find((n) => n.type === 'inputNode')?.id ??
-    'workflow-input';
+  const resolvedInputNodeId = inputNodeId ?? graph.nodes.find((n) => n.type === 'inputNode')?.id ?? 'workflow-input';
   const inputNode = graph.nodes.find((n) => n.id === resolvedInputNodeId);
   const thumbnailSize = Number((inputNode?.data.params as Record<string, unknown> | undefined)?.thumbnailSize ?? 256);
   // Reuse the import thumbnail WebP as the preview input — avoids a second magick
@@ -183,17 +181,7 @@ export async function executePreview(
       continue;
     }
 
-    // Inspector values, overridden by any incoming param-wire connections
-    const rawParams = applyParamWires(node, graph.edges, resolvedParams);
-
-    // Run pure math/logic/value computation; image nodes return params unchanged
-    const isImageNode =
-      def.inputs.some((p) => p.type === 'image' || p.type === 'mask') ||
-      def.outputs.some((p) => p.type === 'image' || p.type === 'mask');
-    // Inject compute_js body for pure-value nodes that use the inline JS path
-    const computeInput = !isImageNode && def.compute_js ? { ...rawParams, __compute_js__: def.compute_js } : rawParams;
-    const params = computeNodeParams(isImageNode ? undefined : def.executor, computeInput, meta);
-    resolvedParams.set(node.id, params);
+    const { params, isImageNode } = resolveNodeParams(node, def, graph.edges, resolvedParams, meta);
 
     // Pure value/math/logic nodes don't touch the image pipeline
     if (!isImageNode) continue;
@@ -292,7 +280,7 @@ export async function executePreview(
       const inputPath = getImgBuf(node.id, 0);
       try {
         const value = await loadImageMean(inputPath);
-        resolvedParams.set(node.id, { ...rawParams, value });
+        resolvedParams.set(node.id, { ...params, value });
       } catch (err) {
         console.warn(`[executor] loadImageMean failed for node ${node.id}:`, err);
       }

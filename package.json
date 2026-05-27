@@ -5,7 +5,7 @@
   "description": "A GUI batch workflow builder that uses Imagemagick for processing",
   "license": "MIT",
   "private": true,
-  "version": "0.1.6",
+  "version": "0.2.0",
   "type": "commonjs",
   "bin": {
     "imgplex": "./dist-electron/cli.js"

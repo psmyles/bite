@@ -42,10 +42,7 @@
     {/if}
   </div>
 
-  <div
-    class="content"
-    class:fill={nodeType === 'inputNode' || nodeType === 'textOutputNode'}
-  >
+  <div class="content" class:fill={nodeType === 'inputNode' || nodeType === 'textOutputNode'}>
     {#if !selectedNode}
       <span class="empty-hint">Select a node to edit its parameters.</span>
     {:else if nodeType === 'inputNode'}

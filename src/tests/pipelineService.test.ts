@@ -39,9 +39,9 @@ describe('ElectronPipelineService.executeBatch', () => {
   it('removes the progress listener even when invoke rejects (finally block runs)', async () => {
     mockInvoke.mockRejectedValueOnce(new Error('batch failed'));
     const svc = new ElectronPipelineService();
-    await expect(
-      svc.executeBatch({} as never, 'out-1', 'in-1', [], null, 'skip', false, vi.fn())
-    ).rejects.toThrow('batch failed');
+    await expect(svc.executeBatch({} as never, 'out-1', 'in-1', [], null, 'skip', false, vi.fn())).rejects.toThrow(
+      'batch failed'
+    );
 
     expect(mockOff).toHaveBeenCalledOnce();
   });

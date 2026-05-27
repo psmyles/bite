@@ -124,11 +124,7 @@
         {#if !workflowCollapsed}
           {#each WORKFLOW_NODES as wn}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div
-              class="node-item"
-              draggable="true"
-              ondragstart={(e) => onWorkflowDragStart(e, wn.type)}
-            >
+            <div class="node-item" draggable="true" ondragstart={(e) => onWorkflowDragStart(e, wn.type)}>
               <span class="node-label">{wn.label}</span>
               <span class="drag-hint">⠿</span>
             </div>

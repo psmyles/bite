@@ -14,7 +14,9 @@
 
   // Find which input node feeds this flipbook output
   const inputNodeId = $derived(traceInputNodeId(graphStore.nodes, graphStore.edges, selectedNode.id));
-  const imagePaths = $derived(inputNodeId ? imageStore.getImages(inputNodeId).map((img) => img.path) : imageStore.images.map((img) => img.path));
+  const imagePaths = $derived(
+    inputNodeId ? imageStore.getImages(inputNodeId).map((img) => img.path) : imageStore.images.map((img) => img.path)
+  );
 
   const fbOutputPath = $derived((params.flipbookOutputPath as string) ?? '');
   const fbCols = $derived(Number(params.cols ?? 4));
@@ -45,8 +47,14 @@
 
   async function generateFlipbook() {
     if (flipbookGenerating) return;
-    if (!fbOutputPath.trim()) { flipbookError = 'Set an output file path first.'; return; }
-    if (imagePaths.length === 0) { flipbookError = 'No images loaded.'; return; }
+    if (!fbOutputPath.trim()) {
+      flipbookError = 'Set an output file path first.';
+      return;
+    }
+    if (imagePaths.length === 0) {
+      flipbookError = 'No images loaded.';
+      return;
+    }
 
     flipbookGenerating = true;
     flipbookError = null;
@@ -315,9 +323,16 @@
     transition: opacity 0.15s;
   }
 
-  .gen-btn:hover:not(:disabled) { opacity: 0.85; }
-  .gen-btn:disabled { opacity: 0.5; cursor: default; }
-  .gen-btn.running { opacity: 0.6; }
+  .gen-btn:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+  .gen-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .gen-btn.running {
+    opacity: 0.6;
+  }
 
   .open-btn {
     width: 100%;
@@ -333,7 +348,9 @@
     transition: opacity 0.15s;
   }
 
-  .open-btn:hover { opacity: 0.8; }
+  .open-btn:hover {
+    opacity: 0.8;
+  }
 
   .gen-error {
     font-family: var(--font-mono);
@@ -352,5 +369,7 @@
     margin: 0;
   }
 
-  .hidden { display: none; }
+  .hidden {
+    display: none;
+  }
 </style>

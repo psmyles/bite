@@ -72,7 +72,17 @@ describe('executeBatch', () => {
       [{ id: 'e1', source: 'workflow-input', target: 'workflow-output', sourceHandle: 'out-0', targetHandle: 'in-0' }]
     );
     const registry = makeRegistry({});
-    const result = await executeBatch(graph, 'workflow-output', 'workflow-input', [], null, 'overwrite', registry, noop, () => false);
+    const result = await executeBatch(
+      graph,
+      'workflow-output',
+      'workflow-input',
+      [],
+      null,
+      'overwrite',
+      registry,
+      noop,
+      () => false
+    );
     expect(result.processed).toBe(0);
     expect(result.failed).toBe(0);
     expect(result.errors).toHaveLength(0);
@@ -147,7 +157,17 @@ describe('executeBatch', () => {
         outputs: [{ label: 'Out', type: 'image' }],
       },
     });
-    const result = await executeBatch(graph, 'workflow-output', 'workflow-input', ['/img/a.png'], null, 'overwrite', registry, noop, () => false);
+    const result = await executeBatch(
+      graph,
+      'workflow-output',
+      'workflow-input',
+      ['/img/a.png'],
+      null,
+      'overwrite',
+      registry,
+      noop,
+      () => false
+    );
     expect(result.skipped).toBe(1);
     expect(result.processed).toBe(0);
   });

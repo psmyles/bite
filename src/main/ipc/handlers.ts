@@ -97,9 +97,12 @@ export function registerPipelineHandlers(
     return executor.generateThumbnail(imagePath, size);
   });
 
-  ipcMain.handle(IPC.EXECUTE_PREVIEW, async (_e, graph: NodeGraph, imagePath: string, fromNodeId?: string, inputNodeId?: string) => {
-    return executor.executePreview(graph, imagePath, registry, fromNodeId, inputNodeId);
-  });
+  ipcMain.handle(
+    IPC.EXECUTE_PREVIEW,
+    async (_e, graph: NodeGraph, imagePath: string, fromNodeId?: string, inputNodeId?: string) => {
+      return executor.executePreview(graph, imagePath, registry, fromNodeId, inputNodeId);
+    }
+  );
 
   ipcMain.handle(IPC.EXECUTE_BATCH_CANCEL, () => {
     executor.cancelBatch();
@@ -118,9 +121,18 @@ export function registerPipelineHandlers(
       generateLog: boolean
     ) => {
       const t0 = Date.now();
-      const result = await executor.executeBatch(graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, registry, (progress) => {
-        getWin()?.webContents.send(`${IPC.EXECUTE_BATCH}:progress`, progress);
-      });
+      const result = await executor.executeBatch(
+        graph,
+        outputNodeId,
+        inputNodeId,
+        imagePaths,
+        outputDir,
+        overwrite,
+        registry,
+        (progress) => {
+          getWin()?.webContents.send(`${IPC.EXECUTE_BATCH}:progress`, progress);
+        }
+      );
       if (generateLog) {
         await writeOutputLog({ outputFiles: result.outputFiles, durationMs: Date.now() - t0, outputDir }).catch((e) => {
           console.error('[log] Failed to write output log:', e);

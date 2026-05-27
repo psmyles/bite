@@ -301,12 +301,12 @@ Each node is described by a JSON file in `node-definitions/`:
 
 These four types are registered directly in `NodeEditor.svelte` (not from JSON). They appear in the pinned **Workflow** section of the Node Library and in the canvas context menu.
 
-| Type                | Role                                      | Deletable?                              |
-| ------------------- | ----------------------------------------- | --------------------------------------- |
-| `inputNode`         | Image source; each has its own filmstrip  | Not if it's the last one                |
-| `imageOutputNode`   | Writes processed images to disk           | Not if it's the last output node of any type |
-| `textOutputNode`    | Writes text/metadata values to a file     | Not if it's the last output node of any type |
-| `flipbookOutputNode`| Assembles images into a flipbook atlas    | Not if it's the last output node of any type |
+| Type                 | Role                                     | Deletable?                                   |
+| -------------------- | ---------------------------------------- | -------------------------------------------- |
+| `inputNode`          | Image source; each has its own filmstrip | Not if it's the last one                     |
+| `imageOutputNode`    | Writes processed images to disk          | Not if it's the last output node of any type |
+| `textOutputNode`     | Writes text/metadata values to a file    | Not if it's the last output node of any type |
+| `flipbookOutputNode` | Assembles images into a flipbook atlas   | Not if it's the last output node of any type |
 
 All output nodes require an explicit image wire on `in-0`. Execution is triggered from the Toolbar, not the inspector. `traceInputNodeId` is used to determine which input node's image list feeds each output node.
 
@@ -460,37 +460,37 @@ Additional behaviours:
 
 ## 10. IPC Channels
 
-| Channel                                 | Direction | Purpose                                                             |
-| --------------------------------------- | --------- | ------------------------------------------------------------------- |
-| `registry:get-all`                      | invoke    | Load all node definitions                                           |
-| `registry:updated`                      | push      | Hot-reload notification                                             |
-| `pipeline:load-images`                  | invoke    | Load image list with metadata (legacy; used by non-streaming paths) |
-| `pipeline:load-images-with-thumbnails`  | invoke    | Load images + generate thumbnails in one call                       |
-| `pipeline:load-images-streaming-start`  | invoke    | Begin streaming import; results pushed per image                    |
-| `pipeline:load-images-streaming-result` | push      | One loaded image result during streaming import                     |
-| `pipeline:load-images-streaming-cancel` | invoke    | Cancel an in-progress streaming import                              |
-| `pipeline:generate-thumbnail`           | invoke    | Generate a single thumbnail (used for preview warm-up)              |
-| `pipeline:execute-preview`              | invoke    | Run preview pipeline                                                |
+| Channel                                 | Direction | Purpose                                                                                                      |
+| --------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| `registry:get-all`                      | invoke    | Load all node definitions                                                                                    |
+| `registry:updated`                      | push      | Hot-reload notification                                                                                      |
+| `pipeline:load-images`                  | invoke    | Load image list with metadata (legacy; used by non-streaming paths)                                          |
+| `pipeline:load-images-with-thumbnails`  | invoke    | Load images + generate thumbnails in one call                                                                |
+| `pipeline:load-images-streaming-start`  | invoke    | Begin streaming import; results pushed per image                                                             |
+| `pipeline:load-images-streaming-result` | push      | One loaded image result during streaming import                                                              |
+| `pipeline:load-images-streaming-cancel` | invoke    | Cancel an in-progress streaming import                                                                       |
+| `pipeline:generate-thumbnail`           | invoke    | Generate a single thumbnail (used for preview warm-up)                                                       |
+| `pipeline:execute-preview`              | invoke    | Run preview pipeline                                                                                         |
 | `pipeline:execute-batch`                | invoke    | Run batch pipeline; payload: graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog |
-| `pipeline:execute-batch:progress`       | push      | Progress updates during batch                                       |
-| `pipeline:export-cli`                   | invoke    | Export CLI script (PS/Bash/CMD)                                     |
-| `dialog:open-images`                    | invoke    | File open dialog for images                                         |
-| `dialog:open-folder`                    | invoke    | Folder picker (no scan)                                             |
-| `dialog:scan-folder-dialog`             | invoke    | Pick folder via dialog then scan for matching extensions            |
-| `dialog:scan-folder`                    | invoke    | Scan a given folder path for matching extensions (no dialog)        |
-| `text-output:browse`                    | invoke    | Save-file dialog for text output path                               |
-| `text-output:preview`                   | invoke    | Compute text output lines without writing (preview)                 |
-| `text-output:write`                     | invoke    | Write text output file; sends per-image progress                    |
-| `text-output:write-progress`            | push      | Progress during text output write                                   |
-| `text-output:write-cancel`              | invoke    | Cancel an in-progress text output write                             |
-| `workflow:save`                         | invoke    | Save workflow JSON                                                  |
-| `workflow:load`                         | invoke    | Load workflow JSON (shows open dialog)                              |
-| `workflow:open-path`                    | invoke    | Load workflow JSON from a given file path (no dialog)               |
-| `app:quit`                              | invoke    | Graceful quit with dirty-state check                                |
-| `app:open-file-path`                    | push      | Main → renderer: carry file path from OS file-association open      |
-| `shell:open-external`                   | invoke    | Open URL in default system browser                                  |
-| `shell:open-path`                       | invoke    | Open a folder path in the system file manager                       |
-| `menu:*`                                | push      | Native menu action forwarding to renderer                           |
+| `pipeline:execute-batch:progress`       | push      | Progress updates during batch                                                                                |
+| `pipeline:export-cli`                   | invoke    | Export CLI script (PS/Bash/CMD)                                                                              |
+| `dialog:open-images`                    | invoke    | File open dialog for images                                                                                  |
+| `dialog:open-folder`                    | invoke    | Folder picker (no scan)                                                                                      |
+| `dialog:scan-folder-dialog`             | invoke    | Pick folder via dialog then scan for matching extensions                                                     |
+| `dialog:scan-folder`                    | invoke    | Scan a given folder path for matching extensions (no dialog)                                                 |
+| `text-output:browse`                    | invoke    | Save-file dialog for text output path                                                                        |
+| `text-output:preview`                   | invoke    | Compute text output lines without writing (preview)                                                          |
+| `text-output:write`                     | invoke    | Write text output file; sends per-image progress                                                             |
+| `text-output:write-progress`            | push      | Progress during text output write                                                                            |
+| `text-output:write-cancel`              | invoke    | Cancel an in-progress text output write                                                                      |
+| `workflow:save`                         | invoke    | Save workflow JSON                                                                                           |
+| `workflow:load`                         | invoke    | Load workflow JSON (shows open dialog)                                                                       |
+| `workflow:open-path`                    | invoke    | Load workflow JSON from a given file path (no dialog)                                                        |
+| `app:quit`                              | invoke    | Graceful quit with dirty-state check                                                                         |
+| `app:open-file-path`                    | push      | Main → renderer: carry file path from OS file-association open                                               |
+| `shell:open-external`                   | invoke    | Open URL in default system browser                                                                           |
+| `shell:open-path`                       | invoke    | Open a folder path in the system file manager                                                                |
+| `menu:*`                                | push      | Native menu action forwarding to renderer                                                                    |
 
 ---
 

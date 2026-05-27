@@ -53,7 +53,7 @@
 
         return {
           nodeId: n.id,
-          label: (n.data as Record<string, unknown>)?.label as string ?? 'Image Output',
+          label: ((n.data as Record<string, unknown>)?.label as string) ?? 'Image Output',
           type: 'imageOutputNode',
           valid: reasons.length === 0,
           reasons,
@@ -73,14 +73,24 @@
   let _ticker: ReturnType<typeof setInterval> | null = null;
   $effect(() => {
     if (graphStore.batchRunning) {
-      elapsed = graphStore.batchStartTime != null ? Math.floor((performance.now() - graphStore.batchStartTime) / 1000) : 0;
+      elapsed =
+        graphStore.batchStartTime != null ? Math.floor((performance.now() - graphStore.batchStartTime) / 1000) : 0;
       _ticker = setInterval(() => {
-        elapsed = graphStore.batchStartTime != null ? Math.floor((performance.now() - graphStore.batchStartTime) / 1000) : 0;
+        elapsed =
+          graphStore.batchStartTime != null ? Math.floor((performance.now() - graphStore.batchStartTime) / 1000) : 0;
       }, 1000);
     } else {
-      if (_ticker !== null) { clearInterval(_ticker); _ticker = null; }
+      if (_ticker !== null) {
+        clearInterval(_ticker);
+        _ticker = null;
+      }
     }
-    return () => { if (_ticker !== null) { clearInterval(_ticker); _ticker = null; } };
+    return () => {
+      if (_ticker !== null) {
+        clearInterval(_ticker);
+        _ticker = null;
+      }
+    };
   });
 
   // ── Graph serialization ─────────────────────────────────────────────────────
@@ -88,8 +98,19 @@
     const sfNodes = $state.snapshot(untrack(() => graphStore.nodes)) as Node[];
     const sfEdges = $state.snapshot(untrack(() => graphStore.edges)) as Edge[];
     return {
-      nodes: sfNodes.map((n) => ({ id: n.id, type: n.type ?? 'process', position: n.position, data: n.data as NodeGraph['nodes'][number]['data'] })),
-      edges: sfEdges.map((e) => ({ id: e.id, source: e.source, sourceHandle: e.sourceHandle ?? undefined, target: e.target, targetHandle: e.targetHandle ?? undefined })),
+      nodes: sfNodes.map((n) => ({
+        id: n.id,
+        type: n.type ?? 'process',
+        position: n.position,
+        data: n.data as NodeGraph['nodes'][number]['data'],
+      })),
+      edges: sfEdges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        sourceHandle: e.sourceHandle ?? undefined,
+        target: e.target,
+        targetHandle: e.targetHandle ?? undefined,
+      })),
       viewport: { x: 0, y: 0, zoom: 1 },
     };
   }
@@ -130,7 +151,14 @@
 
       try {
         const result = (await window.ipcRenderer.invoke(
-          IPC.EXECUTE_BATCH, graph, status.nodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog
+          IPC.EXECUTE_BATCH,
+          graph,
+          status.nodeId,
+          inputNodeId,
+          imagePaths,
+          outputDir,
+          overwrite,
+          generateLog
         )) as { processed: number; skipped: number; failed: number; errors?: string[]; outputDir: string | null };
         graphStore.batchElapsedMs = performance.now() - (graphStore.batchStartTime ?? performance.now());
         graphStore.batchDone = true;
@@ -201,26 +229,17 @@
     <button class="cancel-btn" onclick={cancelBatch}>Cancel</button>
   {:else}
     <!-- Idle state -->
-    <button
-      class="run-btn"
-      disabled={!canRun}
-      onclick={handleRun}
-      title={tooltipText}
-    >
-      ▶ Run Workflow
-    </button>
+    <button class="run-btn" disabled={!canRun} onclick={handleRun} title={tooltipText}> ▶ Run Workflow </button>
     {#if graphStore.batchError}
-      <span class="error-label" title={graphStore.batchError}>Error: {graphStore.batchError.slice(0, 60)}{graphStore.batchError.length > 60 ? '…' : ''}</span>
+      <span class="error-label" title={graphStore.batchError}
+        >Error: {graphStore.batchError.slice(0, 60)}{graphStore.batchError.length > 60 ? '…' : ''}</span
+      >
     {/if}
   {/if}
 </div>
 
 {#if showDialog}
-  <RunWorkflowDialog
-    statuses={outputNodeStatuses}
-    onRun={handleDialogRun}
-    onCancel={() => (showDialog = false)}
-  />
+  <RunWorkflowDialog statuses={outputNodeStatuses} onRun={handleDialogRun} onCancel={() => (showDialog = false)} />
 {/if}
 
 <style>
@@ -250,8 +269,13 @@
     transition: opacity 0.15s;
     white-space: nowrap;
   }
-  .run-btn:hover:not(:disabled) { opacity: 0.85; }
-  .run-btn:disabled { opacity: 0.4; cursor: default; }
+  .run-btn:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+  .run-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 
   .cancel-btn {
     height: 22px;
@@ -266,7 +290,9 @@
     outline: none;
     white-space: nowrap;
   }
-  .cancel-btn:hover { opacity: 0.85; }
+  .cancel-btn:hover {
+    opacity: 0.85;
+  }
 
   .running-info {
     display: flex;

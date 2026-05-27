@@ -18,13 +18,15 @@
   const customPath = $derived((params.customPath as string) ?? '');
 
   const footerLabel = $derived(
-    outputPath === 'source' ? 'same folder as source' : outputPath === 'custom' ? (customPath || 'no path set') : outputPath
+    outputPath === 'source'
+      ? 'same folder as source'
+      : outputPath === 'custom'
+        ? customPath || 'no path set'
+        : outputPath
   );
 
   // Detect a connected Folder Path node on the folder-in handle
-  const folderEdge = $derived(
-    graphStore.edges.find((e) => e.target === id && e.targetHandle === 'folder-in') ?? null
-  );
+  const folderEdge = $derived(graphStore.edges.find((e) => e.target === id && e.targetHandle === 'folder-in') ?? null);
 </script>
 
 <Handle

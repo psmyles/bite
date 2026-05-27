@@ -396,9 +396,7 @@
       <div class="preview-hint">Computing…</div>
     {:else}
       <div class="preview-hint">
-        {activeImages.length === 0
-          ? 'Load images to see a preview.'
-          : 'Connect at least one port to see a preview.'}
+        {activeImages.length === 0 ? 'Load images to see a preview.' : 'Connect at least one port to see a preview.'}
       </div>
     {/if}
   </div>

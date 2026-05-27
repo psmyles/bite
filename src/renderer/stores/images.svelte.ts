@@ -3,7 +3,15 @@ import { IPC, EMPTY_GRAPH } from '../../shared/constants.js';
 import { graphStore } from './graph.svelte.js';
 
 class ImageStore {
-  private _nodes = $state<Map<string, ImageInfo[]>>(new Map());
+  // _nodes is a plain (non-reactive) Map mutated in-place.
+  // Reactivity is driven by _tick: every mutation increments _tick, which is a
+  // $state signal. All public getters read _tick first to establish the reactive
+  // dependency, so consumers re-evaluate whenever any mutation occurs.
+  // This avoids creating a new Map + spreading arrays for every streaming result
+  // (which was O(N²) work for an import of N images).
+  private _nodes = new Map<string, ImageInfo[]>();
+  private _tick = $state(0);
+
   activeInputNodeId = $state<string | null>(null);
   selectedIndex = $state<number>(-1);
   importProgress = $state<{ done: number; total: number } | null>(null);
@@ -16,10 +24,12 @@ class ImageStore {
 
   /** Images for the currently active input node (shown in filmstrip). */
   get images(): ImageInfo[] {
+    void this._tick; // reactive dependency
     return this.activeInputNodeId ? (this._nodes.get(this.activeInputNodeId) ?? []) : [];
   }
 
   getImages(nodeId: string): ImageInfo[] {
+    void this._tick; // reactive dependency
     return this._nodes.get(nodeId) ?? [];
   }
 
@@ -49,7 +59,6 @@ class ImageStore {
     paths = paths.filter((p) => !existing.has(p));
     if (paths.length === 0) return;
 
-    const currentImages = this._nodes.get(targetNodeId) ?? [];
     const autoSelect = this.activeInputNodeId === targetNodeId && this.selectedIndex === -1;
     this._importCancelled = false;
     this._importStartTime = performance.now();
@@ -62,14 +71,17 @@ class ImageStore {
     const onResult = (_e: unknown, info: ImageInfo) => {
       if (!listenerActive) return;
       doneCount++;
-      const nodeImages = this._nodes.get(targetNodeId) ?? [];
+      // Mutate in-place — no new Map, no array spread. O(1) per image.
+      let nodeImages = this._nodes.get(targetNodeId);
+      if (!nodeImages) {
+        nodeImages = [];
+        this._nodes.set(targetNodeId, nodeImages);
+      }
       const idx = nodeImages.length;
-      // Trigger reactivity by creating a new Map
-      const newMap = new Map(this._nodes);
-      newMap.set(targetNodeId, [...nodeImages, info]);
-      this._nodes = newMap;
+      nodeImages.push(info);
       if (autoSelect && this.selectedIndex === -1) this.selectedIndex = idx;
       allAdded.push(info);
+      this._tick++;
       this.importProgress = { done: doneCount, total: paths.length };
     };
     window.ipcRenderer.on(IPC.LOAD_IMAGES_STREAMING_RESULT, onResult);
@@ -85,20 +97,23 @@ class ImageStore {
       );
       if (Array.isArray(allResults)) {
         const addedPaths = new Set(allAdded.map((img) => img.path));
-        const nodeImages = this._nodes.get(targetNodeId) ?? [];
         const extra: ImageInfo[] = [];
         for (const info of allResults) {
           if (!addedPaths.has(info.path)) {
-            const idx = nodeImages.length + extra.length;
             extra.push(info);
-            if (autoSelect && this.selectedIndex === -1) this.selectedIndex = idx;
             allAdded.push(info);
           }
         }
         if (extra.length > 0) {
-          const newMap = new Map(this._nodes);
-          newMap.set(targetNodeId, [...nodeImages, ...extra]);
-          this._nodes = newMap;
+          let nodeImages = this._nodes.get(targetNodeId);
+          if (!nodeImages) {
+            nodeImages = [];
+            this._nodes.set(targetNodeId, nodeImages);
+          }
+          const startIdx = nodeImages.length;
+          nodeImages.push(...extra);
+          if (autoSelect && this.selectedIndex === -1) this.selectedIndex = startIdx;
+          this._tick++;
         }
       }
     } catch (err) {
@@ -112,15 +127,19 @@ class ImageStore {
       window.ipcRenderer.off(IPC.LOAD_IMAGES_STREAMING_RESULT, onResult);
     }
 
-    // Pre-warm the preview cache.
-    ;(async () => {
-      for (const info of allAdded) {
-        await window.ipcRenderer.invoke(IPC.EXECUTE_PREVIEW, EMPTY_GRAPH, info.path).catch((err: unknown) => {
-          console.warn('[imageStore] Preview warm-up failed:', err);
-        });
+    // Pre-warm the preview cache — run in parallel with a concurrency window.
+    (async () => {
+      const CONCURRENCY = 6;
+      for (let i = 0; i < allAdded.length; i += CONCURRENCY) {
+        await Promise.all(
+          allAdded.slice(i, i + CONCURRENCY).map((info) =>
+            window.ipcRenderer.invoke(IPC.EXECUTE_PREVIEW, EMPTY_GRAPH, info.path).catch((err: unknown) => {
+              console.warn('[imageStore] Preview warm-up failed:', err);
+            })
+          )
+        );
       }
     })();
-    void currentImages; // suppress unused warning
   }
 
   async openDialog(nodeId?: string): Promise<void> {
@@ -141,9 +160,11 @@ class ImageStore {
     const targetNodeId = nodeId ?? this.activeInputNodeId;
     if (!targetNodeId) return;
     const imgs = this._nodes.get(targetNodeId) ?? [];
-    const newMap = new Map(this._nodes);
-    newMap.set(targetNodeId, imgs.filter((_, i) => i !== index));
-    this._nodes = newMap;
+    this._nodes.set(
+      targetNodeId,
+      imgs.filter((_, i) => i !== index)
+    );
+    this._tick++;
     if (this.activeInputNodeId === targetNodeId) {
       const newLen = (this._nodes.get(targetNodeId) ?? []).length;
       if (this.selectedIndex >= newLen) this.selectedIndex = newLen - 1;
@@ -153,16 +174,14 @@ class ImageStore {
   clear(nodeId?: string): void {
     const targetNodeId = nodeId ?? this.activeInputNodeId;
     if (!targetNodeId) return;
-    const newMap = new Map(this._nodes);
-    newMap.set(targetNodeId, []);
-    this._nodes = newMap;
+    this._nodes.set(targetNodeId, []);
+    this._tick++;
     if (this.activeInputNodeId === targetNodeId) this.selectedIndex = -1;
   }
 
   removeNode(nodeId: string): void {
-    const newMap = new Map(this._nodes);
-    newMap.delete(nodeId);
-    this._nodes = newMap;
+    this._nodes.delete(nodeId);
+    this._tick++;
     if (this.activeInputNodeId === nodeId) {
       this.activeInputNodeId = null;
       this.selectedIndex = -1;

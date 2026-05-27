@@ -37,7 +37,13 @@ export class PipelineExecutor {
 
   // ── Preview pipeline ────────────────────────────────────────────────────────
 
-  executePreview(graph: NodeGraph, imagePath: string, registry: NodeRegistry, fromNodeId?: string, inputNodeId?: string) {
+  executePreview(
+    graph: NodeGraph,
+    imagePath: string,
+    registry: NodeRegistry,
+    fromNodeId?: string,
+    inputNodeId?: string
+  ) {
     return executePreviewFn(this.previewCache, graph, imagePath, registry, fromNodeId, inputNodeId);
   }
 
@@ -54,7 +60,17 @@ export class PipelineExecutor {
     onProgress: (p: Progress) => void
   ) {
     this._batchCancelled = false;
-    return executeBatchFn(graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, registry, onProgress, () => this._batchCancelled);
+    return executeBatchFn(
+      graph,
+      outputNodeId,
+      inputNodeId,
+      imagePaths,
+      outputDir,
+      overwrite,
+      registry,
+      onProgress,
+      () => this._batchCancelled
+    );
   }
 
   // ── CLI script export ────────────────────────────────────────────────────────

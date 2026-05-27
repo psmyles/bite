@@ -2,10 +2,7 @@
   import { Handle, Position } from '@xyflow/svelte';
   import { portColor } from './portColors.js';
 
-  let {
-    data = {},
-    selected = false,
-  }: { data?: Record<string, unknown>; selected?: boolean } = $props();
+  let { data = {}, selected = false }: { data?: Record<string, unknown>; selected?: boolean } = $props();
 
   const imgColor = portColor('image');
   const numColor = portColor('number');

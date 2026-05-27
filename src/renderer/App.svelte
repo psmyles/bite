@@ -138,24 +138,50 @@
       const savedParams = (saved.params ?? {}) as Record<string, unknown>;
       let data: Record<string, unknown>;
       if (n.type === 'inputNode') {
-        data = { label: String(saved.label ?? 'Input'), inputs: [], outputs: ['image'], params: { thumbnailSize: 256, ...savedParams } };
+        data = {
+          label: String(saved.label ?? 'Input'),
+          inputs: [],
+          outputs: ['image'],
+          params: { thumbnailSize: 256, ...savedParams },
+        };
       } else if (n.type === 'imageOutputNode') {
         data = {
           label: String(saved.label ?? 'Image Output'),
-          inputs: ['image'], outputs: [],
+          inputs: ['image'],
+          outputs: [],
           params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false, ...savedParams },
         };
       } else if (n.type === 'textOutputNode') {
         data = {
           label: String(saved.label ?? 'Text Output'),
-          inputs: ['image'], outputs: [],
-          params: { outputPath: '', portIds: ['txo-0'], nextPortIndex: 1, separatorType: 'comma', customSeparator: '', generateLog: false, usePreviewForProcessing: false, ...savedParams },
+          inputs: ['image'],
+          outputs: [],
+          params: {
+            outputPath: '',
+            portIds: ['txo-0'],
+            nextPortIndex: 1,
+            separatorType: 'comma',
+            customSeparator: '',
+            generateLog: false,
+            usePreviewForProcessing: false,
+            ...savedParams,
+          },
         };
       } else if (n.type === 'flipbookOutputNode') {
         data = {
           label: String(saved.label ?? 'Flipbook Output'),
-          inputs: ['image'], outputs: [],
-          params: { flipbookOutputPath: '', cols: 4, rows: 4, cellWidth: 128, cellHeight: 128, sortBy: 'import_order', generateLog: false, ...savedParams },
+          inputs: ['image'],
+          outputs: [],
+          params: {
+            flipbookOutputPath: '',
+            cols: 4,
+            rows: 4,
+            cellWidth: 128,
+            cellHeight: 128,
+            sortBy: 'import_order',
+            generateLog: false,
+            ...savedParams,
+          },
         };
       } else if (n.type === 'group') {
         data = { label: String(saved.label ?? 'Group'), definitionId: '', params: savedParams };

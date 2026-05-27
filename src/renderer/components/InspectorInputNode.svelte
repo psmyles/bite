@@ -96,8 +96,7 @@
       <select
         class="setting-select"
         value={thumbSizeParam}
-        onchange={(e) =>
-          graphStore.setParam(nodeId, 'thumbnailSize', Number((e.target as HTMLSelectElement).value))}
+        onchange={(e) => graphStore.setParam(nodeId, 'thumbnailSize', Number((e.target as HTMLSelectElement).value))}
       >
         {#each THUMB_SIZE_OPTIONS as sz}
           <option value={sz}>{sz}px</option>
@@ -186,7 +185,10 @@
         <div
           class="file-entry"
           class:active={imageStore.activeInputNodeId === nodeId && i === imageStore.selectedIndex}
-          onclick={() => { imageStore.setActive(nodeId); imageStore.select(i); }}
+          onclick={() => {
+            imageStore.setActive(nodeId);
+            imageStore.select(i);
+          }}
           title={img.path}
         >
           <span class="file-entry-name">{img.name}</span>

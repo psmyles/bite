@@ -142,13 +142,22 @@ async function main(): Promise<void> {
     graph.nodes.find((n) => n.id === 'workflow-input')?.id ??
     'workflow-input';
 
-  await executor.executeBatch(graph, outputNodeId, inputNodeId, images, outputAbs, overwrite, registry, ({ completed, total, currentFile }) => {
-    const pct = Math.round((completed / total) * 100)
-      .toString()
-      .padStart(3);
-    const file = currentFile.length > 40 ? '...' + currentFile.slice(-37) : currentFile.padEnd(40);
-    process.stdout.write(`\r  [${pct}%] ${completed}/${total}  ${file}`);
-  });
+  await executor.executeBatch(
+    graph,
+    outputNodeId,
+    inputNodeId,
+    images,
+    outputAbs,
+    overwrite,
+    registry,
+    ({ completed, total, currentFile }) => {
+      const pct = Math.round((completed / total) * 100)
+        .toString()
+        .padStart(3);
+      const file = currentFile.length > 40 ? '...' + currentFile.slice(-37) : currentFile.padEnd(40);
+      process.stdout.write(`\r  [${pct}%] ${completed}/${total}  ${file}`);
+    }
+  );
 
   process.stdout.write('\n');
   console.log(`Done → ${outputAbs}`);

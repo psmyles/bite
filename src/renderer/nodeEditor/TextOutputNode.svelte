@@ -42,7 +42,6 @@
   function handleTop(i: number): string {
     return `${71 + i * 30}px`;
   }
-
 </script>
 
 <!-- Image input — top-left -->
