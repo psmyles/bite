@@ -450,12 +450,10 @@
   }
 
   .section-title {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
-    opacity: 0.5;
+    opacity: 0.6;
     margin-bottom: 2px;
   }
 

@@ -86,153 +86,180 @@
   }
 </script>
 
-<!-- Output file -->
-<div class="param-row">
-  <span class="param-label">Output file</span>
-  <div class="path-row">
-    <input
-      type="text"
-      class="text-input path-input"
-      value={fbOutputPath}
-      placeholder="Enter file path…"
-      oninput={(e) => {
-        graphStore.setParam(selectedNode.id, 'flipbookOutputPath', (e.target as HTMLInputElement).value);
-        flipbookDone = false;
-      }}
+<div class="flipbook-inspector">
+
+  <!-- ── Output File ─────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Output File</div>
+    <div class="path-row">
+      <input
+        type="text"
+        class="text-input path-input"
+        value={fbOutputPath}
+        placeholder="Enter file path…"
+        oninput={(e) => {
+          graphStore.setParam(selectedNode.id, 'flipbookOutputPath', (e.target as HTMLInputElement).value);
+          flipbookDone = false;
+        }}
+      />
+      {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFlipbookOutput} title="Browse…">…</button>{/if}
+    </div>
+  </div>
+
+  <!-- ── Grid ────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Grid</div>
+    <div class="two-col">
+      <div class="field">
+        <span class="field-label">Columns</span>
+        <input
+          type="number"
+          class="text-input num-input"
+          value={fbCols}
+          min="1"
+          max="64"
+          oninput={(e) => {
+            const v = parseInt((e.target as HTMLInputElement).value, 10);
+            if (!isNaN(v) && v >= 1) graphStore.setParam(selectedNode.id, 'cols', v);
+          }}
+        />
+      </div>
+      <div class="field">
+        <span class="field-label">Rows</span>
+        <input
+          type="number"
+          class="text-input num-input"
+          value={fbRows}
+          min="1"
+          max="64"
+          oninput={(e) => {
+            const v = parseInt((e.target as HTMLInputElement).value, 10);
+            if (!isNaN(v) && v >= 1) graphStore.setParam(selectedNode.id, 'rows', v);
+          }}
+        />
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <span class="field-label">Cell width</span>
+        <input
+          type="number"
+          class="text-input num-input"
+          value={fbCellWidth}
+          min="1"
+          max="4096"
+          oninput={(e) => {
+            const v = parseInt((e.target as HTMLInputElement).value, 10);
+            if (!isNaN(v) && v >= 1) graphStore.setParam(selectedNode.id, 'cellWidth', v);
+          }}
+        />
+      </div>
+      <div class="field">
+        <span class="field-label">Cell height</span>
+        <input
+          type="number"
+          class="text-input num-input"
+          value={fbCellHeight}
+          min="1"
+          max="4096"
+          oninput={(e) => {
+            const v = parseInt((e.target as HTMLInputElement).value, 10);
+            if (!isNaN(v) && v >= 1) graphStore.setParam(selectedNode.id, 'cellHeight', v);
+          }}
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sort Order ──────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Sort Order</div>
+    <Dropdown
+      value={fbSortBy}
+      options={['import_order', 'name', 'name_desc']}
+      labels={['Import order', 'File name (A→Z)', 'File name (Z→A)']}
+      onchange={(v) => graphStore.setParam(selectedNode.id, 'sortBy', v)}
     />
-    {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFlipbookOutput} title="Browse…">…</button>{/if}
   </div>
-</div>
 
-<!-- Grid dimensions -->
-<div class="param-row two-col">
-  <div class="field">
-    <span class="param-label">Columns</span>
-    <input
-      type="number"
-      class="text-input num-input"
-      value={fbCols}
-      min="1"
-      max="64"
-      oninput={(e) => {
-        const v = parseInt((e.target as HTMLInputElement).value, 10);
-        if (!isNaN(v) && v >= 1) graphStore.setParam(selectedNode.id, 'cols', v);
-      }}
-    />
+  <!-- ── Atlas Summary ───────────────────────────────────────── -->
+  <div class="summary-box">
+    <div class="summary-row">
+      <span class="summary-key">Atlas size</span>
+      <span class="summary-val">{fbAtlasW} × {fbAtlasH} px</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-key">Cells</span>
+      <span class="summary-val">{fbCellCount} ({fbCols} × {fbRows})</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-key">Images</span>
+      <span class="summary-val" class:warn={fbTruncated || fbUnfilled}>
+        {fbImgCount} loaded
+        {#if fbTruncated}— {fbImgCount - fbCellCount} will be truncated{/if}
+        {#if fbUnfilled}— {fbCellCount - fbImgCount} cells will be transparent{/if}
+      </span>
+    </div>
   </div>
-  <div class="field">
-    <span class="param-label">Rows</span>
-    <input
-      type="number"
-      class="text-input num-input"
-      value={fbRows}
-      min="1"
-      max="64"
-      oninput={(e) => {
-        const v = parseInt((e.target as HTMLInputElement).value, 10);
-        if (!isNaN(v) && v >= 1) graphStore.setParam(selectedNode.id, 'rows', v);
-      }}
-    />
-  </div>
-</div>
 
-<!-- Cell dimensions -->
-<div class="param-row two-col">
-  <div class="field">
-    <span class="param-label">Cell width</span>
-    <input
-      type="number"
-      class="text-input num-input"
-      value={fbCellWidth}
-      min="1"
-      max="4096"
-      oninput={(e) => {
-        const v = parseInt((e.target as HTMLInputElement).value, 10);
-        if (!isNaN(v) && v >= 1) graphStore.setParam(selectedNode.id, 'cellWidth', v);
-      }}
-    />
+  <!-- ── Output Log ──────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Output Log</div>
+    <label class="log-toggle">
+      <input
+        type="checkbox"
+        checked={generateLog}
+        onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)}
+      />
+      <span>Generate .log file</span>
+    </label>
   </div>
-  <div class="field">
-    <span class="param-label">Cell height</span>
-    <input
-      type="number"
-      class="text-input num-input"
-      value={fbCellHeight}
-      min="1"
-      max="4096"
-      oninput={(e) => {
-        const v = parseInt((e.target as HTMLInputElement).value, 10);
-        if (!isNaN(v) && v >= 1) graphStore.setParam(selectedNode.id, 'cellHeight', v);
-      }}
-    />
-  </div>
-</div>
 
-<!-- Sort order -->
-<div class="param-row">
-  <span class="param-label">Sort order</span>
-  <Dropdown
-    value={fbSortBy}
-    options={['import_order', 'name', 'name_desc']}
-    labels={['Import order', 'File name (A→Z)', 'File name (Z→A)']}
-    onchange={(v) => graphStore.setParam(selectedNode.id, 'sortBy', v)}
-  />
-</div>
-
-<!-- Atlas summary -->
-<div class="summary-box">
-  <div class="summary-row">
-    <span class="summary-key">Atlas size</span>
-    <span class="summary-val">{fbAtlasW} × {fbAtlasH} px</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-key">Cells</span>
-    <span class="summary-val">{fbCellCount} ({fbCols} × {fbRows})</span>
-  </div>
-  <div class="summary-row">
-    <span class="summary-key">Images</span>
-    <span class="summary-val" class:warn={fbTruncated || fbUnfilled}>
-      {fbImgCount} loaded
-      {#if fbTruncated}— {fbImgCount - fbCellCount} will be truncated{/if}
-      {#if fbUnfilled}— {fbCellCount - fbImgCount} cells will be transparent{/if}
-    </span>
-  </div>
-</div>
-
-<!-- Output log -->
-<div class="param-row">
-  <span class="param-label">Output log</span>
-  <label class="log-toggle">
-    <input
-      type="checkbox"
-      checked={generateLog}
-      onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)}
-    />
-    <span>Generate .log file</span>
-  </label>
-</div>
-
-<!-- Generate button -->
-{#if !IS_ELECTRON}
-  <p class="web-note">Flipbook generation requires the desktop app.</p>
-{/if}
-<div class="gen-section" class:hidden={!IS_ELECTRON}>
-  <button class="btn btn--primary btn--full gen-btn" class:running={flipbookGenerating} onclick={generateFlipbook} disabled={flipbookGenerating}>
-    {flipbookGenerating ? 'Generating…' : 'Generate Flipbook'}
-  </button>
-
-  {#if flipbookDone && !flipbookGenerating && flipbookPath}
-    <button class="btn btn--neutral btn--full" onclick={openFlipbookFolder}>Open Output Folder</button>
+  <!-- ── Generate ────────────────────────────────────────────── -->
+  {#if !IS_ELECTRON}
+    <p class="web-note">Flipbook generation requires the desktop app.</p>
   {/if}
+  <div class="gen-section" class:hidden={!IS_ELECTRON}>
+    <button class="btn btn--primary btn--full gen-btn" class:running={flipbookGenerating} onclick={generateFlipbook} disabled={flipbookGenerating}>
+      {flipbookGenerating ? 'Generating…' : 'Generate Flipbook'}
+    </button>
 
-  {#if flipbookError}
-    <span class="gen-error">{flipbookError}</span>
-  {/if}
+    {#if flipbookDone && !flipbookGenerating && flipbookPath}
+      <button class="btn btn--neutral btn--full" onclick={openFlipbookFolder}>Open Output Folder</button>
+    {/if}
+
+    {#if flipbookError}
+      <span class="gen-error">{flipbookError}</span>
+    {/if}
+  </div>
+
 </div>
 
 <style>
+  .flipbook-inspector {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Section layout ── */
+  .section {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--node-border, rgba(255, 255, 255, 0.07));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .section-title {
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
+    color: var(--text-bright);
+    opacity: 0.6;
+    margin-bottom: 2px;
+  }
+
   .two-col {
-    flex-direction: row;
+    display: flex;
     gap: 8px;
   }
 
@@ -244,6 +271,38 @@
     min-width: 0;
   }
 
+  .field-label {
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
+    color: var(--text-bright);
+    opacity: 0.6;
+    user-select: none;
+  }
+
+  .log-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
+    color: var(--text-bright);
+    user-select: none;
+  }
+
+  /* ── Path row ── */
+  .path-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .path-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ── Number inputs ── */
   .num-input {
     width: 100%;
     -moz-appearance: textfield;
@@ -254,8 +313,9 @@
     -webkit-appearance: none;
   }
 
+  /* ── Atlas summary ── */
   .summary-box {
-    margin: 8px 12px 2px;
+    margin: 8px 12px;
     background: color-mix(in srgb, var(--border) 20%, transparent);
     border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
     border-radius: 4px;
@@ -287,20 +347,10 @@
   }
 
   .summary-val.warn {
-    color: #fbbf24;
+    color: var(--color-warning-text);
   }
 
-  .log-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    font-family: var(--font-ui);
-    font-size: var(--font-size-sm);
-    color: var(--text-bright);
-    user-select: none;
-  }
-
+  /* ── Generate section ── */
   .gen-section {
     padding: 10px 12px 12px;
     display: flex;
@@ -315,7 +365,7 @@
   .gen-error {
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
-    color: #ff7070;
+    color: var(--color-error-text);
     opacity: 0.9;
     white-space: pre-wrap;
     word-break: break-word;
@@ -324,7 +374,7 @@
   .web-note {
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);
-    color: var(--text-muted);
+    color: var(--text);
     padding: 4px 12px 0;
     margin: 0;
   }
