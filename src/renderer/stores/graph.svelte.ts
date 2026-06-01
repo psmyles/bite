@@ -86,6 +86,8 @@ class GraphStore {
   // ── Persistence ───────────────────────────────────────────────────────────
   /** Current open file path (null = unsaved) */
   currentFilePath = $state<string | null>(null);
+  /** ISO timestamp of when this workflow was first saved (null = unsaved new workflow) */
+  workflowCreatedAt = $state<string | null>(null);
 
   // ── Viewport ──────────────────────────────────────────────────────────────
   /** Viewport synced from NodeEditor for saving; set pendingViewport to restore on load */
@@ -126,6 +128,7 @@ class GraphStore {
     this.previewNodeId = null;
     this.propValues = {};
     this.pendingViewport = { x: 0, y: 0, zoom: 1 };
+    this.workflowCreatedAt = null;
     this.markClean(null);
   }
 

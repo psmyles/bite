@@ -165,7 +165,12 @@ export function registerPipelineHandlers(
 
     const scriptContent = executor.exportCLI(shellType, workflowFile);
     writeFileSync(result.filePath, scriptContent, 'utf-8');
-    writeFileSync(workflowPath, JSON.stringify({ version: '1.0', graph }, null, 2), 'utf-8');
+    const now = new Date().toISOString();
+    writeFileSync(
+      workflowPath,
+      JSON.stringify({ version: '1.0', appVersion: app.getVersion(), createdAt: now, modifiedAt: now, graph }, null, 2),
+      'utf-8'
+    );
 
     if (shellType === 'bash') {
       try {
@@ -254,29 +259,50 @@ const IMAGE_EXTENSIONS = [
   'fts',
 ];
 
-function readWorkflowFile(filePath: string): { graph: unknown; filePath: string } {
+function readWorkflowFile(filePath: string): {
+  graph: unknown;
+  filePath: string;
+  appVersion: string | null;
+  createdAt: string | null;
+  modifiedAt: string | null;
+} {
   const raw = readFileSync(filePath, 'utf-8');
   const data = JSON.parse(raw) as Record<string, unknown>;
   if (!data || typeof data !== 'object' || !data.graph) {
     throw new Error('Invalid workflow file: missing graph data');
   }
-  return { graph: data.graph, filePath };
+  return {
+    graph: data.graph,
+    filePath,
+    appVersion: typeof data.appVersion === 'string' ? data.appVersion : null,
+    createdAt: typeof data.createdAt === 'string' ? data.createdAt : null,
+    modifiedAt: typeof data.modifiedAt === 'string' ? data.modifiedAt : null,
+  };
 }
 
 export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): void {
-  ipcMain.handle(IPC.WORKFLOW_SAVE, async (_e, graph: unknown, filePath: string | null) => {
-    let targetPath = filePath ?? null;
-    if (!targetPath) {
-      const result = await dialog.showSaveDialog(getWin()!, {
-        filters: [{ name: 'imgplex Workflow', extensions: ['imgplex'] }],
-        defaultPath: 'workflow.imgplex',
-      });
-      if (result.canceled || !result.filePath) return null;
-      targetPath = result.filePath;
+  ipcMain.handle(
+    IPC.WORKFLOW_SAVE,
+    async (_e, graph: unknown, filePath: string | null, existingCreatedAt?: string | null) => {
+      let targetPath = filePath ?? null;
+      if (!targetPath) {
+        const result = await dialog.showSaveDialog(getWin()!, {
+          filters: [{ name: 'imgplex Workflow', extensions: ['imgplex'] }],
+          defaultPath: 'workflow.imgplex',
+        });
+        if (result.canceled || !result.filePath) return null;
+        targetPath = result.filePath;
+      }
+      const now = new Date().toISOString();
+      const createdAt = existingCreatedAt ?? now;
+      writeFileSync(
+        targetPath,
+        JSON.stringify({ version: '1.0', appVersion: app.getVersion(), createdAt, modifiedAt: now, graph }, null, 2),
+        'utf-8'
+      );
+      return { filePath: targetPath, createdAt };
     }
-    writeFileSync(targetPath, JSON.stringify({ version: '1.0', graph }, null, 2), 'utf-8');
-    return targetPath;
-  });
+  );
 
   ipcMain.handle(IPC.WORKFLOW_LOAD, async () => {
     const result = await dialog.showOpenDialog(getWin()!, {

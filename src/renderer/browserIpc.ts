@@ -31,9 +31,15 @@ export function installBrowserIpc(): void {
 
         // ── Workflow save — triggers a browser file download ─────────────────
         case IPC.WORKFLOW_SAVE: {
-          const [graph, filePath] = args as [unknown, string | null];
+          const [graph, filePath, existingCreatedAt] = args as [unknown, string | null, string | null | undefined];
           const fileName = filePath ? (filePath.split(/[\\/]/).pop() ?? 'workflow.imgplex') : 'workflow.imgplex';
-          const content = JSON.stringify({ version: '1.0', graph }, null, 2);
+          const now = new Date().toISOString();
+          const createdAt = existingCreatedAt ?? now;
+          const content = JSON.stringify(
+            { version: '1.0', appVersion: __APP_VERSION__, createdAt, modifiedAt: now, graph },
+            null,
+            2
+          );
           const blob = new Blob([content], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -43,7 +49,7 @@ export function installBrowserIpc(): void {
           a.click();
           document.body.removeChild(a);
           setTimeout(() => URL.revokeObjectURL(url), 1000);
-          return fileName; // used by graphStore.markClean()
+          return { filePath: fileName, createdAt };
         }
 
         // ── Workflow load — opens a file picker ──────────────────────────────
@@ -66,7 +72,13 @@ export function installBrowserIpc(): void {
                   resolve(null);
                   return;
                 }
-                resolve({ graph: data.graph, filePath: file.name });
+                resolve({
+                  graph: data.graph,
+                  filePath: file.name,
+                  appVersion: typeof data.appVersion === 'string' ? data.appVersion : null,
+                  createdAt: typeof data.createdAt === 'string' ? data.createdAt : null,
+                  modifiedAt: typeof data.modifiedAt === 'string' ? data.modifiedAt : null,
+                });
               } catch {
                 alert('Failed to parse workflow file.');
                 resolve(null);

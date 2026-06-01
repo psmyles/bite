@@ -17,7 +17,9 @@
   import BatchProgressModal from './components/BatchProgressModal.svelte';
   import ConfirmModal from './components/ConfirmModal.svelte';
   import ImportProgressModal from './components/ImportProgressModal.svelte';
+  import IncompatibleVersionModal from './components/IncompatibleVersionModal.svelte';
   import { imageStore } from './stores/images.svelte.js';
+  import { isCompatible } from '../shared/compatUtils.js';
 
   // ── Node definitions — loaded once here, passed to NodeLibrary + NodeEditor ──
   let definitions: NodeDefinition[] = $state([]);
@@ -131,7 +133,7 @@
     graphStore.resetToSeed();
   }
 
-  function applyWorkflow(graph: NodeGraph, filePath: string) {
+  function applyWorkflow(graph: NodeGraph, filePath: string, createdAt?: string | null) {
     const sortedSaved = sortNodesGroupFirst(graph.nodes);
     graphStore.nodes = sortedSaved.map((n) => {
       const saved = n.data as Record<string, unknown>;
@@ -208,12 +210,31 @@
     graphStore.previewNodeId = null;
     graphStore.propValues = {};
     graphStore.pendingViewport = graph.viewport;
+    graphStore.workflowCreatedAt = createdAt ?? null;
     graphStore.markClean(filePath);
+  }
+
+  type WorkflowLoadResult = {
+    graph: NodeGraph;
+    filePath: string;
+    appVersion: string | null;
+    createdAt: string | null;
+    modifiedAt: string | null;
+  };
+
+  function checkAndApplyWorkflow(result: WorkflowLoadResult): void {
+    const fileVer = result.appVersion;
+    if (!fileVer || !isCompatible(fileVer, __APP_VERSION__)) {
+      incompatibleFileVersion = fileVer ?? null;
+      showIncompatibleModal = true;
+      return;
+    }
+    applyWorkflow(result.graph, result.filePath, result.createdAt);
   }
 
   async function handleOpenWorkflow() {
     if (!(await confirmLoseChanges('Open a different workflow'))) return;
-    let result: { graph: NodeGraph; filePath: string } | null;
+    let result: WorkflowLoadResult | null;
     try {
       result = (await window.ipcRenderer.invoke(IPC.WORKFLOW_LOAD)) as typeof result;
     } catch (err) {
@@ -221,12 +242,12 @@
       return;
     }
     if (!result) return;
-    applyWorkflow(result.graph, result.filePath);
+    checkAndApplyWorkflow(result);
   }
 
   async function handleOpenFilePath(filePath: string) {
     if (!(await confirmLoseChanges('Open a different workflow'))) return;
-    let result: { graph: NodeGraph; filePath: string } | null;
+    let result: WorkflowLoadResult | null;
     try {
       result = (await window.ipcRenderer.invoke(IPC.WORKFLOW_OPEN_PATH, filePath)) as typeof result;
     } catch (err) {
@@ -234,30 +255,45 @@
       return;
     }
     if (!result) return;
-    applyWorkflow(result.graph, result.filePath);
+    checkAndApplyWorkflow(result);
   }
 
   async function handleSaveWorkflow() {
     // JSON round-trip strips Svelte 5 reactive proxies — IPC structured clone
     // cannot serialize Proxy objects and throws a silent unhandled rejection.
     const graph = JSON.parse(JSON.stringify(buildNodeGraph())) as NodeGraph;
-    const savedPath = (await window.ipcRenderer.invoke(IPC.WORKFLOW_SAVE, graph, graphStore.currentFilePath)) as
-      | string
-      | null;
-    if (savedPath) graphStore.markClean(savedPath);
+    const result = (await window.ipcRenderer.invoke(
+      IPC.WORKFLOW_SAVE,
+      graph,
+      graphStore.currentFilePath,
+      graphStore.workflowCreatedAt
+    )) as { filePath: string; createdAt: string } | null;
+    if (result) {
+      graphStore.workflowCreatedAt = result.createdAt;
+      graphStore.markClean(result.filePath);
+    }
   }
 
   async function handleSaveWorkflowAs() {
     const graph = JSON.parse(JSON.stringify(buildNodeGraph())) as NodeGraph;
     // Pass null to always force the Save dialog
-    const savedPath = (await window.ipcRenderer.invoke(IPC.WORKFLOW_SAVE, graph, null)) as string | null;
-    if (savedPath) graphStore.markClean(savedPath);
+    const result = (await window.ipcRenderer.invoke(IPC.WORKFLOW_SAVE, graph, null, graphStore.workflowCreatedAt)) as {
+      filePath: string;
+      createdAt: string;
+    } | null;
+    if (result) {
+      graphStore.workflowCreatedAt = result.createdAt;
+      graphStore.markClean(result.filePath);
+    }
   }
 
   async function handleExit() {
     if (!(await confirmLoseChanges('Exit'))) return;
     await window.ipcRenderer.invoke(IPC.APP_QUIT);
   }
+
+  let showIncompatibleModal = $state(false);
+  let incompatibleFileVersion = $state<string | null>(null);
 
   let showAbout = $state(false);
   function handleAbout() {
@@ -515,6 +551,15 @@
     </div>
   </div>
 </div>
+
+{#if showIncompatibleModal}
+  <IncompatibleVersionModal
+    fileVersion={incompatibleFileVersion}
+    onClose={() => {
+      showIncompatibleModal = false;
+    }}
+  />
+{/if}
 
 {#if showAbout}
   <AboutModal onClose={() => (showAbout = false)} />
