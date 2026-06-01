@@ -11,6 +11,14 @@ const xyflowVersion = readPkg('./node_modules/@xyflow/svelte/package.json').vers
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: {
+        main: './index.html',
+        showcase: './ui-showcase.html',
+      },
+    },
+  },
   define: {
     __APP_VERSION__: JSON.stringify(version),
     __SVELTE_VERSION__: JSON.stringify(svelteVersion),

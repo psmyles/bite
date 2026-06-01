@@ -107,6 +107,7 @@ const executor = new PipelineExecutor();
 
 let win: BrowserWindow | null;
 let logWin: BrowserWindow | null = null;
+let showcaseWin: BrowserWindow | null = null;
 
 function openLogWindow() {
   if (logWin && !logWin.isDestroyed()) {
@@ -129,6 +130,28 @@ function openLogWindow() {
     logWin.loadURL(`${VITE_DEV_SERVER_URL}log-viewer.html`);
   } else {
     logWin.loadFile(path.join(RENDERER_DIST, 'log-viewer.html'));
+  }
+}
+
+function openShowcaseWindow() {
+  if (showcaseWin && !showcaseWin.isDestroyed()) {
+    showcaseWin.focus();
+    return;
+  }
+  showcaseWin = new BrowserWindow({
+    width: 1100,
+    height: 800,
+    title: 'imgplex — UI Showcase',
+    autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+  });
+  showcaseWin.on('closed', () => {
+    showcaseWin = null;
+  });
+  if (VITE_DEV_SERVER_URL) {
+    showcaseWin.loadURL(`${VITE_DEV_SERVER_URL}ui-showcase.html`);
+  } else {
+    showcaseWin.loadFile(path.join(RENDERER_DIST, 'ui-showcase.html'));
   }
 }
 
@@ -213,6 +236,12 @@ function buildMenu() {
         },
         { type: 'separator' },
         { label: 'View Log', click: () => openLogWindow() },
+        ...(VITE_DEV_SERVER_URL
+          ? ([
+              { type: 'separator' },
+              { label: 'Show All UI Elements', click: () => openShowcaseWindow() },
+            ] as Electron.MenuItemConstructorOptions[])
+          : []),
       ],
     },
   ];
