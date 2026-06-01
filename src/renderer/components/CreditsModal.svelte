@@ -49,7 +49,9 @@
     <div class="modal-header">
       <span class="modal-title">Credits</span>
       <button class="close-btn" onclick={onClose} aria-label="Close">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+          ><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" /></svg
+        >
       </button>
     </div>
 

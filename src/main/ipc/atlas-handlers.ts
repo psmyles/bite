@@ -23,7 +23,10 @@ function resolveBgColor(bgColor: number[] | string | undefined): string {
   if (Array.isArray(bgColor)) {
     const [r = 0, g = 0, b = 0, a = 1] = bgColor;
     if (a < 0.01) return 'none';
-    const h = (v: number) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0');
+    const h = (v: number) =>
+      Math.round(Math.max(0, Math.min(1, v)) * 255)
+        .toString(16)
+        .padStart(2, '0');
     return `#${h(r)}${h(g)}${h(b)}${h(a)}`;
   }
   return typeof bgColor === 'string' && bgColor ? bgColor : 'none';

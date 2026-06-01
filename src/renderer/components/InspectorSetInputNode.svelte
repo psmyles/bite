@@ -150,10 +150,16 @@
       {/if}
       <button class="del-btn" onclick={() => removeSuffix(i)} title="Remove suffix">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M5 2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M2 4h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M3.5 4l.6 7a.6.6 0 0 0 .6.6h4.6a.6.6 0 0 0 .6-.6l.6-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M5.5 6.5v3M8.5 6.5v3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+          <path d="M5 2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M2 4h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <path
+            d="M3.5 4l.6 7a.6.6 0 0 0 .6.6h4.6a.6.6 0 0 0 .6-.6l.6-7"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path d="M5.5 6.5v3M8.5 6.5v3" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" />
         </svg>
       </button>
     </div>

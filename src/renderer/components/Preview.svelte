@@ -309,11 +309,8 @@
     <span>Preview</span>
     {#if imageStore.selected}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <button
-        class="info-btn"
-        class:active={showInfo}
-        onclick={() => (showInfo = !showInfo)}
-        aria-pressed={showInfo}>Info</button
+      <button class="info-btn" class:active={showInfo} onclick={() => (showInfo = !showInfo)} aria-pressed={showInfo}
+        >Info</button
       >
     {/if}
   </div>
