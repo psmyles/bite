@@ -116,7 +116,6 @@
   <span class="param-label">Preserve Aspect Ratio</span>
   <input
     type="checkbox"
-    class="checkbox"
     checked={preserve}
     onchange={(e) => onPreserveChange((e.target as HTMLInputElement).checked)}
   />
@@ -128,7 +127,7 @@
   <div class="value-row">
     <input
       type="number"
-      class="num-input"
+      class="text-input num-input"
       value={widthVal}
       min="1"
       step="1"
@@ -144,7 +143,7 @@
   <div class="value-row">
     <input
       type="number"
-      class="num-input"
+      class="text-input num-input"
       value={heightVal}
       min="1"
       step="1"
@@ -160,7 +159,7 @@
   <div class="value-row">
     <input
       type="number"
-      class="num-input"
+      class="text-input num-input"
       value={Math.max(1, Math.round(Number(params.density ?? 72)))}
       min="1"
       max="9600"
@@ -183,8 +182,8 @@
 
 <!-- Resize Preview (only when an image is loaded) -->
 {#if srcW > 0 && srcH > 0 && previewW !== null && previewH !== null}
-  <div class="preview-section">
-    <span class="preview-heading">Resize Preview</span>
+  <div class="section">
+    <div class="section-title">Resize Preview</div>
     <div class="preview-row">
       <span class="preview-label">Original</span>
       <span class="preview-val">{srcW} × {srcH}</span>
@@ -228,14 +227,6 @@
 
   .num-input {
     flex: 1;
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    padding: 4px 6px;
-    outline: none;
     appearance: textfield;
     -moz-appearance: textfield;
   }
@@ -244,10 +235,6 @@
   .num-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
-  }
-
-  .num-input:focus {
-    border-color: var(--accent);
   }
 
   .unit {
@@ -259,32 +246,20 @@
     flex-shrink: 0;
   }
 
-  .checkbox {
-    width: 14px;
-    height: 14px;
-    cursor: pointer;
-    accent-color: var(--accent);
-    flex-shrink: 0;
-  }
-
   /* ── Resize Preview ── */
-  .preview-section {
-    padding: 10px 12px 10px;
+  .section {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--node-border);
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 6px;
   }
 
-  .preview-heading {
+  .section-title {
     font-family: var(--font-ui);
-    font-size: var(--font-size-xxs);
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
-    opacity: 0.35;
-    padding-bottom: 6px;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
+    opacity: 0.6;
   }
 
   .preview-row {

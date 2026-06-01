@@ -250,21 +250,19 @@
   }
 
   .section-title {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
-    opacity: 0.5;
+    opacity: 0.6;
     margin-bottom: 2px;
   }
 
   /* ── Inputs ── */
   .field-input {
-    background: var(--input-bg, rgba(255, 255, 255, 0.06));
-    border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: 3px;
-    color: var(--text);
+    color: var(--text-bright);
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
     padding: 4px 7px;
@@ -343,12 +341,12 @@
     color: var(--accent);
   }
   .block-badge--num {
-    background: color-mix(in srgb, #f59e0b 18%, transparent);
-    color: #f59e0b;
+    background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+    color: var(--color-warning);
   }
   .block-badge--orig {
-    background: color-mix(in srgb, #b89cfb 18%, transparent);
-    color: #b89cfb;
+    background: color-mix(in srgb, var(--color-rename-orig) 18%, transparent);
+    color: var(--color-rename-orig);
   }
 
   /* ── Text block ── */
@@ -374,7 +372,7 @@
   .num-preview {
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
-    color: #f59e0b;
+    color: var(--color-warning);
     opacity: 0.85;
     margin-left: 3px;
     flex-shrink: 0;
@@ -394,7 +392,7 @@
   }
   .orig-arrow {
     font-size: var(--font-size-xs);
-    color: #b89cfb;
+    color: var(--color-rename-orig);
     opacity: 0.6;
     flex-shrink: 0;
   }
@@ -416,7 +414,7 @@
   }
   .block-delete:hover {
     opacity: 1;
-    color: #f87171;
+    color: var(--color-error);
   }
 
   /* ── Add bar ── */
@@ -446,12 +444,12 @@
     color: var(--text);
   }
   .add-btn--num:hover {
-    background: color-mix(in srgb, #f59e0b 15%, transparent);
-    border-color: #f59e0b;
+    background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+    border-color: var(--color-warning);
   }
   .add-btn--orig:hover {
-    background: color-mix(in srgb, #b89cfb 15%, transparent);
-    border-color: #b89cfb;
+    background: color-mix(in srgb, var(--color-rename-orig) 15%, transparent);
+    border-color: var(--color-rename-orig);
   }
 
   /* ── Preview ── */

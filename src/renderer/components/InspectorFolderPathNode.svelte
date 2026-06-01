@@ -60,8 +60,5 @@
     min-width: 0;
   }
 
-  .text-input {
-    width: 100%;
-  }
 
 </style>

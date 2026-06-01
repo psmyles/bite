@@ -367,11 +367,6 @@
     width: 100%;
   }
 
-  /* ── Checkbox ── */
-  .checkbox {
-    margin: 0;
-  }
-
   /* ── Color picker ── */
   .color-pick {
     width: 100%;
@@ -430,8 +425,4 @@
     border-color: var(--accent);
   }
 
-  /* ── Text input ── */
-  .text-input {
-    width: 100%;
-  }
 </style>

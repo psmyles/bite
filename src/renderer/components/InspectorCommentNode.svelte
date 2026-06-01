@@ -24,7 +24,7 @@
     <label class="field-label" for="comment-heading">Heading</label>
     <input
       id="comment-heading"
-      class="field-input"
+      class="text-input field-input"
       type="text"
       value={heading}
       oninput={onHeadingInput}
@@ -64,38 +64,34 @@
   }
 
   .field-label {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    color: var(--text-bright);
-    opacity: 0.6;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .field-input,
-  .field-textarea {
-    background: var(--input-bg, rgba(255, 255, 255, 0.06));
-    border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
-    border-radius: 3px;
-    color: var(--text);
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);
-    padding: 5px 8px;
-    outline: none;
-    width: 100%;
-    box-sizing: border-box;
-    transition: border-color 0.12s;
+    color: var(--text-bright);
+    opacity: 0.6;
   }
 
-  .field-input:focus,
-  .field-textarea:focus {
-    border-color: var(--accent);
+  .field-input {
+    width: 100%;
   }
 
   .field-textarea {
+    width: 100%;
+    background: var(--panel-header-bg);
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-bright);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
+    padding: 6px 8px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.12s;
     resize: vertical;
     min-height: 100px;
     line-height: 1.5;
-    font-family: var(--font-ui);
+  }
+
+  .field-textarea:focus {
+    border-color: var(--accent);
   }
 </style>

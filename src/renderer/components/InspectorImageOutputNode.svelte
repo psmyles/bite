@@ -176,37 +176,13 @@
     font-style: italic;
   }
 
-  /* Global param-row CSS — still used by InspectorFolderPathNode */
-  :global(.param-row) {
+  .path-row {
     display: flex;
+    gap: 6px;
     align-items: center;
-    justify-content: space-between;
-    padding: 5px 12px;
-    gap: 8px;
-    min-height: 32px;
   }
 
-  :global(.param-label) {
-    font-family: var(--font-ui);
-    font-size: var(--font-size-sm);
-    color: var(--text-bright);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  :global(.text-input) {
-    min-width: 0;
-  }
-
-  :global(.path-row) {
-    display: flex;
-    gap: 4px;
+  .path-input {
     flex: 1;
-    min-width: 0;
-  }
-
-  :global(.path-input) {
-    flex: 1;
-    min-width: 0;
   }
 </style>

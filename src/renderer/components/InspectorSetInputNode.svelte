@@ -82,7 +82,7 @@
   <div class="row">
     <label class="row-label">Prefix</label>
     <input
-      class="row-input"
+      class="text-input row-input"
       type="text"
       value={prefix}
       placeholder="e.g. T_"
@@ -97,7 +97,7 @@
     <div class="suffix-row">
       <span class="suffix-index">suffix{i + 1}</span>
       <input
-        class="suffix-input"
+        class="text-input suffix-input"
         type="text"
         value={suffix}
         placeholder="e.g. _AO"
@@ -168,19 +168,6 @@
 
   .row-input {
     flex: 1;
-    background: var(--input-bg);
-    border: 1px solid var(--input-border);
-    border-radius: 3px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    padding: 2px 6px;
-    height: 22px;
-  }
-
-  .row-input:focus {
-    outline: none;
-    border-color: var(--accent);
   }
 
   .section-label {
@@ -218,19 +205,6 @@
 
   .suffix-input {
     flex: 1;
-    background: var(--input-bg);
-    border: 1px solid var(--input-border);
-    border-radius: 3px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    padding: 2px 6px;
-    height: 22px;
-  }
-
-  .suffix-input:focus {
-    outline: none;
-    border-color: var(--accent);
   }
 
   .remove-btn {
@@ -302,7 +276,7 @@
     border-left-color: var(--accent);
   }
   .set-row.incomplete {
-    border-left-color: color-mix(in srgb, #f59e0b 60%, transparent);
+    border-left-color: color-mix(in srgb, var(--color-warning) 60%, transparent);
   }
 
   .set-middle {
@@ -332,8 +306,8 @@
     color: var(--accent);
   }
   .slot.missing {
-    background: color-mix(in srgb, #ef4444 12%, transparent);
-    color: #ef4444;
+    background: color-mix(in srgb, var(--color-error) 12%, transparent);
+    color: var(--color-error);
   }
 
   .more-hint {

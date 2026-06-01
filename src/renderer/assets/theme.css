@@ -20,6 +20,10 @@
    /* search / filter input background */
    --preview-bg: #000000;
    /* preview panel (intentionally darker) */
+   --input-bg: rgba(255, 255, 255, 0.06);
+   /* compact list inputs (Rename blocks, Set suffixes) */
+   --input-border: rgba(255, 255, 255, 0.12);
+   /* subtle border for compact list inputs */
 
    /* ── Color: Text ─────────────────────────────────────────────
      Two-level text hierarchy: default body text and full-white emphasis. */
@@ -27,6 +31,8 @@
    /* body / default text — medium grey */
    --text-bright: #ffffff;
    /* emphasis / label text — full white */
+   --text-muted: var(--text);
+   /* alias: subdued labels, secondary text */
 
    /* ── Color: Borders & Dividers ───────────────────────────────
      Used for panel separators, input outlines, node borders.  */
@@ -84,6 +90,8 @@
    /* lighter red — text on danger bg */
    --color-danger-text-bright: #fecaca;
    /* brightest red — hover state text */
+   --color-rename-orig: #b89cfb;
+   /* purple — "old name" block type in rename inspector */
 
    /* ── Color: Modal Overlay ────────────────────────────────────
      Semi-transparent backdrop behind every modal dialog.      */
@@ -473,6 +481,7 @@
    font-family: var(--font-mono);
    font-size: var(--font-size-sm);
    outline: none;
+   min-width: 0;
    transition: border-color 0.1s;
 }
 

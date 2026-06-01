@@ -172,93 +172,6 @@
     };
   });
 
-  // ── Write output ───────────────────────────────────────────────────────────
-  let writeRunning = $state(false);
-  let writeProgress = $state<{ done: number; total: number } | null>(null);
-  let writeElapsed = $state(0);
-  let writeError = $state<string | null>(null);
-  let writeSuccess = $state(false);
-  let lastWritten = $state<string | null>(null);
-  let _writeStartTime = 0;
-  let _elapsedTimer: ReturnType<typeof setInterval> | null = null;
-
-  function folderOf(filePath: string): string {
-    const i = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-    return i >= 0 ? filePath.slice(0, i) : filePath;
-  }
-
-  async function openFolder() {
-    if (lastWritten) await window.ipcRenderer.invoke(IPC.SHELL_OPEN_PATH, folderOf(lastWritten));
-  }
-
-  function startElapsedTimer() {
-    _writeStartTime = performance.now();
-    writeElapsed = 0;
-    _elapsedTimer = setInterval(() => {
-      writeElapsed = performance.now() - _writeStartTime;
-    }, 100);
-  }
-
-  function stopElapsedTimer() {
-    if (_elapsedTimer) {
-      clearInterval(_elapsedTimer);
-      _elapsedTimer = null;
-    }
-  }
-
-  async function handleWrite() {
-    if (writeRunning) return;
-    writeError = null;
-    writeSuccess = false;
-
-    if (!outputPath) {
-      writeError = 'Set an output path first.';
-      return;
-    }
-    if (activeImages.length === 0) {
-      writeError = 'No images loaded.';
-      return;
-    }
-    if (connectedPortIds.length === 0) {
-      writeError = 'Connect at least one input port.';
-      return;
-    }
-
-    const total = activeImages.length;
-    writeRunning = true;
-    writeProgress = { done: 0, total };
-    startElapsedTimer();
-
-    function onProgress(_e: unknown, prog: { done: number; total: number }) {
-      writeProgress = prog;
-    }
-    window.ipcRenderer.on(IPC.TEXT_OUTPUT_WRITE_PROGRESS, onProgress);
-
-    try {
-      const graph = serializeGraph();
-      const result = (await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_WRITE, {
-        graph,
-        imagePaths: activeImages.map((img) => img.path),
-        nodeId: selectedNode.id,
-        generateLog,
-      })) as string;
-      lastWritten = result;
-      writeSuccess = true;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg !== 'CANCELLED') writeError = msg;
-    } finally {
-      writeRunning = false;
-      writeProgress = null;
-      stopElapsedTimer();
-      window.ipcRenderer.off(IPC.TEXT_OUTPUT_WRITE_PROGRESS, onProgress);
-    }
-  }
-
-  async function cancelWrite() {
-    await window.ipcRenderer.invoke(IPC.TEXT_OUTPUT_WRITE_CANCEL);
-  }
-
   const SEPARATOR_OPTIONS = ['space', 'comma', 'tab', 'custom'];
   const SEPARATOR_LABELS = ['Space', 'Comma', 'Tab', 'Custom…'];
 </script>
@@ -269,7 +182,7 @@
     <div class="section-title">Output File</div>
     <div class="path-row">
       <input
-        class="path-input"
+        class="text-input path-input"
         type="text"
         value={outputPath}
         oninput={(e) => setOutputPath((e.target as HTMLInputElement).value)}
@@ -356,20 +269,6 @@
     </label>
   </div>
 
-  <!-- ── Write Button ───────────────────────────────────────────────── -->
-  <div class="section write-section">
-    <button class="btn btn--neutral btn--full write-btn" class:running={writeRunning} onclick={handleWrite} disabled={writeRunning}>
-      {writeRunning ? 'Writing…' : 'Write Output'}
-    </button>
-
-    {#if writeError}
-      <div class="status-msg status-msg--error">{writeError}</div>
-    {:else if writeSuccess && lastWritten}
-      <div class="status-msg status-msg--ok">Written: {lastWritten}</div>
-      <button class="btn btn--neutral btn--full" onclick={openFolder}>Open Folder</button>
-    {/if}
-  </div>
-
   <!-- ── Preview ────────────────────────────────────────────────────── -->
   <div class="section preview-section">
     <div class="section-title">
@@ -401,38 +300,6 @@
     {/if}
   </div>
 </div>
-
-{#if writeProgress}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="write-backdrop">
-    <div class="write-modal" role="dialog" aria-modal="true" aria-label="Writing Output">
-      <div class="write-modal-header">
-        <span class="write-modal-title">Writing Output</span>
-      </div>
-      <div class="write-modal-body">
-        <div class="write-count-row">
-          <span class="write-count-done">{writeProgress.done}</span>
-          <span class="write-count-sep">/</span>
-          <span class="write-count-total">{writeProgress.total}</span>
-          <span class="write-count-label">images</span>
-        </div>
-        <div class="write-progress-track">
-          <div
-            class="write-progress-fill"
-            style="width: {Math.round((writeProgress.done / writeProgress.total) * 100)}%"
-          ></div>
-        </div>
-        <div class="write-pct-label">
-          {Math.round((writeProgress.done / writeProgress.total) * 100)}% &nbsp;·&nbsp;
-          {(writeElapsed / 1000).toFixed(1)}s
-        </div>
-      </div>
-      <div class="write-modal-footer">
-        <button class="btn btn--danger" onclick={cancelWrite}>Cancel</button>
-      </div>
-    </div>
-  </div>
-{/if}
 
 <style>
   .txo-inspector {
@@ -466,19 +333,7 @@
 
   .path-input {
     flex: 1;
-    background: var(--input-bg, rgba(255, 255, 255, 0.06));
-    border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
-    border-radius: 3px;
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    padding: 4px 7px;
-    outline: none;
     min-width: 0;
-    transition: border-color 0.12s;
-  }
-  .path-input:focus {
-    border-color: var(--accent);
   }
 
   /* ── Custom separator ── */
@@ -612,133 +467,6 @@
     font-size: var(--font-size-sm);
     color: var(--text-bright);
     user-select: none;
-  }
-
-  /* ── Write section ── */
-  .write-section {
-    gap: 8px;
-  }
-
-  .write-btn.running {
-    opacity: 0.7;
-  }
-
-  .status-msg {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    word-break: break-all;
-  }
-  .status-msg--error {
-    color: var(--color-error);
-  }
-  .status-msg--ok {
-    color: var(--color-success-text);
-  }
-
-  /* ── Write progress modal ── */
-  .write-backdrop {
-    position: fixed;
-    inset: 0;
-    background: var(--modal-overlay-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-  }
-
-  .write-modal {
-    background: var(--ctx-bg);
-    border: 2px solid var(--ctx-border);
-    border-radius: var(--panel-radius);
-    box-shadow: var(--ctx-shadow);
-    width: 300px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .write-modal-header {
-    display: flex;
-    align-items: center;
-    padding: 10px 14px 9px;
-    border-bottom: 2px solid var(--ctx-border);
-  }
-
-  .write-modal-title {
-    font-family: var(--font-ui);
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    color: var(--text-bright);
-    letter-spacing: 0.04em;
-  }
-
-  .write-modal-body {
-    padding: 20px 22px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .write-count-row {
-    display: flex;
-    align-items: baseline;
-    gap: 5px;
-  }
-
-  .write-count-done {
-    font-family: var(--font-mono);
-    font-size: 26px;
-    font-weight: 600;
-    color: var(--color-success-muted);
-    line-height: 1;
-  }
-
-  .write-count-sep {
-    font-family: var(--font-mono);
-    font-size: 16px;
-    color: var(--text);
-  }
-
-  .write-count-total {
-    font-family: var(--font-mono);
-    font-size: 18px;
-    color: var(--text-bright);
-    line-height: 1;
-  }
-
-  .write-count-label {
-    font-family: var(--font-ui);
-    font-size: var(--font-size-base);
-    color: var(--text);
-    margin-left: 4px;
-  }
-
-  .write-progress-track {
-    height: 5px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .write-progress-fill {
-    height: 100%;
-    background: var(--color-success);
-    border-radius: 3px;
-    transition: width 0.1s ease-out;
-  }
-
-  .write-pct-label {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    color: var(--text);
-    text-align: right;
-  }
-
-  .write-modal-footer {
-    padding: 10px 14px;
-    border-top: 2px solid var(--ctx-border);
-    display: flex;
-    justify-content: flex-end;
   }
 
 </style>

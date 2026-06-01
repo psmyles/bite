@@ -114,7 +114,7 @@
   .content {
     flex: 1;
     overflow-y: auto;
-    padding: 10px 0;
+    padding: 0;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
     transition: scrollbar-color 0.2s;

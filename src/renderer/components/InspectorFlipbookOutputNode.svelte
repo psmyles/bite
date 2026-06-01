@@ -32,58 +32,11 @@
   const fbUnfilled = $derived(fbCellCount > fbImgCount);
   const generateLog = $derived(Boolean(params.generateLog ?? false));
 
-  let flipbookGenerating = $state(false);
-  let flipbookError = $state<string | null>(null);
-  let flipbookDone = $state(false);
-  let flipbookPath = $state<string | null>(null);
-
   async function browseFlipbookOutput() {
     const result: string | null = await window.ipcRenderer.invoke(IPC.ATLAS_BROWSE);
-    if (result) {
-      graphStore.setParam(selectedNode.id, 'flipbookOutputPath', result);
-      flipbookDone = false;
-    }
+    if (result) graphStore.setParam(selectedNode.id, 'flipbookOutputPath', result);
   }
 
-  async function generateFlipbook() {
-    if (flipbookGenerating) return;
-    if (!fbOutputPath.trim()) {
-      flipbookError = 'Set an output file path first.';
-      return;
-    }
-    if (imagePaths.length === 0) {
-      flipbookError = 'No images loaded.';
-      return;
-    }
-
-    flipbookGenerating = true;
-    flipbookError = null;
-    flipbookDone = false;
-    flipbookPath = null;
-    try {
-      const result = (await window.ipcRenderer.invoke(IPC.ATLAS_GENERATE, imagePaths, {
-        outputPath: fbOutputPath,
-        rows: fbRows,
-        cols: fbCols,
-        cellWidth: fbCellWidth,
-        cellHeight: fbCellHeight,
-        sortBy: fbSortBy,
-        generateLog,
-      })) as string;
-      flipbookDone = true;
-      flipbookPath = result;
-    } catch (err) {
-      flipbookError = err instanceof Error ? err.message : String(err);
-    } finally {
-      flipbookGenerating = false;
-    }
-  }
-
-  function openFlipbookFolder() {
-    if (!flipbookPath) return;
-    const dir = flipbookPath.replace(/[/\\][^/\\]+$/, '');
-    window.ipcRenderer.invoke(IPC.SHELL_OPEN_PATH, dir);
-  }
 </script>
 
 <div class="flipbook-inspector">
@@ -97,10 +50,7 @@
         class="text-input path-input"
         value={fbOutputPath}
         placeholder="Enter file path…"
-        oninput={(e) => {
-          graphStore.setParam(selectedNode.id, 'flipbookOutputPath', (e.target as HTMLInputElement).value);
-          flipbookDone = false;
-        }}
+        oninput={(e) => graphStore.setParam(selectedNode.id, 'flipbookOutputPath', (e.target as HTMLInputElement).value)}
       />
       {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFlipbookOutput} title="Browse…">…</button>{/if}
     </div>
@@ -215,23 +165,6 @@
     </label>
   </div>
 
-  <!-- ── Generate ────────────────────────────────────────────── -->
-  {#if !IS_ELECTRON}
-    <p class="web-note">Flipbook generation requires the desktop app.</p>
-  {/if}
-  <div class="gen-section" class:hidden={!IS_ELECTRON}>
-    <button class="btn btn--primary btn--full gen-btn" class:running={flipbookGenerating} onclick={generateFlipbook} disabled={flipbookGenerating}>
-      {flipbookGenerating ? 'Generating…' : 'Generate Flipbook'}
-    </button>
-
-    {#if flipbookDone && !flipbookGenerating && flipbookPath}
-      <button class="btn btn--neutral btn--full" onclick={openFlipbookFolder}>Open Output Folder</button>
-    {/if}
-
-    {#if flipbookError}
-      <span class="gen-error">{flipbookError}</span>
-    {/if}
-  </div>
 
 </div>
 
@@ -350,36 +283,4 @@
     color: var(--color-warning-text);
   }
 
-  /* ── Generate section ── */
-  .gen-section {
-    padding: 10px 12px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .gen-btn.running {
-    opacity: 0.7;
-  }
-
-  .gen-error {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    color: var(--color-error-text);
-    opacity: 0.9;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .web-note {
-    font-family: var(--font-ui);
-    font-size: var(--font-size-sm);
-    color: var(--text);
-    padding: 4px 12px 0;
-    margin: 0;
-  }
-
-  .hidden {
-    display: none;
-  }
 </style>
