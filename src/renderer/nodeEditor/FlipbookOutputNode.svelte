@@ -6,6 +6,7 @@
 
   const imgColor = portColor('image');
   const numColor = portColor('number');
+  const colorColor = portColor('color');
 
   const params = $derived((data.params as Record<string, unknown>) ?? {});
   const cols = $derived(Number(params.cols ?? 4));
@@ -43,6 +44,12 @@
   id="param-in-cellHeight"
   style="background: {numColor}; border-color: {numColor}; top: 163px;"
 />
+<Handle
+  type="target"
+  position={Position.Left}
+  id="param-in-bgColor"
+  style="background: {colorColor}; border-color: {colorColor}; top: 193px;"
+/>
 
 <div class="node" class:selected>
   <header class="node-head">
@@ -63,6 +70,9 @@
   </div>
   <div class="node-ports">
     <span class="port-tag" style="color: {numColor}">Cell Height</span>
+  </div>
+  <div class="node-ports">
+    <span class="port-tag" style="color: {colorColor}">BG Color</span>
   </div>
 
   <div class="node-footer">

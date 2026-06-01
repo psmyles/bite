@@ -179,6 +179,7 @@
             cellWidth: 128,
             cellHeight: 128,
             sortBy: 'import_order',
+            bgColor: [0, 0, 0, 0],
             generateLog: false,
             ...savedParams,
           },

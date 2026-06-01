@@ -4,6 +4,7 @@
   import { imageStore } from '../stores/images.svelte.js';
   import { IPC } from '../../shared/constants.js';
   import Dropdown from './Dropdown.svelte';
+  import ColorPicker from './ColorPicker.svelte';
   import { IS_ELECTRON } from '../platform.js';
   import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
   import { traceInputNodeId } from '../workflowUtils.js';
@@ -24,6 +25,8 @@
   const fbCellWidth = $derived(Number(params.cellWidth ?? 128));
   const fbCellHeight = $derived(Number(params.cellHeight ?? 128));
   const fbSortBy = $derived((params.sortBy as string) ?? 'import_order');
+  // bgColor stored as number[] [r, g, b, a] in 0-1 range; migrate old string values to transparent
+  const fbBgColor = $derived(Array.isArray(params.bgColor) ? (params.bgColor as number[]) : [0, 0, 0, 0]);
   const fbAtlasW = $derived(fbCols * fbCellWidth);
   const fbAtlasH = $derived(fbRows * fbCellHeight);
   const fbCellCount = $derived(fbCols * fbRows);
@@ -31,6 +34,33 @@
   const fbTruncated = $derived(fbImgCount > fbCellCount);
   const fbUnfilled = $derived(fbCellCount > fbImgCount);
   const generateLog = $derived(Boolean(params.generateLog ?? false));
+
+  // ── BG color wiring ───────────────────────────────────────────────────────
+
+  const bgColorWired = $derived(
+    graphStore.edges.some((e) => e.target === selectedNode.id && e.targetHandle === 'param-in-bgColor')
+  );
+
+  const activeBgColor = $derived.by((): number[] => {
+    if (!bgColorWired) return fbBgColor;
+    const edge = graphStore.edges.find((e) => e.target === selectedNode.id && e.targetHandle === 'param-in-bgColor');
+    if (!edge) return fbBgColor;
+    const src = graphStore.nodes.find((n) => n.id === edge.source);
+    if (!src) return fbBgColor;
+    const srcParams = getNodeParams(src.data);
+    const srcParamName = (edge.sourceHandle ?? '').replace('param-out-', '');
+    // value_color stores the colour in 'color'; computed outputs (rgba, rgb…) aren't in params
+    const val = srcParams[srcParamName] ?? srcParams['color'];
+    return Array.isArray(val) ? (val as number[]) : fbBgColor;
+  });
+
+  const bgIsTransparent = $derived((activeBgColor[3] ?? 1) < 0.01);
+
+  function toHex(rgba: number[]): string {
+    const [r = 0, g = 0, b = 0] = rgba;
+    const h = (v: number) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0');
+    return `#${h(r)}${h(g)}${h(b)}`;
+  }
 
   async function browseFlipbookOutput() {
     const result: string | null = await window.ipcRenderer.invoke(IPC.ATLAS_BROWSE);
@@ -131,6 +161,19 @@
     />
   </div>
 
+  <!-- ── Background Color ──────────────────────────────────────── -->
+  <div class="section section--color">
+    <div class="section-title">
+      Background Color
+      {#if bgColorWired}<span class="wired-badge">wired</span>{/if}
+    </div>
+    <ColorPicker
+      value={activeBgColor}
+      readonly={bgColorWired}
+      onchange={(v) => graphStore.setParam(selectedNode.id, 'bgColor', v)}
+    />
+  </div>
+
   <!-- ── Atlas Summary ───────────────────────────────────────── -->
   <div class="summary-box">
     <div class="summary-row">
@@ -146,7 +189,14 @@
       <span class="summary-val" class:warn={fbTruncated || fbUnfilled}>
         {fbImgCount} loaded
         {#if fbTruncated}— {fbImgCount - fbCellCount} will be truncated{/if}
-        {#if fbUnfilled}— {fbCellCount - fbImgCount} cells will be transparent{/if}
+        {#if fbUnfilled}
+          — {fbCellCount - fbImgCount} cells:
+          {#if bgIsTransparent}
+            transparent
+          {:else}
+            <span class="summary-swatch" style="background:{toHex(activeBgColor)}"></span>{toHex(activeBgColor)}
+          {/if}
+        {/if}
       </span>
     </div>
   </div>
@@ -230,6 +280,40 @@
   .path-input {
     flex: 1;
     min-width: 0;
+  }
+
+  /* ── Background color ── */
+  .section--color {
+    padding: 10px 0;
+    gap: 4px;
+  }
+
+  .section--color .section-title {
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .wired-badge {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--port-color-string);
+    border: 1px solid var(--port-color-string);
+    border-radius: 3px;
+    padding: 0 3px;
+    line-height: 14px;
+  }
+
+  /* ── Summary inline swatch ── */
+  .summary-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    vertical-align: middle;
+    margin: 0 2px 1px;
   }
 
   /* ── Number inputs ── */

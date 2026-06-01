@@ -313,9 +313,7 @@
         class="info-btn"
         class:active={showInfo}
         onclick={() => (showInfo = !showInfo)}
-        title="Toggle image info"
-        aria-label="Toggle image info"
-        aria-pressed={showInfo}>i</button
+        aria-pressed={showInfo}>Info</button
       >
     {/if}
   </div>
@@ -364,36 +362,31 @@
   }
 
   .info-btn {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
+    padding: 3px 8px;
+    border-radius: 3px;
     border: 1px solid var(--border);
     background: transparent;
     color: var(--text-bright);
-    font-family: var(--font-ui);
+    font-family: var(--font-mono);
     font-size: var(--font-size-xs);
-    font-style: italic;
-    font-weight: 600;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.5;
-    transition:
-      opacity 0.15s,
-      background 0.15s;
+    outline: none;
     flex-shrink: 0;
-    line-height: 1;
+    transition:
+      background 0.1s,
+      border-color 0.1s,
+      color 0.1s;
   }
 
   .info-btn:hover {
-    opacity: 1;
+    border-color: var(--accent);
+    color: var(--text);
   }
 
   .info-btn.active {
-    opacity: 1;
-    background: color-mix(in srgb, var(--accent) 20%, transparent);
-    border-color: var(--accent);
+    background: color-mix(in srgb, var(--color-success) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-success) 60%, transparent);
+    color: var(--color-success-muted);
   }
 
   /* ── Preview area ── */
