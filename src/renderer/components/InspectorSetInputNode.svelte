@@ -34,11 +34,31 @@
     setSuffixes(next);
   }
 
+  // ── Wired suffix detection ────────────────────────────────────────────────
+
+  function isSuffixWired(i: number): boolean {
+    return graphStore.edges.some(
+      (e) => e.target === selectedNode.id && e.targetHandle === `suf-in-${i}`
+    );
+  }
+
+  function getWiredSuffixValue(i: number): string {
+    const edge = graphStore.edges.find(
+      (e) => e.target === selectedNode.id && e.targetHandle === `suf-in-${i}`
+    );
+    if (!edge) return suffixes[i] ?? '';
+    const srcNode = graphStore.nodes.find((n) => n.id === edge.source);
+    if (!srcNode) return suffixes[i] ?? '';
+    const srcParamName = (edge.sourceHandle ?? '').replace('param-out-', '');
+    const srcParams = getNodeParams(srcNode.data);
+    return String(srcParams[srcParamName] ?? suffixes[i] ?? '');
+  }
+
   // ── Live set preview ──────────────────────────────────────────────────────
 
   interface SetGroup {
     middle: string;
-    slots: Record<string, string | undefined>; // suffix → imageName
+    slots: Record<string, string | undefined>;
     complete: boolean;
   }
 
@@ -90,25 +110,36 @@
     />
   </div>
 
+  <div class="section-sep"></div>
   <div class="section-label">Suffixes</div>
 
   <!-- Suffix list -->
   {#each suffixes as suffix, i}
+    {@const wired = isSuffixWired(i)}
     <div class="suffix-row">
-      <span class="suffix-index">suffix{i + 1}</span>
-      <input
-        class="text-input suffix-input"
-        type="text"
-        value={suffix}
-        placeholder="e.g. _AO"
-        oninput={(e) => updateSuffix(i, (e.currentTarget as HTMLInputElement).value)}
-      />
-      <button class="remove-btn" onclick={() => removeSuffix(i)} title="Remove">×</button>
+      <div class="suffix-header">
+        <span class="suffix-label">suffix {i + 1}</span>
+        {#if wired}<span class="wired-badge">wired</span>{/if}
+      </div>
+      <div class="input-row">
+        {#if wired}
+          <div class="wired-value">{getWiredSuffixValue(i)}</div>
+        {:else}
+          <input
+            class="text-input"
+            type="text"
+            value={suffix}
+            placeholder="e.g. _AO"
+            oninput={(e) => updateSuffix(i, (e.currentTarget as HTMLInputElement).value)}
+          />
+        {/if}
+        <button class="del-btn" onclick={() => removeSuffix(i)} title="Remove suffix">×</button>
+      </div>
     </div>
   {/each}
 
   <div class="add-row">
-    <button class="add-btn" onclick={addSuffix}>+ Add suffix</button>
+    <button class="btn btn--neutral btn--full" onclick={addSuffix}>+ Add Suffix</button>
   </div>
 
   <!-- Matched sets preview -->
@@ -150,6 +181,7 @@
     flex-direction: column;
   }
 
+  /* ── Prefix row ── */
   .row {
     display: flex;
     align-items: center;
@@ -170,6 +202,13 @@
     flex: 1;
   }
 
+  .section-sep {
+    height: 1px;
+    background: color-mix(in srgb, var(--border) 40%, transparent);
+    margin: 4px 0;
+  }
+
+  /* ── Section label ── */
   .section-label {
     font-family: var(--font-ui);
     font-size: var(--font-size-xxs);
@@ -190,64 +229,83 @@
   /* ── Suffix rows ── */
   .suffix-row {
     display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 7px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
+  }
+
+  .suffix-header {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 3px 12px;
+    width: 100%;
+    min-height: 16px;
   }
 
-  .suffix-index {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xxs);
-    color: var(--text-muted);
-    width: 32px;
-    flex-shrink: 0;
-  }
-
-  .suffix-input {
-    flex: 1;
-  }
-
-  .remove-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: var(--font-size-xs);
-    cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 3px;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
-  .remove-btn:hover {
-    color: var(--text-bright);
-    background: var(--ctx-item-hover-bg);
-  }
-
-  .add-row {
-    padding: 4px 12px;
-  }
-
-  .add-btn {
-    background: none;
-    border: 1px dashed var(--ctx-border);
-    color: var(--text-muted);
+  .suffix-label {
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);
-    padding: 3px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    width: 100%;
-    transition:
-      color 0.12s,
-      border-color 0.12s;
-  }
-
-  .add-btn:hover {
     color: var(--text-bright);
-    border-color: var(--accent);
+    opacity: 0.6;
+    user-select: none;
   }
 
+  .wired-badge {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--port-color-string);
+    border: 1px solid var(--port-color-string);
+    border-radius: 3px;
+    padding: 0 3px;
+    line-height: 14px;
+    margin-left: 6px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .wired-value {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--port-color-string);
+    opacity: 0.8;
+    padding: 3px 0;
+  }
+
+  .del-btn {
+    height: 30px;
+    padding: 0 10px;
+    background: color-mix(in srgb, var(--color-danger) 14%, var(--panel-header-bg));
+    border: 2px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+    border-radius: 4px;
+    color: var(--color-danger-text);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-xl);
+    cursor: pointer;
+    outline: none;
+    flex-shrink: 0;
+    transition:
+      border-color 0.1s,
+      color 0.1s,
+      background 0.1s;
+  }
+
+  .del-btn:hover {
+    background: color-mix(in srgb, var(--color-danger) 22%, var(--panel-header-bg));
+    border-color: color-mix(in srgb, var(--color-danger) 65%, transparent);
+    color: var(--color-danger-text-bright);
+  }
+
+  /* ── Add row ── */
+  .add-row {
+    padding: 8px 12px;
+  }
+
+  /* ── Divider ── */
   .divider {
     height: 1px;
     background: var(--ctx-separator);

@@ -95,8 +95,8 @@
     color: var(--text-bright);
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
-    padding: 5px 7px;
-    line-height: 1.4;
+    height: 30px;
+    padding: 0 8px;
     cursor: pointer;
     outline: none;
     text-align: left;

@@ -10,6 +10,7 @@
   let { data, selected = false }: Props = $props();
 
   const imgColor = portColor('image');
+  const strColor = portColor('string');
   const description = $derived(data.description ?? '');
 
   let tooltipVisible = $state(false);
@@ -47,7 +48,6 @@
   const suffixes = $derived(Array.isArray(data?.params?.suffixes) ? (data.params!.suffixes as string[]) : []);
   const prefix = $derived(String(data?.params?.prefix ?? ''));
 
-  // Count how many filmstrip images match any suffix
   const matchCount = $derived(() => {
     if (!prefix && suffixes.length === 0) return 0;
     let n = 0;
@@ -74,23 +74,35 @@
     matchCount() === 0 ? 'no sets matched' : matchCount() === 1 ? '1 set matched' : `${matchCount()} sets matched`
   );
 
-  // Each suffix row is 26px tall; header is 28px
-  const handleTop = (i: number) => 28 + 5 + 26 * i + 13;
+  // Handle positions:
+  // Header: 28px, Images row: 26px, Suffix rows: 26px each
+  // in-0 center: 28 + 13 = 41px
+  // suf-in-i / out-i center: 28 + 26 + i*26 + 13 = 67 + 26*i px
+  const IMG_TOP = 41;
+  const sufTop = (i: number) => 67 + 26 * i;
 </script>
 
+<!-- Image input — fixed below header in the Images row -->
 <Handle
   type="target"
   position={Position.Left}
   id="in-0"
-  style="top: {suffixes.length > 0 ? handleTop(0) : 14}px; background: {imgColor}; border-color: {imgColor};"
+  style="top: {IMG_TOP}px; background: {imgColor}; border-color: {imgColor};"
 />
 
+<!-- Per-suffix string input handles (left) and image output handles (right) -->
 {#each suffixes as _s, i}
+  <Handle
+    type="target"
+    position={Position.Left}
+    id="suf-in-{i}"
+    style="top: {sufTop(i)}px; background: {strColor}; border-color: {strColor};"
+  />
   <Handle
     type="source"
     position={Position.Right}
     id="out-{i}"
-    style="top: {handleTop(i)}px; background: {imgColor}; border-color: {imgColor};"
+    style="top: {sufTop(i)}px; background: {imgColor}; border-color: {imgColor};"
   />
 {/each}
 
@@ -99,12 +111,17 @@
     <span class="head-label">Process As Set</span>
   </header>
 
+  <!-- Images input row — always visible -->
+  <div class="img-row">
+    <span class="port-tag" style="color: {imgColor}">Image</span>
+  </div>
+
   {#if suffixes.length === 0}
     <div class="node-empty">No suffixes configured</div>
   {:else}
     {#each suffixes as suffix, i}
       <div class="port-row">
-        <span class="port-label" style="color: {imgColor}">{suffix || `suffix${i + 1}`}</span>
+        <span class="port-tag" style="color: {imgColor}">{suffix || `suffix${i + 1}`}</span>
       </div>
     {/each}
   {/if}
@@ -154,6 +171,15 @@
     white-space: nowrap;
   }
 
+  .img-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 3px 10px;
+    height: 26px;
+    border-bottom: 1px solid var(--node-border);
+  }
+
   .node-empty {
     padding: 8px 12px;
     font-family: var(--font-ui);
@@ -170,7 +196,7 @@
     height: 26px;
   }
 
-  .port-label {
+  .port-tag {
     font-family: var(--text-port-tag-family);
     font-size: var(--text-port-tag-size);
     font-weight: var(--text-port-tag-weight);

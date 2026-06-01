@@ -5,11 +5,12 @@
   import Dropdown from './Dropdown.svelte';
   import { IS_ELECTRON } from '../platform.js';
   import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
+  import { hasSetInputInChain } from '../workflowUtils.js';
 
   let { selectedNode }: { selectedNode: Node } = $props();
 
   const params = $derived(getNodeParams(selectedNode?.data));
-  const hasSetInput = $derived(graphStore.nodes.some((n) => n.type === 'setInputNode'));
+  const hasSetInput = $derived(hasSetInputInChain(graphStore.nodes, graphStore.edges, selectedNode.id));
 
   // Detect a connected Folder Path node on the folder-in handle
   const folderEdge = $derived(

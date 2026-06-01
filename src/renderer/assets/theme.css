@@ -159,7 +159,11 @@
   /* code text */
 
   /* ── Typography: Sizes ───────────────────────────────────────
-     Four-step descending scale.                               */
+     Six-step scale: xl → lg → base (body) → sm → xs → xxs.  */
+  --font-size-xl: 17px;
+  /* large icon buttons (delete ×, close) */
+  --font-size-lg: 15px;
+  /* slightly larger accent text */
   --font-size-base: 13px;
   /* body text, buttons */
   --font-size-sm: 12px;
