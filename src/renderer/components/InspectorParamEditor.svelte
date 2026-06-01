@@ -351,34 +351,11 @@
   /* ── Number input ── */
   .number-input {
     width: 100%;
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 4px 6px;
-    outline: none;
-    appearance: textfield;
-    -moz-appearance: textfield;
-  }
-
-  .number-input::-webkit-outer-spin-button,
-  .number-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  .number-input:focus {
-    border-color: var(--accent);
   }
 
   /* ── Checkbox ── */
   .checkbox {
-    width: 14px;
-    height: 14px;
-    cursor: pointer;
-    accent-color: var(--accent);
+    margin: 0;
   }
 
   /* ── Color picker ── */
@@ -442,17 +419,5 @@
   /* ── Text input ── */
   .text-input {
     width: 100%;
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 4px 6px;
-    outline: none;
-  }
-
-  .text-input:focus {
-    border-color: var(--accent);
   }
 </style>

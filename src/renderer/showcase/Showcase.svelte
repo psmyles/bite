@@ -206,17 +206,17 @@
     <div class="controls-grid">
       <div class="ctrl-group">
         <label class="ctrl-label" for="sc-text">Text Input</label>
-        <input id="sc-text" type="text" class="sc-text-input" placeholder="Enter value…" />
+        <input id="sc-text" type="text" class="text-input" placeholder="Enter value…" />
       </div>
       <div class="ctrl-group">
         <label class="ctrl-label" for="sc-num">Number Input</label>
-        <input id="sc-num" type="number" class="sc-text-input" value="42" />
+        <input id="sc-num" type="number" class="number-input" value="42" />
       </div>
       <div class="ctrl-group">
         <label class="ctrl-label" for="sc-range">Slider</label>
         <div class="sc-slider-wrap">
           <input id="sc-range" type="range" class="sc-slider" min="0" max="100" value="60" />
-          <input type="number" class="sc-slider-val" value="60" />
+          <input type="number" class="number-input sc-slider-val" value="60" />
         </div>
       </div>
       <div class="ctrl-group">
@@ -591,27 +591,6 @@
     opacity: 0.6;
   }
 
-  .sc-text-input {
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 4px 6px;
-    outline: none;
-    appearance: textfield;
-    -moz-appearance: textfield;
-  }
-
-  .sc-text-input::-webkit-outer-spin-button,
-  .sc-text-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-  }
-
-  .sc-text-input:focus {
-    border-color: var(--accent);
-  }
 
   .sc-slider-wrap {
     display: flex;
@@ -641,24 +620,9 @@
   }
 
   .sc-slider-val {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--text-bright);
     width: 52px;
     text-align: right;
     flex-shrink: 0;
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    outline: none;
-    padding: 4px 6px;
-    appearance: textfield;
-    -moz-appearance: textfield;
-  }
-
-  .sc-slider-val::-webkit-outer-spin-button,
-  .sc-slider-val::-webkit-inner-spin-button {
-    -webkit-appearance: none;
   }
 
   .sc-check-label {
@@ -672,12 +636,6 @@
     user-select: none;
   }
 
-  .sc-checkbox {
-    width: 14px;
-    height: 14px;
-    cursor: pointer;
-    accent-color: var(--accent);
-  }
 
   /* ── Dropdown / ColorPicker frames ── */
   .comp-frame {

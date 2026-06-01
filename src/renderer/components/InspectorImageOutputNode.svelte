@@ -183,20 +183,8 @@
   }
 
   :global(.text-input) {
-    background: var(--search-bg);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 3px 6px;
-    outline: none;
-    min-width: 0;
     flex: 1;
-  }
-
-  :global(.text-input:focus) {
-    border-color: var(--accent);
+    min-width: 0;
   }
 
   :global(.path-row) {

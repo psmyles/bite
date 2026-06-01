@@ -84,9 +84,9 @@
 
     <div class="modal-footer">
       {#if IS_ELECTRON && summary.outputDir}
-        <button class="action-btn" onclick={openOutputFolder}>Open Output Folder</button>
+        <button class="btn btn--neutral" onclick={openOutputFolder}>Open Output Folder</button>
       {/if}
-      <button class="action-btn primary" onclick={onClose}>Close</button>
+      <button class="btn btn--neutral" onclick={onClose}>Close</button>
     </div>
   </div>
 </div>
@@ -132,21 +132,23 @@
 
   .close-btn {
     background: none;
-    border: none;
+    border: 1px solid var(--border);
     color: var(--text);
     font-size: 13px;
     cursor: pointer;
-    padding: 2px 4px;
+    padding: 2px 6px;
     border-radius: 3px;
     line-height: 1;
     transition:
       color 0.12s,
-      background 0.12s;
+      background 0.12s,
+      border-color 0.12s;
   }
 
   .close-btn:hover {
     color: var(--text-bright);
     background: var(--ctx-item-hover-bg);
+    border-color: var(--accent);
   }
 
   .modal-body {
@@ -261,26 +263,4 @@
     justify-content: flex-end;
   }
 
-  .action-btn {
-    padding: 6px 14px;
-    background: var(--ctx-item-hover-bg);
-    border: 2px solid var(--ctx-border);
-    border-radius: 4px;
-    color: var(--text-bright);
-    font-family: var(--font-ui);
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-    transition: opacity 0.12s;
-  }
-
-  .action-btn:hover {
-    opacity: 0.8;
-  }
-
-  .action-btn.primary {
-    background: #1e4d99;
-    border-color: #2a5fbb;
-    color: #fff;
-  }
 </style>

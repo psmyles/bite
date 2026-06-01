@@ -417,6 +417,58 @@
    color: #fecaca;
 }
 
+/* ── Input System ───────────────────────────────────────────── */
+/* Shared base for all text/path inputs. Components override
+   only layout properties (width, flex, min-width). */
+
+.text-input {
+  height: 30px;
+  padding: 0 8px;
+  background: var(--panel-header-bg);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.1s;
+}
+.text-input:focus {
+  border-color: var(--accent);
+}
+
+.number-input {
+  height: 30px;
+  padding: 0 8px;
+  background: var(--panel-header-bg);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.1s;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.number-input:focus {
+  border-color: var(--accent);
+}
+
+/* ── Checkbox ─────────────────────────────────────────────────── */
+input[type='checkbox'] {
+  width: 28px;
+  height: 28px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* ── Global Reset ────────────────────────────────────────────── */
 *,
 *::before,

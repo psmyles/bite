@@ -129,21 +129,23 @@
 
   .close-btn {
     background: none;
-    border: none;
+    border: 1px solid var(--border);
     color: var(--text);
     font-size: 13px;
     cursor: pointer;
-    padding: 2px 4px;
+    padding: 2px 6px;
     border-radius: 3px;
     line-height: 1;
     transition:
       color 0.12s,
-      background 0.12s;
+      background 0.12s,
+      border-color 0.12s;
   }
 
   .close-btn:hover {
     color: var(--text-bright);
     background: var(--ctx-item-hover-bg);
+    border-color: var(--accent);
   }
 
   .modal-body {

@@ -22,8 +22,8 @@
       <p class="message">{message}</p>
       <div class="buttons">
         <!-- Cancel is first in DOM so it receives autofocus — it is the safe default -->
-        <button class="btn btn-primary" onclick={onCancel}>Cancel</button>
-        <button class="btn btn-ghost" onclick={onConfirm}>OK</button>
+        <button class="btn btn--neutral" onclick={onCancel}>Cancel</button>
+        <button class="btn btn--neutral" onclick={onConfirm}>OK</button>
       </div>
     </div>
   </div>
@@ -88,43 +88,5 @@
 
   .buttons .btn {
     flex: 1;
-  }
-
-  .btn {
-    font-family: var(--font-ui);
-    font-size: var(--font-size-base);
-    padding: 5px 16px;
-    border-radius: 4px;
-    border: 2px solid transparent;
-    cursor: pointer;
-    text-align: center;
-    line-height: 1.4;
-    transition:
-      background 0.12s,
-      border-color 0.12s,
-      color 0.12s;
-  }
-
-  /* Cancel — visually primary so it draws the eye */
-  .btn-primary {
-    background: var(--accent);
-    color: #000;
-    border-color: var(--accent);
-  }
-
-  .btn-primary:hover {
-    filter: brightness(1.12);
-  }
-
-  /* OK — ghost/secondary so it reads as the less-recommended action */
-  .btn-ghost {
-    background: transparent;
-    color: var(--text);
-    border-color: var(--ctx-border);
-  }
-
-  .btn-ghost:hover {
-    background: var(--ctx-item-hover-bg);
-    color: var(--text-bright);
   }
 </style>

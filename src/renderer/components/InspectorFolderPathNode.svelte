@@ -62,18 +62,6 @@
 
   .text-input {
     width: 100%;
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    padding: 4px 6px;
-    outline: none;
-  }
-
-  .text-input:focus {
-    border-color: var(--accent);
   }
 
 </style>

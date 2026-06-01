@@ -531,7 +531,7 @@
     width: 52px;
     flex-shrink: 0;
     background: var(--panel-header-bg);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
     border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-mono);
@@ -583,7 +583,7 @@
   .hex-inp {
     flex: 1;
     background: var(--panel-header-bg);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
     border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-mono);
