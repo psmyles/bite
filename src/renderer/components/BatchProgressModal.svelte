@@ -134,7 +134,7 @@
 
   .count-done {
     font-family: var(--font-mono);
-    font-size: 28px;
+    font-size: var(--font-size-3xl);
     font-weight: 600;
     color: var(--color-success-muted);
     line-height: 1;
@@ -142,13 +142,13 @@
 
   .count-sep {
     font-family: var(--font-mono);
-    font-size: 18px;
+    font-size: var(--font-size-xl);
     color: var(--text);
   }
 
   .count-total {
     font-family: var(--font-mono);
-    font-size: 20px;
+    font-size: var(--font-size-2xl);
     color: var(--text-bright);
     line-height: 1;
   }

@@ -386,11 +386,6 @@
     border-color: var(--accent);
   }
 
-  /* ── Number input ── */
-  .number-input {
-    width: 100%;
-  }
-
   /* ── Vector input ── */
   .vector-wrap {
     display: flex;

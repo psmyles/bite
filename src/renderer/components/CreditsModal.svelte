@@ -48,10 +48,12 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="Credits">
     <div class="modal-header">
       <span class="modal-title">Credits</span>
-      <button class="close-btn" onclick={onClose} aria-label="Close">×</button>
+      <button class="close-btn" onclick={onClose} aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+      </button>
     </div>
 
-    <div class="modal-body">
+    <div class="modal-body scrollable">
       <section>
         <h2 class="section-heading">Open Source Libraries</h2>
         <table>
@@ -127,66 +129,12 @@
     flex: 1;
   }
 
-  .close-btn {
-    background: none;
-    border: var(--modal-close-btn-border-width) solid var(--border);
-    color: var(--text);
-    font-size: var(--font-size-base);
-    cursor: pointer;
-    width: var(--modal-close-btn-size);
-    height: var(--modal-close-btn-size);
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--modal-close-btn-radius);
-    line-height: 1;
-    flex-shrink: 0;
-    transition:
-      color 0.12s,
-      background 0.12s,
-      border-color 0.12s;
-  }
-
-  .close-btn:hover {
-    color: var(--text-bright);
-    background: var(--ctx-item-hover-bg);
-    border-color: var(--accent);
-  }
-
   .modal-body {
     overflow-y: auto;
     padding: 14px 16px 16px;
     display: flex;
     flex-direction: column;
     gap: 18px;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-    transition: scrollbar-color 0.2s;
-  }
-
-  .modal-body:hover {
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-  }
-
-  .modal-body::-webkit-scrollbar {
-    width: var(--scrollbar-width);
-  }
-  .modal-body::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .modal-body::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 3px;
-  }
-  .modal-body:hover::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-  }
-  .modal-body::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
-  }
-  .modal-body::-webkit-scrollbar-button {
-    display: none;
   }
 
   section {

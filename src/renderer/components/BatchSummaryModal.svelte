@@ -39,7 +39,9 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="Batch Summary">
     <div class="modal-header">
       <span class="modal-title">Batch Complete</span>
-      <button class="close-btn" onclick={onClose} aria-label="Close">×</button>
+      <button class="close-btn" onclick={onClose} aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+      </button>
     </div>
 
     <div class="modal-body">
@@ -130,33 +132,6 @@
     flex: 1;
   }
 
-  .close-btn {
-    background: none;
-    border: var(--modal-close-btn-border-width) solid var(--border);
-    color: var(--text);
-    font-size: var(--font-size-base);
-    cursor: pointer;
-    width: var(--modal-close-btn-size);
-    height: var(--modal-close-btn-size);
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--modal-close-btn-radius);
-    line-height: 1;
-    flex-shrink: 0;
-    transition:
-      color 0.12s,
-      background 0.12s,
-      border-color 0.12s;
-  }
-
-  .close-btn:hover {
-    color: var(--text-bright);
-    background: var(--ctx-item-hover-bg);
-    border-color: var(--accent);
-  }
-
   .modal-body {
     padding: 20px 20px 16px;
     display: flex;
@@ -189,7 +164,7 @@
 
   .stat-value {
     font-family: var(--font-mono);
-    font-size: 28px;
+    font-size: var(--font-size-3xl);
     font-weight: 600;
     line-height: 1;
   }

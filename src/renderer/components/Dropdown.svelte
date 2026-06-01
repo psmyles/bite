@@ -135,7 +135,7 @@
     border-radius: 4px;
     overflow: hidden;
     z-index: 100;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-popover);
   }
 
   .dd-item {

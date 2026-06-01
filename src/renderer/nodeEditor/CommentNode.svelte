@@ -176,7 +176,7 @@
     border-bottom: 1px solid rgba(0, 0, 0, 0.12);
     color: var(--comment-text);
     font-family: var(--font-ui, sans-serif);
-    font-size: 14px;
+    font-size: var(--font-size-md);
     font-weight: 700;
     letter-spacing: normal;
     padding: 7px 10px;
@@ -212,7 +212,7 @@
     background: transparent;
     color: var(--comment-text-body);
     font-family: var(--font-ui, sans-serif);
-    font-size: 14px;
+    font-size: var(--font-size-md);
     padding: 8px 10px;
     box-sizing: border-box;
     min-height: 52px;
@@ -226,7 +226,7 @@
   }
 
   .comment-body--display.placeholder {
-    color: rgba(66, 32, 6, 0.35);
+    color: var(--comment-placeholder);
     font-style: italic;
   }
 
@@ -241,7 +241,7 @@
   }
 
   .comment-body--edit::placeholder {
-    color: rgba(66, 32, 6, 0.35);
+    color: var(--comment-placeholder);
     font-style: italic;
   }
 </style>

@@ -161,11 +161,17 @@
   /* code text */
 
   /* ── Typography: Sizes ───────────────────────────────────────
-     Six-step scale: xl → lg → base (body) → sm → xs → xxs.  */
+     Scale: 3xl → 2xl → xl → lg → md → base → sm → xs → xxs.  */
+  --font-size-3xl: 28px;
+  /* large stat counters — BatchProgressModal, BatchSummaryModal */
+  --font-size-2xl: 20px;
+  /* medium stat counters — BatchProgressModal count-total */
   --font-size-xl: 17px;
   /* large icon buttons (delete ×, close) */
   --font-size-lg: 15px;
   /* slightly larger accent text */
+  --font-size-md: 14px;
+  /* comment node headings */
   --font-size-base: 13px;
   /* body text, buttons */
   --font-size-sm: 12px;
@@ -351,6 +357,10 @@
   --controls-opacity: 0.35;
   --controls-opacity-hover: 1;
 
+  /* ── Generic Shadows ────────────────────────────────────────
+     Reusable shadow for floating surfaces (dropdowns, tooltips). */
+  --shadow-popover: 0 4px 12px rgba(0, 0, 0, 0.4);
+
   /* ── Node Graph: Context Menu ────────────────────────────────
      Popup for inserting nodes. Triggered by right-click, Space,
      Tab, or dropping a wire onto empty canvas.                */
@@ -363,9 +373,9 @@
   --ctx-width: 200px;
   --ctx-sub-width: 190px;
   --ctx-max-height: 420px;
-  --ctx-search-bg: #111111;
+  --ctx-search-bg: var(--text-field-bg);
   --ctx-text: #c8c8c8;
-  --ctx-text-muted: #a8a8a8;
+  --ctx-text-muted: var(--text);
   --ctx-item-hover-bg: #2c2c2c;
   --ctx-separator: var(--ctx-border);
 
@@ -467,6 +477,73 @@
   background: color-mix(in srgb, var(--color-danger) 22%, var(--panel-header-bg));
   border-color: color-mix(in srgb, var(--color-danger) 65%, transparent);
   color: var(--color-danger-text-bright);
+}
+
+/* ── Modal Close Button ─────────────────────────────────────── */
+/* Square × button used in all modal headers. */
+
+.close-btn {
+  background: none;
+  border: var(--modal-close-btn-border-width) solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  width: var(--modal-close-btn-size);
+  height: var(--modal-close-btn-size);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--modal-close-btn-radius);
+  line-height: 1;
+  flex-shrink: 0;
+  transition:
+    color 0.12s,
+    background 0.12s,
+    border-color 0.12s;
+}
+
+.close-btn:hover {
+  color: var(--text-bright);
+  background: var(--ctx-item-hover-bg);
+  border-color: var(--accent);
+}
+
+/* ── Scrollable Container ───────────────────────────────────── */
+/* Apply to any overflow-y: auto container for unified scrollbar styling. */
+
+.scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s;
+}
+
+.scrollable:hover {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.scrollable::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+}
+
+.scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.scrollable:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+.scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.scrollable::-webkit-scrollbar-button {
+  display: none;
 }
 
 /* ── Input System ───────────────────────────────────────────── */

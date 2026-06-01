@@ -605,7 +605,7 @@
     width: 20px;
     height: 20px;
     border-radius: 3px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border: 1px solid var(--input-border);
     flex-shrink: 0;
     margin-left: -6px;
     margin-right: 6px;
@@ -621,7 +621,7 @@
     padding: 5px 9px;
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);
-    color: var(--text-bright, #aaa);
+    color: var(--text-bright);
     white-space: normal;
     width: max-content;
     max-width: 320px;
@@ -629,7 +629,7 @@
     text-align: left;
     pointer-events: none;
     z-index: 9999;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-popover);
   }
 
   /* ── Previewing badge — floats above the node ── */

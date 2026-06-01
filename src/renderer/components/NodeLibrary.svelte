@@ -112,7 +112,7 @@
   </div>
 
   <!-- Category groups -->
-  <div class="categories">
+  <div class="categories scrollable">
     <!-- ── Workflow section (pinned at top, not filtered by search) ── -->
     {#if !search.trim()}
       <div class="category">
@@ -228,40 +228,6 @@
     flex: 1;
     overflow-y: auto;
     padding: 4px 0 8px;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-    transition: scrollbar-color 0.2s;
-  }
-
-  .categories:hover {
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-  }
-
-  /* Webkit (Chromium/Electron) */
-  .categories::-webkit-scrollbar {
-    width: var(--scrollbar-width);
-  }
-
-  .categories::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .categories::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 3px;
-    transition: background 0.2s;
-  }
-
-  .categories:hover::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-  }
-
-  .categories::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
-  }
-
-  .categories::-webkit-scrollbar-button {
-    display: none;
   }
 
   .category {
@@ -271,7 +237,7 @@
   .category-label {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--panel-gap);
     padding: 4px 12px 3px;
     font-family: var(--text-category-label-family);
     font-size: var(--text-category-label-size);
@@ -322,7 +288,7 @@
   }
 
   .drag-hint {
-    font-size: 14px;
+    font-size: var(--font-size-md);
     color: var(--text-bright);
     opacity: 0.5;
     flex-shrink: 0;

@@ -47,11 +47,13 @@
     <div class="modal-header">
       <span class="modal-title">{titles[state.status]}</span>
       {#if state.status !== 'checking'}
-        <button class="close-btn" onclick={onClose} aria-label="Close">×</button>
+        <button class="close-btn" onclick={onClose} aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+        </button>
       {/if}
     </div>
 
-    <div class="modal-body">
+    <div class="modal-body scrollable">
       {#if state.status === 'checking'}
         <div class="checking-row">
           <span class="spinner"></span>
@@ -62,13 +64,13 @@
           A new version is available: <span class="version">{state.version}</span>
         </p>
         <div class="actions">
-          <button class="btn-update" onclick={openReleasePage}>Update</button>
-          <button class="btn-later" onclick={onClose}>Later</button>
+          <button class="btn btn--primary" onclick={openReleasePage}>Update</button>
+          <button class="btn btn--neutral" onclick={onClose}>Later</button>
         </div>
         {#if state.body}
           <div class="release-notes">
             <p class="notes-label">Release notes</p>
-            <pre class="notes-body">{state.body}</pre>
+            <pre class="notes-body scrollable">{state.body}</pre>
           </div>
         {/if}
       {:else if state.status === 'latest'}
@@ -78,7 +80,7 @@
         {#if state.body}
           <div class="release-notes">
             <p class="notes-label">Release notes</p>
-            <pre class="notes-body">{state.body}</pre>
+            <pre class="notes-body scrollable">{state.body}</pre>
           </div>
         {/if}
       {:else}
@@ -128,66 +130,12 @@
     flex: 1;
   }
 
-  .close-btn {
-    background: none;
-    border: var(--modal-close-btn-border-width) solid var(--border);
-    color: var(--text);
-    font-size: var(--font-size-base);
-    cursor: pointer;
-    width: var(--modal-close-btn-size);
-    height: var(--modal-close-btn-size);
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--modal-close-btn-radius);
-    line-height: 1;
-    flex-shrink: 0;
-    transition:
-      color 0.12s,
-      background 0.12s,
-      border-color 0.12s;
-  }
-
-  .close-btn:hover {
-    color: var(--text-bright);
-    background: var(--ctx-item-hover-bg);
-    border-color: var(--accent);
-  }
-
   .modal-body {
     padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 16px;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-    transition: scrollbar-color 0.2s;
-  }
-
-  .modal-body:hover {
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-  }
-
-  .modal-body::-webkit-scrollbar {
-    width: var(--scrollbar-width);
-  }
-  .modal-body::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .modal-body::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 3px;
-  }
-  .modal-body:hover::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-  }
-  .modal-body::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
-  }
-  .modal-body::-webkit-scrollbar-button {
-    display: none;
   }
 
   .checking-row {
@@ -241,46 +189,6 @@
     gap: 8px;
   }
 
-  .btn-update {
-    background: var(--accent);
-    border: none;
-    color: #111;
-    font-family: var(--font-ui);
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    line-height: 1;
-    padding: 7px 18px 5px;
-    border-radius: 4px;
-    cursor: pointer;
-    text-align: center;
-    transition: opacity 0.12s;
-  }
-
-  .btn-update:hover {
-    opacity: 0.85;
-  }
-
-  .btn-later {
-    background: none;
-    border: 1px solid var(--ctx-border);
-    color: var(--text-bright);
-    font-family: var(--font-ui);
-    font-size: var(--font-size-base);
-    line-height: 1;
-    padding: 7px 18px 5px;
-    border-radius: 4px;
-    cursor: pointer;
-    text-align: center;
-    transition:
-      background 0.12s,
-      color 0.12s;
-  }
-
-  .btn-later:hover {
-    background: var(--ctx-item-hover-bg);
-    color: var(--text-bright);
-  }
-
   .release-notes {
     display: flex;
     flex-direction: column;
@@ -309,32 +217,5 @@
     margin: 0;
     max-height: 260px;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-    transition: scrollbar-color 0.2s;
-  }
-
-  .notes-body:hover {
-    scrollbar-color: var(--scrollbar-thumb) transparent;
-  }
-
-  .notes-body::-webkit-scrollbar {
-    width: var(--scrollbar-width);
-  }
-  .notes-body::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .notes-body::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 3px;
-  }
-  .notes-body:hover::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-  }
-  .notes-body::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
-  }
-  .notes-body::-webkit-scrollbar-button {
-    display: none;
   }
 </style>

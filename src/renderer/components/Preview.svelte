@@ -433,7 +433,7 @@
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);
     font-weight: 600;
-    color: #fff;
+    color: var(--text-bright);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -442,7 +442,7 @@
   .info-meta {
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
-    color: rgba(255, 255, 255, 0.65);
+    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
