@@ -464,8 +464,8 @@
 }
 
 /* ── Input System ───────────────────────────────────────────── */
-/* Shared base for all text/path inputs. Components override
-   only layout properties (width, flex, min-width).           */
+/* Shared base for all text/path inputs. Default width: 100%.
+   Override with flex: 1 (in row layouts) or explicit width.  */
 
 .text-input,
 .number-input {
@@ -478,6 +478,7 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   outline: none;
+  width: 100%;
   min-width: 0;
   transition: border-color 0.1s;
 }
