@@ -226,10 +226,10 @@
         <span class="progress-text">{p.completed}/{p.total}</span>
       {/if}
     </div>
-    <button class="cancel-btn" onclick={cancelBatch}>Cancel</button>
+    <button class="btn btn--danger" onclick={cancelBatch}>Cancel</button>
   {:else}
     <!-- Idle state -->
-    <button class="run-btn" disabled={!canRun} onclick={handleRun} title={tooltipText}> ▶ Run Workflow </button>
+    <button class="btn btn--primary" disabled={!canRun} onclick={handleRun} title={tooltipText}> ▶ Run Workflow </button>
     {#if graphStore.batchError}
       <span class="error-label" title={graphStore.batchError}
         >Error: {graphStore.batchError.slice(0, 60)}{graphStore.batchError.length > 60 ? '…' : ''}</span
@@ -244,7 +244,7 @@
 
 <style>
   .toolbar {
-    height: 32px;
+    height: 38px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -252,46 +252,6 @@
     background: var(--panel-header-bg);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-  }
-
-  .run-btn {
-    height: 22px;
-    padding: 0 12px;
-    background: #7c3aed;
-    border: none;
-    border-radius: 3px;
-    color: #fff;
-    font-family: var(--font-ui);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    outline: none;
-    transition: opacity 0.15s;
-    white-space: nowrap;
-  }
-  .run-btn:hover:not(:disabled) {
-    opacity: 0.85;
-  }
-  .run-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
-  .cancel-btn {
-    height: 22px;
-    padding: 0 10px;
-    background: color-mix(in srgb, #c0392b 14%, var(--panel-header-bg));
-    border: 1px solid color-mix(in srgb, #c0392b 50%, transparent);
-    border-radius: 3px;
-    color: #ff9090;
-    font-family: var(--font-ui);
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-    white-space: nowrap;
-  }
-  .cancel-btn:hover {
-    opacity: 0.85;
   }
 
   .running-info {
@@ -321,7 +281,7 @@
 
   .progress-fill {
     height: 100%;
-    background: #7c3aed;
+    background: #22c55e;
     border-radius: 2px;
     transition: width 0.1s ease-out;
   }

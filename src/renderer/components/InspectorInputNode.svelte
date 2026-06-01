@@ -113,7 +113,7 @@
         <span class="group-label">Folder</span>
         <div class="group-body">
           <!-- Step 1: pick a folder -->
-          <button class="io-btn" onclick={chooseFolder} disabled={selecting}>
+          <button class="btn btn--neutral btn--full" onclick={chooseFolder} disabled={selecting}>
             {selecting ? 'Choosing…' : folderPath ? 'Change Folder…' : 'Select Input Folder…'}
           </button>
 
@@ -151,7 +151,7 @@
 
             <!-- Step 2: import -->
             <button
-              class="io-btn io-btn--import"
+              class="btn btn--primary btn--full"
               onclick={importFromFolder}
               disabled={importing || counting || matchingPaths.length === 0}
             >
@@ -167,7 +167,7 @@
       <div class="import-group">
         <span class="group-label">Individual Images</span>
         <div class="group-body">
-          <button class="io-btn" onclick={() => imageStore.openDialog(nodeId)}> Add Individual Images… </button>
+          <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}> Add Individual Images… </button>
         </div>
       </div>
 
@@ -176,8 +176,8 @@
   {:else}
     <!-- ── Loaded image list ──────────────────────────────────────────────── -->
     <div class="input-top">
-      <button class="io-btn" onclick={() => imageStore.openDialog(nodeId)}>Add Images…</button>
-      <button class="io-btn danger" onclick={() => imageStore.clear(nodeId)}>Clear All</button>
+      <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}>Add Images…</button>
+      <button class="btn btn--danger btn--full" onclick={() => imageStore.clear(nodeId)}>Clear All</button>
     </div>
     <div class="file-list-wrap">
       {#each imageStore.getImages(nodeId) as img, i}
@@ -243,41 +243,6 @@
 
   .setting-select:focus {
     border-color: var(--accent);
-  }
-
-  /* ── Shared button ──────────────────────────────────────────────────────── */
-  .io-btn {
-    width: 100%;
-    background: #2e2e2e;
-    border: 2px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-bright);
-    font-family: var(--font-ui);
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 5px 8px;
-    cursor: pointer;
-    text-align: left;
-    outline: none;
-    transition:
-      border-color 0.1s,
-      background 0.1s,
-      color 0.1s;
-  }
-
-  .io-btn:hover:not(:disabled) {
-    background: #383838;
-    border-color: var(--accent);
-    color: #ffffff;
-  }
-  .io-btn:disabled {
-    opacity: 0.45;
-    cursor: default;
-  }
-
-  .io-btn.danger:hover:not(:disabled) {
-    border-color: #c0392b;
-    color: #ff7f7f;
   }
 
   /* ── Folder section ─────────────────────────────────────────────────────── */
@@ -355,23 +320,6 @@
 
   .match-count.counting {
     opacity: 0.5;
-  }
-
-  .io-btn--import {
-    background: color-mix(in srgb, #4caf50 14%, var(--panel-header-bg));
-    border-color: color-mix(in srgb, #4caf50 45%, transparent);
-    color: #81c784;
-  }
-
-  .io-btn--import:hover:not(:disabled) {
-    background: color-mix(in srgb, #4caf50 22%, var(--panel-header-bg));
-    border-color: color-mix(in srgb, #4caf50 70%, transparent);
-    color: #a5d6a7;
-  }
-
-  .io-btn--import:disabled {
-    opacity: 0.4;
-    cursor: default;
   }
 
   .checkbox-label {

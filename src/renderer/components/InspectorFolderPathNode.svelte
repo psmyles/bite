@@ -27,7 +27,7 @@
       oninput={(e) => graphStore.setParam(selectedNode.id, 'folderPath', (e.target as HTMLInputElement).value)}
     />
     {#if IS_ELECTRON}
-      <button class="browse-btn" onclick={browseFolder} title="Browse…">…</button>
+      <button class="btn btn--neutral" onclick={browseFolder} title="Browse…">…</button>
     {/if}
   </div>
 </div>
@@ -76,24 +76,4 @@
     border-color: var(--accent);
   }
 
-  .browse-btn {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-bright);
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    outline: none;
-  }
-
-  .browse-btn:hover {
-    border-color: var(--accent);
-    color: var(--text);
-  }
 </style>

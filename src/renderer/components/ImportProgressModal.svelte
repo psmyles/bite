@@ -64,9 +64,9 @@
 
     <div class="modal-footer">
       {#if done}
-        <button class="ok-btn" onclick={() => imageStore.dismissImport()}>OK</button>
+        <button class="btn btn--primary" onclick={() => imageStore.dismissImport()}>OK</button>
       {:else}
-        <button class="cancel-btn" onclick={() => imageStore.cancelImport()}>Cancel Import</button>
+        <button class="btn btn--danger" onclick={() => imageStore.cancelImport()}>Cancel Import</button>
       {/if}
     </div>
   </div>
@@ -201,43 +201,4 @@
     justify-content: flex-end;
   }
 
-  .cancel-btn {
-    padding: 6px 14px;
-    background: color-mix(in srgb, #c0392b 14%, var(--ctx-bg));
-    border: 2px solid color-mix(in srgb, #c0392b 50%, transparent);
-    border-radius: 4px;
-    color: #ff9090;
-    font-family: var(--font-ui);
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-    transition:
-      background 0.12s,
-      border-color 0.12s;
-  }
-
-  .cancel-btn:hover {
-    background: color-mix(in srgb, #c0392b 24%, var(--ctx-bg));
-    border-color: color-mix(in srgb, #c0392b 75%, transparent);
-  }
-
-  .ok-btn {
-    padding: 6px 20px;
-    background: color-mix(in srgb, #4caf50 14%, var(--ctx-bg));
-    border: 2px solid color-mix(in srgb, #4caf50 50%, transparent);
-    border-radius: 4px;
-    color: #81c784;
-    font-family: var(--font-ui);
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-    transition:
-      background 0.12s,
-      border-color 0.12s;
-  }
-
-  .ok-btn:hover {
-    background: color-mix(in srgb, #4caf50 24%, var(--ctx-bg));
-    border-color: color-mix(in srgb, #4caf50 75%, transparent);
-  }
 </style>

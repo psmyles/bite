@@ -58,7 +58,7 @@
           placeholder="Enter folder path…"
           oninput={(e) => graphStore.setParam(selectedNode.id, 'customPath', (e.target as HTMLInputElement).value)}
         />
-        {#if IS_ELECTRON}<button class="browse-btn" onclick={browseFolder} title="Browse…">…</button>{/if}
+        {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFolder} title="Browse…">…</button>{/if}
       </div>
     </div>
   {/if}
@@ -211,21 +211,4 @@
     min-width: 0;
   }
 
-  :global(.browse-btn) {
-    background: var(--search-bg);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 3px 6px;
-    cursor: pointer;
-    outline: none;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  :global(.browse-btn:hover) {
-    border-color: var(--accent);
-  }
 </style>

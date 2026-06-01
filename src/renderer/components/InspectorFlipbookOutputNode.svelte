@@ -100,7 +100,7 @@
         flipbookDone = false;
       }}
     />
-    {#if IS_ELECTRON}<button class="browse-btn" onclick={browseFlipbookOutput} title="Browse…">…</button>{/if}
+    {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFlipbookOutput} title="Browse…">…</button>{/if}
   </div>
 </div>
 
@@ -217,12 +217,12 @@
   <p class="web-note">Flipbook generation requires the desktop app.</p>
 {/if}
 <div class="gen-section" class:hidden={!IS_ELECTRON}>
-  <button class="gen-btn" class:running={flipbookGenerating} onclick={generateFlipbook} disabled={flipbookGenerating}>
+  <button class="btn btn--primary btn--full gen-btn" class:running={flipbookGenerating} onclick={generateFlipbook} disabled={flipbookGenerating}>
     {flipbookGenerating ? 'Generating…' : 'Generate Flipbook'}
   </button>
 
   {#if flipbookDone && !flipbookGenerating && flipbookPath}
-    <button class="open-btn" onclick={openFlipbookFolder}>Open Output Folder</button>
+    <button class="btn btn--neutral btn--full" onclick={openFlipbookFolder}>Open Output Folder</button>
   {/if}
 
   {#if flipbookError}
@@ -308,48 +308,8 @@
     gap: 8px;
   }
 
-  .gen-btn {
-    width: 100%;
-    padding: 7px 0;
-    background: #7c3aed;
-    border: none;
-    border-radius: 4px;
-    color: #fff;
-    font-family: var(--font-ui);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    outline: none;
-    transition: opacity 0.15s;
-  }
-
-  .gen-btn:hover:not(:disabled) {
-    opacity: 0.85;
-  }
-  .gen-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
   .gen-btn.running {
-    opacity: 0.6;
-  }
-
-  .open-btn {
-    width: 100%;
-    padding: 5px 0;
-    background: color-mix(in srgb, #7c3aed 12%, var(--panel-header-bg));
-    border: 2px solid color-mix(in srgb, #7c3aed 40%, transparent);
-    border-radius: 4px;
-    color: #a78bfa;
-    font-family: var(--font-ui);
-    font-size: 13px;
-    cursor: pointer;
-    outline: none;
-    transition: opacity 0.15s;
-  }
-
-  .open-btn:hover {
-    opacity: 0.8;
+    opacity: 0.7;
   }
 
   .gen-error {

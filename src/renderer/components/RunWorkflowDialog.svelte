@@ -46,8 +46,8 @@
     </div>
 
     <div class="dialog-footer">
-      <button class="btn-cancel" onclick={onCancel}>Cancel</button>
-      <button class="btn-run" disabled={validCount === 0} onclick={() => onRun(statuses)}>
+      <button class="btn btn--neutral" onclick={onCancel}>Cancel</button>
+      <button class="btn btn--primary" disabled={validCount === 0} onclick={() => onRun(statuses)}>
         Run {validCount} node{validCount !== 1 ? 's' : ''}
       </button>
     </div>
@@ -171,39 +171,4 @@
     flex-shrink: 0;
   }
 
-  .btn-cancel {
-    padding: 5px 12px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-  }
-  .btn-cancel:hover {
-    border-color: var(--accent);
-  }
-
-  .btn-run {
-    padding: 5px 16px;
-    background: #7c3aed;
-    border: none;
-    border-radius: 4px;
-    color: #fff;
-    font-family: var(--font-ui);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    outline: none;
-    transition: opacity 0.15s;
-  }
-  .btn-run:hover:not(:disabled) {
-    opacity: 0.85;
-  }
-  .btn-run:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
 </style>

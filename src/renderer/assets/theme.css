@@ -251,6 +251,71 @@
   --inspector-max: 0.8; /* maximum fraction — preview can shrink to 10% of the right column */
 }
 
+/* ── Button System ───────────────────────────────────────────── */
+/* One family: uniform height, padding, radius, and treatment.
+   Color signals role — primary (green), danger (red), neutral. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 16px;
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    background 0.1s,
+    border-color 0.1s,
+    color 0.1s;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn--full {
+  width: 100%;
+}
+
+.btn--neutral {
+  background: var(--panel-header-bg);
+  border: 1px solid var(--border);
+  color: var(--text-bright);
+}
+.btn--neutral:hover:not(:disabled) {
+  background: color-mix(in srgb, #ffffff 6%, var(--panel-header-bg));
+  border-color: var(--accent);
+}
+
+.btn--primary {
+  background: color-mix(in srgb, #22c55e 14%, var(--panel-header-bg));
+  border: 1px solid color-mix(in srgb, #22c55e 40%, transparent);
+  color: #86efac;
+}
+.btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, #22c55e 22%, var(--panel-header-bg));
+  border-color: color-mix(in srgb, #22c55e 65%, transparent);
+  color: #bbf7d0;
+}
+
+.btn--danger {
+  background: color-mix(in srgb, #c0392b 14%, var(--panel-header-bg));
+  border: 1px solid color-mix(in srgb, #c0392b 40%, transparent);
+  color: #fca5a5;
+}
+.btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #c0392b 22%, var(--panel-header-bg));
+  border-color: color-mix(in srgb, #c0392b 65%, transparent);
+  color: #fecaca;
+}
+
 /* ── Global Reset ────────────────────────────────────────────── */
 *,
 *::before,

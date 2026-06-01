@@ -276,7 +276,7 @@
         placeholder="path/to/output.txt"
         spellcheck="false"
       />
-      <button class="io-btn" onclick={browsePath}>Browse</button>
+      <button class="btn btn--neutral" onclick={browsePath}>Browse</button>
     </div>
   </div>
 
@@ -358,7 +358,7 @@
 
   <!-- ── Write Button ───────────────────────────────────────────────── -->
   <div class="section write-section">
-    <button class="write-btn" class:running={writeRunning} onclick={handleWrite} disabled={writeRunning}>
+    <button class="btn btn--neutral btn--full write-btn" class:running={writeRunning} onclick={handleWrite} disabled={writeRunning}>
       {writeRunning ? 'Writing…' : 'Write Output'}
     </button>
 
@@ -366,7 +366,7 @@
       <div class="status-msg status-msg--error">{writeError}</div>
     {:else if writeSuccess && lastWritten}
       <div class="status-msg status-msg--ok">Written: {lastWritten}</div>
-      <button class="io-btn open-folder-btn" onclick={openFolder}>Open Folder</button>
+      <button class="btn btn--neutral btn--full" onclick={openFolder}>Open Folder</button>
     {/if}
   </div>
 
@@ -428,7 +428,7 @@
         </div>
       </div>
       <div class="write-modal-footer">
-        <button class="write-cancel-btn" onclick={cancelWrite}>Cancel</button>
+        <button class="btn btn--danger" onclick={cancelWrite}>Cancel</button>
       </div>
     </div>
   </div>
@@ -481,29 +481,6 @@
   }
   .path-input:focus {
     border-color: var(--accent);
-  }
-
-  .io-btn {
-    flex-shrink: 0;
-    background: #2e2e2e;
-    border: 2px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 5px 10px;
-    cursor: pointer;
-    text-align: center;
-    transition:
-      border-color 0.1s,
-      background 0.1s,
-      color 0.1s;
-  }
-  .io-btn:hover {
-    background: #383838;
-    border-color: var(--accent);
-    color: #ffffff;
   }
 
   /* ── Custom separator ── */
@@ -644,34 +621,7 @@
     gap: 8px;
   }
 
-  .write-btn {
-    width: 100%;
-    background: #2e2e2e;
-    border: 2px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 7px 12px;
-    cursor: pointer;
-    text-align: center;
-    transition:
-      border-color 0.1s,
-      background 0.1s,
-      color 0.1s;
-  }
-  .write-btn:hover:not(:disabled) {
-    background: #383838;
-    border-color: var(--accent);
-    color: #ffffff;
-  }
-  .write-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
   .write-btn.running {
-    border-color: var(--accent);
     opacity: 0.7;
   }
 
@@ -685,10 +635,6 @@
   }
   .status-msg--ok {
     color: #86efac;
-  }
-
-  .open-folder-btn {
-    width: 100%;
   }
 
   /* ── Write progress modal ── */
@@ -797,23 +743,4 @@
     justify-content: flex-end;
   }
 
-  .write-cancel-btn {
-    padding: 5px 12px;
-    background: color-mix(in srgb, #c0392b 14%, var(--ctx-bg));
-    border: 2px solid color-mix(in srgb, #c0392b 50%, transparent);
-    border-radius: 4px;
-    color: #ff9090;
-    font-family: var(--font-ui);
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-    transition:
-      background 0.12s,
-      border-color 0.12s;
-  }
-
-  .write-cancel-btn:hover {
-    background: color-mix(in srgb, #c0392b 24%, var(--ctx-bg));
-    border-color: color-mix(in srgb, #c0392b 75%, transparent);
-  }
 </style>

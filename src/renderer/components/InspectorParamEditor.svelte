@@ -207,6 +207,7 @@
   .param-row {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 5px;
     padding: 7px 12px;
     border-bottom: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
