@@ -466,6 +466,22 @@
   /* ── Page shell ── */
   :global(html) {
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  :global(html::-webkit-scrollbar) {
+    width: var(--scrollbar-width);
+  }
+  :global(html::-webkit-scrollbar-track) {
+    background: transparent;
+  }
+  :global(html::-webkit-scrollbar-thumb) {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--scrollbar-radius);
+    transition: background 0.15s;
+  }
+  :global(html::-webkit-scrollbar-thumb:hover) {
+    background: var(--scrollbar-thumb-hover);
   }
   :global(body) {
     background: var(--bg);
