@@ -273,7 +273,7 @@
 
   .summary-key {
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.5;
     flex-shrink: 0;
@@ -281,7 +281,7 @@
 
   .summary-val {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     text-align: right;
   }
@@ -296,7 +296,7 @@
     gap: 6px;
     cursor: pointer;
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     user-select: none;
   }
@@ -314,7 +314,7 @@
 
   .gen-error {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: #ff7070;
     opacity: 0.9;
     white-space: pre-wrap;
@@ -323,7 +323,7 @@
 
   .web-note {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-muted);
     padding: 4px 12px 0;
     margin: 0;

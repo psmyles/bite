@@ -60,7 +60,7 @@
     font-weight: var(--text-node-head-weight);
     text-transform: var(--text-node-head-transform);
     letter-spacing: var(--text-node-head-spacing);
-    background: color-mix(in srgb, #86efac 18%, var(--node-head-bg));
+    background: color-mix(in srgb, var(--node-accent-folder-path) 18%, var(--node-head-bg));
     border-bottom: 1px solid var(--node-border);
     border-radius: calc(var(--node-radius) - 1px) calc(var(--node-radius) - 1px) 0 0;
     white-space: nowrap;
@@ -89,7 +89,7 @@
 
   .folder-name {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--node-text);
     white-space: nowrap;
     overflow: hidden;

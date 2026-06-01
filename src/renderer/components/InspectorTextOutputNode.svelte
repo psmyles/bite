@@ -451,7 +451,7 @@
 
   .section-title {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-bright);
@@ -473,7 +473,7 @@
     border-radius: 3px;
     color: var(--text);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 4px 7px;
     outline: none;
     min-width: 0;
@@ -490,7 +490,7 @@
     border-radius: 3px;
     color: var(--text);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 4px 7px;
     outline: none;
     width: 100%;
@@ -504,7 +504,7 @@
   /* ── Port list ── */
   .empty-hint {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.35;
     text-align: center;
@@ -551,7 +551,7 @@
 
   .port-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
@@ -584,7 +584,7 @@
 
   .preview-line {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     line-height: 1.6;
     color: var(--accent);
     padding: 1px 2px;
@@ -596,7 +596,7 @@
 
   .preview-hint {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.3;
     text-align: center;
@@ -611,7 +611,7 @@
     gap: 6px;
     cursor: pointer;
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     user-select: none;
   }
@@ -627,21 +627,21 @@
 
   .status-msg {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     word-break: break-all;
   }
   .status-msg--error {
-    color: #f87171;
+    color: var(--color-error);
   }
   .status-msg--ok {
-    color: #86efac;
+    color: var(--color-success-text);
   }
 
   /* ── Write progress modal ── */
   .write-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: var(--modal-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -691,7 +691,7 @@
     font-family: var(--font-mono);
     font-size: 26px;
     font-weight: 600;
-    color: #81c784;
+    color: var(--color-success-muted);
     line-height: 1;
   }
 
@@ -710,7 +710,7 @@
 
   .write-count-label {
     font-family: var(--font-ui);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     color: var(--text);
     margin-left: 4px;
   }
@@ -724,14 +724,14 @@
 
   .write-progress-fill {
     height: 100%;
-    background: #4caf50;
+    background: var(--color-success);
     border-radius: 3px;
     transition: width 0.1s ease-out;
   }
 
   .write-pct-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     text-align: right;
   }

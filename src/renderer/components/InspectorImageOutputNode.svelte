@@ -125,7 +125,7 @@
 
   .section-label {
     font-family: var(--font-ui);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -152,14 +152,14 @@
     gap: 6px;
     cursor: pointer;
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     user-select: none;
   }
 
   .connected-note {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: #86efac;
     font-style: italic;
   }
@@ -176,7 +176,7 @@
 
   :global(.param-label) {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     white-space: nowrap;
     flex-shrink: 0;

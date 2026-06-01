@@ -65,7 +65,7 @@
 
   .field-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.6;
     text-transform: uppercase;
@@ -79,7 +79,7 @@
     border-radius: 3px;
     color: var(--text);
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 5px 8px;
     outline: none;
     width: 100%;

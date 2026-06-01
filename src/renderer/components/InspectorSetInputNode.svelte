@@ -103,7 +103,7 @@
         placeholder="e.g. _AO"
         oninput={(e) => updateSuffix(i, (e.currentTarget as HTMLInputElement).value)}
       />
-      <button class="remove-btn" onclick={() => removeSuffix(i)} title="Remove">✕</button>
+      <button class="remove-btn" onclick={() => removeSuffix(i)} title="Remove">×</button>
     </div>
   {/each}
 
@@ -173,7 +173,7 @@
     border-radius: 3px;
     color: var(--text-bright);
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 2px 6px;
     height: 22px;
   }
@@ -185,7 +185,7 @@
 
   .section-label {
     font-family: var(--font-ui);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -210,7 +210,7 @@
 
   .suffix-index {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--text-muted);
     width: 32px;
     flex-shrink: 0;
@@ -223,7 +223,7 @@
     border-radius: 3px;
     color: var(--text-bright);
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 2px 6px;
     height: 22px;
   }
@@ -237,7 +237,7 @@
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
     padding: 2px 4px;
     border-radius: 3px;
@@ -307,7 +307,7 @@
 
   .set-middle {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     white-space: nowrap;
     overflow: hidden;
@@ -322,7 +322,7 @@
 
   .slot {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     padding: 1px 4px;
     border-radius: 2px;
   }

@@ -43,7 +43,7 @@
 
   .param-label {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.6;
     user-select: none;

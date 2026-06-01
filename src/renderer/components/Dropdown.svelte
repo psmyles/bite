@@ -89,12 +89,12 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    background: #2e2e2e;
+    background: var(--dropdown-bg);
     border: 2px solid var(--border);
     border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-ui);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     padding: 5px 7px;
     line-height: 1.4;
     cursor: pointer;
@@ -106,7 +106,7 @@
   }
 
   .dd-btn:hover:not(:disabled) {
-    background: #383838;
+    background: var(--dropdown-hover-bg);
     border-color: var(--accent);
   }
   .dd-btn svg {
@@ -130,7 +130,7 @@
     top: calc(100% + 2px);
     left: 0;
     right: 0;
-    background: #2e2e2e;
+    background: var(--dropdown-bg);
     border: 2px solid var(--border);
     border-radius: 4px;
     overflow: hidden;
@@ -141,7 +141,7 @@
   .dd-item {
     padding: 5px 10px;
     font-family: var(--font-ui);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     color: var(--text-bright);
     cursor: pointer;
     user-select: none;
@@ -151,12 +151,12 @@
   }
 
   .dd-item:hover {
-    background: #484848;
-    color: #ffffff;
+    background: var(--dropdown-active-bg);
+    color: var(--text-bright);
   }
   .dd-item.active {
-    background: #383838;
-    color: #ffffff;
+    background: var(--dropdown-hover-bg);
+    color: var(--text-bright);
     font-weight: 600;
   }
 </style>

@@ -218,7 +218,7 @@
     align-items: center;
     gap: 6px;
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.6;
     user-select: none;
@@ -226,7 +226,7 @@
 
   .wired-badge {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--port-color-number);
     opacity: 1;
     border: 1px solid var(--port-color-number);
@@ -237,7 +237,7 @@
 
   .output-badge {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.5;
     border: 1px solid var(--border);
@@ -248,7 +248,7 @@
 
   .reset-btn {
     margin-left: auto;
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.6;
     cursor: pointer;
@@ -267,7 +267,7 @@
 
   .wired-value {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--port-color-number);
     opacity: 0.8;
     padding: 3px 0;
@@ -275,7 +275,7 @@
 
   .computed-value {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.5;
     padding: 3px 0;
@@ -324,7 +324,7 @@
 
   .slider-val {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     width: 52px;
     text-align: right;
@@ -384,7 +384,7 @@
 
   .vector-lbl {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.5;
     width: 14px;
@@ -399,7 +399,7 @@
     border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 3px 6px;
     outline: none;
     appearance: textfield;

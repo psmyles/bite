@@ -48,7 +48,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="Credits">
     <div class="modal-header">
       <span class="modal-title">Credits</span>
-      <button class="close-btn" onclick={onClose} aria-label="Close">✕</button>
+      <button class="close-btn" onclick={onClose} aria-label="Close">×</button>
     </div>
 
     <div class="modal-body">
@@ -91,7 +91,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--modal-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -129,13 +129,19 @@
 
   .close-btn {
     background: none;
-    border: 1px solid var(--border);
+    border: var(--modal-close-btn-border-width) solid var(--border);
     color: var(--text);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 3px;
+    width: var(--modal-close-btn-size);
+    height: var(--modal-close-btn-size);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--modal-close-btn-radius);
     line-height: 1;
+    flex-shrink: 0;
     transition:
       color 0.12s,
       background 0.12s,
@@ -191,7 +197,7 @@
 
   .section-heading {
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 700;
     color: #6fb8cc; /* muted teal — 7.6:1 on --ctx-bg (#1c1c1c) */
     text-transform: uppercase;
@@ -233,7 +239,7 @@
 
   .dep-license {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--ctx-text-muted);
     text-align: right;
     white-space: nowrap;

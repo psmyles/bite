@@ -251,7 +251,7 @@
 
   .section-title {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--text-bright);
@@ -266,7 +266,7 @@
     border-radius: 3px;
     color: var(--text);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 4px 7px;
     outline: none;
     min-width: 0;
@@ -283,7 +283,7 @@
   /* ── Block list ── */
   .empty-blocks {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.35;
     text-align: center;
@@ -331,7 +331,7 @@
   /* ── Badges ── */
   .block-badge {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 700;
     letter-spacing: 0.06em;
     padding: 2px 5px;
@@ -366,14 +366,14 @@
   }
   .sub-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.5;
     flex-shrink: 0;
   }
   .num-preview {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: #f59e0b;
     opacity: 0.85;
     margin-left: 3px;
@@ -393,7 +393,7 @@
     min-width: 0;
   }
   .orig-arrow {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: #b89cfb;
     opacity: 0.6;
     flex-shrink: 0;
@@ -432,7 +432,7 @@
     border-radius: 3px;
     color: var(--text-bright);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 5px 0;
     cursor: pointer;
     transition:
@@ -478,7 +478,7 @@
     justify-content: space-between;
     padding: 0 2px 3px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-bright);
@@ -495,7 +495,7 @@
   }
 
   .preview-arrow {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.3;
     text-align: center;
@@ -503,7 +503,7 @@
 
   .preview-name {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -522,7 +522,7 @@
 
   .preview-example-note {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.3;
     text-align: center;

@@ -371,7 +371,7 @@
     background: transparent;
     color: var(--text-bright);
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-style: italic;
     font-weight: 600;
     cursor: pointer;
@@ -431,7 +431,7 @@
 
   .info-name {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: #fff;
     white-space: nowrap;
@@ -441,7 +441,7 @@
 
   .info-meta {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: rgba(255, 255, 255, 0.65);
     white-space: nowrap;
     overflow: hidden;

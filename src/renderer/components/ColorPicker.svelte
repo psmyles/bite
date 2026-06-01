@@ -471,7 +471,7 @@
 
   .ch-lbl {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.55;
     width: 12px;
@@ -535,7 +535,7 @@
     border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 2px 5px;
     text-align: right;
     outline: none;
@@ -565,7 +565,7 @@
 
   .hex-lbl {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.55;
     width: 20px;
@@ -587,7 +587,7 @@
     border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 3px 6px;
     outline: none;
   }

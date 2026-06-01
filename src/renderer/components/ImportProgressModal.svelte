@@ -42,7 +42,7 @@
 
     {#if done}
       <div class="modal-body done-body">
-        <div class="done-icon">✓</div>
+        <div class="done-icon"></div>
         <div class="done-label">{doneLabel}</div>
       </div>
     {:else if progress}
@@ -76,7 +76,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: var(--modal-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -128,7 +128,7 @@
     font-family: var(--font-mono);
     font-size: 28px;
     font-weight: 600;
-    color: #81c784;
+    color: var(--color-success-muted);
     line-height: 1;
   }
 
@@ -147,7 +147,7 @@
 
   .count-label {
     font-family: var(--font-ui);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     color: var(--text);
     margin-left: 4px;
   }
@@ -161,14 +161,14 @@
 
   .progress-fill {
     height: 100%;
-    background: #4caf50;
+    background: var(--color-success);
     border-radius: 3px;
     transition: width 0.15s ease-out;
   }
 
   .pct-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     text-align: right;
   }
@@ -181,14 +181,17 @@
   }
 
   .done-icon {
-    font-size: 28px;
-    color: #81c784;
-    line-height: 1;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-success) 20%, transparent);
+    border: 2px solid var(--color-success);
+    flex-shrink: 0;
   }
 
   .done-label {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     color: var(--text-bright);
     text-align: center;
   }

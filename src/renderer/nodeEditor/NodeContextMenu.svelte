@@ -363,7 +363,7 @@
             aria-haspopup="true"
           >
             <span>{group.category}</span>
-            <span class="ctx-arrow">▶</span>
+            <span class="ctx-arrow">›</span>
           </button>
         {/each}
       {/if}
@@ -427,7 +427,7 @@
 
   .ctx-action kbd {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--ctx-text-muted);
     white-space: nowrap;
   }
@@ -531,14 +531,14 @@
   }
 
   .ctx-item-cat {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--ctx-text-muted);
     flex-shrink: 0;
     opacity: 0.85;
   }
 
   .ctx-arrow {
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--ctx-text-muted);
     flex-shrink: 0;
   }

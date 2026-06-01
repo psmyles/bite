@@ -84,8 +84,8 @@
      padding-bottom creates visual breathing room below child nodes
      without affecting their transform-based positions. */
   :global(.svelte-flow__node-group) {
-    background: rgba(168, 168, 168, 0.08);
-    border: 1.5px solid rgba(168, 168, 168, 0.25);
+    background: var(--group-bg);
+    border: 1.5px solid var(--group-border);
     border-radius: 0 0 var(--node-radius, 6px) var(--node-radius, 6px);
     overflow: visible;
     padding-bottom: 14px;
@@ -93,7 +93,7 @@
 
   /* Selected: highlight border only, keep the same fill */
   :global(.svelte-flow__node-group.selected) {
-    border-color: rgba(220, 220, 220, 0.75);
+    border-color: var(--group-selected-border);
     box-shadow: none !important; /* suppress default xyflow selection glow */
   }
 
@@ -110,13 +110,13 @@
     display: flex;
     align-items: center;
     background: var(--node-head-bg, #3d3d3d);
-    border: 1.5px solid rgba(168, 168, 168, 0.25);
+    border: 1.5px solid var(--group-border);
     border-bottom: none;
     border-radius: var(--node-radius, 6px) var(--node-radius, 6px) 0 0;
   }
 
   .group-label-wrap.selected {
-    border-color: rgba(220, 220, 220, 0.75);
+    border-color: var(--group-selected-border);
   }
 
   .group-label {
@@ -136,7 +136,7 @@
   .group-label-input {
     background: none;
     border: none;
-    border-bottom: 1px solid rgba(168, 168, 168, 0.35);
+    border-bottom: 1px solid var(--group-label-input-border);
     color: var(--node-text, #e2e2e8);
     font-family: var(--text-node-head-family);
     font-size: var(--text-node-head-size);

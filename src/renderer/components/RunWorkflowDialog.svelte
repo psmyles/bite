@@ -33,7 +33,7 @@
       <div class="node-list">
         {#each statuses as status}
           <div class="node-row" class:valid={status.valid} class:invalid={!status.valid}>
-            <span class="node-icon">{status.valid ? '✅' : '⚠️'}</span>
+            <span class="node-icon" class:valid={status.valid} class:invalid={!status.valid}></span>
             <div class="node-info">
               <span class="node-name">{status.label}</span>
               {#if !status.valid}
@@ -58,7 +58,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: var(--modal-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -105,7 +105,7 @@
 
   .dialog-desc {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text);
     margin: 0;
   }
@@ -126,19 +126,28 @@
   }
 
   .node-row.valid {
-    background: color-mix(in srgb, #22c55e 8%, transparent);
-    border-color: color-mix(in srgb, #22c55e 25%, transparent);
+    background: color-mix(in srgb, var(--color-success) 8%, transparent);
+    border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
   }
 
   .node-row.invalid {
-    background: color-mix(in srgb, #f59e0b 8%, transparent);
-    border-color: color-mix(in srgb, #f59e0b 25%, transparent);
+    background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+    border-color: color-mix(in srgb, var(--color-warning) 25%, transparent);
   }
 
   .node-icon {
-    font-size: 14px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
     flex-shrink: 0;
-    line-height: 1.4;
+    margin-top: 3px;
+  }
+  .node-icon.valid {
+    background: var(--color-success);
+  }
+  .node-icon.invalid {
+    background: var(--color-warning);
+    border-radius: 2px;
   }
 
   .node-info {
@@ -150,15 +159,15 @@
 
   .node-name {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-bright);
   }
 
   .node-reasons {
     font-family: var(--font-mono);
-    font-size: 10px;
-    color: #fbbf24;
+    font-size: var(--font-size-xxs);
+    color: var(--color-warning-text);
     word-break: break-word;
   }
 

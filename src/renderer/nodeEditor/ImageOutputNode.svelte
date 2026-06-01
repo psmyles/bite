@@ -94,7 +94,7 @@
     font-weight: var(--text-node-head-weight);
     text-transform: var(--text-node-head-transform);
     letter-spacing: var(--text-node-head-spacing);
-    background: color-mix(in srgb, #f59e0b 18%, var(--node-head-bg));
+    background: color-mix(in srgb, var(--node-accent-image-output) 18%, var(--node-head-bg));
     border-bottom: 1px solid var(--node-border);
     border-radius: calc(var(--node-radius) - 1px) calc(var(--node-radius) - 1px) 0 0;
     white-space: nowrap;
@@ -132,7 +132,7 @@
 
   .footer-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
@@ -147,13 +147,13 @@
     left: 50%;
     transform: translateX(-50%);
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #f59e0b;
+    color: var(--badge-processing-color);
     background: color-mix(in srgb, var(--bg) 85%, transparent);
-    border: 1px solid #f59e0b;
+    border: 1px solid var(--badge-processing-color);
     border-radius: 3px;
     padding: 2px 7px;
     white-space: nowrap;
@@ -167,7 +167,7 @@
 
   .processing-file {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: 400;
     letter-spacing: 0;
     text-transform: none;

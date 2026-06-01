@@ -224,7 +224,7 @@
 
   .setting-label {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     white-space: nowrap;
   }
@@ -235,7 +235,7 @@
     border-radius: 3px;
     color: var(--text-bright);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 2px 4px;
     cursor: pointer;
     outline: none;
@@ -264,7 +264,7 @@
 
   .group-label {
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text);
     text-transform: uppercase;
@@ -294,7 +294,7 @@
 
   .folder-path-name {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-bright);
     white-space: nowrap;
@@ -304,7 +304,7 @@
 
   .folder-path-full {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     white-space: nowrap;
     overflow: hidden;
@@ -313,7 +313,7 @@
 
   .match-count {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     padding: 2px 0;
   }
@@ -328,7 +328,7 @@
     gap: 6px;
     cursor: pointer;
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     user-select: none;
   }
@@ -349,7 +349,7 @@
 
   .section-label {
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.6;
     text-transform: uppercase;
@@ -364,7 +364,7 @@
 
   .chip {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     padding: 3px 0;
     border-radius: 3px;
     border: 1px solid var(--border);
@@ -385,9 +385,9 @@
   }
 
   .chip.active {
-    background: color-mix(in srgb, #4caf50 18%, transparent);
-    border-color: color-mix(in srgb, #4caf50 60%, transparent);
-    color: #81c784;
+    background: color-mix(in srgb, var(--color-success) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-success) 60%, transparent);
+    color: var(--color-success-muted);
   }
 
   .empty-hint {
@@ -441,7 +441,7 @@
 
   .file-entry-name {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     white-space: nowrap;
     overflow: hidden;
@@ -456,7 +456,7 @@
 
   .file-entry-fmt {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.4;
     flex-shrink: 0;

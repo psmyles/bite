@@ -47,7 +47,7 @@
     <div class="modal-header">
       <span class="modal-title">{titles[state.status]}</span>
       {#if state.status !== 'checking'}
-        <button class="close-btn" onclick={onClose} aria-label="Close">✕</button>
+        <button class="close-btn" onclick={onClose} aria-label="Close">×</button>
       {/if}
     </div>
 
@@ -92,7 +92,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--modal-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -130,13 +130,19 @@
 
   .close-btn {
     background: none;
-    border: 1px solid var(--border);
+    border: var(--modal-close-btn-border-width) solid var(--border);
     color: var(--text);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 3px;
+    width: var(--modal-close-btn-size);
+    height: var(--modal-close-btn-size);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--modal-close-btn-radius);
     line-height: 1;
+    flex-shrink: 0;
     transition:
       color 0.12s,
       background 0.12s,
@@ -285,7 +291,7 @@
 
   .notes-label {
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -295,7 +301,7 @@
 
   .notes-body {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     line-height: 1.6;
     white-space: pre-wrap;

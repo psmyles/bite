@@ -100,7 +100,7 @@
 
   .node-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.5;
     white-space: nowrap;

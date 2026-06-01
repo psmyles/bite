@@ -214,7 +214,7 @@
 
   .param-label {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.6;
     user-select: none;
@@ -233,7 +233,7 @@
     border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     padding: 4px 6px;
     outline: none;
     appearance: textfield;
@@ -252,7 +252,7 @@
 
   .unit {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.4;
     width: 24px;
@@ -277,7 +277,7 @@
 
   .preview-heading {
     font-family: var(--font-ui);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -295,14 +295,14 @@
 
   .preview-label {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.5;
   }
 
   .preview-val {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
   }
 </style>

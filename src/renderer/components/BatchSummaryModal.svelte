@@ -39,7 +39,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="Batch Summary">
     <div class="modal-header">
       <span class="modal-title">Batch Complete</span>
-      <button class="close-btn" onclick={onClose} aria-label="Close">✕</button>
+      <button class="close-btn" onclick={onClose} aria-label="Close">×</button>
     </div>
 
     <div class="modal-body">
@@ -95,7 +95,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--modal-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -132,13 +132,19 @@
 
   .close-btn {
     background: none;
-    border: 1px solid var(--border);
+    border: var(--modal-close-btn-border-width) solid var(--border);
     color: var(--text);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     cursor: pointer;
-    padding: 2px 6px;
-    border-radius: 3px;
+    width: var(--modal-close-btn-size);
+    height: var(--modal-close-btn-size);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--modal-close-btn-radius);
     line-height: 1;
+    flex-shrink: 0;
     transition:
       color 0.12s,
       background 0.12s,
@@ -189,18 +195,18 @@
   }
 
   .stat-value.success {
-    color: #81c784;
+    color: var(--color-success-muted);
   }
   .stat-value.muted {
     color: var(--text);
   }
   .stat-value.error {
-    color: #ff9090;
+    color: var(--color-error-text);
   }
 
   .stat-label {
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -217,20 +223,20 @@
 
   .time-label {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text);
   }
 
   .time-value {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
   }
 
   .error-note {
     font-family: var(--font-ui);
-    font-size: 11px;
-    color: #ff9090;
+    font-size: var(--font-size-xs);
+    color: var(--color-error-text);
     line-height: 1.4;
   }
 
@@ -240,16 +246,16 @@
     gap: 3px;
     max-height: 120px;
     overflow-y: auto;
-    border: 1px solid #7a2020;
+    border: 1px solid var(--color-error-border);
     border-radius: 4px;
     padding: 6px 8px;
-    background: rgba(255, 80, 80, 0.06);
+    background: var(--color-error-bg);
   }
 
   .error-item {
     font-family: var(--font-mono);
-    font-size: 10px;
-    color: #ff9090;
+    font-size: var(--font-size-xxs);
+    color: var(--color-error-text);
     line-height: 1.4;
     word-break: break-all;
   }

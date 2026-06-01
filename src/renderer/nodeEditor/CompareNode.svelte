@@ -175,7 +175,7 @@
 
   .op-badge {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     font-weight: 700;
     color: var(--accent);
     line-height: 1;
@@ -199,7 +199,7 @@
 
   .p-name {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -214,7 +214,7 @@
     margin-left: auto;
     padding-left: 6px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     white-space: nowrap;
     flex-shrink: 0;

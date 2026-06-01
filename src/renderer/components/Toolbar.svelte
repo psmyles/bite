@@ -229,7 +229,7 @@
     <button class="btn btn--danger" onclick={cancelBatch}>Cancel</button>
   {:else}
     <!-- Idle state -->
-    <button class="btn btn--primary run-center" disabled={!canRun} onclick={handleRun} title={tooltipText}> ▶ Run Workflow </button>
+    <button class="btn btn--primary run-center" disabled={!canRun} onclick={handleRun} title={tooltipText}> Run Workflow</button>
     {#if graphStore.batchError}
       <span class="error-label" title={graphStore.batchError}
         >Error: {graphStore.batchError.slice(0, 60)}{graphStore.batchError.length > 60 ? '…' : ''}</span
@@ -268,7 +268,7 @@
 
   .running-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     white-space: nowrap;
     flex-shrink: 0;
@@ -285,14 +285,14 @@
 
   .progress-fill {
     height: 100%;
-    background: #22c55e;
+    background: var(--color-success);
     border-radius: 2px;
     transition: width 0.1s ease-out;
   }
 
   .progress-text {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.6;
     white-space: nowrap;
@@ -301,8 +301,8 @@
 
   .error-label {
     font-family: var(--font-mono);
-    font-size: 11px;
-    color: #f87171;
+    font-size: var(--font-size-xs);
+    color: var(--color-error);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

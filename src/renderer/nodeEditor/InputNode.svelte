@@ -53,7 +53,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, #22c55e 18%, var(--node-head-bg));
+    background: color-mix(in srgb, var(--node-accent-input) 18%, var(--node-head-bg));
     border-bottom: 1px solid var(--node-border);
     border-radius: calc(var(--node-radius) - 1px) calc(var(--node-radius) - 1px) 0 0;
   }
@@ -98,7 +98,7 @@
 
   .img-count {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
   }
 </style>

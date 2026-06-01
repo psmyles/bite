@@ -140,7 +140,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, #f59e0b 20%, var(--node-head-bg));
+    background: color-mix(in srgb, var(--node-accent-set-input) 20%, var(--node-head-bg));
     border-bottom: 1px solid var(--node-border);
     border-radius: calc(var(--node-radius) - 1px) calc(var(--node-radius) - 1px) 0 0;
   }
@@ -189,7 +189,7 @@
 
   .set-count {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
   }
 </style>

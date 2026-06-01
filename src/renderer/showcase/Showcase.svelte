@@ -46,22 +46,36 @@
   // ── Design token data ──────────────────────────────────────────────────────
   const SURFACES = [
     { name: '--bg', value: '#141414', label: 'Main window / canvas background' },
-    { name: '--gap-color', value: '#2b2b2b', label: 'Gap between panels' },
+    { name: '--gap-color', value: '#2b2b2b', label: 'Gap between panels (body fill)' },
     { name: '--panel-header-bg', value: '#1c1c1c', label: 'Panel title bars' },
     { name: '--search-bg', value: '#0e0e0e', label: 'Search / filter inputs' },
     { name: '--preview-bg', value: '#000000', label: 'Preview pane' },
     { name: '--node-bg', value: '#212121', label: 'Node card background' },
     { name: '--node-head-bg', value: '#3d3d3d', label: 'Node header strip' },
-    { name: '--ctx-bg', value: '#1c1c1c', label: 'Context menu / modal background' },
+    { name: '--ctx-bg', value: 'var(--panel-header-bg)', label: 'Context menu / modal background' },
   ];
 
   const CHROMATIC = [
     { name: '--text', value: '#a8a8a8', label: 'Body / default text' },
     { name: '--text-bright', value: '#ffffff', label: 'Emphasis text, labels' },
     { name: '--border', value: '#585858', label: 'Panel borders, input outlines' },
-    { name: '--accent', value: '#a8a8a8', label: 'Focus rings, selected states' },
+    { name: '--accent', value: 'var(--text)', label: 'Focus rings, selected states' },
     { name: '--handle', value: '#292929', label: 'Resize handle resting' },
-    { name: '--handle-hot', value: '#585858', label: 'Resize handle hover/drag' },
+    { name: '--handle-hot', value: 'var(--border)', label: 'Resize handle hover/drag' },
+    { name: '--modal-overlay-bg', value: 'rgba(0,0,0,0.65)', label: 'Modal backdrop overlay' },
+  ];
+
+  const STATUS_COLORS = [
+    { name: '--color-success', value: '#22c55e', label: 'Success — primary' },
+    { name: '--color-success-text', value: '#86efac', label: 'Success — text on dark bg' },
+    { name: '--color-success-muted', value: '#81c784', label: 'Success — muted text' },
+    { name: '--color-error', value: '#f87171', label: 'Error — primary' },
+    { name: '--color-error-text', value: '#ff9090', label: 'Error — text on dark bg' },
+    { name: '--color-error-border', value: '#7a2020', label: 'Error — list border' },
+    { name: '--color-warning', value: '#f59e0b', label: 'Warning — primary' },
+    { name: '--color-warning-text', value: '#fbbf24', label: 'Warning — text on dark bg' },
+    { name: '--color-danger', value: '#c0392b', label: 'Danger — destructive action' },
+    { name: '--color-danger-text', value: '#fca5a5', label: 'Danger — text on dark bg' },
   ];
 
   const PORT_COLORS = [
@@ -80,12 +94,12 @@
   ];
 
   const NODE_TYPES = [
-    { label: 'inputNode', accent: '#22c55e', pct: 18, file: 'src/renderer/nodeEditor/InputNode.svelte' },
-    { label: 'imageOutputNode', accent: '#f59e0b', pct: 18, file: 'src/renderer/nodeEditor/ImageOutputNode.svelte' },
-    { label: 'textOutputNode', accent: '#3b82f6', pct: 18, file: 'src/renderer/nodeEditor/TextOutputNode.svelte' },
-    { label: 'flipbookOutputNode', accent: '#a855f7', pct: 18, file: 'src/renderer/nodeEditor/FlipbookOutputNode.svelte' },
-    { label: 'folderPathNode', accent: '#86efac', pct: 18, file: 'src/renderer/nodeEditor/FolderPathNode.svelte' },
-    { label: 'setInputNode', accent: '#f59e0b', pct: 20, file: 'src/renderer/nodeEditor/SetInputNode.svelte' },
+    { label: 'inputNode', accent: 'var(--node-accent-input)', pct: 18, varName: '--node-accent-input', file: 'src/renderer/nodeEditor/InputNode.svelte' },
+    { label: 'imageOutputNode', accent: 'var(--node-accent-image-output)', pct: 18, varName: '--node-accent-image-output', file: 'src/renderer/nodeEditor/ImageOutputNode.svelte' },
+    { label: 'textOutputNode', accent: 'var(--node-accent-text-output)', pct: 18, varName: '--node-accent-text-output', file: 'src/renderer/nodeEditor/TextOutputNode.svelte' },
+    { label: 'flipbookOutputNode', accent: 'var(--node-accent-flipbook-output)', pct: 18, varName: '--node-accent-flipbook-output', file: 'src/renderer/nodeEditor/FlipbookOutputNode.svelte' },
+    { label: 'folderPathNode', accent: 'var(--node-accent-folder-path)', pct: 18, varName: '--node-accent-folder-path', file: 'src/renderer/nodeEditor/FolderPathNode.svelte' },
+    { label: 'setInputNode', accent: 'var(--node-accent-set-input)', pct: 20, varName: '--node-accent-set-input', file: 'src/renderer/nodeEditor/SetInputNode.svelte' },
   ];
 </script>
 
@@ -128,6 +142,20 @@
       {/each}
     </div>
 
+    <h3 class="sc-sub">Semantic Status Colors</h3>
+    <div class="swatch-grid">
+      {#each STATUS_COLORS as s}
+        <div class="swatch-item">
+          <div class="swatch" style="background: {s.value}"></div>
+          <div class="swatch-info">
+            <span class="swatch-name">{s.name}</span>
+            <span class="swatch-val">{s.value}</span>
+            <span class="swatch-label">{s.label}</span>
+          </div>
+        </div>
+      {/each}
+    </div>
+
     <h3 class="sc-sub">Port / Edge Colors</h3>
     <div class="swatch-grid swatch-grid--ports">
       {#each PORT_COLORS as s}
@@ -150,14 +178,14 @@
 
     <div class="type-row">
       <span class="type-meta">--font-ui · AtkinsonHyperlegibleNext</span>
-      <span class="type-sample" style="font-family: var(--font-ui); font-size: 13px">13px — Default body text. Panel labels. Inspector fields.</span>
+      <span class="type-sample" style="font-family: var(--font-ui); font-size: var(--font-size-base)">13px — Default body text. Panel labels. Inspector fields.</span>
       <span class="type-sample" style="font-family: var(--font-ui); font-size: 14px">14px — Slightly larger UI labels.</span>
-      <span class="type-sample" style="font-family: var(--font-ui); font-size: 12px; font-weight: 600">12px 600 — Panel section headers. Node library categories.</span>
+      <span class="type-sample" style="font-family: var(--font-ui); font-size: var(--font-size-sm); font-weight: 600">12px 600 — Panel section headers. Node library categories.</span>
     </div>
     <div class="type-row">
       <span class="type-meta">--font-mono · JetBrainsMono</span>
-      <span class="type-sample" style="font-family: var(--font-mono); font-size: 12px">12px — Node card headers. Computed values.</span>
-      <span class="type-sample" style="font-family: var(--font-mono); font-size: 11px">11px — Port type tags. File names. Small labels.</span>
+      <span class="type-sample" style="font-family: var(--font-mono); font-size: var(--font-size-sm)">12px — Node card headers. Computed values.</span>
+      <span class="type-sample" style="font-family: var(--font-mono); font-size: var(--font-size-xs)">11px — Port type tags. File names. Small labels.</span>
       <span class="type-sample" style="font-family: var(--font-mono); font-size: 14px">14px — Zoom level overlay.</span>
     </div>
   </section>
@@ -191,7 +219,7 @@
     <div class="row-group">
       <span class="row-label">Full-width</span>
       <div class="btn-col">
-        <button class="btn btn--primary btn--full">▶ Import 27 Images</button>
+        <button class="btn btn--primary btn--full">Import 27 Images</button>
         <button class="btn btn--neutral btn--full">Add Images…</button>
         <button class="btn btn--danger btn--full">Clear All</button>
       </div>
@@ -260,7 +288,7 @@
             style="background: color-mix(in srgb, {n.accent} {n.pct}%, var(--node-head-bg))"
           >
             <span class="node-card-label">{n.label}</span>
-            <span class="node-card-accent">{n.accent} @ {n.pct}%</span>
+            <span class="node-card-accent">{n.varName} @ {n.pct}%</span>
           </div>
           <div class="node-card-body">
             <span class="node-card-file">{n.file}</span>
@@ -410,7 +438,7 @@
 
   .sc-page-sub {
     font-family: var(--font-ui);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     color: var(--text);
   }
 
@@ -433,7 +461,7 @@
 
   .sc-file {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     opacity: 0.55;
     margin: -10px 0 4px;
@@ -441,7 +469,7 @@
 
   .sc-sub {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-bright);
     opacity: 0.55;
@@ -492,20 +520,20 @@
 
   .swatch-name {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--text-bright);
     white-space: nowrap;
   }
 
   .swatch-val {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--text);
   }
 
   .swatch-label {
     font-family: var(--font-ui);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--text);
     opacity: 0.6;
     white-space: nowrap;
@@ -526,7 +554,7 @@
 
   .type-meta {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--text);
     opacity: 0.55;
     text-transform: uppercase;
@@ -550,7 +578,7 @@
 
   .row-label {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     opacity: 0.6;
     width: 64px;
@@ -586,7 +614,7 @@
 
   .ctrl-label {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.6;
   }
@@ -631,7 +659,7 @@
     gap: 6px;
     cursor: pointer;
     font-family: var(--font-ui);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     color: var(--text-bright);
     user-select: none;
   }
@@ -670,13 +698,13 @@
 
   .node-card-label {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--node-text);
   }
 
   .node-card-accent {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--node-text);
     opacity: 0.6;
   }
@@ -691,7 +719,7 @@
 
   .node-card-file {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--text);
     opacity: 0.6;
   }
@@ -717,14 +745,14 @@
 
   .modal-name {
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--text-bright);
   }
 
   .modal-path {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--text);
     opacity: 0.55;
   }

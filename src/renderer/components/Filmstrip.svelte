@@ -273,7 +273,7 @@
   .name {
     flex-shrink: 0;
     font-family: var(--text-thumb-name-family);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: var(--text-thumb-name-weight);
     color: var(--text-bright);
     overflow: hidden;
@@ -299,7 +299,7 @@
 
   .count {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
     opacity: 0.5;
   }

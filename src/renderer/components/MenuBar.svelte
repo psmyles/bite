@@ -206,8 +206,8 @@
         <li><button onclick={() => run(onCheckForUpdates)}>Check for Updates</button></li>
         <li class="sep"></li>
         <li>
-          <button onclick={() => run(onToggleTimers)}>
-            {timersEnabled ? '✓ ' : ''}Enable Performance Timers
+          <button class:active={timersEnabled} onclick={() => run(onToggleTimers)}>
+            {timersEnabled ? 'Disable' : 'Enable'} Performance Timers
           </button>
         </li>
       </ul>
@@ -242,7 +242,7 @@
   .title {
     margin-left: auto;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     opacity: 0.6;
     padding-right: 4px;
@@ -310,7 +310,7 @@
   .shortcut {
     margin-left: auto;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--ctx-text-muted);
     white-space: nowrap;
   }

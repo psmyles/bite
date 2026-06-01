@@ -553,7 +553,7 @@
 
   .param-name {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -574,7 +574,7 @@
     margin-left: auto;
     padding-left: 6px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     color: var(--text);
     white-space: nowrap;
     flex-shrink: 0;
@@ -620,7 +620,7 @@
     border-radius: 4px;
     padding: 5px 9px;
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     color: var(--text-bright, #aaa);
     white-space: normal;
     width: max-content;
@@ -639,13 +639,13 @@
     left: 50%;
     transform: translateX(-50%);
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #39ff14;
+    color: var(--badge-preview-color);
     background: color-mix(in srgb, var(--bg) 85%, transparent);
-    border: 1px solid #39ff14;
+    border: 1px solid var(--badge-preview-color);
     border-radius: 3px;
     padding: 2px 7px;
     white-space: nowrap;

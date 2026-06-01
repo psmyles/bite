@@ -288,7 +288,7 @@
   }
 
   .collapse-icon {
-    font-size: 12px;
+    font-size: var(--font-size-sm);
     line-height: 1;
     width: 10px;
     text-align: center;

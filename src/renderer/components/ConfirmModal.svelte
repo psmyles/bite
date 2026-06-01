@@ -23,7 +23,7 @@
       <div class="buttons">
         <!-- Cancel is first in DOM so it receives autofocus — it is the safe default -->
         <button class="btn btn--neutral" onclick={onCancel}>Cancel</button>
-        <button class="btn btn--neutral" onclick={onConfirm}>OK</button>
+        <button class="btn btn--danger" onclick={onConfirm}>OK</button>
       </div>
     </div>
   </div>
@@ -33,7 +33,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--modal-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;

@@ -138,7 +138,7 @@
 <style>
   /* ── Sticky note shell ─────────────────────────────────────────────────── */
   .comment-node {
-    background: #fef08a;
+    background: var(--comment-bg);
     border: none;
     border-radius: 2px;
     min-width: 210px;
@@ -156,7 +156,7 @@
   .comment-node.selected {
     box-shadow:
       3px 5px 14px rgba(0, 0, 0, 0.55),
-      0 0 0 2px #ca8a04,
+      0 0 0 2px var(--comment-selected-border),
       0 1px 3px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.35);
   }
@@ -172,9 +172,9 @@
   .comment-heading {
     display: block;
     width: 100%;
-    background: #fde047;
+    background: var(--comment-header-bg);
     border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-    color: #5c3200;
+    color: var(--comment-text);
     font-family: var(--font-ui, sans-serif);
     font-size: 14px;
     font-weight: 700;
@@ -194,13 +194,13 @@
 
   .comment-heading--edit {
     border: none;
-    outline: 2px solid #ca8a04;
+    outline: 2px solid var(--comment-selected-border);
     outline-offset: -2px;
     cursor: text;
   }
 
   .comment-heading--edit::placeholder {
-    color: rgba(113, 63, 18, 0.4);
+    color: var(--comment-placeholder);
     font-weight: 400;
     letter-spacing: 0;
   }
@@ -210,7 +210,7 @@
     display: block;
     width: 100%;
     background: transparent;
-    color: #422006;
+    color: var(--comment-text-body);
     font-family: var(--font-ui, sans-serif);
     font-size: 14px;
     padding: 8px 10px;
