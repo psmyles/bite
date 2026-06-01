@@ -88,17 +88,20 @@
 {#each definition.params.filter((p) => !p.portOnly && isVisible(p)) as p (p.name)}
   {@const wired = isWired(p)}
   <div class="param-row" class:wired>
-    <label class="param-label" for="param-{p.name}">
-      {p.label}
-      {#if wired}<span class="wired-badge">wired</span>{/if}
-      {#if p.readonly && !wired && definition?.executor}<span class="output-badge">out</span>{/if}
-      {#if !wired && !p.readonly && p.default !== undefined && !isAtDefault(p)}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <span class="reset-btn" onclick={() => resetToDefault(p)} title="Reset to default" role="button" tabindex="-1"
-          >↺</span
-        >
+    <div class="param-header">
+      <label class="param-label" for="param-{p.name}">
+        {p.label}
+        {#if wired}<span class="wired-badge">wired</span>{/if}
+        {#if p.readonly && !wired && definition?.executor}<span class="output-badge">out</span>{/if}
+      </label>
+      {#if !wired && !p.readonly && p.default !== undefined}
+        <button
+          class="reset-btn"
+          style:visibility={isAtDefault(p) ? 'hidden' : 'visible'}
+          onclick={() => resetToDefault(p)}
+        >Reset</button>
       {/if}
-    </label>
+    </div>
 
     {#if wired}
       <!-- Show the value arriving from the connected node -->
@@ -213,6 +216,13 @@
     border-bottom: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
   }
 
+  .param-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 16px;
+  }
+
   .param-label {
     display: flex;
     align-items: center;
@@ -248,21 +258,24 @@
 
   .reset-btn {
     margin-left: auto;
-    font-size: var(--font-size-sm);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
     color: var(--text-bright);
-    opacity: 0.6;
     cursor: pointer;
-    line-height: 1;
-    transition:
-      opacity 0.12s,
-      color 0.12s;
-    user-select: none;
+    outline: none;
     flex-shrink: 0;
+    transition:
+      border-color 0.1s,
+      color 0.1s;
   }
 
   .reset-btn:hover {
-    opacity: 1;
-    color: var(--accent);
+    border-color: color-mix(in srgb, var(--color-success) 60%, transparent);
+    color: var(--color-success-text);
   }
 
   .wired-value {
