@@ -390,6 +390,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    width: 100%;
   }
 
   .vector-field {
@@ -410,16 +411,19 @@
 
   .vector-input {
     flex: 1;
-    background: var(--panel-header-bg);
-    border: 1px solid var(--border);
+    min-width: 0;
+    height: 30px;
+    padding: 0 8px;
+    background: var(--text-field-bg);
+    border: 2px solid var(--border);
     border-radius: 4px;
     color: var(--text-bright);
     font-family: var(--font-mono);
     font-size: var(--font-size-sm);
-    padding: 3px 6px;
     outline: none;
     appearance: textfield;
     -moz-appearance: textfield;
+    transition: border-color 0.1s;
   }
 
   .vector-input::-webkit-outer-spin-button,
