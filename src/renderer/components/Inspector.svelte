@@ -11,6 +11,7 @@
   import InspectorResizeNode from './InspectorResizeNode.svelte';
   import InspectorFolderPathNode from './InspectorFolderPathNode.svelte';
   import InspectorSetInputNode from './InspectorSetInputNode.svelte';
+  import RunWorkflowButton from './RunWorkflowButton.svelte';
   let { definitions }: { definitions: NodeDefinition[] } = $props();
 
   const selectedNode = $derived(graphStore.selectedNode);
@@ -68,6 +69,10 @@
     {:else}
       <InspectorParamEditor {definition} {selectedNode} />
     {/if}
+  </div>
+
+  <div class="run-footer">
+    <RunWorkflowButton />
   </div>
 </div>
 
@@ -139,5 +144,11 @@
     font-weight: var(--text-hint-weight);
     color: var(--text-bright);
     opacity: 0.5;
+  }
+
+  .run-footer {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
   }
 </style>

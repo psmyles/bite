@@ -68,31 +68,6 @@
   // ── Dialog ──────────────────────────────────────────────────────────────────
   let showDialog = $state(false);
 
-  // ── Elapsed timer ──────────────────────────────────────────────────────────
-  let elapsed = $state(0);
-  let _ticker: ReturnType<typeof setInterval> | null = null;
-  $effect(() => {
-    if (graphStore.batchRunning) {
-      elapsed =
-        graphStore.batchStartTime != null ? Math.floor((performance.now() - graphStore.batchStartTime) / 1000) : 0;
-      _ticker = setInterval(() => {
-        elapsed =
-          graphStore.batchStartTime != null ? Math.floor((performance.now() - graphStore.batchStartTime) / 1000) : 0;
-      }, 1000);
-    } else {
-      if (_ticker !== null) {
-        clearInterval(_ticker);
-        _ticker = null;
-      }
-    }
-    return () => {
-      if (_ticker !== null) {
-        clearInterval(_ticker);
-        _ticker = null;
-      }
-    };
-  });
-
   // ── Graph serialization ─────────────────────────────────────────────────────
   function serializeGraph(): NodeGraph {
     const sfNodes = $state.snapshot(untrack(() => graphStore.nodes)) as Node[];
@@ -195,15 +170,6 @@
     void executeValidNodes(statuses.filter((s) => s.valid));
   }
 
-  function cancelBatch() {
-    window.ipcRenderer.invoke(IPC.EXECUTE_BATCH_CANCEL);
-  }
-
-  function fmtTime(s: number): string {
-    if (s < 60) return `${s}s`;
-    return `${Math.floor(s / 60)}m ${s % 60}s`;
-  }
-
   const tooltipText = $derived(
     totalCount === 0
       ? 'No Image Output nodes in graph'
@@ -214,28 +180,7 @@
 </script>
 
 <div class="toolbar">
-  {#if graphStore.batchRunning}
-    <!-- Running state -->
-    <div class="running-info">
-      <span class="running-label">Running… {fmtTime(elapsed)}</span>
-      {#if graphStore.batchProgress}
-        {@const p = graphStore.batchProgress}
-        <div class="progress-track">
-          <div class="progress-fill" style="width: {Math.round((p.completed / p.total) * 100)}%"></div>
-        </div>
-        <span class="progress-text">{p.completed}/{p.total}</span>
-      {/if}
-    </div>
-    <button class="btn btn--danger" onclick={cancelBatch}>Cancel</button>
-  {:else}
-    <!-- Idle state -->
-    <button class="btn btn--primary run-center" disabled={!canRun} onclick={handleRun} title={tooltipText}> Run Workflow</button>
-    {#if graphStore.batchError}
-      <span class="error-label" title={graphStore.batchError}
-        >Error: {graphStore.batchError.slice(0, 60)}{graphStore.batchError.length > 60 ? '…' : ''}</span
-      >
-    {/if}
-  {/if}
+  <button class="btn btn--primary run-center" disabled={!canRun} onclick={handleRun} title={tooltipText}>Run Workflow</button>
 </div>
 
 {#if showDialog}
@@ -256,57 +201,5 @@
 
   .run-center {
     margin: 0 auto;
-  }
-
-  .running-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .running-label {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    color: var(--text-bright);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .progress-track {
-    flex: 1;
-    max-width: 160px;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background: var(--color-success);
-    border-radius: 2px;
-    transition: width 0.1s ease-out;
-  }
-
-  .progress-text {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    color: var(--text-bright);
-    opacity: 0.6;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .error-label {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    color: var(--color-error);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-    min-width: 0;
   }
 </style>

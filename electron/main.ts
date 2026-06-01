@@ -164,6 +164,8 @@ function buildMenu() {
       submenu: [
         { label: 'New', accelerator: 'CmdOrCtrl+N', click: send('menu:new') },
         { type: 'separator' },
+        { label: 'Run Workflow', accelerator: 'CmdOrCtrl+R', click: send(IPC.MENU_RUN_WORKFLOW) },
+        { type: 'separator' },
         { label: 'Open Workflow', accelerator: 'CmdOrCtrl+O', click: send('menu:open-workflow') },
         { label: 'Save Workflow', accelerator: 'CmdOrCtrl+S', click: send('menu:save-workflow') },
         { label: 'Save Workflow As', accelerator: 'CmdOrCtrl+Shift+S', click: send('menu:save-workflow-as') },

@@ -58,6 +58,7 @@ export const IPC = {
   MENU_ABOUT: 'menu:about',
   MENU_CREDITS: 'menu:credits',
   MENU_CHECK_FOR_UPDATES: 'menu:check-for-updates',
+  MENU_RUN_WORKFLOW: 'menu:run-workflow',
   MENU_EXPORT_CLI_PS: 'menu:export-cli-ps',
   MENU_EXPORT_CLI_BASH: 'menu:export-cli-bash',
   MENU_EXPORT_CLI_CMD: 'menu:export-cli-cmd',

@@ -14,10 +14,10 @@
   import AboutModal from './components/AboutModal.svelte';
   import UpdateModal from './components/UpdateModal.svelte';
   import BatchSummaryModal from './components/BatchSummaryModal.svelte';
+  import BatchProgressModal from './components/BatchProgressModal.svelte';
   import ConfirmModal from './components/ConfirmModal.svelte';
   import ImportProgressModal from './components/ImportProgressModal.svelte';
   import { imageStore } from './stores/images.svelte.js';
-  import Toolbar from './components/Toolbar.svelte';
 
   // ── Node definitions — loaded once here, passed to NodeLibrary + NodeEditor ──
   let definitions: NodeDefinition[] = $state([]);
@@ -445,8 +445,6 @@
     />
   {/if}
 
-  <Toolbar {definitions} />
-
   <div class="shell" bind:clientHeight={shellHeight}>
     <!-- ── Main area: (library | canvas) over filmstrip ── -->
     <div class="main-area">
@@ -527,6 +525,10 @@
 
 {#if showCredits}
   <CreditsModal onClose={() => (showCredits = false)} />
+{/if}
+
+{#if graphStore.batchRunning || graphStore.batchError}
+  <BatchProgressModal />
 {/if}
 
 {#if graphStore.batchSummaryOpen && graphStore.batchSummary}
