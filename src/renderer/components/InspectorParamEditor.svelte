@@ -93,7 +93,10 @@
   function rgbaToHex(rgba: number[]): string {
     const [r = 0, g = 0, b = 0] = rgba;
     const clamp = (v: number) => Math.max(0, Math.min(1, v));
-    const toH = (v: number) => Math.round(clamp(v) * 255).toString(16).padStart(2, '0');
+    const toH = (v: number) =>
+      Math.round(clamp(v) * 255)
+        .toString(16)
+        .padStart(2, '0');
     return '#' + toH(r) + toH(g) + toH(b);
   }
 
@@ -179,13 +182,9 @@
       />
     {:else if p.widget === 'dropdown'}
       <Dropdown value={getValue(p) as string} options={p.options ?? []} onchange={(v) => onChange(p, v)} />
-    {:else if p.widget === 'checkbox'}
-    {:else if p.widget === 'color-picker'}
+    {:else if p.widget === 'checkbox'}{:else if p.widget === 'color-picker'}
       {@const rgba = hexToRgba(String(getValue(p) ?? '#000000'))}
-      <ColorPicker
-        value={rgba}
-        onchange={(v) => onChange(p, rgbaToHex(v))}
-      />
+      <ColorPicker value={rgba} onchange={(v) => onChange(p, rgbaToHex(v))} />
     {:else if p.widget === 'vector' && p.type === 'color'}
       {@const vals = Array.isArray(getValue(p)) ? (getValue(p) as number[]) : [0, 0, 0, 1]}
       <ColorPicker
@@ -391,7 +390,6 @@
   .number-input {
     width: 100%;
   }
-
 
   /* ── Vector input ── */
   .vector-wrap {

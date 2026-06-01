@@ -37,15 +37,11 @@
   // ── Wired prefix/suffix detection ────────────────────────────────────────
 
   function isPrefixWired(): boolean {
-    return graphStore.edges.some(
-      (e) => e.target === selectedNode.id && e.targetHandle === 'prefix-in'
-    );
+    return graphStore.edges.some((e) => e.target === selectedNode.id && e.targetHandle === 'prefix-in');
   }
 
   function getWiredPrefixValue(): string {
-    const edge = graphStore.edges.find(
-      (e) => e.target === selectedNode.id && e.targetHandle === 'prefix-in'
-    );
+    const edge = graphStore.edges.find((e) => e.target === selectedNode.id && e.targetHandle === 'prefix-in');
     if (!edge) return prefix;
     const srcNode = graphStore.nodes.find((n) => n.id === edge.source);
     if (!srcNode) return prefix;
@@ -54,15 +50,11 @@
   }
 
   function isSuffixWired(i: number): boolean {
-    return graphStore.edges.some(
-      (e) => e.target === selectedNode.id && e.targetHandle === `suf-in-${i}`
-    );
+    return graphStore.edges.some((e) => e.target === selectedNode.id && e.targetHandle === `suf-in-${i}`);
   }
 
   function getWiredSuffixValue(i: number): string {
-    const edge = graphStore.edges.find(
-      (e) => e.target === selectedNode.id && e.targetHandle === `suf-in-${i}`
-    );
+    const edge = graphStore.edges.find((e) => e.target === selectedNode.id && e.targetHandle === `suf-in-${i}`);
     if (!edge) return suffixes[i] ?? '';
     const srcNode = graphStore.nodes.find((n) => n.id === edge.source);
     if (!srcNode) return suffixes[i] ?? '';
