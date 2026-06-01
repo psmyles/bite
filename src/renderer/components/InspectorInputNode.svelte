@@ -2,6 +2,7 @@
   import { imageStore } from '../stores/images.svelte.js';
   import { graphStore } from '../stores/graph.svelte.js';
   import { IPC } from '../../shared/constants.js';
+  import Dropdown from './Dropdown.svelte';
 
   let { nodeId }: { nodeId: string } = $props();
 
@@ -89,90 +90,75 @@
 </script>
 
 <div class="input-inspector">
-  <!-- ── Settings ─────────────────────────────────────────────────────────── -->
-  <div class="settings-section">
-    <div class="setting-row">
-      <span class="setting-label">Thumbnail Size</span>
-      <select
-        class="setting-select"
-        value={thumbSizeParam}
-        onchange={(e) => graphStore.setParam(nodeId, 'thumbnailSize', Number((e.target as HTMLSelectElement).value))}
-      >
-        {#each THUMB_SIZE_OPTIONS as sz}
-          <option value={sz}>{sz}px</option>
-        {/each}
-      </select>
-    </div>
+  <!-- ── Thumbnail Size ─────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Thumbnail Size</div>
+    <Dropdown
+      value={String(thumbSizeParam)}
+      options={THUMB_SIZE_OPTIONS.map(String)}
+      labels={THUMB_SIZE_OPTIONS.map((sz) => `${sz}px`)}
+      onchange={(v) => graphStore.setParam(nodeId, 'thumbnailSize', Number(v))}
+    />
   </div>
 
   {#if imageStore.getImages(nodeId).length === 0}
     <!-- ── Folder picker (shown when filmstrip is empty) ─────────────────── -->
-    <div class="folder-section">
-      <!-- Folder import group -->
-      <div class="import-group">
-        <span class="group-label">Folder</span>
-        <div class="group-body">
-          <!-- Step 1: pick a folder -->
-          <button class="btn btn--neutral btn--full" onclick={chooseFolder} disabled={selecting}>
-            {selecting ? 'Choosing…' : folderPath ? 'Change Folder…' : 'Select Input Folder…'}
-          </button>
 
-          {#if folderPath}
-            <!-- Selected folder path -->
-            <div class="folder-path" title={folderPath}>
-              <span class="folder-path-name">{folderDisplayName(folderPath)}</span>
-              <span class="folder-path-full">{folderPath}</span>
-            </div>
+    <!-- Folder section -->
+    <div class="section">
+      <div class="section-title">Folder</div>
+      <button class="btn btn--neutral btn--full" onclick={chooseFolder} disabled={selecting}>
+        {selecting ? 'Choosing…' : folderPath ? 'Change Folder…' : 'Select Input Folder…'}
+      </button>
 
-            <!-- Filters -->
-            <label class="checkbox-label">
-              <input type="checkbox" bind:checked={recursive} />
-              <span>Include subfolders</span>
-            </label>
-            <div class="format-section">
-              <span class="section-label">File formats</span>
-              <div class="chip-grid">
-                {#each FORMAT_GROUPS as g}
-                  <button class="chip" class:active={activeFormats.has(g.label)} onclick={() => toggleFormat(g.label)}
-                    >{g.label}</button
-                  >
-                {/each}
-              </div>
-            </div>
+      {#if folderPath}
+        <div class="folder-path" title={folderPath}>
+          <span class="folder-path-name">{folderDisplayName(folderPath)}</span>
+          <span class="folder-path-full">{folderPath}</span>
+        </div>
 
-            <!-- Match count -->
-            <div class="match-count" class:counting>
-              {#if counting}
-                <span>Scanning…</span>
-              {:else}
-                <span>{matchingPaths.length} {matchingPaths.length === 1 ? 'file' : 'files'} found</span>
-              {/if}
-            </div>
+        <label class="checkbox-label">
+          <input type="checkbox" bind:checked={recursive} />
+          <span>Include subfolders</span>
+        </label>
+        <div class="format-section">
+          <span class="section-label">File formats</span>
+          <div class="chip-grid">
+            {#each FORMAT_GROUPS as g}
+              <button class="chip" class:active={activeFormats.has(g.label)} onclick={() => toggleFormat(g.label)}
+                >{g.label}</button
+              >
+            {/each}
+          </div>
+        </div>
 
-            <!-- Step 2: import -->
-            <button
-              class="btn btn--primary btn--full"
-              onclick={importFromFolder}
-              disabled={importing || counting || matchingPaths.length === 0}
-            >
-              {importing
-                ? 'Importing…'
-                : `Import ${matchingPaths.length} ${matchingPaths.length === 1 ? 'Image' : 'Images'}`}
-            </button>
+        <div class="match-count" class:counting>
+          {#if counting}
+            <span>Scanning…</span>
+          {:else}
+            <span>{matchingPaths.length} {matchingPaths.length === 1 ? 'file' : 'files'} found</span>
           {/if}
         </div>
-      </div>
 
-      <!-- Individual images group -->
-      <div class="import-group">
-        <span class="group-label">Individual Images</span>
-        <div class="group-body">
-          <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}> Add Individual Images… </button>
-        </div>
-      </div>
-
-      <span class="empty-hint">or drop images onto the filmstrip</span>
+        <button
+          class="btn btn--primary btn--full"
+          onclick={importFromFolder}
+          disabled={importing || counting || matchingPaths.length === 0}
+        >
+          {importing
+            ? 'Importing…'
+            : `Import ${matchingPaths.length} ${matchingPaths.length === 1 ? 'Image' : 'Images'}`}
+        </button>
+      {/if}
     </div>
+
+    <!-- Individual images section -->
+    <div class="section">
+      <div class="section-title">Individual Images</div>
+      <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}> Add Individual Images… </button>
+    </div>
+
+    <span class="empty-hint">or drop images onto the filmstrip</span>
   {:else}
     <!-- ── Loaded image list ──────────────────────────────────────────────── -->
     <div class="input-top">
@@ -207,78 +193,21 @@
     min-height: 0;
   }
 
-  /* ── Settings section ───────────────────────────────────────────────────── */
-  .settings-section {
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--border);
+  /* ── Section layout ─────────────────────────────────────────────────────── */
+  .section {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--node-border, rgba(255, 255, 255, 0.07));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     flex-shrink: 0;
   }
 
-  .setting-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    height: 26px;
-  }
-
-  .setting-label {
+  .section-title {
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);
     color: var(--text-bright);
-    white-space: nowrap;
-  }
-
-  .setting-select {
-    background: var(--search-bg);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
-    padding: 2px 4px;
-    cursor: pointer;
-    outline: none;
-  }
-
-  .setting-select:focus {
-    border-color: var(--accent);
-  }
-
-  /* ── Folder section ─────────────────────────────────────────────────────── */
-  .folder-section {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px 12px;
-  }
-
-  .import-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .group-label {
-    font-family: var(--font-ui);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    color: var(--text);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 4px 8px;
-    background: var(--panel-header-bg);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .group-body {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px;
+    opacity: 0.6;
   }
 
   .folder-path {
@@ -333,13 +262,6 @@
     user-select: none;
   }
 
-  .checkbox-label input[type='checkbox'] {
-    accent-color: var(--accent);
-    width: 13px;
-    height: 13px;
-    margin: 0;
-    cursor: pointer;
-  }
 
   .format-section {
     display: flex;
