@@ -468,5 +468,4 @@
     color: var(--text-bright);
     user-select: none;
   }
-
 </style>

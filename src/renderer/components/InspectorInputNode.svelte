@@ -155,7 +155,9 @@
     <!-- Individual images section -->
     <div class="section">
       <div class="section-title">Individual Images</div>
-      <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}> Add Individual Images… </button>
+      <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}>
+        Add Individual Images…
+      </button>
     </div>
 
     <span class="empty-hint">or drop images onto the filmstrip</span>
@@ -261,7 +263,6 @@
     color: var(--text-bright);
     user-select: none;
   }
-
 
   .format-section {
     display: flex;

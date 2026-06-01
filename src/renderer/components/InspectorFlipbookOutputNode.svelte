@@ -36,11 +36,9 @@
     const result: string | null = await window.ipcRenderer.invoke(IPC.ATLAS_BROWSE);
     if (result) graphStore.setParam(selectedNode.id, 'flipbookOutputPath', result);
   }
-
 </script>
 
 <div class="flipbook-inspector">
-
   <!-- ── Output File ─────────────────────────────────────────── -->
   <div class="section">
     <div class="section-title">Output File</div>
@@ -50,7 +48,8 @@
         class="text-input path-input"
         value={fbOutputPath}
         placeholder="Enter file path…"
-        oninput={(e) => graphStore.setParam(selectedNode.id, 'flipbookOutputPath', (e.target as HTMLInputElement).value)}
+        oninput={(e) =>
+          graphStore.setParam(selectedNode.id, 'flipbookOutputPath', (e.target as HTMLInputElement).value)}
       />
       {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFlipbookOutput} title="Browse…">…</button>{/if}
     </div>
@@ -164,8 +163,6 @@
       <span>Generate .log file</span>
     </label>
   </div>
-
-
 </div>
 
 <style>
@@ -282,5 +279,4 @@
   .summary-val.warn {
     color: var(--color-warning-text);
   }
-
 </style>

@@ -179,5 +179,4 @@
     gap: 8px;
     flex-shrink: 0;
   }
-
 </style>

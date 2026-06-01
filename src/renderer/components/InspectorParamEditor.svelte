@@ -98,8 +98,8 @@
         <button
           class="reset-btn"
           style:visibility={isAtDefault(p) ? 'hidden' : 'visible'}
-          onclick={() => resetToDefault(p)}
-        >Reset</button>
+          onclick={() => resetToDefault(p)}>Reset</button
+        >
       {/if}
     </div>
 
@@ -424,5 +424,4 @@
   .vector-input:focus {
     border-color: var(--accent);
   }
-
 </style>

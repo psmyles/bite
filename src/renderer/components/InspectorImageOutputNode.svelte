@@ -32,7 +32,6 @@
 </script>
 
 <div class="iio-inspector">
-
   <!-- ── Output Path ─────────────────────────────────────────── -->
   <div class="section">
     <div class="section-title">Output Path</div>
@@ -83,7 +82,8 @@
             class="text-input"
             value={(params.setOutputPrefix as string) ?? ''}
             placeholder="e.g. T_"
-            oninput={(e) => graphStore.setParam(selectedNode.id, 'setOutputPrefix', (e.target as HTMLInputElement).value)}
+            oninput={(e) =>
+              graphStore.setParam(selectedNode.id, 'setOutputPrefix', (e.target as HTMLInputElement).value)}
           />
         </div>
         <div class="field">
@@ -93,7 +93,8 @@
             class="text-input"
             value={(params.setOutputSuffix as string) ?? ''}
             placeholder="e.g. _ORM"
-            oninput={(e) => graphStore.setParam(selectedNode.id, 'setOutputSuffix', (e.target as HTMLInputElement).value)}
+            oninput={(e) =>
+              graphStore.setParam(selectedNode.id, 'setOutputSuffix', (e.target as HTMLInputElement).value)}
           />
         </div>
       </div>
@@ -112,7 +113,6 @@
       <span>Generate .log file</span>
     </label>
   </div>
-
 </div>
 
 <style>

@@ -33,7 +33,13 @@
 
   const MOCK_STATUSES = [
     { nodeId: 'n1', label: 'Image Output 1', type: 'imageOutputNode' as const, valid: true, reasons: [] },
-    { nodeId: 'n2', label: 'Image Output 2', type: 'imageOutputNode' as const, valid: false, reasons: ['No images loaded for connected Input node'] },
+    {
+      nodeId: 'n2',
+      label: 'Image Output 2',
+      type: 'imageOutputNode' as const,
+      valid: false,
+      reasons: ['No images loaded for connected Input node'],
+    },
   ];
 
   const UPDATE_STATE: UpdateState = {
@@ -94,12 +100,48 @@
   ];
 
   const NODE_TYPES = [
-    { label: 'inputNode', accent: 'var(--node-accent-input)', pct: 18, varName: '--node-accent-input', file: 'src/renderer/nodeEditor/InputNode.svelte' },
-    { label: 'imageOutputNode', accent: 'var(--node-accent-image-output)', pct: 18, varName: '--node-accent-image-output', file: 'src/renderer/nodeEditor/ImageOutputNode.svelte' },
-    { label: 'textOutputNode', accent: 'var(--node-accent-text-output)', pct: 18, varName: '--node-accent-text-output', file: 'src/renderer/nodeEditor/TextOutputNode.svelte' },
-    { label: 'flipbookOutputNode', accent: 'var(--node-accent-flipbook-output)', pct: 18, varName: '--node-accent-flipbook-output', file: 'src/renderer/nodeEditor/FlipbookOutputNode.svelte' },
-    { label: 'folderPathNode', accent: 'var(--node-accent-folder-path)', pct: 18, varName: '--node-accent-folder-path', file: 'src/renderer/nodeEditor/FolderPathNode.svelte' },
-    { label: 'setInputNode', accent: 'var(--node-accent-set-input)', pct: 20, varName: '--node-accent-set-input', file: 'src/renderer/nodeEditor/SetInputNode.svelte' },
+    {
+      label: 'inputNode',
+      accent: 'var(--node-accent-input)',
+      pct: 18,
+      varName: '--node-accent-input',
+      file: 'src/renderer/nodeEditor/InputNode.svelte',
+    },
+    {
+      label: 'imageOutputNode',
+      accent: 'var(--node-accent-image-output)',
+      pct: 18,
+      varName: '--node-accent-image-output',
+      file: 'src/renderer/nodeEditor/ImageOutputNode.svelte',
+    },
+    {
+      label: 'textOutputNode',
+      accent: 'var(--node-accent-text-output)',
+      pct: 18,
+      varName: '--node-accent-text-output',
+      file: 'src/renderer/nodeEditor/TextOutputNode.svelte',
+    },
+    {
+      label: 'flipbookOutputNode',
+      accent: 'var(--node-accent-flipbook-output)',
+      pct: 18,
+      varName: '--node-accent-flipbook-output',
+      file: 'src/renderer/nodeEditor/FlipbookOutputNode.svelte',
+    },
+    {
+      label: 'folderPathNode',
+      accent: 'var(--node-accent-folder-path)',
+      pct: 18,
+      varName: '--node-accent-folder-path',
+      file: 'src/renderer/nodeEditor/FolderPathNode.svelte',
+    },
+    {
+      label: 'setInputNode',
+      accent: 'var(--node-accent-set-input)',
+      pct: 20,
+      varName: '--node-accent-set-input',
+      file: 'src/renderer/nodeEditor/SetInputNode.svelte',
+    },
   ];
 </script>
 
@@ -178,14 +220,24 @@
 
     <div class="type-row">
       <span class="type-meta">--font-ui · AtkinsonHyperlegibleNext</span>
-      <span class="type-sample" style="font-family: var(--font-ui); font-size: var(--font-size-base)">13px — Default body text. Panel labels. Inspector fields.</span>
-      <span class="type-sample" style="font-family: var(--font-ui); font-size: 14px">14px — Slightly larger UI labels.</span>
-      <span class="type-sample" style="font-family: var(--font-ui); font-size: var(--font-size-sm); font-weight: 600">12px 600 — Panel section headers. Node library categories.</span>
+      <span class="type-sample" style="font-family: var(--font-ui); font-size: var(--font-size-base)"
+        >13px — Default body text. Panel labels. Inspector fields.</span
+      >
+      <span class="type-sample" style="font-family: var(--font-ui); font-size: 14px"
+        >14px — Slightly larger UI labels.</span
+      >
+      <span class="type-sample" style="font-family: var(--font-ui); font-size: var(--font-size-sm); font-weight: 600"
+        >12px 600 — Panel section headers. Node library categories.</span
+      >
     </div>
     <div class="type-row">
       <span class="type-meta">--font-mono · JetBrainsMono</span>
-      <span class="type-sample" style="font-family: var(--font-mono); font-size: var(--font-size-sm)">12px — Node card headers. Computed values.</span>
-      <span class="type-sample" style="font-family: var(--font-mono); font-size: var(--font-size-xs)">11px — Port type tags. File names. Small labels.</span>
+      <span class="type-sample" style="font-family: var(--font-mono); font-size: var(--font-size-sm)"
+        >12px — Node card headers. Computed values.</span
+      >
+      <span class="type-sample" style="font-family: var(--font-mono); font-size: var(--font-size-xs)"
+        >11px — Port type tags. File names. Small labels.</span
+      >
       <span class="type-sample" style="font-family: var(--font-mono); font-size: 14px">14px — Zoom level overlay.</span>
     </div>
   </section>
@@ -278,7 +330,9 @@
   <!-- ── NODE TYPE COLORS ───────────────────────────────────────────────────── -->
   <section class="sc-section">
     <h2 class="sc-section-title">Node Type Header Colors</h2>
-    <p class="sc-file">src/renderer/nodeEditor/[NodeType].svelte — color-mix(in srgb, &lt;accent&gt; &lt;pct&gt;%, var(--node-head-bg))</p>
+    <p class="sc-file">
+      src/renderer/nodeEditor/[NodeType].svelte — color-mix(in srgb, &lt;accent&gt; &lt;pct&gt;%, var(--node-head-bg))
+    </p>
 
     <div class="node-type-list">
       {#each NODE_TYPES as n}
@@ -314,7 +368,10 @@
           <span class="node-card-label">groupNode</span>
           <span class="node-card-accent">neutral header</span>
         </div>
-        <div class="node-card-body" style="background: rgba(168,168,168,0.08); border: 1.5px solid rgba(168,168,168,0.25)">
+        <div
+          class="node-card-body"
+          style="background: rgba(168,168,168,0.08); border: 1.5px solid rgba(168,168,168,0.25)"
+        >
           <span class="node-card-file">Body: rgba(168,168,168,0.08) · Border: rgba(168,168,168,0.25)</span>
           <span class="node-card-file">src/renderer/nodeEditor/GroupNode.svelte</span>
         </div>
@@ -328,14 +385,17 @@
     <p class="sc-file">src/renderer/components/[Modal].svelte — rendered without backdrop</p>
 
     <div class="modals-grid">
-
       <div class="modal-entry">
         <div class="modal-meta">
           <span class="modal-name">ConfirmModal</span>
           <span class="modal-path">src/renderer/components/ConfirmModal.svelte</span>
         </div>
         <div class="modal-wrap">
-          <ConfirmModal message="This will delete all loaded images. Continue?" onConfirm={() => {}} onCancel={() => {}} />
+          <ConfirmModal
+            message="This will delete all loaded images. Continue?"
+            onConfirm={() => {}}
+            onCancel={() => {}}
+          />
         </div>
       </div>
 
@@ -398,7 +458,6 @@
           <ImportProgressModal />
         </div>
       </div>
-
     </div>
   </section>
 </div>
@@ -619,7 +678,6 @@
     opacity: 0.6;
   }
 
-
   .sc-slider-wrap {
     display: flex;
     align-items: center;
@@ -663,7 +721,6 @@
     color: var(--text-bright);
     user-select: none;
   }
-
 
   /* ── Dropdown / ColorPicker frames ── */
   .comp-frame {
@@ -765,5 +822,4 @@
     z-index: auto !important;
     display: block !important;
   }
-
 </style>

@@ -268,5 +268,4 @@
     border-top: 2px solid var(--ctx-border);
     justify-content: flex-end;
   }
-
 </style>

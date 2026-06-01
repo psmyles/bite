@@ -180,7 +180,9 @@
 </script>
 
 <div class="toolbar">
-  <button class="btn btn--primary run-center" disabled={!canRun} onclick={handleRun} title={tooltipText}>Run Workflow</button>
+  <button class="btn btn--primary run-center" disabled={!canRun} onclick={handleRun} title={tooltipText}
+    >Run Workflow</button
+  >
 </div>
 
 {#if showDialog}
