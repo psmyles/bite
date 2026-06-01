@@ -229,7 +229,7 @@
     <button class="btn btn--danger" onclick={cancelBatch}>Cancel</button>
   {:else}
     <!-- Idle state -->
-    <button class="btn btn--primary" disabled={!canRun} onclick={handleRun} title={tooltipText}> ▶ Run Workflow </button>
+    <button class="btn btn--primary run-center" disabled={!canRun} onclick={handleRun} title={tooltipText}> ▶ Run Workflow </button>
     {#if graphStore.batchError}
       <span class="error-label" title={graphStore.batchError}
         >Error: {graphStore.batchError.slice(0, 60)}{graphStore.batchError.length > 60 ? '…' : ''}</span
@@ -252,6 +252,10 @@
     background: var(--panel-header-bg);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+  }
+
+  .run-center {
+    margin: 0 auto;
   }
 
   .running-info {

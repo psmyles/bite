@@ -276,7 +276,10 @@
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  background: var(--panel-header-bg);
+  border-color: color-mix(in srgb, var(--border) 50%, transparent);
+  color: color-mix(in srgb, var(--text-bright) 30%, transparent);
+  opacity: 1;
   cursor: default;
 }
 
