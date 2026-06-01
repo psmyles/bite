@@ -77,6 +77,26 @@
     graphStore.setParam(selectedNode.id, p.name, value);
   }
 
+  function hexToRgba(hex: string): number[] {
+    const h = hex.replace('#', '');
+    if (h.length === 6) {
+      return [
+        parseInt(h.slice(0, 2), 16) / 255,
+        parseInt(h.slice(2, 4), 16) / 255,
+        parseInt(h.slice(4, 6), 16) / 255,
+        1,
+      ];
+    }
+    return [0, 0, 0, 1];
+  }
+
+  function rgbaToHex(rgba: number[]): string {
+    const [r = 0, g = 0, b = 0] = rgba;
+    const clamp = (v: number) => Math.max(0, Math.min(1, v));
+    const toH = (v: number) => Math.round(clamp(v) * 255).toString(16).padStart(2, '0');
+    return '#' + toH(r) + toH(g) + toH(b);
+  }
+
   function onVectorChange(p: ParamDefinition, index: number, rawVal: string) {
     const current = Array.isArray(getValue(p)) ? [...(getValue(p) as number[])] : [];
     while (current.length <= index) current.push(0);
@@ -161,12 +181,10 @@
       <Dropdown value={getValue(p) as string} options={p.options ?? []} onchange={(v) => onChange(p, v)} />
     {:else if p.widget === 'checkbox'}
     {:else if p.widget === 'color-picker'}
-      <input
-        id="param-{p.name}"
-        type="color"
-        value={getValue(p) as string}
-        oninput={(e) => onChange(p, (e.target as HTMLInputElement).value)}
-        class="color-pick"
+      {@const rgba = hexToRgba(String(getValue(p) ?? '#000000'))}
+      <ColorPicker
+        value={rgba}
+        onchange={(v) => onChange(p, rgbaToHex(v))}
       />
     {:else if p.widget === 'vector' && p.type === 'color'}
       {@const vals = Array.isArray(getValue(p)) ? (getValue(p) as number[]) : [0, 0, 0, 1]}
@@ -374,16 +392,6 @@
     width: 100%;
   }
 
-  /* ── Color picker ── */
-  .color-pick {
-    width: 100%;
-    height: 28px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: transparent;
-    cursor: pointer;
-    padding: 2px;
-  }
 
   /* ── Vector input ── */
   .vector-wrap {
