@@ -34,15 +34,35 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="backdrop">
-  <div class="modal" role="dialog" aria-modal="true" aria-label={done ? 'Import Complete' : 'Importing Images'}>
+<div class="backdrop" onclick={done ? () => imageStore.dismissImport() : undefined}>
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-label={done ? 'Import Complete' : 'Importing Images'}
+    onclick={(e) => e.stopPropagation()}
+  >
     <div class="modal-header">
       <span class="modal-title">{done ? 'Import Complete' : 'Importing Images'}</span>
     </div>
 
     {#if done}
       <div class="modal-body done-body">
-        <div class="done-icon"></div>
+        <div class="done-icon">
+          <svg
+            viewBox="0 0 24 24"
+            width="36"
+            height="36"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M5 12l5 5L19 7" />
+          </svg>
+        </div>
         <div class="done-label">{doneLabel}</div>
       </div>
     {:else if progress}
@@ -181,12 +201,16 @@
   }
 
   .done-icon {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--color-success) 20%, transparent);
     border: 2px solid var(--color-success);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-success);
   }
 
   .done-label {
