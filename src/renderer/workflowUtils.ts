@@ -18,7 +18,8 @@ export function hasSetInputInChain(nodes: Node[], edges: Edge[], nodeId: string)
         edge.target === cur &&
         !edge.sourceHandle?.startsWith('param-') &&
         !edge.targetHandle?.startsWith('param-') &&
-        !edge.targetHandle?.startsWith('suf-in-')
+        !edge.targetHandle?.startsWith('suf-in-') &&
+        edge.targetHandle !== 'prefix-in'
       ) {
         queue.push(edge.source);
       }

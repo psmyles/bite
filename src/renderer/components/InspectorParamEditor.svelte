@@ -94,12 +94,21 @@
         {#if wired}<span class="wired-badge">wired</span>{/if}
         {#if p.readonly && !wired && definition?.executor}<span class="output-badge">out</span>{/if}
       </label>
-      {#if !wired && !p.readonly && p.default !== undefined}
+      {#if !wired && !p.readonly && p.default !== undefined && p.widget !== 'checkbox'}
         <button
           class="reset-btn"
           style:visibility={isAtDefault(p) ? 'hidden' : 'visible'}
           onclick={() => resetToDefault(p)}>Reset</button
         >
+      {/if}
+      {#if p.widget === 'checkbox' && !wired}
+        <input
+          id="param-{p.name}"
+          type="checkbox"
+          checked={getValue(p) as boolean}
+          onchange={(e) => onChange(p, (e.target as HTMLInputElement).checked)}
+          class="checkbox"
+        />
       {/if}
     </div>
 
@@ -151,13 +160,6 @@
     {:else if p.widget === 'dropdown'}
       <Dropdown value={getValue(p) as string} options={p.options ?? []} onchange={(v) => onChange(p, v)} />
     {:else if p.widget === 'checkbox'}
-      <input
-        id="param-{p.name}"
-        type="checkbox"
-        checked={getValue(p) as boolean}
-        onchange={(e) => onChange(p, (e.target as HTMLInputElement).checked)}
-        class="checkbox"
-      />
     {:else if p.widget === 'color-picker'}
       <input
         id="param-{p.name}"
@@ -254,6 +256,11 @@
     border-radius: 3px;
     padding: 0 3px;
     line-height: 14px;
+  }
+
+  .checkbox {
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
   .reset-btn {

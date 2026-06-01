@@ -18,6 +18,8 @@
   /* panel title bar background */
   --search-bg: #0e0e0e;
   /* search / filter input background */
+  --text-field-bg: #111111;
+  /* text/number input background — darker than buttons to signal editable field */
   --preview-bg: #000000;
   /* preview panel (intentionally darker) */
   --input-bg: rgba(255, 255, 255, 0.06);
@@ -475,7 +477,7 @@
 .number-input {
   height: 30px;
   padding: 0 8px;
-  background: var(--panel-header-bg);
+  background: var(--text-field-bg);
   border: 2px solid var(--border);
   border-radius: 4px;
   color: var(--text-bright);

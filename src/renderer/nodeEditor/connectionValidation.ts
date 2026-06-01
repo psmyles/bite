@@ -12,6 +12,7 @@ export function handleToWireType(
 ): string {
   // Named special handles
   if (handleId === 'folder-in') return 'path';
+  if (handleId === 'prefix-in') return 'string';
   if (handleId?.startsWith('suf-in-')) return 'string';
   // Text output ports
   if (handleId === 'txo-condition') return 'boolean';

@@ -118,8 +118,8 @@
         </div>
 
         <label class="checkbox-label">
-          <input type="checkbox" bind:checked={recursive} />
           <span>Include subfolders</span>
+          <input type="checkbox" bind:checked={recursive} />
         </label>
         <div class="format-section">
           <span class="section-label">File formats</span>
@@ -256,7 +256,7 @@
   .checkbox-label {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
     cursor: pointer;
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);

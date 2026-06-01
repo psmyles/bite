@@ -34,7 +34,24 @@
     setSuffixes(next);
   }
 
-  // ── Wired suffix detection ────────────────────────────────────────────────
+  // ── Wired prefix/suffix detection ────────────────────────────────────────
+
+  function isPrefixWired(): boolean {
+    return graphStore.edges.some(
+      (e) => e.target === selectedNode.id && e.targetHandle === 'prefix-in'
+    );
+  }
+
+  function getWiredPrefixValue(): string {
+    const edge = graphStore.edges.find(
+      (e) => e.target === selectedNode.id && e.targetHandle === 'prefix-in'
+    );
+    if (!edge) return prefix;
+    const srcNode = graphStore.nodes.find((n) => n.id === edge.source);
+    if (!srcNode) return prefix;
+    const srcParamName = (edge.sourceHandle ?? '').replace('param-out-', '');
+    return String(getNodeParams(srcNode.data)[srcParamName] ?? prefix);
+  }
 
   function isSuffixWired(i: number): boolean {
     return graphStore.edges.some(
@@ -100,14 +117,21 @@
 <div class="inspector-set">
   <!-- Prefix -->
   <div class="row">
-    <label class="row-label">Prefix</label>
-    <input
-      class="text-input row-input"
-      type="text"
-      value={prefix}
-      placeholder="e.g. T_"
-      oninput={(e) => setPrefix((e.currentTarget as HTMLInputElement).value)}
-    />
+    <label class="row-label">
+      Prefix
+      {#if isPrefixWired()}<span class="wired-badge">wired</span>{/if}
+    </label>
+    {#if isPrefixWired()}
+      <div class="wired-value row-input">{getWiredPrefixValue()}</div>
+    {:else}
+      <input
+        class="text-input row-input"
+        type="text"
+        value={prefix}
+        placeholder="e.g. T_"
+        oninput={(e) => setPrefix((e.currentTarget as HTMLInputElement).value)}
+      />
+    {/if}
   </div>
 
   <div class="section-sep"></div>
@@ -117,24 +141,22 @@
   {#each suffixes as suffix, i}
     {@const wired = isSuffixWired(i)}
     <div class="suffix-row">
-      <div class="suffix-header">
-        <span class="suffix-label">suffix {i + 1}</span>
+      <span class="suffix-label">
+        suffix {i + 1}
         {#if wired}<span class="wired-badge">wired</span>{/if}
-      </div>
-      <div class="input-row">
-        {#if wired}
-          <div class="wired-value">{getWiredSuffixValue(i)}</div>
-        {:else}
-          <input
-            class="text-input"
-            type="text"
-            value={suffix}
-            placeholder="e.g. _AO"
-            oninput={(e) => updateSuffix(i, (e.currentTarget as HTMLInputElement).value)}
-          />
-        {/if}
-        <button class="del-btn" onclick={() => removeSuffix(i)} title="Remove suffix">×</button>
-      </div>
+      </span>
+      {#if wired}
+        <div class="wired-value">{getWiredSuffixValue(i)}</div>
+      {:else}
+        <input
+          class="text-input"
+          type="text"
+          value={suffix}
+          placeholder="e.g. _AO"
+          oninput={(e) => updateSuffix(i, (e.currentTarget as HTMLInputElement).value)}
+        />
+      {/if}
+      <button class="del-btn" onclick={() => removeSuffix(i)} title="Remove suffix">×</button>
     </div>
   {/each}
 
@@ -229,17 +251,11 @@
   /* ── Suffix rows ── */
   .suffix-row {
     display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 7px 12px;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
-  }
-
-  .suffix-header {
-    display: flex;
+    flex-direction: row;
     align-items: center;
-    width: 100%;
-    min-height: 16px;
+    gap: 6px;
+    padding: 5px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
   }
 
   .suffix-label {
@@ -248,6 +264,8 @@
     color: var(--text-bright);
     opacity: 0.6;
     user-select: none;
+    flex-shrink: 0;
+    width: 52px;
   }
 
   .wired-badge {
@@ -261,10 +279,9 @@
     margin-left: 6px;
   }
 
-  .input-row {
-    display: flex;
-    gap: 6px;
-    align-items: center;
+  .suffix-row .text-input {
+    flex: 1;
+    width: auto;
   }
 
   .wired-value {

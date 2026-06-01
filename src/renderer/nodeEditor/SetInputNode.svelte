@@ -75,11 +75,13 @@
   );
 
   // Handle positions:
-  // Header: 28px, Images row: 26px, Suffix rows: 26px each
-  // in-0 center: 28 + 13 = 41px
-  // suf-in-i / out-i center: 28 + 26 + i*26 + 13 = 67 + 26*i px
+  // Header: 28px, Images row: 26px, Prefix row: 26px, Suffix rows: 26px each
+  // in-0 center:      28 + 13 = 41px
+  // prefix-in center: 28 + 26 + 13 = 67px
+  // suf-in-i / out-i: 28 + 26 + 26 + i*26 + 13 = 93 + 26*i px
   const IMG_TOP = 41;
-  const sufTop = (i: number) => 67 + 26 * i;
+  const PREFIX_TOP = 67;
+  const sufTop = (i: number) => 93 + 26 * i;
 </script>
 
 <!-- Image input — fixed below header in the Images row -->
@@ -88,6 +90,14 @@
   position={Position.Left}
   id="in-0"
   style="top: {IMG_TOP}px; background: {imgColor}; border-color: {imgColor};"
+/>
+
+<!-- Prefix string input handle -->
+<Handle
+  type="target"
+  position={Position.Left}
+  id="prefix-in"
+  style="top: {PREFIX_TOP}px; background: {strColor}; border-color: {strColor};"
 />
 
 <!-- Per-suffix string input handles (left) and image output handles (right) -->
@@ -114,6 +124,11 @@
   <!-- Images input row — always visible -->
   <div class="img-row">
     <span class="port-tag" style="color: {imgColor}">Image</span>
+  </div>
+
+  <!-- Prefix string input row — always visible -->
+  <div class="img-row">
+    <span class="port-tag" style="color: {strColor}">Prefix</span>
   </div>
 
   {#if suffixes.length === 0}

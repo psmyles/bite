@@ -246,12 +246,12 @@
   <div class="section">
     <div class="section-title">Output Log</div>
     <label class="log-toggle">
+      <span>Generate .log file</span>
       <input
         type="checkbox"
         checked={generateLog}
         onchange={(e) => graphStore.setParam(selectedNode.id, 'generateLog', (e.target as HTMLInputElement).checked)}
       />
-      <span>Generate .log file</span>
     </label>
   </div>
 
@@ -259,13 +259,13 @@
   <div class="section">
     <div class="section-title">Processing Source</div>
     <label class="log-toggle">
+      <span>Use preview image for processing</span>
       <input
         type="checkbox"
         checked={usePreviewForProcessing}
         onchange={(e) =>
           graphStore.setParam(selectedNode.id, 'usePreviewForProcessing', (e.target as HTMLInputElement).checked)}
       />
-      <span>Use preview image for processing</span>
     </label>
   </div>
 
@@ -461,7 +461,7 @@
   .log-toggle {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
     cursor: pointer;
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);
