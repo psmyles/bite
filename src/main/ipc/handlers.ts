@@ -377,6 +377,14 @@ export function registerScanHandlers(): void {
 }
 
 export function registerShellHandlers(): void {
-  ipcMain.handle(IPC.SHELL_OPEN_EXTERNAL, (_e, url: string) => shell.openExternal(url));
+  ipcMain.handle(IPC.SHELL_OPEN_EXTERNAL, (_e, url: string) => {
+    try {
+      const { protocol } = new URL(url);
+      if (protocol !== 'http:' && protocol !== 'https:') return;
+    } catch {
+      return; // Malformed URL — do nothing
+    }
+    return shell.openExternal(url);
+  });
   ipcMain.handle(IPC.SHELL_OPEN_PATH, (_e, folderPath: string) => shell.openPath(folderPath));
 }

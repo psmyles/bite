@@ -78,6 +78,41 @@ describe('buildCommandArgs', () => {
     });
     expect(buildCommandArgs(d, { val: 0 })).toEqual(['-threshold', '0']);
   });
+
+  it('keeps a param value containing spaces as a single token', () => {
+    const d = def({
+      id: 'x',
+      command_template: '-background {{color}}',
+      params: [{ name: 'color', label: 'Color', type: 'string', widget: 'text', default: 'white' }],
+    });
+    expect(buildCommandArgs(d, { color: 'rgba(0, 0, 0, 1)' })).toEqual(['-background', 'rgba(0, 0, 0, 1)']);
+  });
+
+  it('omits a param value that is an empty string', () => {
+    const d = def({
+      id: 'x',
+      command_template: '-font {{name}} -pointsize 12',
+      params: [{ name: 'name', label: 'Font', type: 'string', widget: 'text', default: 'Arial' }],
+    });
+    expect(buildCommandArgs(d, { name: '' })).toEqual(['-font', '-pointsize', '12']);
+  });
+
+  it('handles multiple params where only one contains spaces', () => {
+    const d = def({
+      id: 'x',
+      command_template: '-font {{font}} -pointsize {{size}}',
+      params: [
+        { name: 'font', label: 'Font', type: 'string', widget: 'text', default: 'Arial' },
+        { name: 'size', label: 'Size', type: 'int', widget: 'number', default: 12 },
+      ],
+    });
+    expect(buildCommandArgs(d, { font: 'Open Sans', size: 24 })).toEqual([
+      '-font',
+      'Open Sans',
+      '-pointsize',
+      '24',
+    ]);
+  });
 });
 
 // ── buildCommandArgsFromJs ────────────────────────────────────────────────────

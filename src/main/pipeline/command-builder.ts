@@ -10,12 +10,20 @@ import type { NodeDefinition } from '../../shared/types.js';
 export function buildCommandArgs(def: NodeDefinition, params: Record<string, unknown>): string[] {
   if (!def.command_template) return [];
 
-  const interpolated = def.command_template.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => {
-    const val = key in params ? params[key] : def.params.find((p) => p.name === key)?.default;
-    return val != null ? String(val) : '';
-  });
-
-  return interpolated.split(/\s+/).filter((s) => s.length > 0);
+  // Split on whitespace first (preserving template token boundaries), then substitute
+  // params within each word. This keeps adjacent literals+params as one token
+  // (e.g. "{{w}}x{{h}}" → "1024x768") while also keeping multi-word param values
+  // as single tokens (e.g. color="rgba(0, 0, 0, 1)" stays unsplit).
+  return def.command_template
+    .split(/\s+/)
+    .filter((word) => word.length > 0)
+    .map((word) =>
+      word.replace(/\{\{(\w+)\}\}/g, (_m, key: string) => {
+        const val = key in params ? params[key] : def.params.find((p) => p.name === key)?.default;
+        return val != null ? String(val) : '';
+      })
+    )
+    .filter((word) => word.length > 0);
 }
 
 /**
