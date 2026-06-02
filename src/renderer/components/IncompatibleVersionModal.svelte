@@ -66,7 +66,7 @@
 
   .dialog {
     background: var(--ctx-bg);
-    border: 2px solid var(--color-error-border);
+    border: 2px solid var(--ctx-border);
     border-radius: var(--panel-radius);
     box-shadow: var(--ctx-shadow);
     width: 360px;
@@ -79,8 +79,7 @@
     display: flex;
     align-items: center;
     padding: 10px 14px 9px;
-    border-bottom: 2px solid var(--color-error-border);
-    background: var(--color-error-bg);
+    border-bottom: 2px solid var(--ctx-border);
     flex-shrink: 0;
   }
 
@@ -88,7 +87,7 @@
     font-family: var(--font-ui);
     font-size: var(--font-size-base);
     font-weight: 600;
-    color: var(--color-error-text);
+    color: var(--text-bright);
     letter-spacing: 0.04em;
   }
 
