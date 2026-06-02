@@ -12,32 +12,43 @@
   type OutputNodeStatus = {
     nodeId: string;
     label: string;
-    type: 'imageOutputNode';
+    type: 'imageOutputNode' | 'textOutputNode' | 'flipbookOutputNode';
     valid: boolean;
     reasons: string[];
   };
 
   const outputNodeStatuses = $derived.by((): OutputNodeStatus[] => {
+    const outputTypes = new Set(['imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
     return graphStore.nodes
-      .filter((n) => n.type === 'imageOutputNode')
+      .filter((n) => outputTypes.has(n.type ?? ''))
       .map((n) => {
         const params = getNodeParams(n.data);
         const reasons: string[] = [];
+        const nodeData = n.data as Record<string, unknown>;
+        const type = n.type as 'imageOutputNode' | 'textOutputNode' | 'flipbookOutputNode';
 
         const hasImageWire = graphStore.edges.some((e) => e.target === n.id && e.targetHandle === 'in-0');
         if (!hasImageWire) reasons.push('No image input connected');
 
-        const outputPath = (params.outputPath as string) ?? 'source';
-        if (outputPath === 'custom') {
-          const folderEdge = graphStore.edges.find((e) => e.target === n.id && e.targetHandle === 'folder-in');
-          if (folderEdge) {
-            const src = graphStore.nodes.find((nd) => nd.id === folderEdge.source);
-            const fp = (getNodeParams(src?.data)?.folderPath as string) ?? '';
-            if (!fp.trim()) reasons.push('Connected folder path node has no folder set');
-          } else {
-            const customPath = (params.customPath as string) ?? '';
-            if (!customPath.trim()) reasons.push('Custom output folder is empty');
+        if (type === 'imageOutputNode') {
+          const outputPath = (params.outputPath as string) ?? 'source';
+          if (outputPath === 'custom') {
+            const folderEdge = graphStore.edges.find((e) => e.target === n.id && e.targetHandle === 'folder-in');
+            if (folderEdge) {
+              const src = graphStore.nodes.find((nd) => nd.id === folderEdge.source);
+              const fp = (getNodeParams(src?.data)?.folderPath as string) ?? '';
+              if (!fp.trim()) reasons.push('Connected folder path node has no folder set');
+            } else {
+              const customPath = (params.customPath as string) ?? '';
+              if (!customPath.trim()) reasons.push('Custom output folder is empty');
+            }
           }
+        } else if (type === 'textOutputNode') {
+          const outputPath = (params.outputPath as string) ?? '';
+          if (!outputPath.trim()) reasons.push('Output file path is empty');
+        } else if (type === 'flipbookOutputNode') {
+          const flipbookOutputPath = (params.flipbookOutputPath as string) ?? '';
+          if (!flipbookOutputPath.trim()) reasons.push('Output file path is empty');
         }
 
         const inputNodeId = traceInputNodeId(graphStore.nodes, graphStore.edges, n.id);
@@ -46,10 +57,12 @@
         const imageCount = inputNodeId ? imageStore.getImages(inputNodeId).length : 0;
         if (reasons.length === 0 && imageCount === 0) reasons.push('No images loaded for connected Input node');
 
+        const defaultLabel =
+          type === 'textOutputNode' ? 'Text Output' : type === 'flipbookOutputNode' ? 'Flipbook Output' : 'Image Output';
         return {
           nodeId: n.id,
-          label: ((n.data as Record<string, unknown>)?.label as string) ?? 'Image Output',
-          type: 'imageOutputNode',
+          label: (nodeData?.label as string) ?? defaultLabel,
+          type,
           valid: reasons.length === 0,
           reasons,
         };
@@ -165,13 +178,15 @@
     return () => window.ipcRenderer.off(IPC.MENU_RUN_WORKFLOW, handler);
   });
 
-  const tooltipText = $derived(
-    totalCount === 0
-      ? 'No Image Output nodes in graph'
-      : validCount === 0
-        ? `0 of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`
-        : `${validCount} of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`
-  );
+  const tooltipText = $derived.by(() => {
+    if (totalCount === 0) return 'No output nodes in graph';
+    if (validCount === 0) {
+      const allReasons = outputNodeStatuses.flatMap((s) => s.reasons);
+      const unique = [...new Set(allReasons)];
+      return unique.length > 0 ? unique.join(' · ') : `0 of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`;
+    }
+    return `${validCount} of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`;
+  });
 </script>
 
 <button class="btn btn--primary btn--full" disabled={!canRun} onclick={handleRun} title={tooltipText}>
