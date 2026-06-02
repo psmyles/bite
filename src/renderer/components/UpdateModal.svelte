@@ -230,10 +230,16 @@
     margin: 12px 0 4px;
   }
 
-  .notes-body :global(h1) { font-size: var(--font-size-base); }
-  .notes-body :global(h2) { font-size: var(--font-size-sm); }
+  .notes-body :global(h1) {
+    font-size: var(--font-size-base);
+  }
+  .notes-body :global(h2) {
+    font-size: var(--font-size-sm);
+  }
   .notes-body :global(h3),
-  .notes-body :global(h4) { font-size: var(--font-size-xs); }
+  .notes-body :global(h4) {
+    font-size: var(--font-size-xs);
+  }
 
   .notes-body :global(p) {
     margin: 0 0 8px;
