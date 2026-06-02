@@ -8,7 +8,7 @@
   "version": "0.2.2",
   "type": "commonjs",
   "bin": {
-    "imgplex": "./dist-electron/cli.js"
+    "imgplex-cli": "./dist-electron/cli.js"
   },
   "scripts": {
     "dev": "vite",
