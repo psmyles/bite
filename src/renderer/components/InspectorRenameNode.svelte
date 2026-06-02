@@ -243,7 +243,7 @@
   /* ── Sections ── */
   .section {
     padding: 10px 12px 10px;
-    border-bottom: 1px solid var(--node-border, rgba(255, 255, 255, 0.07));
+    border-bottom: 1px solid var(--node-border);
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -307,7 +307,7 @@
       border-color 0.1s;
   }
   .block-row:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--item-hover-bg);
   }
   .block-row.dragging {
     opacity: 0.5;
@@ -425,8 +425,8 @@
 
   .add-btn {
     flex: 1;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
+    background: var(--btn-subtle-bg);
+    border: 1px solid var(--input-border);
     border-radius: 3px;
     color: var(--text-bright);
     font-family: var(--font-mono);
@@ -481,7 +481,7 @@
     letter-spacing: 0.06em;
     color: var(--text-bright);
     opacity: 0.4;
-    border-bottom: 1px solid var(--node-border, rgba(255, 255, 255, 0.07));
+    border-bottom: 1px solid var(--node-border);
   }
 
   .preview-row {

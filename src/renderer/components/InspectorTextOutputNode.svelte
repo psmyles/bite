@@ -310,7 +310,7 @@
 
   .section {
     padding: 10px 12px;
-    border-bottom: 1px solid var(--node-border, rgba(255, 255, 255, 0.07));
+    border-bottom: 1px solid var(--node-border);
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -338,8 +338,8 @@
 
   /* ── Custom separator ── */
   .custom-sep-input {
-    background: var(--input-bg, rgba(255, 255, 255, 0.06));
-    border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: 3px;
     color: var(--text);
     font-family: var(--font-mono);
@@ -383,7 +383,7 @@
       border-color 0.1s;
   }
   .port-row:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--item-hover-bg);
   }
   .port-row.dragging {
     opacity: 0.5;

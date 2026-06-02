@@ -198,7 +198,7 @@
   /* ── Section layout ─────────────────────────────────────────────────────── */
   .section {
     padding: 10px 12px;
-    border-bottom: 1px solid var(--node-border, rgba(255, 255, 255, 0.07));
+    border-bottom: 1px solid var(--node-border);
     display: flex;
     flex-direction: column;
     gap: 8px;

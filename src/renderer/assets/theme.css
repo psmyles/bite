@@ -26,6 +26,10 @@
   /* compact list inputs (Rename blocks, Set suffixes) */
   --input-border: rgba(255, 255, 255, 0.12);
   /* subtle border for compact list inputs */
+  --item-hover-bg: rgba(255, 255, 255, 0.04);
+  /* hover background for draggable list rows */
+  --btn-subtle-bg: rgba(255, 255, 255, 0.05);
+  /* background for subtle action buttons (add-block, etc.) */
 
   /* ── Color: Text ─────────────────────────────────────────────
      Two-level text hierarchy: default body text and full-white emphasis. */

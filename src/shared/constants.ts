@@ -1,10 +1,5 @@
 import type { NodeGraph } from './types.js';
 
-export const APP_NAME = 'imgplex';
-export const WORKFLOW_EXTENSION = '.workflow';
-export const PREVIEW_MAX_EDGE_PX = 512;
-export const PREVIEW_DEBOUNCE_MS = 75;
-export const THUMBNAIL_SIZE_PX = 120;
 export const EMPTY_GRAPH: NodeGraph = { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
 
 // Executor IDs — must match the "executor" field in node-definition JSON files
