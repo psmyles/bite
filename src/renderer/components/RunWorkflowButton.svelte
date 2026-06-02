@@ -9,7 +9,7 @@
   import { traceInputNodeId } from '../workflowUtils.js';
   import RunWorkflowDialog from './RunWorkflowDialog.svelte';
 
-  type OutputNodeStatus = {
+  export type OutputNodeStatus = {
     nodeId: string;
     label: string;
     type: 'imageOutputNode' | 'textOutputNode' | 'flipbookOutputNode';
@@ -58,7 +58,11 @@
         if (reasons.length === 0 && imageCount === 0) reasons.push('No images loaded for connected Input node');
 
         const defaultLabel =
-          type === 'textOutputNode' ? 'Text Output' : type === 'flipbookOutputNode' ? 'Flipbook Output' : 'Image Output';
+          type === 'textOutputNode'
+            ? 'Text Output'
+            : type === 'flipbookOutputNode'
+              ? 'Flipbook Output'
+              : 'Image Output';
         return {
           nodeId: n.id,
           label: (nodeData?.label as string) ?? defaultLabel,
@@ -183,7 +187,9 @@
     if (validCount === 0) {
       const allReasons = outputNodeStatuses.flatMap((s) => s.reasons);
       const unique = [...new Set(allReasons)];
-      return unique.length > 0 ? unique.join(' · ') : `0 of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`;
+      return unique.length > 0
+        ? unique.join(' · ')
+        : `0 of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`;
     }
     return `${validCount} of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`;
   });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { OutputNodeStatus } from './Toolbar.svelte';
+  import type { OutputNodeStatus } from './RunWorkflowButton.svelte';
 
   let {
     statuses,
