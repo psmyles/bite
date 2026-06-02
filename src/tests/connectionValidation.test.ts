@@ -101,10 +101,7 @@ describe('isValidConnection', () => {
   });
 
   it('incompatible types (number param out → image in) → false', () => {
-    const nodes = [
-      paramNode('a', [{ name: 'val', type: 'float' }]),
-      imgNode('b'),
-    ];
+    const nodes = [paramNode('a', [{ name: 'val', type: 'float' }]), imgNode('b')];
     expect(isValidConnection(conn('a', 'b', 'param-out-val', 'in-0'), nodes, [])).toBe(false);
   });
 

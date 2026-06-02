@@ -110,10 +110,7 @@ describe('executeMultiStream', () => {
   it('single standard node → lazy chain materialised in one spawnMagick call', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     const proc = makeNode('proc', 'negate');
-    const edges = [
-      makeEdge(INPUT_ID, 'proc'),
-      makeEdge('proc', OUTPUT_ID),
-    ];
+    const edges = [makeEdge(INPUT_ID, 'proc'), makeEdge('proc', OUTPUT_ID)];
     const graph = makeGraph([makeNode(INPUT_ID, INPUT_ID), proc, makeNode(OUTPUT_ID, OUTPUT_ID)], edges);
     const registry = makeRegistry({ negate: { command_template: '-negate' } });
     const ctx = makeCtx([proc], graph, registry);
@@ -131,11 +128,7 @@ describe('executeMultiStream', () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     const n1 = makeNode('n1', 'negate');
     const n2 = makeNode('n2', 'flip');
-    const edges = [
-      makeEdge(INPUT_ID, 'n1'),
-      makeEdge('n1', 'n2'),
-      makeEdge('n2', OUTPUT_ID),
-    ];
+    const edges = [makeEdge(INPUT_ID, 'n1'), makeEdge('n1', 'n2'), makeEdge('n2', OUTPUT_ID)];
     const graph = makeGraph([makeNode(INPUT_ID, INPUT_ID), n1, n2, makeNode(OUTPUT_ID, OUTPUT_ID)], edges);
     const registry = makeRegistry({
       negate: { command_template: '-negate' },
@@ -208,11 +201,7 @@ describe('executeMultiStream', () => {
     // inp:out-0 has 2 consumers: n1 and n2
     const n1 = makeNode('n1', 'negate');
     const n2 = makeNode('n2', 'flip');
-    const edges = [
-      makeEdge(INPUT_ID, 'n1'),
-      makeEdge(INPUT_ID, 'n2'),
-      makeEdge('n1', OUTPUT_ID),
-    ];
+    const edges = [makeEdge(INPUT_ID, 'n1'), makeEdge(INPUT_ID, 'n2'), makeEdge('n1', OUTPUT_ID)];
     const graph = makeGraph([makeNode(INPUT_ID, INPUT_ID), n1, n2, makeNode(OUTPUT_ID, OUTPUT_ID)], edges);
     const registry = makeRegistry({
       negate: { command_template: '-negate' },

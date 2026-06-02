@@ -106,12 +106,7 @@ describe('buildCommandArgs', () => {
         { name: 'size', label: 'Size', type: 'int', widget: 'number', default: 12 },
       ],
     });
-    expect(buildCommandArgs(d, { font: 'Open Sans', size: 24 })).toEqual([
-      '-font',
-      'Open Sans',
-      '-pointsize',
-      '24',
-    ]);
+    expect(buildCommandArgs(d, { font: 'Open Sans', size: 24 })).toEqual(['-font', 'Open Sans', '-pointsize', '24']);
   });
 });
 
