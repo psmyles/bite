@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { marked } from 'marked';
   import { IS_ELECTRON } from '../platform.js';
   import { IPC } from '../../shared/constants.js';
 
@@ -72,7 +73,7 @@
         {#if state.body}
           <div class="release-notes">
             <p class="notes-label">Release notes</p>
-            <pre class="notes-body scrollable">{state.body}</pre>
+            <div class="notes-body scrollable">{@html marked.parse(state.body)}</div>
           </div>
         {/if}
       {:else if state.status === 'latest'}
@@ -82,7 +83,7 @@
         {#if state.body}
           <div class="release-notes">
             <p class="notes-label">Release notes</p>
-            <pre class="notes-body scrollable">{state.body}</pre>
+            <div class="notes-body scrollable">{@html marked.parse(state.body)}</div>
           </div>
         {/if}
       {:else}
@@ -210,14 +211,77 @@
   }
 
   .notes-body {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-base);
     color: var(--text);
     line-height: 1.6;
-    white-space: pre-wrap;
     word-break: break-word;
-    margin: 0;
     max-height: 260px;
     overflow-y: auto;
+  }
+
+  .notes-body :global(h1),
+  .notes-body :global(h2),
+  .notes-body :global(h3),
+  .notes-body :global(h4) {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    color: var(--text-bright);
+    margin: 12px 0 4px;
+  }
+
+  .notes-body :global(h1) { font-size: var(--font-size-base); }
+  .notes-body :global(h2) { font-size: var(--font-size-sm); }
+  .notes-body :global(h3),
+  .notes-body :global(h4) { font-size: var(--font-size-xs); }
+
+  .notes-body :global(p) {
+    margin: 0 0 8px;
+  }
+
+  .notes-body :global(ul),
+  .notes-body :global(ol) {
+    margin: 0 0 8px;
+    padding-left: 18px;
+  }
+
+  .notes-body :global(li) {
+    margin-bottom: 2px;
+  }
+
+  .notes-body :global(code) {
+    font-family: var(--font-mono);
+    font-size: inherit;
+    background: var(--input-bg);
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+
+  .notes-body :global(pre) {
+    background: var(--input-bg);
+    border-radius: 4px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    margin: 0 0 8px;
+  }
+
+  .notes-body :global(pre code) {
+    background: none;
+    padding: 0;
+  }
+
+  .notes-body :global(a) {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .notes-body :global(a:hover) {
+    text-decoration: underline;
+  }
+
+  .notes-body :global(hr) {
+    border: none;
+    border-top: 1px solid var(--ctx-separator);
+    margin: 10px 0;
   }
 </style>

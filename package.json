@@ -51,6 +51,7 @@
   "dependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.4",
     "@xyflow/svelte": "^1.5.1",
+    "marked": "^18.0.4",
     "svelte": "^5.53.7"
   }
 }

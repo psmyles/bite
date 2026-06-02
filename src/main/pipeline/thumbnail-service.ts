@@ -24,6 +24,10 @@ export function getMetaCached(imagePath: string): { width: number; height: numbe
   return _metaCache.get(imagePath);
 }
 
+export function clearMetaCache(): void {
+  _metaCache.clear();
+}
+
 export async function loadImage(imagePath: string): Promise<ImageInfo> {
   const output = await new Promise<string>((resolve, reject) => {
     const proc = spawn(getMagickBinary(), ['identify', '-format', '%w %h %m', imagePath]);

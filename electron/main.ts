@@ -17,7 +17,7 @@ import {
   registerAtlasHandlers,
 } from '../src/main/ipc/handlers.js';
 import { timings } from '../src/main/pipeline/timing.js';
-import { TEMP_DIR } from '../src/main/pipeline/thumbnail-service.js';
+import { TEMP_DIR, clearMetaCache } from '../src/main/pipeline/thumbnail-service.js';
 import { spawnMagickCapture } from '../src/main/pipeline/magick-spawn.js';
 import { IPC } from '../src/shared/constants.js';
 
@@ -155,6 +155,8 @@ function openShowcaseWindow() {
   }
 }
 
+let _perfTimersEnabled = false;
+
 function buildMenu() {
   const send = (channel: string) => () => win?.webContents.send(channel);
 
@@ -209,6 +211,40 @@ function buildMenu() {
       ],
     },
     {
+      label: 'Debug',
+      submenu: [
+        {
+          label: _perfTimersEnabled ? 'Disable Performance Timers' : 'Enable Performance Timers',
+          click() {
+            _perfTimersEnabled = !_perfTimersEnabled;
+            timings.enabled = _perfTimersEnabled;
+            buildMenu();
+          },
+        },
+        { type: 'separator' },
+        { label: 'View Log', click: () => openLogWindow() },
+        { type: 'separator' },
+        { label: 'Open Temp Folder', click: () => shell.openPath(TEMP_DIR) },
+        {
+          label: 'Clear Cache',
+          click: () => {
+            clearMetaCache();
+            fs.readdir(TEMP_DIR, (_err, files) => {
+              for (const f of files ?? []) {
+                if (f.startsWith('thumb_')) fs.unlink(path.join(TEMP_DIR, f), () => {});
+              }
+            });
+          },
+        },
+        ...(VITE_DEV_SERVER_URL
+          ? ([
+              { type: 'separator' },
+              { label: 'Show All UI Elements', click: () => openShowcaseWindow() },
+            ] as Electron.MenuItemConstructorOptions[])
+          : []),
+      ],
+    },
+    {
       label: 'Help',
       submenu: [
         { label: 'About', click: send('menu:about') },
@@ -227,23 +263,6 @@ function buildMenu() {
         { label: 'Credits', click: send('menu:credits') },
         { type: 'separator' },
         { label: 'Check for Updates', click: send('menu:check-for-updates') },
-        { type: 'separator' },
-        {
-          label: 'Enable Performance Timers',
-          type: 'checkbox',
-          checked: false,
-          click(item) {
-            timings.enabled = item.checked;
-          },
-        },
-        { type: 'separator' },
-        { label: 'View Log', click: () => openLogWindow() },
-        ...(VITE_DEV_SERVER_URL
-          ? ([
-              { type: 'separator' },
-              { label: 'Show All UI Elements', click: () => openShowcaseWindow() },
-            ] as Electron.MenuItemConstructorOptions[])
-          : []),
       ],
     },
   ];
