@@ -27,9 +27,9 @@ A searchable, categorized list of every available node (Resize, Blur, Flip, Colo
 The main workspace. You connect nodes here using wires to define how your image gets processed. Every workflow starts with two fixed nodes already present:
 
 - **Input** - represents the image currently selected in the Filmstrip
-- **Output** - where the final result gets saved
+- **Image Output** - where the final result gets saved
 
-These two nodes cannot be deleted. Everything you build lives between them.
+These nodes cannot be deleted (at minimum one Input and one output node of any type must remain). Everything you build lives between them.
 
 ### Right - Inspector + Preview
 
@@ -73,9 +73,9 @@ Here's the simplest possible workflow: load an image, resize it, save it.
 
 6. **Check the Preview** - the Preview panel updates automatically. If it doesn't look right, tweak the parameters.
 
-7. **Configure the Output node** - click the Output node in the Inspector to set the output folder and filename pattern.
+7. **Configure the Image Output node** - click the Image Output node to select it. The Inspector shows the output folder and filename settings.
 
-8. **Run the batch** - click the Run button (or use the menu). imgplex will process every image in the Filmstrip and save the results.
+8. **Run the batch** - click the **Run Workflow** button at the bottom of the Inspector panel (or use the menu). imgplex will process every image in the Filmstrip and save the results.
 
 ---
 
@@ -198,7 +198,7 @@ Workflow files are plain JSON. You can version-control them.
 
 ## Gotchas and Common Mistakes
 
-**You can't delete the Input or Output nodes.** They're the fixed anchors of every workflow. If you need to change what they do, use the Inspector or add nodes before/after them.
+**You can't delete the last Input node or the last output node.** A minimum of one Input and one output node (Image Output, Text Output, or Flipbook Output) must always remain. If you need to change what they do, use the Inspector or add nodes before/after them.
 
 **Each input port only accepts one wire.** If you need the same value in multiple places, wire the _source_ output to each destination separately - fan out from the source, not into the destination.
 

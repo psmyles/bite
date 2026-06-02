@@ -8,7 +8,7 @@ A batch image workflow builder application built around a visual node graph edit
 
 - **Visual node graph editor** — chain image operations by connecting nodes
 - **Multi-input / multi-output workflows** — any number of Input nodes (each with its own filmstrip) and any mix of Image Output, Text Output, and Flipbook Output nodes, wired independently
-- **Toolbar Run Workflow** — single button validates and executes all output nodes sequentially; shows a dialog when some are invalid
+- **Run Workflow button** — validates and executes all output nodes sequentially; shows a dialog when some are invalid; located at the bottom of the Inspector panel
 - **Filmstrip view** — per-input-node thumbnail strip; tracks whichever Input node is selected
 - **Real-time preview** — selected image rendered through the current node network, node-level cached
 - **JSON-based node definitions** — add new nodes without recompiling
@@ -22,18 +22,18 @@ A batch image workflow builder application built around a visual node graph edit
 ### UI Layout
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              Toolbar (Run Workflow / progress)              │
-├──────────────┬───────────────────────────┬──────────────────┤
+┌──────────────┬───────────────────────────┬──────────────────┐
 │              │                           │    Inspector     │
 │  Node        │     Node Graph Editor     │  (parameters of  │
 │  Library     │     (@xyflow/svelte)      │  selected node)  │
 │  (sidebar)   │                           ├──────────────────┤
 │              │                           │  Image Preview   │
 │              │                           │  (real-time)     │
+│              │                           ├──────────────────┤
+│              │                           │  Run Workflow    │
 ├──────────────┴───────────────────────────┴──────────────────┤
 │              Filmstrip (active Input node thumbnails)       │
-└─────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -140,17 +140,17 @@ project-root/
 │   │       └── atlas-handlers.ts    — IPC handlers for the atlas (contact sheet) generation feature
 │   └── renderer/
 │       ├── main.ts        — Svelte app mount entry point
-│       ├── App.svelte     — Toolbar + 3-panel resizable layout; workflow save/load; menu IPC listeners; two $effects for active input node tracking (selecting an inputNode calls imageStore.setActive; falls back to first inputNode if active is deleted)
+│       ├── App.svelte     — 3-panel resizable layout; workflow save/load; menu IPC listeners; two $effects for active input node tracking (selecting an inputNode calls imageStore.setActive; falls back to first inputNode if active is deleted)
 │       ├── assets/
 │       │   ├── theme.css  — CSS custom properties (colors, typography, layout sizes, port colors)
 │       │   └── fonts.css  — @font-face for JetBrainsMono-Regular and AtkinsonHyperlegibleNext-Regular
 │       ├── components/
-│       │   ├── Toolbar.svelte               — 32px bar above canvas; Run Workflow button, progress bar, elapsed timer, Cancel; shows RunWorkflowDialog when some output nodes invalid
-│       │   ├── RunWorkflowDialog.svelte     — Modal listing each output node's readiness (✅/⚠️ + reason); "Run N nodes" / Cancel
+│       │   ├── RunWorkflowButton.svelte     — Run Workflow button rendered at the bottom of the Inspector panel; validates all output nodes (imageOutputNode, textOutputNode, flipbookOutputNode); shows RunWorkflowDialog when some are invalid; handles native menu shortcut (IPC.MENU_RUN_WORKFLOW); exports OutputNodeStatus type
+│       │   ├── RunWorkflowDialog.svelte     — Modal listing each output node's readiness (✅/⚠️ + reason); "Run N nodes" / Cancel; imports OutputNodeStatus from RunWorkflowButton.svelte
 │       │   ├── NodeLibrary.svelte           — Pinned Workflow section (Input, Image Output, Text Output, Flipbook Output) + categorised JSON-defined nodes; drag-to-canvas; collapsible, search-filtered
 │       │   ├── Inspector.svelte             — Routes to the correct inspector by node.type
 │       │   ├── InspectorInputNode.svelte    — Takes nodeId prop; scopes all image ops (add/clear/select) to that node
-│       │   ├── InspectorImageOutputNode.svelte — Output path, overwrite mode, log generation; no Run button (toolbar-driven)
+│       │   ├── InspectorImageOutputNode.svelte — Output path, overwrite mode, log generation; no per-node run button (execution goes through RunWorkflowButton)
 │       │   ├── InspectorTextOutputNode.svelte  — Text output settings; uses traceInputNodeId for connected image list; dynamic value port management
 │       │   ├── InspectorFlipbookOutputNode.svelte — Flipbook atlas settings (grid, padding, format)
 │       │   ├── InspectorParamEditor.svelte  — Dynamic param widgets for ProcessNode
@@ -311,7 +311,7 @@ These four types are registered directly in `NodeEditor.svelte` (not from JSON).
 | `textOutputNode`     | Writes text/metadata values to a file    | Not if it's the last output node of any type |
 | `flipbookOutputNode` | Assembles images into a flipbook atlas   | Not if it's the last output node of any type |
 
-All output nodes require an explicit image wire on `in-0`. Execution is triggered from the Toolbar, not the inspector. `traceInputNodeId` is used to determine which input node's image list feeds each output node.
+All output nodes require an explicit image wire on `in-0`. Execution is triggered from the **Run Workflow** button at the bottom of the Inspector panel (`RunWorkflowButton.svelte`). `traceInputNodeId` is used to determine which input node's image list feeds each output node.
 
 ### JSON-Defined Node Categories
 
@@ -575,7 +575,7 @@ Build outputs:
   - Three separate output node types: `imageOutputNode` (writes images to disk), `textOutputNode` (writes per-image metadata to a .txt file), `flipbookOutputNode` (assembles images into an atlas)
   - All output nodes require an explicit image wire on `in-0`
   - `traceInputNodeId` BFS helper resolves which input node feeds a given output node
-  - Toolbar **Run Workflow** button validates all output nodes, shows `RunWorkflowDialog` when some are invalid, runs valid nodes sequentially
+  - **Run Workflow** button (in Inspector panel) validates all output nodes, shows `RunWorkflowDialog` when some are invalid, runs valid nodes sequentially
   - Workflow nodes (Input, Image Output, Text Output, Flipbook Output) draggable from the Node Library **Workflow** section and available in the canvas context menu
   - Deletion guard: last Input node and last output node (of any type) cannot be deleted
   - `graphStore.canDeleteNode()` / `imageStore.removeNode()` wired into all delete paths
