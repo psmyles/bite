@@ -184,7 +184,7 @@
     //     (so imageBuffers has the data they need — covers mean_value-like nodes),
     //     OR they have no image inputs at all (pure value/logic/property nodes).
     const extraNodes = sfNodes.filter((n) => {
-      if (nodeSet.has(n.id) || n.type !== 'process') return false;
+      if (nodeSet.has(n.id) || n.type === 'inputNode' || OUTPUT_TYPES.has(n.type ?? '')) return false;
       const d = n.data as Record<string, unknown>;
       const outs = (d.outputs as string[] | undefined) ?? [];
       if (outs.length > 0) return false; // skip nodes that produce image outputs
