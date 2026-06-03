@@ -139,7 +139,7 @@
       // No connected image pipeline. Still evaluate all pure value/logic nodes
       // (no image inputs, no image outputs) so their computed values appear in the canvas.
       const pureNodes = sfNodes.filter((n) => {
-        if (n.type !== 'process') return false;
+        if (n.type === 'inputNode' || n.type === 'group' || OUTPUT_TYPES.has(n.type ?? '')) return false;
         const d = n.data as Record<string, unknown>;
         const ins = (d.inputs as string[] | undefined) ?? [];
         const outs = (d.outputs as string[] | undefined) ?? [];
@@ -218,8 +218,8 @@
       try {
         const result: { dataUrl: string; propParams: Record<string, Record<string, unknown>> } =
           await window.ipcRenderer.invoke(IPC.EXECUTE_PREVIEW, graph, path);
-        if (seq === _seq && imageStore.selected?.path === path) {
-          previewSrc = result.dataUrl;
+        if (seq === _seq && (!path || imageStore.selected?.path === path)) {
+          if (path) previewSrc = result.dataUrl;
           untrack(() => {
             for (const [nodeId, values] of Object.entries(result.propParams)) {
               graphStore.setPropValues(nodeId, values);
@@ -255,6 +255,9 @@
     const selected = imageStore.selected;
     const _key = graphKey; // track pipeline content + preview node selection
 
+    const sfNodes = $state.snapshot(untrack(() => graphStore.nodes)) as Node[];
+    const sfEdges = $state.snapshot(untrack(() => graphStore.edges)) as Edge[];
+
     if (!selected) {
       if (_timer !== null) {
         clearTimeout(_timer);
@@ -265,14 +268,15 @@
       untrack(() => {
         graphStore.activePreviewNodeId = null;
       });
+      // Still evaluate pure value/logic nodes (compare, math, etc.) even with no image
+      const { graph } = buildPreviewGraph(sfNodes, sfEdges, null);
+      if (graph.nodes.length > 0) schedulePreview('', graph, 0);
       return;
     }
 
     if (!previewSrc) previewSrc = selected.thumbnailDataUrl ?? null;
 
     const path = selected.path;
-    const sfNodes = $state.snapshot(untrack(() => graphStore.nodes)) as Node[];
-    const sfEdges = $state.snapshot(untrack(() => graphStore.edges)) as Edge[];
     const userPrevId = untrack(() => graphStore.previewNodeId);
 
     const { graph, effectivePreviewId, hasConnected } = buildPreviewGraph(sfNodes, sfEdges, userPrevId);

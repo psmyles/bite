@@ -24,6 +24,28 @@ export async function executePreview(
   inputNodeId?: string
 ): Promise<{ dataUrl: string; propParams: Record<string, Record<string, unknown>> }> {
   await fs.promises.mkdir(TEMP_DIR, { recursive: true });
+
+  // No image — evaluate pure value/logic nodes only and return empty dataUrl.
+  if (imagePath === '') {
+    const sorted = topoSort(graph.nodes, graph.edges);
+    const resolvedParams = new Map<string, Record<string, unknown>>();
+    for (const node of sorted) {
+      const def = registry.get(node.data.definitionId);
+      if (!def) continue;
+      resolveNodeParams(node, def, graph.edges, resolvedParams, undefined);
+    }
+    const propParams: Record<string, Record<string, unknown>> = {};
+    for (const node of sorted) {
+      const def = registry.get(node.data.definitionId);
+      if (!def) continue;
+      if (!def.outputs.some((p) => p.type === 'image' || p.type === 'mask')) {
+        const resolved = resolvedParams.get(node.id);
+        if (resolved) propParams[node.id] = resolved;
+      }
+    }
+    return { dataUrl: '', propParams };
+  }
+
   // Resolve the input node: prefer the explicitly passed ID, then find any inputNode type, fall back to legacy ID.
   const resolvedInputNodeId = inputNodeId ?? graph.nodes.find((n) => n.type === 'inputNode')?.id ?? 'workflow-input';
   const inputNode = graph.nodes.find((n) => n.id === resolvedInputNodeId);
