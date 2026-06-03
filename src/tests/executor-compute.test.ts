@@ -426,11 +426,17 @@ describe('computeNodeParams', () => {
 // ── buildResizeArgs ───────────────────────────────────────────────────────────
 
 describe('buildResizeArgs', () => {
-  it('absolute + preserve: fit-within WxH geometry', () => {
+  it('absolute + preserve + anchor=width (default): width-only geometry', () => {
     const args = buildResizeArgs({ mode: 'absolute', width: 800, height: 600, preserve_aspect: true });
     expect(args).toContain('-resize');
     const geom = args[args.indexOf('-resize') + 1];
-    expect(geom).toBe('800x600');
+    expect(geom).toBe('800');
+  });
+
+  it('absolute + preserve + anchor=height: height-only geometry', () => {
+    const args = buildResizeArgs({ mode: 'absolute', width: 800, height: 600, preserve_aspect: true, anchor: 'height' });
+    const geom = args[args.indexOf('-resize') + 1];
+    expect(geom).toBe('x600');
   });
 
   it('absolute + no preserve: forced WxH! geometry', () => {
@@ -451,10 +457,10 @@ describe('buildResizeArgs', () => {
     expect(geom).toBe('75%x50%!');
   });
 
-  it('defaults: absolute 1024x1024, preserve, Lanczos, 72dpi', () => {
+  it('defaults: absolute 1024 (width anchor), preserve, Lanczos, 72dpi', () => {
     const args = buildResizeArgs({});
     expect(args).toContain('-resize');
-    expect(args[args.indexOf('-resize') + 1]).toBe('1024x1024');
+    expect(args[args.indexOf('-resize') + 1]).toBe('1024');
     expect(args).toContain('-filter');
     expect(args[args.indexOf('-filter') + 1]).toBe('Lanczos');
     expect(args).toContain('-density');

@@ -246,12 +246,22 @@ describe('sortNodesGroupFirst', () => {
 // ── buildResizeParamDefs ──────────────────────────────────────────────────────
 
 describe('buildResizeParamDefs', () => {
-  it('absolute + preserve: expose preserve_aspect and width only', () => {
+  it('absolute + preserve + anchor=width (default): expose preserve_aspect and width only', () => {
     const defs = buildResizeParamDefs('absolute', true);
     const names = defs.map((p) => p.name);
     expect(names).toContain('preserve_aspect');
     expect(names).toContain('width');
     expect(names).not.toContain('height');
+    expect(names).not.toContain('scale_width');
+    expect(names).not.toContain('scale_height');
+  });
+
+  it('absolute + preserve + anchor=height: expose preserve_aspect and height only', () => {
+    const defs = buildResizeParamDefs('absolute', true, 'height');
+    const names = defs.map((p) => p.name);
+    expect(names).toContain('preserve_aspect');
+    expect(names).toContain('height');
+    expect(names).not.toContain('width');
     expect(names).not.toContain('scale_width');
     expect(names).not.toContain('scale_height');
   });
@@ -280,14 +290,21 @@ describe('buildResizeParamDefs', () => {
     expect(names).toContain('scale_height');
   });
 
+  it('anchor param is ignored in relative mode', () => {
+    const defsW = buildResizeParamDefs('relative', true, 'width');
+    const defsH = buildResizeParamDefs('relative', true, 'height');
+    expect(defsW.map((p) => p.name)).toEqual(defsH.map((p) => p.name));
+  });
+
   it('all params are writable (readonly=false)', () => {
     for (const combo of [
-      ['absolute', true],
-      ['absolute', false],
-      ['relative', true],
-      ['relative', false],
-    ] as [string, boolean][]) {
-      const defs = buildResizeParamDefs(combo[0], combo[1]);
+      ['absolute', true, 'width'],
+      ['absolute', true, 'height'],
+      ['absolute', false, 'width'],
+      ['relative', true, 'width'],
+      ['relative', false, 'width'],
+    ] as [string, boolean, string][]) {
+      const defs = buildResizeParamDefs(combo[0], combo[1], combo[2]);
       expect(defs.every((p) => p.readonly === false)).toBe(true);
     }
   });

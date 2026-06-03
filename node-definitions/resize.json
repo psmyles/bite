@@ -52,6 +52,14 @@
     },
     { "name": "preserve_aspect", "label": "Preserve Aspect", "type": "bool", "widget": "checkbox", "default": true },
     {
+      "name": "anchor",
+      "label": "Anchor",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "width",
+      "options": ["width", "height"]
+    },
+    {
       "name": "density",
       "label": "Resolution",
       "type": "int",

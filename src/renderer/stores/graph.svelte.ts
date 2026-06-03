@@ -179,8 +179,8 @@ class GraphStore {
    * Recompute paramDefs for a resize node based on its current mode + preserve_aspect,
    * then remove any edges connected to ports that no longer exist.
    */
-  updateResizeParamDefs(nodeId: string, mode: string, preserve: boolean): void {
-    const newDefs = buildResizeParamDefs(mode, preserve);
+  updateResizeParamDefs(nodeId: string, mode: string, preserve: boolean, anchor: string = 'width'): void {
+    const newDefs = buildResizeParamDefs(mode, preserve, anchor);
     const validHandles = new Set(
       newDefs.map((p: ParamPortDef) => (p.readonly ? paramOutHandle(p.name) : paramInHandle(p.name)))
     );

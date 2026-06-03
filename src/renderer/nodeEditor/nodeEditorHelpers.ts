@@ -52,8 +52,8 @@ export function nodeTypeForDef(def: NodeDefinition): string {
   return 'process';
 }
 
-/** Compute dynamic paramDefs for a resize node based on current mode + preserve_aspect. */
-export function buildResizeParamDefs(mode: string, preserve: boolean): ParamPortDef[] {
+/** Compute dynamic paramDefs for a resize node based on current mode + preserve_aspect + anchor. */
+export function buildResizeParamDefs(mode: string, preserve: boolean, anchor: string = 'width'): ParamPortDef[] {
   const defs: ParamPortDef[] = [
     {
       name: 'preserve_aspect',
@@ -85,6 +85,18 @@ export function buildResizeParamDefs(mode: string, preserve: boolean): ParamPort
         portOnly: false,
         noPort: false,
       });
+  } else if (preserve) {
+    // Only expose the anchored dimension as a port; the other is derived from aspect ratio
+    const dim = anchor === 'height' ? 'height' : 'width';
+    defs.push({
+      name: dim,
+      type: 'int',
+      label: dim === 'height' ? 'Height' : 'Width',
+      readonly: false,
+      default: 1024,
+      portOnly: false,
+      noPort: false,
+    });
   } else {
     defs.push({
       name: 'width',
@@ -95,16 +107,15 @@ export function buildResizeParamDefs(mode: string, preserve: boolean): ParamPort
       portOnly: false,
       noPort: false,
     });
-    if (!preserve)
-      defs.push({
-        name: 'height',
-        type: 'int',
-        label: 'Height',
-        readonly: false,
-        default: 1024,
-        portOnly: false,
-        noPort: false,
-      });
+    defs.push({
+      name: 'height',
+      type: 'int',
+      label: 'Height',
+      readonly: false,
+      default: 1024,
+      portOnly: false,
+      noPort: false,
+    });
   }
   return defs;
 }
@@ -139,7 +150,7 @@ export function buildNodeData(def: NodeDefinition) {
     // enum params are not connectable; all other typed params get ports.
     paramDefs:
       def.id === 'resize'
-        ? buildResizeParamDefs(String(params.mode ?? 'absolute'), params.preserve_aspect !== false)
+        ? buildResizeParamDefs(String(params.mode ?? 'absolute'), params.preserve_aspect !== false, String(params.anchor ?? 'width'))
         : def.params
             .filter((p) => p.type !== 'enum')
             .map((p) => ({
@@ -181,7 +192,7 @@ export function expandNodeData(def: NodeDefinition, savedParams: Record<string, 
     return {
       ...base,
       params,
-      paramDefs: buildResizeParamDefs(String(params.mode ?? 'absolute'), params.preserve_aspect !== false),
+      paramDefs: buildResizeParamDefs(String(params.mode ?? 'absolute'), params.preserve_aspect !== false, String(params.anchor ?? 'width')),
     };
   }
 

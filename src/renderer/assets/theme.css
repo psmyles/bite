@@ -362,6 +362,10 @@
      Reusable shadow for floating surfaces (dropdowns, tooltips). */
   --shadow-popover: 0 4px 12px rgba(0, 0, 0, 0.4);
 
+  /* ── Disabled State ──────────────────────────────────────────
+     Opacity applied to inputs and controls in a disabled/read-only state. */
+  --disabled-opacity: 0.4;
+
   /* ── Node Graph: Context Menu ────────────────────────────────
      Popup for inserting nodes. Triggered by right-click, Space,
      Tab, or dropping a wire onto empty canvas.                */

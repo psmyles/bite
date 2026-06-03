@@ -10,6 +10,7 @@
   const params = $derived(getNodeParams(selectedNode?.data));
   const mode = $derived((params.mode as string) ?? 'absolute');
   const preserve = $derived((params.preserve_aspect as boolean) !== false);
+  const anchor = $derived((params.anchor as string) ?? 'width');
   const unit = $derived(mode === 'relative' ? '%' : 'px');
 
   // Source image dimensions for aspect ratio calculation and resize preview
@@ -32,12 +33,13 @@
 
   // Resize preview — mirrors ImageMagick's actual resize behaviour:
   //   relative: scale by percent; preserve uses widthVal uniformly
-  //   absolute+preserve: resize to width, height scales proportionally (not fit-within)
+  //   absolute+preserve+anchor=width: resize to width, height scales proportionally
+  //   absolute+preserve+anchor=height: resize to height, width scales proportionally
   //   absolute+!preserve: force exact dimensions
   const previewW = $derived.by(() => {
     if (!srcW || !srcH) return null;
     if (mode === 'relative') return Math.round((srcW * widthVal) / 100);
-    if (preserve) return widthVal;
+    if (preserve) return anchor === 'height' ? Math.round((srcW * heightVal) / srcH) : widthVal;
     return widthVal;
   });
   const previewH = $derived.by(() => {
@@ -47,7 +49,7 @@
         ? Math.round((srcH * widthVal) / 100) // uniform scale
         : Math.round((srcH * heightVal) / 100);
     }
-    if (preserve) return Math.round((srcH * widthVal) / srcW);
+    if (preserve) return anchor === 'height' ? heightVal : Math.round((srcH * widthVal) / srcW);
     return heightVal;
   });
 
@@ -93,7 +95,12 @@
         set('scale_height', sw);
       }
     }
-    graphStore.updateResizeParamDefs(selectedNode.id, mode, checked);
+    graphStore.updateResizeParamDefs(selectedNode.id, mode, checked, anchor);
+  }
+
+  function onAnchorChange(newAnchor: string) {
+    set('anchor', newAnchor);
+    graphStore.updateResizeParamDefs(selectedNode.id, mode, preserve, newAnchor);
   }
 </script>
 
@@ -106,7 +113,7 @@
     labels={['Absolute', 'Relative']}
     onchange={(v) => {
       set('mode', v);
-      graphStore.updateResizeParamDefs(selectedNode.id, v, preserve);
+      graphStore.updateResizeParamDefs(selectedNode.id, v, preserve, anchor);
     }}
   />
 </div>
@@ -121,18 +128,35 @@
   />
 </div>
 
+<!-- Anchor (only when preserve is on and mode is absolute) -->
+{#if preserve && mode === 'absolute'}
+  <div class="param-row">
+    <span class="param-label">Anchor</span>
+    <Dropdown
+      value={anchor}
+      options={['width', 'height']}
+      labels={['Width', 'Height']}
+      onchange={onAnchorChange}
+    />
+  </div>
+{/if}
+
 <!-- Width -->
 <div class="param-row">
   <span class="param-label">Width</span>
   <div class="value-row">
-    <input
-      type="number"
-      class="text-input num-input"
-      value={widthVal}
-      min="1"
-      step="1"
-      onchange={(e) => onWidthChange((e.target as HTMLInputElement).value)}
-    />
+    {#if preserve && mode === 'absolute' && anchor === 'height'}
+      <input type="number" class="text-input num-input" value={previewW ?? widthVal} disabled />
+    {:else}
+      <input
+        type="number"
+        class="text-input num-input"
+        value={widthVal}
+        min="1"
+        step="1"
+        onchange={(e) => onWidthChange((e.target as HTMLInputElement).value)}
+      />
+    {/if}
     <span class="unit">{unit}</span>
   </div>
 </div>
@@ -141,14 +165,18 @@
 <div class="param-row">
   <span class="param-label">Height</span>
   <div class="value-row">
-    <input
-      type="number"
-      class="text-input num-input"
-      value={heightVal}
-      min="1"
-      step="1"
-      onchange={(e) => onHeightChange((e.target as HTMLInputElement).value)}
-    />
+    {#if preserve && mode === 'absolute' && anchor === 'width'}
+      <input type="number" class="text-input num-input" value={previewH ?? heightVal} disabled />
+    {:else}
+      <input
+        type="number"
+        class="text-input num-input"
+        value={heightVal}
+        min="1"
+        step="1"
+        onchange={(e) => onHeightChange((e.target as HTMLInputElement).value)}
+      />
+    {/if}
     <span class="unit">{unit}</span>
   </div>
 </div>
@@ -235,6 +263,11 @@
   .num-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
+  }
+
+  .num-input:disabled {
+    opacity: var(--disabled-opacity);
+    cursor: default;
   }
 
   .unit {

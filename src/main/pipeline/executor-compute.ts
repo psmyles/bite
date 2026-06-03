@@ -234,7 +234,12 @@ export function buildResizeArgs(params: Record<string, unknown>): string[] {
   } else {
     const w = Math.max(1, Math.round(Number(params.width ?? 1024)));
     const h = Math.max(1, Math.round(Number(params.height ?? 1024)));
-    geometry = preserve ? `${w}x${h}` : `${w}x${h}!`;
+    if (preserve) {
+      const anchor = String(params.anchor ?? 'width');
+      geometry = anchor === 'height' ? `x${h}` : `${w}`;
+    } else {
+      geometry = `${w}x${h}!`;
+    }
   }
 
   const density = Math.round(Number(params.density ?? 72));
