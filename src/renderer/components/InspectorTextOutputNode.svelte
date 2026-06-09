@@ -236,6 +236,17 @@
     </div>
   </div>
 
+  <!-- ── Overwrite ────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Overwrite</div>
+    <Dropdown
+      value={(params.overwrite as string) ?? 'skip'}
+      options={['skip', 'overwrite']}
+      labels={['Skip existing', 'Overwrite']}
+      onchange={(v) => graphStore.setParam(selectedNode.id, 'overwrite', v)}
+    />
+  </div>
+
   <!-- ── Separator ──────────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-title">Separator</div>
