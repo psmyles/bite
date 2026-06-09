@@ -425,7 +425,11 @@
       const defaults = WORKFLOW_NODE_DEFAULTS[workflowType];
       if (!defaults) return;
       const newId = `${workflowType}-${Date.now()}`;
-      nodes = [...nodes, { id: newId, type: workflowType, position, data: { ...defaults } }];
+      const cliName = makeWorkflowCliName(workflowType, nodes);
+      nodes = [
+        ...nodes,
+        { id: newId, type: workflowType, position, data: { ...defaults, params: { ...defaults.params, cliName } } },
+      ];
 
       // Auto-connect for wire-drop: image input nodes have 'out-0', output nodes have 'in-0'
       if (wireSource) {
@@ -806,12 +810,12 @@
     string,
     { label: string; inputs: string[]; outputs: string[]; params: Record<string, unknown> }
   > = {
-    inputNode: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 256 } },
+    inputNode: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 256, cliName: '' } },
     imageOutputNode: {
       label: 'Image Output',
       inputs: ['image'],
       outputs: [],
-      params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false },
+      params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false, cliName: '' },
     },
     textOutputNode: {
       label: 'Text Output',
@@ -824,6 +828,7 @@
         separatorType: 'comma',
         customSeparator: '',
         generateLog: false,
+        cliName: '',
       },
     },
     flipbookOutputNode: {
@@ -839,9 +844,23 @@
         sortBy: 'import_order',
         bgColor: [0, 0, 0, 0],
         generateLog: false,
+        cliName: '',
       },
     },
   };
+
+  const CLI_NAME_PREFIXES: Record<string, string> = {
+    inputNode: 'input',
+    imageOutputNode: 'output-image',
+    textOutputNode: 'output-text',
+    flipbookOutputNode: 'output-flipbook',
+  };
+
+  function makeWorkflowCliName(workflowType: string, currentNodes: typeof nodes): string {
+    const prefix = CLI_NAME_PREFIXES[workflowType] ?? workflowType;
+    const count = currentNodes.filter((n) => n.type === workflowType).length;
+    return `${prefix}-${count + 1}`;
+  }
 
   function onDrop(e: DragEvent) {
     e.preventDefault();
@@ -853,11 +872,12 @@
       const canvasPos = screenToCanvas({ x: e.clientX, y: e.clientY });
       const position = { x: canvasPos.x - NODE_W / 2, y: canvasPos.y - NODE_H / 2 };
       const defaults = WORKFLOW_NODE_DEFAULTS[workflowType];
+      const cliName = makeWorkflowCliName(workflowType, nodes);
       const newNode: Node = {
         id: `${workflowType}-${Date.now()}`,
         type: workflowType,
         position,
-        data: { ...defaults },
+        data: { ...defaults, params: { ...defaults.params, cliName } },
       };
       nodes = [...nodes, newNode];
       pushHistory();

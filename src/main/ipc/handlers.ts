@@ -163,7 +163,7 @@ export function registerPipelineHandlers(
     const workflowFile = `${scriptBase}.imgplex`;
     const workflowPath = path.join(path.dirname(result.filePath), workflowFile);
 
-    const scriptContent = executor.exportCLI(shellType, workflowFile);
+    const scriptContent = executor.exportCLI(shellType, workflowFile, graph);
     writeFileSync(result.filePath, scriptContent, 'utf-8');
     const now = new Date().toISOString();
     writeFileSync(

@@ -17,6 +17,21 @@
 
   const params = $derived(getNodeParams(selectedNode?.data));
 
+  const cliName = $derived((params.cliName as string) ?? '');
+  const cliNameConflict = $derived.by(() => {
+    const WORKFLOW_TYPES = new Set(['inputNode', 'imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
+    return (
+      cliName.length > 0 &&
+      graphStore.nodes.some(
+        (n) => n.id !== selectedNode.id && WORKFLOW_TYPES.has(n.type ?? '') && ((n.data as Record<string, unknown>)?.params as Record<string, unknown>)?.cliName === cliName
+      )
+    );
+  });
+
+  function sanitizeCliName(raw: string): string {
+    return raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  }
+
   const outputPath = $derived((params.outputPath as string) ?? '');
   const generateLog = $derived(Boolean(params.generateLog ?? false));
   const usePreviewForProcessing = $derived(Boolean(params.usePreviewForProcessing ?? false));
@@ -177,6 +192,27 @@
 </script>
 
 <div class="txo-inspector">
+  <!-- ── CLI Name ──────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">CLI Name</div>
+    <input
+      type="text"
+      class="text-input"
+      value={cliName}
+      placeholder="e.g. output-text-1"
+      oninput={(e) => graphStore.setParam(selectedNode.id, 'cliName', sanitizeCliName((e.target as HTMLInputElement).value))}
+    />
+    <span class="flag-hint" class:conflict={cliNameConflict}>
+      {#if cliNameConflict}
+        Name already used by another node
+      {:else if cliName}
+        Flag: --{cliName}
+      {:else}
+        No flag (node won't appear in exported script)
+      {/if}
+    </span>
+  </div>
+
   <!-- ── Output Path ─────────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-title">Output File</div>
@@ -322,6 +358,18 @@
     color: var(--text-bright);
     opacity: 0.6;
     margin-bottom: 2px;
+  }
+
+  .flag-hint {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text);
+    opacity: 0.6;
+  }
+
+  .flag-hint.conflict {
+    color: var(--color-error-text);
+    opacity: 1;
   }
 
   /* ── Path row ── */

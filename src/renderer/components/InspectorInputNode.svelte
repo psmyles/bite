@@ -13,6 +13,26 @@
     return Number(params?.thumbnailSize ?? 128);
   });
 
+  const cliName = $derived.by(() => {
+    const node = graphStore.nodes.find((n) => n.id === nodeId);
+    const params = (node?.data as Record<string, unknown>)?.params as Record<string, unknown> | undefined;
+    return (params?.cliName as string) ?? '';
+  });
+
+  const cliNameConflict = $derived.by(() => {
+    const WORKFLOW_TYPES = new Set(['inputNode', 'imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
+    return (
+      cliName.length > 0 &&
+      graphStore.nodes.some(
+        (n) => n.id !== nodeId && WORKFLOW_TYPES.has(n.type ?? '') && ((n.data as Record<string, unknown>)?.params as Record<string, unknown>)?.cliName === cliName
+      )
+    );
+  });
+
+  function sanitizeCliName(raw: string): string {
+    return raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  }
+
   // ── Format groups ─────────────────────────────────────────────────────────
   const FORMAT_GROUPS = [
     { label: 'PNG', exts: ['png'] },
@@ -90,6 +110,27 @@
 </script>
 
 <div class="input-inspector">
+  <!-- ── CLI Name ──────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">CLI Name</div>
+    <input
+      type="text"
+      class="text-input"
+      value={cliName}
+      placeholder="e.g. input-1"
+      oninput={(e) => graphStore.setParam(nodeId, 'cliName', sanitizeCliName((e.target as HTMLInputElement).value))}
+    />
+    <span class="flag-hint" class:conflict={cliNameConflict}>
+      {#if cliNameConflict}
+        Name already used by another node
+      {:else if cliName}
+        Flag: --{cliName}
+      {:else}
+        No flag (node won't appear in exported script)
+      {/if}
+    </span>
+  </div>
+
   <!-- ── Thumbnail Size ─────────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-title">Thumbnail Size</div>
@@ -210,6 +251,18 @@
     font-size: var(--font-size-sm);
     color: var(--text-bright);
     opacity: 0.6;
+  }
+
+  .flag-hint {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text);
+    opacity: 0.6;
+  }
+
+  .flag-hint.conflict {
+    color: var(--color-error-text);
+    opacity: 1;
   }
 
   .folder-path {

@@ -36,7 +36,7 @@ function makeSeedNodes(): Node[] {
       id: `input-${ts}`,
       type: 'inputNode',
       position: { x: 80, y: 180 },
-      data: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 256 } },
+      data: { label: 'Input', inputs: [], outputs: ['image'], params: { thumbnailSize: 256, cliName: 'input-1' } },
     },
     {
       id: `imageOutput-${ts + 1}`,
@@ -46,7 +46,7 @@ function makeSeedNodes(): Node[] {
         label: 'Image Output',
         inputs: ['image'],
         outputs: [],
-        params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false },
+        params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false, cliName: 'output-image-1' },
       },
     },
   ];

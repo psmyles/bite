@@ -7,6 +7,9 @@ import type { NodeGraph } from '../shared/types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+type GraphNode = NodeGraph['nodes'][number];
+type GraphEdge = NodeGraph['edges'][number];
+
 const IMAGE_EXTS = new Set([
   '.jpg',
   '.jpeg',
@@ -63,15 +66,44 @@ function usage(): never {
       'imgplex-cli',
       '',
       'Commands:',
-      '  imgplex-cli run <workflow.imgplex> [options]',
+      '  imgplex-cli run <workflow.imgplex> [flags]',
       '',
-      'Options:',
-      '  --input,  -i <dir>   Source image folder  (default: current directory)',
-      '  --output, -o <dir>   Output folder         (default: ./output)',
+      'Flags:',
+      '  --<cliName> <path>   Named input/output defined in the workflow (see script comments)',
       '  --overwrite          Overwrite existing output files (default: skip)',
+      '',
+      'Named flags correspond to the CLI Name set on each Input/Output node in the workflow.',
+      'Export a CLI script from imgplex (File → Export CLI Script) to see the exact flags for',
+      'a given workflow.',
     ].join('\n')
   );
   process.exit(0);
+}
+
+// BFS backward from outputNodeId through image edges to find the connected inputNode.
+function traceInputNodeId(nodes: GraphNode[], edges: GraphEdge[], outputNodeId: string): string | null {
+  const visited = new Set<string>();
+  const queue = [outputNodeId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    if (nodes.find((n) => n.id === id)?.type === 'inputNode') return id;
+    for (const e of edges) {
+      if (
+        e.target === id &&
+        !e.sourceHandle?.startsWith('param-') &&
+        !e.targetHandle?.startsWith('param-')
+      ) {
+        queue.push(e.source);
+      }
+    }
+  }
+  return null;
+}
+
+function nodeCliName(node: GraphNode): string {
+  return ((node.data.params.cliName as string) ?? '').trim();
 }
 
 async function main(): Promise<void> {
@@ -82,18 +114,16 @@ async function main(): Promise<void> {
   const workflowArg = argv[1];
   if (!workflowArg) die('Missing workflow file argument.\nUsage: imgplex-cli run <workflow.imgplex>');
 
-  let inputDir = '.';
-  let outputDir = 'output';
+  // Parse --flag value pairs and --overwrite boolean
   let overwrite: 'skip' | 'overwrite' = 'skip';
+  const flagValues = new Map<string, string>(); // flag name → path value
 
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
-    if ((a === '--input' || a === '-i') && argv[i + 1]) {
-      inputDir = argv[++i];
-    } else if ((a === '--output' || a === '-o') && argv[i + 1]) {
-      outputDir = argv[++i];
-    } else if (a === '--overwrite') {
+    if (a === '--overwrite') {
       overwrite = 'overwrite';
+    } else if (a.startsWith('--') && argv[i + 1] && !argv[i + 1].startsWith('--')) {
+      flagValues.set(a.slice(2), argv[++i]);
     }
   }
 
@@ -107,20 +137,25 @@ async function main(): Promise<void> {
     die(`Cannot read workflow: ${workflowPath}`);
   }
 
-  // Scan input for images
-  const inputAbs = resolve(inputDir);
-  let images: string[];
-  try {
-    images = readdirSync(inputAbs)
-      .filter((f) => IMAGE_EXTS.has(extname(f).toLowerCase()))
-      .map((f) => resolve(inputAbs, f));
-  } catch {
-    die(`Cannot read input directory: ${inputAbs}`);
-  }
-  if (images.length === 0) die(`No images found in: ${inputAbs}`);
+  // Build cliName → node map for input nodes and output nodes
+  const INPUT_TYPES = new Set(['inputNode']);
+  const OUTPUT_TYPES = new Set(['imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
 
-  // In a pkg-compiled binary, node-definitions are real files next to the exe
-  // (installed via extraFiles) so users can add custom nodes.
+  const inputNodeByFlag = new Map<string, GraphNode>();
+  const outputNodeByFlag = new Map<string, GraphNode>();
+
+  for (const node of graph.nodes) {
+    const name = nodeCliName(node);
+    if (!name) continue;
+    if (INPUT_TYPES.has(node.type)) inputNodeByFlag.set(name, node);
+    else if (OUTPUT_TYPES.has(node.type)) outputNodeByFlag.set(name, node);
+  }
+
+  // Collect all output nodes (even those without a cliName — they use their baked-in paths)
+  const outputNodes = graph.nodes.filter((n) => OUTPUT_TYPES.has(n.type));
+  if (outputNodes.length === 0) die('Workflow has no output nodes.');
+
+  // In a pkg-compiled binary, node-definitions are real files next to the exe.
   // In dev, they're at the project root relative to dist-electron/.
   const nodeDefsDir = (process as NodeJS.Process & { pkg?: unknown }).pkg
     ? resolve(dirname(process.execPath), 'node-definitions')
@@ -129,38 +164,108 @@ async function main(): Promise<void> {
   await registry.load(nodeDefsDir);
 
   const executor = new PipelineExecutor();
-  const outputAbs = resolve(outputDir);
 
-  process.stdout.write(`Processing ${images.length} image(s)...\n`);
+  for (const outNode of outputNodes) {
+    const outCliName = nodeCliName(outNode);
+    const label = outCliName || outNode.type;
 
-  const outputNodeId =
-    graph.nodes.find((n) => n.type === 'imageOutputNode')?.id ??
-    graph.nodes.find((n) => n.id === 'workflow-output')?.id ??
-    'workflow-output';
-  const inputNodeId =
-    graph.nodes.find((n) => n.type === 'inputNode')?.id ??
-    graph.nodes.find((n) => n.id === 'workflow-input')?.id ??
-    'workflow-input';
-
-  await executor.executeBatch(
-    graph,
-    outputNodeId,
-    inputNodeId,
-    images,
-    outputAbs,
-    overwrite,
-    registry,
-    ({ completed, total, currentFile }) => {
-      const pct = Math.round((completed / total) * 100)
-        .toString()
-        .padStart(3);
-      const file = currentFile.length > 40 ? '...' + currentFile.slice(-37) : currentFile.padEnd(40);
-      process.stdout.write(`\r  [${pct}%] ${completed}/${total}  ${file}`);
+    // Find the input node that feeds this output node
+    const inputNodeId = traceInputNodeId(graph.nodes, graph.edges, outNode.id);
+    if (!inputNodeId) {
+      console.warn(`[imgplex] Skipping "${label}" — cannot trace back to an Input node.`);
+      continue;
     }
-  );
 
-  process.stdout.write('\n');
-  console.log(`Done → ${outputAbs}`);
+    const inputNode = graph.nodes.find((n) => n.id === inputNodeId)!;
+    const inputCliName = nodeCliName(inputNode);
+
+    // Resolve the input directory
+    const inputDirRaw = inputCliName
+      ? flagValues.get(inputCliName)
+      : undefined;
+
+    if (!inputDirRaw) {
+      die(
+        `Missing required flag: --${inputCliName || 'input'}\n` +
+          `  Needed to run output node "${label}".\n` +
+          `  Export a CLI script from imgplex to see all required flags.`
+      );
+    }
+
+    const inputAbs = resolve(inputDirRaw!);
+    let images: string[];
+    try {
+      images = readdirSync(inputAbs)
+        .filter((f) => IMAGE_EXTS.has(extname(f).toLowerCase()))
+        .map((f) => resolve(inputAbs, f));
+    } catch {
+      die(`Cannot read input directory: ${inputAbs}`);
+    }
+    if (images.length === 0) die(`No images found in: ${inputAbs}`);
+
+    // Resolve the output path for this node
+    let outputDir: string | null = null;
+    let patchedGraph = graph;
+
+    if (outNode.type === 'imageOutputNode') {
+      const flagValue = outCliName ? flagValues.get(outCliName) : undefined;
+      if (flagValue) {
+        outputDir = resolve(flagValue);
+      } else {
+        const outputPath = (outNode.data.params.outputPath as string) ?? 'source';
+        if (outputPath === 'custom') {
+          const cp = (outNode.data.params.customPath as string) ?? '';
+          outputDir = cp ? resolve(cp) : null;
+        }
+        // 'source' → outputDir stays null (same folder as source)
+      }
+    } else {
+      // textOutputNode / flipbookOutputNode: output path is a file path baked into params
+      const flagValue = outCliName ? flagValues.get(outCliName) : undefined;
+      if (flagValue) {
+        // Patch the graph copy to override the output path for this node
+        const paramKey = outNode.type === 'textOutputNode' ? 'outputPath' : 'flipbookOutputPath';
+        patchedGraph = {
+          ...graph,
+          nodes: graph.nodes.map((n) =>
+            n.id === outNode.id
+              ? { ...n, data: { ...n.data, params: { ...n.data.params, [paramKey]: resolve(flagValue) } } }
+              : n
+          ),
+        };
+      }
+    }
+
+    process.stdout.write(`\n[${label}] Processing ${images.length} image(s)...\n`);
+
+    await executor.executeBatch(
+      patchedGraph,
+      outNode.id,
+      inputNodeId,
+      images,
+      outputDir,
+      overwrite,
+      registry,
+      ({ completed, total, currentFile }) => {
+        const pct = Math.round((completed / total) * 100)
+          .toString()
+          .padStart(3);
+        const file = currentFile.length > 40 ? '...' + currentFile.slice(-37) : currentFile.padEnd(40);
+        process.stdout.write(`\r  [${pct}%] ${completed}/${total}  ${file}`);
+      }
+    );
+
+    process.stdout.write('\n');
+    if (outputDir) {
+      console.log(`Done → ${outputDir}`);
+    } else if (outNode.type === 'imageOutputNode') {
+      console.log(`Done → (same folder as source)`);
+    } else {
+      const paramKey = outNode.type === 'textOutputNode' ? 'outputPath' : 'flipbookOutputPath';
+      const outPath = (patchedGraph.nodes.find((n) => n.id === outNode.id)?.data.params[paramKey] as string) ?? '';
+      console.log(`Done → ${outPath || '(path not set)'}`);
+    }
+  }
 }
 
 main().catch((err) => {

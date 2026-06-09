@@ -75,11 +75,11 @@ export class PipelineExecutor {
 
   // ── CLI script export ────────────────────────────────────────────────────────
 
-  exportCLI(shellType: 'powershell' | 'bash' | 'cmd', workflowFileName: string): string {
+  exportCLI(shellType: 'powershell' | 'bash' | 'cmd', workflowFileName: string, graph: NodeGraph): string {
     const date = new Date().toISOString().slice(0, 10);
-    if (shellType === 'powershell') return cliScriptPS(workflowFileName, date);
-    if (shellType === 'bash') return cliScriptBash(workflowFileName, date);
-    return cliScriptCmd(workflowFileName, date);
+    if (shellType === 'powershell') return cliScriptPS(workflowFileName, date, graph);
+    if (shellType === 'bash') return cliScriptBash(workflowFileName, date, graph);
+    return cliScriptCmd(workflowFileName, date, graph);
   }
 
   // ── Cache control ───────────────────────────────────────────────────────────
