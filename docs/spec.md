@@ -125,7 +125,7 @@ project-root/
 │   │   │   ├── set-pipeline.ts      - executeSetBatch; groups images by naming convention, runs one executeMultiStream per set
 │   │   │   ├── resolve-params.ts    - resolveNodeParams(node, def, edges, resolvedParams, meta): shared param-resolution step used by batch, preview, and text-output pipelines
 │   │   │   ├── executor-compute.ts  - Pure numeric/vector helpers and computeNodeParams (reads image metadata via magick identify)
-│   │   │   ├── executor-cli.ts      - CLI script generators (PowerShell / Bash / CMD)
+│   │   │   ├── executor-cli.ts      - CLI script generators (PowerShell / Bash / CMD); graph-aware — reads cliName params to emit one named flag per workflow node
 │   │   │   ├── executorRegistry.ts  - ArgBuilderFn registry for nodes needing custom argument building beyond command_template/command_js
 │   │   │   ├── imageNodeExecutors.ts - Registers executors for image-processing nodes with logic beyond a template
 │   │   │   ├── command-builder.ts   - Converts command_template / command_js + resolved params into string[] of ImageMagick args
@@ -313,6 +313,8 @@ These four types are registered directly in `NodeEditor.svelte` (not from JSON).
 
 All output nodes require an explicit image wire on `in-0`. Execution is triggered from the **Run Workflow** button at the bottom of the Inspector panel (`RunWorkflowButton.svelte`). `traceInputNodeId` is used to determine which input node's image list feeds each output node.
 
+Each workflow node also stores a **`cliName`** param — auto-assigned at creation (e.g. `input-1`, `output-image-1`) and editable in the inspector. This name becomes the CLI flag (`--<cliName>`) in exported shell scripts and is parsed by `imgplex-cli run`. See §7.6 CLI Export for details.
+
 ### JSON-Defined Node Categories
 
 | Category        | Nodes                                                                  |
@@ -403,10 +405,27 @@ Result: ~1.6s for 1983 mixed PNG/TGA/JPG/PSD images (vs ~44s before batching).
 ### 7.6 CLI Export
 
 - `IPC.EXPORT_CLI` saves two files side-by-side: a shell script and a companion `.imgplex` workflow file.
-- The shell script calls `imgplex-cli run <workflow.imgplex> --input <dir> --output <dir>`.
 - `imgplex-cli.exe` is installed alongside the app and added to the user's PATH by the NSIS installer - no separate install step required.
 - Supports three shell targets: **PowerShell** (`.ps1`), **Bash** (`.sh`), **CMD** (`.bat`).
-- Menu items: Help → Export CLI (PS / Bash / CMD); also exposed as keyboard shortcuts.
+- Menu items: File → Export CLI Script (PS / Bash / CMD).
+
+**Named-flag system:**
+
+Every Input node and output node has a user-editable **CLI Name** param (set in the inspector). The CLI Name becomes the flag name used in the exported script and passed to `imgplex-cli run`:
+
+```
+imgplex-cli run workflow.imgplex --input-1 ./photos --input-2 ./overlays --output-image-1 ./out
+```
+
+- **Auto-assignment at creation:** nodes get default names by type and creation order: `input-1`, `input-2`, `output-image-1`, `output-text-1`, `output-flipbook-1`, etc.
+- **User-editable:** the inspector shows the name field with the resulting flag below it (e.g. `Flag: --input-1`). Input is sanitized to `[a-z0-9-]`. A conflict warning appears if two nodes share the same name.
+- **Script generation is graph-aware:** `executor-cli.ts` reads the graph passed by the `IPC.EXPORT_CLI` handler and emits one param per named node. Input node flags are documented as required; output node flags are optional (defaults to baked-in paths or `./output`).
+- **Execution:** `imgplex-cli run` parses all `--<flag> <path>` pairs from argv, builds a map from cliName → path, then iterates every output node in the graph:
+  1. Traces back (BFS, skipping param-wires) to find the connected inputNode.
+  2. Reads the input directory from the corresponding named flag; exits with a clear error if missing.
+  3. Computes the output path: uses the CLI flag value if provided, otherwise falls back to the node's baked-in `customPath` / `outputPath` / `flipbookOutputPath` param (for textOutputNode and flipbookOutputNode, overrides are applied by patching a graph copy before calling `executeBatch`).
+  4. Calls `executor.executeBatch(graph, outNode.id, inputNodeId, images, outputDir, overwrite, registry, onProgress)`.
+- **Nodes without a cliName** are still executed (using their baked-in paths) but do not appear as flags in the exported script.
 
 ---
 
@@ -579,6 +598,11 @@ Build outputs:
   - Workflow nodes (Input, Image Output, Text Output, Flipbook Output) draggable from the Node Library **Workflow** section and available in the canvas context menu
   - Deletion guard: last Input node and last output node (of any type) cannot be deleted
   - `graphStore.canDeleteNode()` / `imageStore.removeNode()` wired into all delete paths
+- **CLI named-flag system:**
+  - Each Input and output node has a `cliName` param (auto-assigned at creation, user-editable in inspector)
+  - Inspector shows the resulting flag (`Flag: --<name>`) and a conflict warning when two nodes share the same name
+  - `executor-cli.ts` is graph-aware: reads the workflow graph and emits one typed param per named node in all three script formats (PS / Bash / CMD)
+  - `imgplex-cli run` parses `--<flag> <path>` pairs, iterates all output nodes, traces each to its input node, and runs `executeBatch` per output; clear error if a required input flag is missing
 - Unit tests: Vitest with 316 tests across 17 test files
 
 ### Pending - Priority Order

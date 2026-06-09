@@ -26,10 +26,12 @@ A searchable, categorized list of every available node (Resize, Blur, Flip, Colo
 
 The main workspace. You connect nodes here using wires to define how your image gets processed. Every workflow starts with two fixed nodes already present:
 
-- **Input** - represents the image currently selected in the Filmstrip
-- **Image Output** - where the final result gets saved
+- **Input** (`input-1`) - represents the image currently selected in the Filmstrip
+- **Image Output** (`output-image-1`) - where the final result gets saved
 
 These nodes cannot be deleted (at minimum one Input and one output node of any type must remain). Everything you build lives between them.
+
+The names in parentheses are **CLI Names** — identifiers used when exporting a CLI script. You can change them in the Inspector.
 
 ### Right - Inspector + Preview
 
@@ -175,6 +177,52 @@ If you try to connect mismatched types, the wire snaps back. Check the colors on
 - An unsaved change is indicated by a dot (`•`) in the title bar.
 
 Workflow files are plain JSON. You can version-control them.
+
+---
+
+## Exporting as a CLI Script
+
+imgplex can export your workflow as a shell script so you can run it from the command line — no UI needed. Use **File → Export CLI Script** and choose PowerShell, Bash, or CMD. Two files are saved side-by-side:
+
+- **The script** — contains the shell code and usage comments
+- **A companion `.imgplex` file** — the workflow the script will run
+
+### Named flags
+
+Each Input and output node in your workflow has a **CLI Name** (visible and editable in the Inspector). This name becomes a command-line flag:
+
+```
+# Example: workflow with two inputs and one image output
+imgplex-cli run workflow.imgplex \
+  --background ./photos \
+  --overlay ./overlays \
+  --output-image-1 ./out
+```
+
+- Input node flags are **required** — the CLI will error if they're missing.
+- Output node flags are **optional** — they override the path set in the workflow; omitting them uses the baked-in path.
+
+The exported script documents every flag with its default value and a description. Open the script in any text editor to see the full usage block.
+
+### Changing CLI Names
+
+Select any Input or output node on the canvas. In the Inspector you'll see a **CLI Name** field at the top. Names are auto-assigned at creation (`input-1`, `output-image-1`, etc.). You can rename them to anything using only lowercase letters, digits, and hyphens — the Inspector shows a preview of the resulting flag and warns you if two nodes share the same name.
+
+### Running the script
+
+`imgplex-cli` is installed alongside imgplex and added to your PATH automatically. After exporting:
+
+```bash
+bash imgplex-batch.sh ./my-photos ./output
+```
+
+or with named flags:
+
+```bash
+bash imgplex-batch.sh --background ./photos --overlay ./overlays
+```
+
+See the comments inside the exported script for the exact syntax for your chosen shell.
 
 ---
 
