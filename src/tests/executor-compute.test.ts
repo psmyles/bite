@@ -434,7 +434,13 @@ describe('buildResizeArgs', () => {
   });
 
   it('absolute + preserve + anchor=height: height-only geometry', () => {
-    const args = buildResizeArgs({ mode: 'absolute', width: 800, height: 600, preserve_aspect: true, anchor: 'height' });
+    const args = buildResizeArgs({
+      mode: 'absolute',
+      width: 800,
+      height: 600,
+      preserve_aspect: true,
+      anchor: 'height',
+    });
     const geom = args[args.indexOf('-resize') + 1];
     expect(geom).toBe('x600');
   });

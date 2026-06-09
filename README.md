@@ -9,6 +9,7 @@ A functional web version of the application is available at [psmyles.github.io/i
 ---
 
 ## Features
+
 - **Visual node graph** - drag nodes from the library, connect typed wires, see results live
 - **Multiple inputs and outputs** - any number of Input nodes, each with its own image list; multiple typed output nodes (Image Output, Text Output, Flipbook Output) in a single workflow
 - **Batch processing** - run a pipeline against an entire folder; gate node conditionally skips images
@@ -30,6 +31,7 @@ A functional web version of the application is available at [psmyles.github.io/i
 - [Project Spec](https://github.com/psmyles/imgplex/blob/main/docs/spec.md)
 
 ---
+
 ### Requirements
 
 - [Node.js](https://nodejs.org) 20+
@@ -48,4 +50,5 @@ npm run dev        # Electron + Vite hot reload
 npm run build      # Production build + electron-builder packaging
 npm run build:web  # Renderer-only build (browser testing)
 ```
+
 ---

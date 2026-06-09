@@ -132,12 +132,7 @@
 {#if preserve && mode === 'absolute'}
   <div class="param-row">
     <span class="param-label">Anchor</span>
-    <Dropdown
-      value={anchor}
-      options={['width', 'height']}
-      labels={['Width', 'Height']}
-      onchange={onAnchorChange}
-    />
+    <Dropdown value={anchor} options={['width', 'height']} labels={['Width', 'Height']} onchange={onAnchorChange} />
   </div>
 {/if}
 

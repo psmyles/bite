@@ -46,7 +46,13 @@ function makeSeedNodes(): Node[] {
         label: 'Image Output',
         inputs: ['image'],
         outputs: [],
-        params: { outputPath: 'source', customPath: '', overwrite: 'skip', generateLog: false, cliName: 'output-image-1' },
+        params: {
+          outputPath: 'source',
+          customPath: '',
+          overwrite: 'skip',
+          generateLog: false,
+          cliName: 'output-image-1',
+        },
       },
     },
   ];

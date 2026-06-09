@@ -11,9 +11,9 @@ function nodeCliName(node: GraphNode): string {
 }
 
 type ParamSpec = {
-  flag: string;   // e.g. 'input-1'
+  flag: string; // e.g. 'input-1'
   varName: string; // e.g. 'INPUT_1' (bash/cmd) or 'Input1' (PS)
-  psName: string;  // e.g. 'Input1'
+  psName: string; // e.g. 'Input1'
   description: string;
   defaultValue: string;
   required: boolean;
@@ -79,12 +79,7 @@ export function cliScriptCmd(workflowFileName: string, date: string, graph: Node
   const { inputs, outputs } = buildParamSpecs(graph);
   const allParams = [...inputs, ...outputs];
 
-  const lines: string[] = [
-    '@echo off',
-    ':: imgplex — Generated Batch Script',
-    `:: Generated: ${date}`,
-    '::',
-  ];
+  const lines: string[] = ['@echo off', ':: imgplex — Generated Batch Script', `:: Generated: ${date}`, '::'];
 
   if (allParams.length > 0) {
     lines.push(':: Usage: script.bat [flags]');
@@ -117,11 +112,7 @@ export function cliScriptPS(workflowFileName: string, date: string, graph: NodeG
   const { inputs, outputs } = buildParamSpecs(graph);
   const allParams = [...inputs, ...outputs];
 
-  const lines: string[] = [
-    '# imgplex — Generated PowerShell Script',
-    `# Generated: ${date}`,
-    '#',
-  ];
+  const lines: string[] = ['# imgplex — Generated PowerShell Script', `# Generated: ${date}`, '#'];
 
   if (allParams.length > 0) {
     lines.push('# Usage: .\\script.ps1 [-FlagName "value"] …');
@@ -157,12 +148,7 @@ export function cliScriptBash(workflowFileName: string, date: string, graph: Nod
   const { inputs, outputs } = buildParamSpecs(graph);
   const allParams = [...inputs, ...outputs];
 
-  const lines: string[] = [
-    '#!/usr/bin/env bash',
-    '# imgplex — Generated Shell Script',
-    `# Generated: ${date}`,
-    '#',
-  ];
+  const lines: string[] = ['#!/usr/bin/env bash', '# imgplex — Generated Shell Script', `# Generated: ${date}`, '#'];
 
   if (allParams.length > 0) {
     lines.push('# Usage: bash script.sh [positional values]');

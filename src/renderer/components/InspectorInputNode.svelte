@@ -24,13 +24,19 @@
     return (
       cliName.length > 0 &&
       graphStore.nodes.some(
-        (n) => n.id !== nodeId && WORKFLOW_TYPES.has(n.type ?? '') && ((n.data as Record<string, unknown>)?.params as Record<string, unknown>)?.cliName === cliName
+        (n) =>
+          n.id !== nodeId &&
+          WORKFLOW_TYPES.has(n.type ?? '') &&
+          ((n.data as Record<string, unknown>)?.params as Record<string, unknown>)?.cliName === cliName
       )
     );
   });
 
   function sanitizeCliName(raw: string): string {
-    return raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    return raw
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
   }
 
   // ── Format groups ─────────────────────────────────────────────────────────

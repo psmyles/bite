@@ -150,7 +150,11 @@ export function buildNodeData(def: NodeDefinition) {
     // enum params are not connectable; all other typed params get ports.
     paramDefs:
       def.id === 'resize'
-        ? buildResizeParamDefs(String(params.mode ?? 'absolute'), params.preserve_aspect !== false, String(params.anchor ?? 'width'))
+        ? buildResizeParamDefs(
+            String(params.mode ?? 'absolute'),
+            params.preserve_aspect !== false,
+            String(params.anchor ?? 'width')
+          )
         : def.params
             .filter((p) => p.type !== 'enum')
             .map((p) => ({
@@ -192,7 +196,11 @@ export function expandNodeData(def: NodeDefinition, savedParams: Record<string, 
     return {
       ...base,
       params,
-      paramDefs: buildResizeParamDefs(String(params.mode ?? 'absolute'), params.preserve_aspect !== false, String(params.anchor ?? 'width')),
+      paramDefs: buildResizeParamDefs(
+        String(params.mode ?? 'absolute'),
+        params.preserve_aspect !== false,
+        String(params.anchor ?? 'width')
+      ),
     };
   }
 

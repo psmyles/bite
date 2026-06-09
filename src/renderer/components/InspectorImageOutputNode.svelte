@@ -18,13 +18,19 @@
     return (
       cliName.length > 0 &&
       graphStore.nodes.some(
-        (n) => n.id !== selectedNode.id && WORKFLOW_TYPES.has(n.type ?? '') && ((n.data as Record<string, unknown>)?.params as Record<string, unknown>)?.cliName === cliName
+        (n) =>
+          n.id !== selectedNode.id &&
+          WORKFLOW_TYPES.has(n.type ?? '') &&
+          ((n.data as Record<string, unknown>)?.params as Record<string, unknown>)?.cliName === cliName
       )
     );
   });
 
   function sanitizeCliName(raw: string): string {
-    return raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    return raw
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
   }
 
   // Detect a connected Folder Path node on the folder-in handle
@@ -56,7 +62,8 @@
       class="text-input"
       value={cliName}
       placeholder="e.g. output-image-1"
-      oninput={(e) => graphStore.setParam(selectedNode.id, 'cliName', sanitizeCliName((e.target as HTMLInputElement).value))}
+      oninput={(e) =>
+        graphStore.setParam(selectedNode.id, 'cliName', sanitizeCliName((e.target as HTMLInputElement).value))}
     />
     <span class="flag-hint" class:conflict={cliNameConflict}>
       {#if cliNameConflict}

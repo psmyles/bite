@@ -90,11 +90,7 @@ function traceInputNodeId(nodes: GraphNode[], edges: GraphEdge[], outputNodeId: 
     visited.add(id);
     if (nodes.find((n) => n.id === id)?.type === 'inputNode') return id;
     for (const e of edges) {
-      if (
-        e.target === id &&
-        !e.sourceHandle?.startsWith('param-') &&
-        !e.targetHandle?.startsWith('param-')
-      ) {
+      if (e.target === id && !e.sourceHandle?.startsWith('param-') && !e.targetHandle?.startsWith('param-')) {
         queue.push(e.source);
       }
     }
@@ -180,9 +176,7 @@ async function main(): Promise<void> {
     const inputCliName = nodeCliName(inputNode);
 
     // Resolve the input directory
-    const inputDirRaw = inputCliName
-      ? flagValues.get(inputCliName)
-      : undefined;
+    const inputDirRaw = inputCliName ? flagValues.get(inputCliName) : undefined;
 
     if (!inputDirRaw) {
       die(
