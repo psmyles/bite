@@ -4,7 +4,12 @@ import path from 'node:path';
 import type { GraphNode, NodeGraph } from '../../shared/types.js';
 import { EXECUTOR } from '../../shared/constants.js';
 import type { NodeRegistry } from '../nodes/registry.js';
-import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js';
+import {
+  buildCommandArgs,
+  buildCommandArgsFromJs,
+  buildFormatConvertArgs,
+  getFormatExtension,
+} from './command-builder.js';
 import { getExecutor } from './executorRegistry.js';
 import {
   loadImageMeta,
@@ -287,24 +292,11 @@ export async function executeMultiStream(
       // Format convert must materialise immediately (changes file type).
       const src = await getImg(node.id, 0);
       const fmt = String(params.format ?? 'PNG').toUpperCase();
-      const fmtExts: Record<string, string> = {
-        PNG: '.png',
-        JPEG: '.jpg',
-        WEBP: '.webp',
-        TIFF: '.tif',
-        AVIF: '.avif',
-        BMP: '.bmp',
-        TGA: '.tga',
-      };
-      outputExt = fmtExts[fmt] ?? outputExt;
+      outputExt = getFormatExtension(fmt);
       const out = newTmp(outputExt);
       const fmtVerboseArgs = verboseOut ? ['-verbose'] : [];
-      await spawnMagick(
-        [...fmtVerboseArgs, src, '-quality', String(params.quality ?? 90), `${fmt}:${out}`],
-        undefined,
-        undefined,
-        verboseOut
-      );
+      const fmtArgs = buildFormatConvertArgs(fmt, params);
+      await spawnMagick([...fmtVerboseArgs, src, ...fmtArgs, `${fmt}:${out}`], undefined, undefined, verboseOut);
       buffers.set(`${node.id}:out-0`, out);
     } else if (params._enabled !== false) {
       // Standard image op — fuse into a lazy chain when safe to do so.

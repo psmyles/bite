@@ -1,0 +1,24 @@
+{
+  "id": "PNG",
+  "extension": ".png",
+  "params": [
+    {
+      "name": "png_compression",
+      "label": "Compression Level (0 = none, 9 = max)",
+      "type": "int",
+      "widget": "slider",
+      "min": 0,
+      "max": 9,
+      "default": 6
+    },
+    {
+      "name": "png_depth",
+      "label": "Bit Depth",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "8",
+      "options": ["8", "16"]
+    }
+  ],
+  "args_js": "return ['-define','png:compression-level='+String(params.png_compression??6),'-depth',String(params.png_depth??8)];"
+}

@@ -9,6 +9,7 @@
   import InspectorCommentNode from './InspectorCommentNode.svelte';
   import InspectorRenameNode from './InspectorRenameNode.svelte';
   import InspectorResizeNode from './InspectorResizeNode.svelte';
+  import InspectorFormatConvertNode from './InspectorFormatConvertNode.svelte';
   import InspectorFolderPathNode from './InspectorFolderPathNode.svelte';
   import InspectorSetInputNode from './InspectorSetInputNode.svelte';
   import RunWorkflowButton from './RunWorkflowButton.svelte';
@@ -64,6 +65,8 @@
       <InspectorRenameNode {definition} {selectedNode} />
     {:else if definition.id === 'resize'}
       <InspectorResizeNode {selectedNode} />
+    {:else if definition.id === 'format_convert'}
+      <InspectorFormatConvertNode {definition} {selectedNode} />
     {:else if definition.params.filter((p) => !p.portOnly).length === 0}
       <span class="empty-hint">This node has no parameters.</span>
     {:else}

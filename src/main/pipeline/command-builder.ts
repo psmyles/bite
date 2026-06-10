@@ -1,5 +1,23 @@
 // Translates a node definition + current param values into ImageMagick CLI argument tokens
-import type { NodeDefinition } from '../../shared/types.js';
+import type { NodeDefinition, FormatDefinition } from '../../shared/types.js';
+
+const _rawFmtDefs = import.meta.glob('../../../format-definitions/*.json', { eager: true });
+const _fmtDefs: Record<string, FormatDefinition> = {};
+for (const mod of Object.values(_rawFmtDefs)) {
+  const d = mod as FormatDefinition;
+  _fmtDefs[d.id.toUpperCase()] = d;
+}
+
+export function buildFormatConvertArgs(format: string, params: Record<string, unknown>): string[] {
+  const def = _fmtDefs[format.toUpperCase()];
+  if (!def) return [];
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+  return new Function('params', def.args_js)(params) as string[];
+}
+
+export function getFormatExtension(format: string): string {
+  return _fmtDefs[format.toUpperCase()]?.extension ?? '.png';
+}
 
 /**
  * Interpolates {{param}} placeholders in a node's command_template and returns

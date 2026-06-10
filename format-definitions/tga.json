@@ -1,0 +1,14 @@
+{
+  "id": "TGA",
+  "extension": ".tga",
+  "params": [
+    {
+      "name": "tga_rle",
+      "label": "RLE Compression",
+      "type": "bool",
+      "widget": "checkbox",
+      "default": true
+    }
+  ],
+  "args_js": "return ['-compress',params.tga_rle!==false?'RLE':'None'];"
+}

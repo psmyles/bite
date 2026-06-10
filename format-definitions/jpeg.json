@@ -1,0 +1,31 @@
+{
+  "id": "JPEG",
+  "extension": ".jpg",
+  "params": [
+    {
+      "name": "jpeg_quality",
+      "label": "Quality",
+      "type": "int",
+      "widget": "slider",
+      "min": 1,
+      "max": 100,
+      "default": 85
+    },
+    {
+      "name": "jpeg_sampling",
+      "label": "Chroma Subsampling",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "4:2:0",
+      "options": ["4:4:4", "4:2:2", "4:2:0"]
+    },
+    {
+      "name": "jpeg_progressive",
+      "label": "Progressive",
+      "type": "bool",
+      "widget": "checkbox",
+      "default": false
+    }
+  ],
+  "args_js": "const a=['-quality',String(params.jpeg_quality??85),'-sampling-factor',String(params.jpeg_sampling??'4:2:0')]; if(params.jpeg_progressive===true)a.push('-interlace','Plane'); return a;"
+}

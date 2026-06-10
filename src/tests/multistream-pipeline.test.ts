@@ -190,8 +190,8 @@ describe('executeMultiStream', () => {
     expect(spawnMagick).toHaveBeenCalledOnce();
     const callArgs = spawnMagick.mock.calls[0][0] as string[];
     expect(callArgs[0]).toBe(INPUT_PATH);
-    expect(callArgs).toContain('-quality');
-    expect(callArgs).toContain('90');
+    expect(callArgs).toContain('-define');
+    expect(callArgs).toContain('png:compression-level=6');
   });
 
   it('shared source (imgConsumers > 1) → both branches get the source, each produces its own chain', async () => {

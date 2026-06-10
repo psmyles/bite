@@ -1,0 +1,25 @@
+{
+  "id": "AVIF",
+  "extension": ".avif",
+  "params": [
+    {
+      "name": "avif_quality",
+      "label": "Quality",
+      "type": "int",
+      "widget": "slider",
+      "min": 1,
+      "max": 100,
+      "default": 60
+    },
+    {
+      "name": "avif_speed",
+      "label": "Encode Speed (0 = slow/best, 8 = fast)",
+      "type": "int",
+      "widget": "slider",
+      "min": 0,
+      "max": 8,
+      "default": 4
+    }
+  ],
+  "args_js": "return ['-quality',String(params.avif_quality??60),'-define','avif:speed='+String(params.avif_speed??4)];"
+}

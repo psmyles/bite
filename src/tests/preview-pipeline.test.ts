@@ -91,7 +91,7 @@ describe('executePreview', () => {
           id: 'conv-1',
           type: 'conv',
           position: { x: 0, y: 0 },
-          data: { label: 'Convert', definitionId: 'format-convert-def', params: { format: 'JPEG', quality: 85 } },
+          data: { label: 'Convert', definitionId: 'format-convert-def', params: { format: 'PNG' } },
         },
         {
           id: 'workflow-output',
@@ -115,11 +115,11 @@ describe('executePreview', () => {
     const result = await executePreview(new PreviewCache(), graph, '/img/test.png', registry);
 
     expect(result.dataUrl).toBe('data:image/png;base64,test');
-    // Calls: 1 downscale + 1 format_convert node
+    // Calls: 1 downscale + 1 format_convert node (PNG re-encodes; other formats copy)
     expect(spawnMagick).toHaveBeenCalledTimes(2);
     const nodeCall = spawnMagick.mock.calls[1][0] as string[];
-    expect(nodeCall).toContain('-quality');
-    expect(nodeCall).toContain('85');
+    expect(nodeCall).toContain('-define');
+    expect(nodeCall).toContain('png:compression-level=6');
   });
 
   it('bypassed node (_enabled=false) copies through without spawning magick', async () => {

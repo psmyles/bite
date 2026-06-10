@@ -1,0 +1,15 @@
+{
+  "id": "TIFF",
+  "extension": ".tif",
+  "params": [
+    {
+      "name": "tiff_compression",
+      "label": "Compression",
+      "type": "enum",
+      "widget": "dropdown",
+      "default": "LZW",
+      "options": ["LZW", "ZIP", "JPEG", "PackBits", "None"]
+    }
+  ],
+  "args_js": "return ['-compress',String(params.tiff_compression??'LZW')];"
+}

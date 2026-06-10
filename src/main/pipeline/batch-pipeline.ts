@@ -6,7 +6,12 @@ import type { NodeGraph, Progress } from '../../shared/types.js';
 import { EXECUTOR } from '../../shared/constants.js';
 import { topoSort, findOutputContributors } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
-import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js';
+import {
+  buildCommandArgs,
+  buildCommandArgsFromJs,
+  buildFormatConvertArgs,
+  getFormatExtension,
+} from './command-builder.js';
 import { getExecutor } from './executorRegistry.js';
 import { loadImageMeta, buildEmptyImageMeta, type ImageMeta } from './executor-compute.js';
 import { resolveNodeParams } from './resolve-params.js';
@@ -132,16 +137,6 @@ export async function executeBatch(
     return def?.executor && MULTI_STREAM_EXECUTORS.has(def.executor);
   });
 
-  const FORMAT_EXT: Record<string, string> = {
-    PNG: '.png',
-    JPEG: '.jpg',
-    WEBP: '.webp',
-    TIFF: '.tif',
-    AVIF: '.avif',
-    BMP: '.bmp',
-    TGA: '.tga',
-  };
-
   interface BatchPlan {
     opArgs: string[];
     outputFormat: string | null; // e.g. 'PNG' — non-null only when format_convert is active
@@ -176,10 +171,8 @@ export async function executeBatch(
       if (def.executor === EXECUTOR.MEAN_VALUE) continue;
       if (params._enabled !== false) {
         if (def.executor === EXECUTOR.FORMAT_CONVERT) {
-          // Record the target format so processOne can set the output extension.
-          // Add quality arg unconditionally — ImageMagick ignores it for lossless formats.
           outputFormat = String(params.format ?? 'PNG').toUpperCase();
-          opArgs.push('-quality', String(params.quality ?? 90));
+          opArgs.push(...buildFormatConvertArgs(outputFormat, params));
         } else {
           const registeredFn = def.executor ? getExecutor(def.executor) : undefined;
           opArgs.push(
@@ -370,9 +363,7 @@ export async function executeBatch(
             await fs.promises.mkdir(targetDir, { recursive: true });
             let fileCheckMs = timings.enabled ? Date.now() - checkT0 : 0;
             const { opArgs, outputFormat } = plan;
-            const outExt = outputFormat
-              ? (FORMAT_EXT[outputFormat] ?? path.extname(renamedFileName))
-              : path.extname(renamedFileName);
+            const outExt = outputFormat ? getFormatExtension(outputFormat) : path.extname(renamedFileName);
             const outBase = path.basename(renamedFileName, path.extname(renamedFileName));
             const outPath = path.join(targetDir, outBase + outExt);
 

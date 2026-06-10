@@ -6,7 +6,7 @@ import { log } from '../logger.js';
 import { EXECUTOR } from '../../shared/constants.js';
 import { topoSort } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
-import { buildCommandArgs, buildCommandArgsFromJs } from './command-builder.js';
+import { buildCommandArgs, buildCommandArgsFromJs, buildFormatConvertArgs } from './command-builder.js';
 import { getExecutor } from './executorRegistry.js';
 import { PreviewCache } from './cache.js';
 import { loadImageMeta, loadImageMean } from './executor-compute.js';
@@ -327,10 +327,14 @@ export async function executePreview(
       // Bypassed: pass image through unchanged
       await fs.promises.copyFile(inputPath, outputPath);
     } else if (def.executor === EXECUTOR.FORMAT_CONVERT) {
-      // Preview output is always a .png temp file, so just re-encode at the requested quality.
-      // The format label is ignored here — the file extension (.png) is authoritative for magick.
-      const quality = Number(params.quality ?? 90);
-      await spawnMagick([inputPath, '-quality', String(quality), outputPath]);
+      // Preview always writes a .png temp file. Apply PNG-specific args; other formats just copy.
+      const fmt = String(params.format ?? 'PNG').toUpperCase();
+      if (fmt === 'PNG') {
+        const fmtArgs = buildFormatConvertArgs('PNG', params);
+        await spawnMagick([inputPath, ...fmtArgs, outputPath]);
+      } else {
+        await fs.promises.copyFile(inputPath, outputPath);
+      }
     } else {
       const registeredFn = def.executor ? getExecutor(def.executor) : undefined;
       const opArgs = registeredFn

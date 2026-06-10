@@ -37,6 +37,15 @@ export interface PortDefinition {
   label: string;
 }
 
+/** Defines format-specific encoding options and ImageMagick arg-building for a single output format. */
+export interface FormatDefinition {
+  id: string;
+  extension: string;
+  params: ParamDefinition[];
+  params_visibility?: VisibilityRule[];
+  args_js: string;
+}
+
 /** A single show/hide rule for a param row in the Inspector. */
 export interface VisibilityRule {
   /** Name of the param whose row this rule controls. */

@@ -27,15 +27,6 @@
       "widget": "dropdown",
       "default": "PNG",
       "options": ["PNG", "JPEG", "WEBP", "TIFF", "AVIF", "BMP", "TGA"]
-    },
-    {
-      "name": "quality",
-      "label": "Quality (lossy formats)",
-      "type": "int",
-      "widget": "slider",
-      "default": 100,
-      "min": 1,
-      "max": 100
     }
   ]
 }

@@ -1,0 +1,33 @@
+{
+  "id": "WEBP",
+  "extension": ".webp",
+  "params": [
+    {
+      "name": "webp_lossless",
+      "label": "Lossless",
+      "type": "bool",
+      "widget": "checkbox",
+      "default": false
+    },
+    {
+      "name": "webp_quality",
+      "label": "Quality",
+      "type": "int",
+      "widget": "slider",
+      "min": 1,
+      "max": 100,
+      "default": 85
+    },
+    {
+      "name": "webp_method",
+      "label": "Method (0 = fast, 6 = best)",
+      "type": "int",
+      "widget": "slider",
+      "min": 0,
+      "max": 6,
+      "default": 4
+    }
+  ],
+  "params_visibility": [{ "show": "webp_quality", "when": { "param": "webp_lossless", "eq": false } }],
+  "args_js": "const a=[]; if(params.webp_lossless===true){a.push('-define','webp:lossless=true');}else{a.push('-quality',String(params.webp_quality??85));} a.push('-define','webp:method='+String(params.webp_method??4)); return a;"
+}
