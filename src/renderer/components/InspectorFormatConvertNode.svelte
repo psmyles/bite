@@ -102,9 +102,9 @@
   .param-row {
     display: flex;
     flex-direction: column;
-    gap: 5px;
-    padding: 7px 12px;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
+    gap: var(--inspector-param-gap);
+    padding: var(--inspector-param-padding);
+    border-bottom: var(--inspector-row-border);
   }
 
   .param-inline {
@@ -126,7 +126,7 @@
   .slider-wrap {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--slider-wrap-gap);
     width: 100%;
   }
 
@@ -134,17 +134,17 @@
     flex: 1;
     appearance: none;
     -webkit-appearance: none;
-    height: 3px;
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--border) 60%, transparent);
+    height: var(--slider-track-height);
+    border-radius: var(--slider-track-radius);
+    background: var(--slider-track-bg);
     outline: none;
     cursor: pointer;
   }
 
   .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
+    width: var(--slider-thumb-size);
+    height: var(--slider-thumb-size);
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
@@ -152,8 +152,8 @@
   }
 
   .slider::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
+    width: var(--slider-thumb-size);
+    height: var(--slider-thumb-size);
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
@@ -164,14 +164,14 @@
     font-family: var(--font-mono);
     font-size: var(--font-size-sm);
     color: var(--text-bright);
-    width: 52px;
+    width: var(--slider-val-width);
     text-align: right;
     flex-shrink: 0;
     background: var(--panel-header-bg);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--slider-val-radius);
     outline: none;
-    padding: 4px 6px;
+    padding: var(--slider-val-padding);
     appearance: textfield;
     -moz-appearance: textfield;
   }
@@ -187,7 +187,7 @@
   }
 
   .no-options-hint {
-    padding: 10px 12px;
+    padding: var(--inspector-param-padding);
     font-family: var(--font-ui);
     font-size: var(--font-size-sm);
     color: var(--text-bright);

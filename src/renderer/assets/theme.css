@@ -384,6 +384,22 @@
   --ctx-item-hover-bg: #2c2c2c;
   --ctx-separator: var(--ctx-border);
 
+  /* ── Inspector: Param Row & Slider ──────────────────────────
+     Shared sizing for inspector param rows and slider widgets.
+     Used by InspectorFormatConvertNode, InspectorParamEditor,
+     InspectorResizeNode, and any future specialized inspector. */
+  --inspector-param-gap: 5px;
+  --inspector-param-padding: 7px 12px;
+  --inspector-row-border: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
+  --slider-wrap-gap: 8px;
+  --slider-track-height: 3px;
+  --slider-track-radius: 2px;
+  --slider-track-bg: color-mix(in srgb, var(--border) 60%, transparent);
+  --slider-thumb-size: 12px;
+  --slider-val-width: 52px;
+  --slider-val-radius: 4px;
+  --slider-val-padding: 4px 6px;
+
   /* ── Layout: Panel Cards ─────────────────────────────────────
      Floating card appearance — panels are rounded rectangles
      separated by gaps, floating on the app background.        */

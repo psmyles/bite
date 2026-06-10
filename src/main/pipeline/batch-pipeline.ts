@@ -190,8 +190,14 @@ export async function executeBatch(
 
   // Fast path: no Properties nodes — evaluate once, reuse for all images.
   // undefined = not pre-computed (will be built per-image); null = gate suppressed for all images.
-  const sharedPlan: BatchPlan | null | undefined =
-    hasPropNodes || hasMultiStreamNodes ? undefined : await buildOpArgsForImage('');
+  let sharedPlan: BatchPlan | null | undefined;
+  if (!hasPropNodes && !hasMultiStreamNodes) {
+    try {
+      sharedPlan = await buildOpArgsForImage('');
+    } catch (err) {
+      throw new Error(`Pipeline build failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   // Build the shared context object passed to executeMultiStream and executeSetBatch.
   const ctx: BatchContext = {

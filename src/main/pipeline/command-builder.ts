@@ -11,8 +11,23 @@ for (const mod of Object.values(_rawFmtDefs)) {
 export function buildFormatConvertArgs(format: string, params: Record<string, unknown>): string[] {
   const def = _fmtDefs[format.toUpperCase()];
   if (!def) return [];
+
+  // Backward compat: map old shared `quality` param to the format-specific key so
+  // workflows saved before the per-format param system still produce the correct output.
+  const resolvedParams = { ...params };
+  const oldQuality = params.quality;
+  if (typeof oldQuality === 'number') {
+    const qualityKey: Record<string, string> = { JPEG: 'jpeg_quality', WEBP: 'webp_quality', AVIF: 'avif_quality' };
+    const key = qualityKey[format.toUpperCase()];
+    if (key && !(key in params)) resolvedParams[key] = oldQuality;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  return new Function('params', def.args_js)(params) as string[];
+  const result = new Function('params', def.args_js)(resolvedParams) as unknown;
+  if (!Array.isArray(result) || result.some((x) => typeof x !== 'string')) {
+    throw new Error(`[${format}] args_js must return string[] — got: ${JSON.stringify(result)}`);
+  }
+  return result as string[];
 }
 
 export function getFormatExtension(format: string): string {
