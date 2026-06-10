@@ -220,7 +220,7 @@
         <span>Original</span>
         <span>New Name</span>
       </div>
-      {#each imageNames.length > 0 ? rows : exampleRows as row}
+      {#each imageNames.length > 0 ? rows : exampleRows as row, i (i)}
         <div class="preview-row">
           <span class="preview-name preview-name--old">{row.original}</span>
           <span class="preview-arrow">→</span>

@@ -16,7 +16,6 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="backdrop" onclick={onCancel}>
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="dialog" role="dialog" aria-modal="true" aria-label="Run Workflow" onclick={(e) => e.stopPropagation()}>
     <div class="dialog-header">
       <span class="dialog-title">Run Workflow</span>
@@ -31,7 +30,7 @@
       </p>
 
       <div class="node-list">
-        {#each statuses as status}
+        {#each statuses as status (status.label)}
           <div class="node-row" class:valid={status.valid} class:invalid={!status.valid}>
             <span class="node-icon" class:valid={status.valid} class:invalid={!status.valid}></span>
             <div class="node-info">

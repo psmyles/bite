@@ -195,7 +195,9 @@ export async function executeBatch(
     try {
       sharedPlan = await buildOpArgsForImage('');
     } catch (err) {
-      throw new Error(`Pipeline build failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw Object.assign(new Error(`Pipeline build failed: ${err instanceof Error ? err.message : String(err)}`), {
+        cause: err,
+      });
     }
   }
 

@@ -11,8 +11,6 @@
     id = '',
     data,
     selected = false,
-    width,
-    height,
   }: { id?: string; data: NodeData; selected?: boolean; width?: number; height?: number } = $props();
 
   let localName = $state(untrack(() => (data.params?.name ?? 'Group') as string));

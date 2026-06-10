@@ -77,7 +77,7 @@
 
       {#if summary.failed > 0 && summary.errors?.length}
         <div class="error-list">
-          {#each summary.errors as err}
+          {#each summary.errors as err, i (i)}
             <div class="error-item">{err}</div>
           {/each}
         </div>

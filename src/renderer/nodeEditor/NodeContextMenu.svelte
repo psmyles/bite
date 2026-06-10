@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteMap } from 'svelte/reactivity';
   import type { NodeDefinition } from '../../shared/types.js';
 
   interface Props {
@@ -34,7 +35,7 @@
 
   // Reset navigation whenever search text changes
   $effect(() => {
-    search; // reactive dependency
+    void search; // reactive dependency
     activeIndex = -1;
   });
 
@@ -148,7 +149,7 @@
 
   // Group into categories (only used when not searching)
   const grouped = $derived(() => {
-    const map = new Map<string, NodeDefinition[]>();
+    const map = new SvelteMap<string, NodeDefinition[]>();
     for (const def of filtered) {
       const list = map.get(def.category) ?? [];
       list.push(def);

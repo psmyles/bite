@@ -22,7 +22,6 @@ export function buildFormatConvertArgs(format: string, params: Record<string, un
     if (key && !(key in params)) resolvedParams[key] = oldQuality;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
   const result = new Function('params', def.args_js)(resolvedParams) as unknown;
   if (!Array.isArray(result) || result.some((x) => typeof x !== 'string')) {
     throw new Error(`[${format}] args_js must return string[] — got: ${JSON.stringify(result)}`);
@@ -65,7 +64,6 @@ export function buildCommandArgs(def: NodeDefinition, params: Record<string, unk
  * Throws if the function doesn't return string[].
  */
 export function buildCommandArgsFromJs(def: NodeDefinition, params: Record<string, unknown>): string[] {
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval
   const fn = new Function('params', def.command_js!) as (p: Record<string, unknown>) => unknown;
   const result = fn(params);
   if (!Array.isArray(result) || result.some((x) => typeof x !== 'string')) {

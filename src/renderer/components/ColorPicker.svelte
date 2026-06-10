@@ -292,7 +292,7 @@
   </div>
 
   <!-- ── Color channel rows ── -->
-  {#each COLOR_CHANS[mode] as ch, chIdx}
+  {#each COLOR_CHANS[mode] as ch, chIdx (chIdx)}
     {@const v = modeVals[chIdx] ?? 0}
     {@const bg = chanGradient(chIdx)}
     <div class="ch-row">

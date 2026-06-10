@@ -32,6 +32,30 @@ export default tseslint.config(
     },
   },
   {
+    // .svelte.ts files are plain TypeScript — override the Svelte parser that
+    // would otherwise be applied because the filename contains ".svelte"
+    files: ['**/*.svelte.ts'],
+    languageOptions: {
+      parser: tseslint.parser,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+  },
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          varsIgnorePattern: '^_',
+          argsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
+  {
     ignores: [
       '.claude/',
       '.github/',

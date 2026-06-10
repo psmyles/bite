@@ -12,6 +12,7 @@
     type Viewport,
   } from '@xyflow/svelte';
   import { untrack, tick } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import '@xyflow/svelte/dist/style.css';
   import DropHelper from './DropHelper.svelte';
   import ProcessNode from './ProcessNode.svelte';
@@ -29,7 +30,6 @@
   import { portColor } from './portColors.js';
   import { isNodeEffectivelyEnabled } from './nodeEnabledState.js';
   import { nodeTypeForDef, buildNodeData, firstMatchingHandle } from './nodeEditorHelpers.js';
-  import { numericWireTypes } from './wireTypeUtils.js';
   import {
     isValidConnection as validateConnection,
     handleToWireType,
@@ -725,7 +725,11 @@
     // Undo / Redo
     if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      e.shiftKey ? redo() : undo();
+      if (e.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
       return;
     }
     if ((e.key === 'y' || e.key === 'Y') && (e.ctrlKey || e.metaKey)) {
@@ -737,7 +741,11 @@
     // Ctrl+G — group selected nodes; Ctrl+Shift+G — ungroup
     if ((e.key === 'g' || e.key === 'G') && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      e.shiftKey ? ungroupSelection() : groupSelection();
+      if (e.shiftKey) {
+        ungroupSelection();
+      } else {
+        groupSelection();
+      }
       return;
     }
 
@@ -946,7 +954,9 @@
     }
 
     function onDelete() {
-      const targetIds = new Set(nodes.filter((n) => n.selected && graphStore.canDeleteNode(n.id)).map((n) => n.id));
+      const targetIds = new SvelteSet(
+        nodes.filter((n) => n.selected && graphStore.canDeleteNode(n.id)).map((n) => n.id)
+      );
       if (targetIds.size === 0 && graphStore.selectedNodeId) {
         const id = graphStore.selectedNodeId;
         if (graphStore.canDeleteNode(id)) targetIds.add(id);

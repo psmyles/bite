@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import type { NodeDefinition } from '../../shared/types.js';
 
   let { definitions }: { definitions: NodeDefinition[] } = $props();
@@ -50,7 +51,7 @@
   });
 
   const grouped = $derived(() => {
-    const map = new Map<string, NodeDefinition[]>();
+    const map = new SvelteMap<string, NodeDefinition[]>();
     for (const def of filtered) {
       const list = map.get(def.category) ?? [];
       list.push(def);
@@ -65,13 +66,11 @@
   });
 
   // ── Collapsible categories ─────────────────────────────────────────────────
-  let collapsed: Set<string> = $state(new Set());
+  const collapsed = new SvelteSet<string>();
 
   function toggleCategory(cat: string) {
-    const next = new Set(collapsed);
-    if (next.has(cat)) next.delete(cat);
-    else next.add(cat);
-    collapsed = next;
+    if (collapsed.has(cat)) collapsed.delete(cat);
+    else collapsed.add(cat);
   }
 
   // When searching, always show all matching groups expanded
@@ -122,7 +121,7 @@
           Workflow
         </div>
         {#if !workflowCollapsed}
-          {#each WORKFLOW_NODES as wn}
+          {#each WORKFLOW_NODES as wn (wn.type)}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="node-item" draggable="true" ondragstart={(e) => onWorkflowDragStart(e, wn.type)}>
               <span class="node-label">{wn.label}</span>
@@ -136,7 +135,7 @@
     {#if grouped().length === 0}
       <p class="empty">{search ? 'No matching nodes.' : 'No nodes loaded.'}</p>
     {:else}
-      {#each grouped() as group}
+      {#each grouped() as group (group.category)}
         <div class="category">
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="category-label" onclick={() => toggleCategory(group.category)}>
@@ -144,7 +143,7 @@
             {group.category}
           </div>
           {#if isOpen(group.category)}
-            {#each group.defs as def}
+            {#each group.defs as def (def.id)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
                 class="node-item"

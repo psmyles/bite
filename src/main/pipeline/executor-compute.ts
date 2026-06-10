@@ -481,7 +481,6 @@ export function computeNodeParamsUnsafe(
     const jsBody = params.__compute_js__ as string;
     const cleanParams: Record<string, unknown> = { ...params };
     delete cleanParams.__compute_js__;
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const fn = new Function('params', jsBody) as (p: Record<string, unknown>) => unknown;
     const out = fn(cleanParams);
     if (typeof out !== 'object' || out === null || Array.isArray(out)) {

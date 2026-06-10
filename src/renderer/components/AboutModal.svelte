@@ -62,7 +62,7 @@
 
       <table class="deps">
         <tbody>
-          {#each deps as dep}
+          {#each deps as dep (dep.name)}
             <tr>
               <td class="dep-name">{dep.name}</td>
               <td class="dep-version">{dep.version}</td>

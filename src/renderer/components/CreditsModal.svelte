@@ -60,7 +60,7 @@
         <h2 class="section-heading">Open Source Libraries</h2>
         <table>
           <tbody>
-            {#each deps as dep}
+            {#each deps as dep (dep.name)}
               <tr>
                 <td class="dep-name">
                   <button class="link-btn" onclick={() => openUrl(dep.url)}>{dep.name}</button>
@@ -76,7 +76,7 @@
         <h2 class="section-heading">Fonts</h2>
         <table>
           <tbody>
-            {#each fonts as font}
+            {#each fonts as font (font.name)}
               <tr>
                 <td class="dep-name">
                   <button class="link-btn" onclick={() => openUrl(font.url)}>{font.name}</button>

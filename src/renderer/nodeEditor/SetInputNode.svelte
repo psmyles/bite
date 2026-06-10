@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Handle, Position } from '@xyflow/svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import { portColor } from './portColors.js';
   import { imageStore } from '../stores/images.svelte.js';
 
@@ -51,7 +52,7 @@
   const matchCount = $derived(() => {
     if (!prefix && suffixes.length === 0) return 0;
     let n = 0;
-    const seen = new Set<string>();
+    const seen = new SvelteSet<string>();
     for (const img of imageStore.images) {
       const name = img.name.replace(/\.[^.]+$/, '');
       if (!name.startsWith(prefix)) continue;
@@ -101,7 +102,7 @@
 />
 
 <!-- Per-suffix string input handles (left) and image output handles (right) -->
-{#each suffixes as _s, i}
+{#each suffixes as _, i (i)}
   <Handle
     type="target"
     position={Position.Left}
@@ -134,7 +135,7 @@
   {#if suffixes.length === 0}
     <div class="node-empty">No suffixes configured</div>
   {:else}
-    {#each suffixes as suffix, i}
+    {#each suffixes as suffix, i (i)}
       <div class="port-row">
         <span class="port-tag" style="color: {imgColor}">{suffix || `suffix${i + 1}`}</span>
       </div>

@@ -19,18 +19,18 @@ type ParamSpec = {
   required: boolean;
 };
 
-function flagToVarName(flag: string): string {
+export function flagToVarName(flag: string): string {
   return flag.toUpperCase().replace(/-/g, '_');
 }
 
-function flagToPsName(flag: string): string {
+export function flagToPsName(flag: string): string {
   return flag
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join('');
 }
 
-function buildParamSpecs(graph: NodeGraph): { inputs: ParamSpec[]; outputs: ParamSpec[] } {
+export function buildParamSpecs(graph: NodeGraph): { inputs: ParamSpec[]; outputs: ParamSpec[] } {
   const INPUT_TYPES = new Set(['inputNode']);
   const OUTPUT_TYPES = new Set(['imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
 

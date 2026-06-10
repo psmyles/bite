@@ -92,7 +92,7 @@ export class NodeRegistry {
 
 // ─── Runtime validation ───────────────────────────────────────────────────────
 
-function validate(data: unknown): string[] {
+export function validate(data: unknown): string[] {
   if (typeof data !== 'object' || data === null) return ['Must be an object'];
   const d = data as Record<string, unknown>;
   const errors: string[] = [];

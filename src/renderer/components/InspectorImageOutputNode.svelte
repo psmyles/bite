@@ -37,12 +37,6 @@
   const folderEdge = $derived(
     graphStore.edges.find((e) => e.target === selectedNode.id && e.targetHandle === 'folder-in') ?? null
   );
-  const connectedFolderPath = $derived.by(() => {
-    if (!folderEdge) return null;
-    const src = graphStore.nodes.find((n) => n.id === folderEdge.source);
-    if (!src) return null;
-    return (getNodeParams(src.data)?.folderPath as string) ?? null;
-  });
 
   async function browseFolder() {
     const folder: string | null = await window.ipcRenderer.invoke(IPC.OPEN_FOLDER_DIALOG);

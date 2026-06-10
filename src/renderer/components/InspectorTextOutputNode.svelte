@@ -341,7 +341,7 @@
 
     {#if previewLines !== null && previewLines.length > 0}
       <div class="preview-list">
-        {#each previewLines as line}
+        {#each previewLines as line, i (i)}
           <div class="preview-line">{line}</div>
         {/each}
       </div>

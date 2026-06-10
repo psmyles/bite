@@ -138,7 +138,7 @@ export function registerPipelineHandlers(
           console.error('[log] Failed to write output log:', e);
         });
       }
-      const { outputFiles: _, ...summary } = result;
+      const { outputFiles: _outputFiles, ...summary } = result;
       return summary;
     }
   );

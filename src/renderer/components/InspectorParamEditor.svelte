@@ -198,7 +198,7 @@
         p.type === 'vector4' ? ['X', 'Y', 'Z', 'W'] : p.type === 'vector3' ? ['X', 'Y', 'Z'] : ['X', 'Y']}
       {@const vals = Array.isArray(getValue(p)) ? (getValue(p) as number[]) : []}
       <div class="vector-wrap">
-        {#each labels as lbl, idx}
+        {#each labels as lbl, idx (lbl)}
           <div class="vector-field">
             <span class="vector-lbl">{lbl}</span>
             <input

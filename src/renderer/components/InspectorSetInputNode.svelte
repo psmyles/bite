@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteMap } from 'svelte/reactivity';
   import type { Node } from '@xyflow/svelte';
   import { graphStore } from '../stores/graph.svelte.js';
   import { imageStore } from '../stores/images.svelte.js';
@@ -73,7 +74,7 @@
 
   const setGroups = $derived.by((): SetGroup[] => {
     if (suffixes.length === 0) return [];
-    const map = new Map<string, Record<string, string>>();
+    const map = new SvelteMap<string, Record<string, string>>();
 
     for (const img of imageStore.images) {
       const name = img.name.replace(/\.[^.]+$/, '');
@@ -130,7 +131,7 @@
   <div class="section-label">Suffixes</div>
 
   <!-- Suffix list -->
-  {#each suffixes as suffix, i}
+  {#each suffixes as suffix, i (i)}
     {@const wired = isSuffixWired(i)}
     <div class="suffix-row">
       <span class="suffix-label">
@@ -182,11 +183,11 @@
     {#if setGroups.length === 0}
       <div class="no-match">No images match the current pattern.</div>
     {:else}
-      {#each previewGroups as group}
+      {#each previewGroups as group (group.middle)}
         <div class="set-row" class:complete={group.complete} class:incomplete={!group.complete}>
           <span class="set-middle">{prefix}{group.middle}</span>
           <div class="set-slots">
-            {#each suffixes.filter((s) => s) as s}
+            {#each suffixes.filter((s) => s) as s (s)}
               <span class="slot" class:found={!!group.slots[s]} class:missing={!group.slots[s]}>
                 {s}
               </span>

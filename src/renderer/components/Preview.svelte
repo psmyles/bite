@@ -1,9 +1,10 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import { imageStore } from '../stores/images.svelte.js';
   import { graphStore } from '../stores/graph.svelte.js';
   import { IPC, EMPTY_GRAPH } from '../../shared/constants.js';
-  import type { NodeGraph, GraphNode, GraphEdge } from '../../shared/types.js';
+  import type { NodeGraph, GraphNode } from '../../shared/types.js';
   import type { Node, Edge } from '@xyflow/svelte';
   import { isNodeEffectivelyEnabled } from '../nodeEditor/nodeEnabledState.js';
   import { IS_ELECTRON } from '../platform.js';
@@ -43,7 +44,7 @@
    */
   function findNonBypassedPredecessor(startId: string, sfNodes: Node[], sfEdges: Edge[]): string | null {
     let current = startId;
-    const seen = new Set<string>();
+    const seen = new SvelteSet<string>();
     while (true) {
       if (seen.has(current)) return null;
       seen.add(current);
@@ -62,7 +63,7 @@
    */
   function buildPreviewGraph(sfNodes: Node[], sfEdges: Edge[], userPreviewId: string | null): PreviewGraphResult {
     // BFS forward from all Input nodes — find all reachable nodes
-    const reachable = new Set<string>();
+    const reachable = new SvelteSet<string>();
     const inputNodeIds = sfNodes.filter((n) => n.type === 'inputNode').map((n) => n.id);
     const q: string[] = [...inputNodeIds];
     while (q.length > 0) {
@@ -156,7 +157,7 @@
     }
 
     // BFS backward from effectivePreviewId to find its ancestors
-    const ancestors = new Set<string>();
+    const ancestors = new SvelteSet<string>();
     const bq: string[] = [effectivePreviewId];
     while (bq.length > 0) {
       const id = bq.shift()!;
@@ -253,7 +254,7 @@
     if (!IS_ELECTRON) return; // preview requires ImageMagick; no-op in browser
 
     const selected = imageStore.selected;
-    const _key = graphKey; // track pipeline content + preview node selection
+    void graphKey; // track pipeline content + preview node selection
 
     const sfNodes = $state.snapshot(untrack(() => graphStore.nodes)) as Node[];
     const sfEdges = $state.snapshot(untrack(() => graphStore.edges)) as Edge[];
@@ -312,7 +313,6 @@
   <div class="panel-header">
     <span>Preview</span>
     {#if imageStore.selected}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <button class="info-btn" class:active={showInfo} onclick={() => (showInfo = !showInfo)} aria-pressed={showInfo}
         >Info</button
       >

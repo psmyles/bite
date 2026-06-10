@@ -59,7 +59,7 @@
   </button>
   {#if open}
     <div class="dd-list" role="listbox">
-      {#each options as opt, i}
+      {#each options as opt, i (i)}
         <div
           class="dd-item"
           class:active={opt === value}

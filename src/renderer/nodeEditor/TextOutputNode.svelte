@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Handle, Position } from '@xyflow/svelte';
+  import { SvelteMap } from 'svelte/reactivity';
   import { portColor } from './portColors.js';
   import { graphStore } from '../stores/graph.svelte.js';
 
@@ -20,7 +21,7 @@
   );
 
   const portLabelMap = $derived.by(() => {
-    const inEdgeMap = new Map<string, string>();
+    const inEdgeMap = new SvelteMap<string, string>();
     for (const e of graphStore.edges) {
       if (e.target === id) inEdgeMap.set(e.targetHandle ?? '', e.source);
     }
@@ -53,7 +54,7 @@
 />
 
 <!-- Dynamic txo param ports -->
-{#each displayPortIds as portId, i}
+{#each displayPortIds as portId, i (portId)}
   <Handle
     type="target"
     position={Position.Left}
@@ -73,7 +74,7 @@
   </div>
 
   <!-- Txo param port rows -->
-  {#each displayPortIds as portId}
+  {#each displayPortIds as portId (portId)}
     {@const isGhost = portId === ghostPortId}
     {@const label = portLabelMap.get(portId)}
     <div class="port-row" class:ghost={isGhost}>

@@ -158,7 +158,7 @@
 
     <h3 class="sc-sub">Backgrounds &amp; Surfaces</h3>
     <div class="swatch-grid">
-      {#each SURFACES as s}
+      {#each SURFACES as s (s.name)}
         <div class="swatch-item">
           <div class="swatch" style="background: {s.value}"></div>
           <div class="swatch-info">
@@ -172,7 +172,7 @@
 
     <h3 class="sc-sub">Text, Borders &amp; Accents</h3>
     <div class="swatch-grid">
-      {#each CHROMATIC as s}
+      {#each CHROMATIC as s (s.name)}
         <div class="swatch-item">
           <div class="swatch" style="background: {s.value}"></div>
           <div class="swatch-info">
@@ -186,7 +186,7 @@
 
     <h3 class="sc-sub">Semantic Status Colors</h3>
     <div class="swatch-grid">
-      {#each STATUS_COLORS as s}
+      {#each STATUS_COLORS as s (s.name)}
         <div class="swatch-item">
           <div class="swatch" style="background: {s.value}"></div>
           <div class="swatch-info">
@@ -200,7 +200,7 @@
 
     <h3 class="sc-sub">Port / Edge Colors</h3>
     <div class="swatch-grid swatch-grid--ports">
-      {#each PORT_COLORS as s}
+      {#each PORT_COLORS as s (s.name)}
         <div class="swatch-item">
           <div class="swatch swatch--port" style="background: {s.value}"></div>
           <div class="swatch-info">
@@ -335,7 +335,7 @@
     </p>
 
     <div class="node-type-list">
-      {#each NODE_TYPES as n}
+      {#each NODE_TYPES as n (n.label)}
         <div class="node-card">
           <div
             class="node-card-header"

@@ -25,7 +25,7 @@
     return null;
   }
 
-  function isChanged(p: ParamPort, params: Record<string, unknown>): boolean {
+  function isChanged(p: ParamPortDef, params: Record<string, unknown>): boolean {
     if (p.readonly) return false;
     const cur = params[p.name];
     if (p.default === undefined) return cur !== undefined && cur !== null;
@@ -186,7 +186,7 @@
   // Maps portOnly combined names to how many elements to slice from the source array
   const COMBINED_SLICE: Record<string, number> = { xy: 2, xyz: 3, xyzw: 4, rgb: 3, rgba: 4 };
 
-  function resolveSlotValue(p: ParamPort, params: Record<string, unknown>): unknown {
+  function resolveSlotValue(p: ParamPortDef, params: Record<string, unknown>): unknown {
     // Use stored value if already computed (e.g. after executor ran)
     const stored = params[p.name];
     if (stored !== null && stored !== undefined) return stored;
@@ -247,7 +247,7 @@
 
 <!-- Image input handles (left side) — only when node has image ports -->
 {#if hasImagePorts}
-  {#each inputs as type, i}
+  {#each inputs as type, i (i)}
     <Handle
       type="target"
       position={Position.Left}
@@ -258,7 +258,7 @@
 {/if}
 
 <!-- Param input handles (left side) — writable body params only -->
-{#each bodyParamDefs as p, i}
+{#each bodyParamDefs as p, i (p.name)}
   {#if !p.readonly && !p.noPort}
     <Handle
       type="target"
@@ -271,7 +271,6 @@
 
 <div class="node" class:selected class:bypassed={!effectiveEnabled}>
   <!-- has-toggle adds left padding so the label doesn't overlap the tick -->
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <header
     bind:this={headerEl}
     class="node-head"
@@ -280,7 +279,6 @@
     onmouseleave={onHeaderLeave}
   >
     {#if isActionable && !hasEnabledWire}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <span
         class="bypass-tick"
         class:active={enabled}
@@ -299,12 +297,12 @@
   {#if hasImagePorts}
     <div class="node-ports">
       <div class="port-col">
-        {#each inputs as type, i}
+        {#each inputs as type, i (i)}
           <span class="port-tag" style={`color: ${portColor(type)}`}>{inputLabels[i] ?? type}</span>
         {/each}
       </div>
       <div class="port-col right">
-        {#each outputs as type, i}
+        {#each outputs as type, i (i)}
           <span class="port-tag" style={`color: ${portColor(type)}`}>{outputLabels[i] ?? type}</span>
         {/each}
       </div>
@@ -314,7 +312,7 @@
   <!-- Param ports section (body params only — portOnly params go in output slots) -->
   {#if bodyParamDefs.length > 0}
     <div class="param-ports" class:no-sep={!hasImagePorts}>
-      {#each bodyParamDefs as p}
+      {#each bodyParamDefs as p (p.name)}
         {@const params = (data.params ?? {}) as Record<string, unknown>}
         {@const liveVal = id ? (graphStore.propValues[id]?.[p.name] ?? params[p.name]) : params[p.name]}
         <div class="param-port-row" class:readonly-row={p.readonly}>
@@ -350,7 +348,7 @@
   <!-- Output slots section — port-only derived outputs (e.g. color channels) -->
   {#if outputSlotDefs.length > 0}
     <div class="output-slots">
-      {#each outputSlotDefs as p}
+      {#each outputSlotDefs as p (p.name)}
         {@const params = (data.params ?? {}) as Record<string, unknown>}
         {@const liveParams = id ? { ...params, ...graphStore.propValues[id] } : params}
         {@const slotVal = formatParamValue(p.type, resolveSlotValue(p, liveParams))}
@@ -367,7 +365,7 @@
 
 <!-- Image output handles (right side) — only when node has image ports -->
 {#if hasImagePorts}
-  {#each outputs as type, i}
+  {#each outputs as type, i (i)}
     <Handle
       type="source"
       position={Position.Right}
@@ -378,7 +376,7 @@
 {/if}
 
 <!-- Param output handles (right side) — readonly body params -->
-{#each bodyParamDefs as p, i}
+{#each bodyParamDefs as p, i (p.name)}
   {#if p.readonly}
     <Handle
       type="source"
@@ -389,7 +387,7 @@
   {/if}
 {/each}
 <!-- Output slot handles (right side) — portOnly derived outputs -->
-{#each outputSlotDefs as p, i}
+{#each outputSlotDefs as p, i (p.name)}
   <Handle
     type="source"
     position={Position.Right}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteSet } from 'svelte/reactivity';
   import { imageStore } from '../stores/images.svelte.js';
   import { graphStore } from '../stores/graph.svelte.js';
   import { IPC } from '../../shared/constants.js';
@@ -68,7 +69,7 @@
   }
 
   function toggleFormat(label: string) {
-    const next = new Set(activeFormats);
+    const next = new SvelteSet(activeFormats);
     if (next.has(label)) {
       if (next.size > 1) next.delete(label);
     } else next.add(label);
@@ -171,7 +172,7 @@
         <div class="format-section">
           <span class="section-label">File formats</span>
           <div class="chip-grid">
-            {#each FORMAT_GROUPS as g}
+            {#each FORMAT_GROUPS as g (g.label)}
               <button class="chip" class:active={activeFormats.has(g.label)} onclick={() => toggleFormat(g.label)}
                 >{g.label}</button
               >
@@ -215,7 +216,7 @@
       <button class="btn btn--danger btn--full" onclick={() => imageStore.clear(nodeId)}>Clear All</button>
     </div>
     <div class="file-list-wrap">
-      {#each imageStore.getImages(nodeId) as img, i}
+      {#each imageStore.getImages(nodeId) as img, i (img.path)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="file-entry"
