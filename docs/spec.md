@@ -107,7 +107,7 @@ project-root/
 │   └── preload.ts         - contextBridge exposes window.ipcRenderer (invoke/on/off/send)
 ├── src/
 │   ├── shared/
-│   │   ├── types.ts       - NodeDefinition, GraphNode, GraphEdge, NodeGraph, ImageInfo, PipelineService, Progress
+│   │   ├── types.ts       - NodeDefinition, GraphNode, GraphEdge, NodeGraph, ImageInfo, Progress
 │   │   ├── constants.ts   - IPC channel name map (IPC.*), EXECUTOR key map, PREVIEW_MAX_EDGE_PX, THUMBNAIL_SIZE_PX, PREVIEW_DEBOUNCE_MS, APP_NAME
 │   │   └── renameUtils.ts - Filename token expansion for Rename node
 │   ├── main/              - Node.js / Electron main-process business logic
@@ -132,7 +132,7 @@ project-root/
 │   │   │   ├── cache.ts             - Node-level output cache (PreviewCache) keyed by nodeId:inputHash
 │   │   │   ├── timing.ts            - Optional perf instrumentation (timings.enabled); writes perf.log with batch timing summary and per-image ImageMagick verbose output
 │   │   │   ├── output-log.ts        - Writes a timestamped output log file to the output directory after a batch completes
-│   │   │   ├── scan-folder.ts       - scanFolder(root, recursive, extSet): recursively lists files matching a set of extensions
+│   │   │   ├── scan-folder.ts       - scanFolder(root, recursive, extSet): async recursive listing of files matching a set of extensions
 │   │   │   └── magick-path.ts       - Resolves bundled resources/win/magick/magick.exe in production, system magick in dev
 │   │   └── ipc/
 │   │       ├── handlers.ts          - Core IPC handler registration (registry, pipeline, dialogs, shell, app lifecycle, workflows)
@@ -188,9 +188,7 @@ project-root/
 │       ├── stores/
 │       │   ├── graph.svelte.ts          - GraphStore: nodes (seeded via makeSeedNodes()), edges, selection, batch state, viewport; canDeleteNode() guards last inputNode / last output node of any type
 │       │   └── images.svelte.ts         - Per-node image storage: Map<nodeId, ImageInfo[]>; activeInputNodeId tracks the filmstrip; getImages(nodeId), setActive(nodeId), add(paths, nodeId), clear(nodeId), removeNode(nodeId)
-│       ├── services/
-│       │   └── pipeline-service.ts      - ElectronPipelineService: IPC bridge; executeBatch passes outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog
-│       ├── workflowUtils.ts             - traceInputNodeId(nodes, edges, outputNodeId): BFS backwards through image edges to find the connected inputNode ID
+│       ├── workflowUtils.ts             - hasSetInputInChain(...) + re-exports traceInputNodeId from shared/graphTrace.ts; renderer calls window.ipcRenderer.invoke directly (no service layer)
 │       ├── platform.ts                  - IS_ELECTRON flag (detects Electron vs browser context)
 │       └── browserIpc.ts               - Browser shim for window.ipcRenderer (workflow builder without Electron)
 ├── src/tests/             - Vitest unit tests for pure-function modules
@@ -371,7 +369,7 @@ Result: ~1.6s for 1983 mixed PNG/TGA/JPG/PSD images (vs ~44s before batching).
 ### 7.4 Batch Pipeline
 
 - Separate from preview - no caching, full resolution.
-- **Parallel execution:** runs N concurrent pipelines via `Promise.all` where N = `concurrency` (derived from CPU count). `MAGICK_THREAD_LIMIT` is divided equally across workers to prevent ImageMagick's internal OpenMP pool from oversubscribing the CPU.
+- **Parallel execution:** runs N concurrent pipelines via `Promise.all` where N = `concurrency = Math.min(128, imagePaths.length)`. `MAGICK_THREAD_LIMIT` (= cores / N) is passed **per spawn** via the `ctx.spawnEnv` field — not by mutating `process.env` — so concurrent previews/thumbnails and overlapping batches don't interfere. This prevents ImageMagick's internal OpenMP pool from oversubscribing the CPU.
 - **Fast path:** if no Properties nodes present, `buildOpArgsForImage` runs once to produce a shared plan applied to all images.
 - **Slow path:** if Properties nodes present, plan re-evaluated per image with fresh `magick identify` metadata.
 - **Multi-stream path:** activated when channel_split, channel_merge, or mean_value nodes are present. Uses a lazy-chain buffer model - consecutive standard ops accumulate into a `{base, args}` lazy chain; materialisation is deferred until a fork (multiple consumers) or a format change. This fuses multiple standard nodes into a single magick invocation.
@@ -603,7 +601,7 @@ Build outputs:
   - Inspector shows the resulting flag (`Flag: --<name>`) and a conflict warning when two nodes share the same name
   - `executor-cli.ts` is graph-aware: reads the workflow graph and emits one typed param per named node in all three script formats (PS / Bash / CMD)
   - `imgplex-cli run` parses `--<flag> <path>` pairs, iterates all output nodes, traces each to its input node, and runs `executeBatch` per output; clear error if a required input flag is missing
-- Unit tests: Vitest with 316 tests across 17 test files
+- Unit tests: Vitest with 450 tests across 26 test files. Coverage via `npm run test:coverage` (`@vitest/coverage-v8`, thresholds enforced).
 
 ### Pending - Priority Order
 

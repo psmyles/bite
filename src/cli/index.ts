@@ -4,56 +4,15 @@ import { fileURLToPath } from 'node:url';
 import { NodeRegistry } from '../main/nodes/registry.js';
 import { PipelineExecutor } from '../main/pipeline/executor.js';
 import type { NodeGraph } from '../shared/types.js';
+import { traceInputNodeId } from '../shared/graphTrace.js';
+import { IMAGE_EXTENSIONS } from '../shared/constants.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 type GraphNode = NodeGraph['nodes'][number];
-type GraphEdge = NodeGraph['edges'][number];
 
-const IMAGE_EXTS = new Set([
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.avif',
-  '.gif',
-  '.bmp',
-  '.ico',
-  '.tif',
-  '.tiff',
-  '.heic',
-  '.heif',
-  '.jp2',
-  '.j2k',
-  '.jpf',
-  '.jpx',
-  '.jxl',
-  '.psd',
-  '.psb',
-  '.exr',
-  '.hdr',
-  '.dpx',
-  '.cin',
-  '.cr2',
-  '.cr3',
-  '.nef',
-  '.nrw',
-  '.arw',
-  '.dng',
-  '.orf',
-  '.raf',
-  '.rw2',
-  '.pef',
-  '.srw',
-  '.tga',
-  '.pcx',
-  '.ppm',
-  '.pgm',
-  '.pbm',
-  '.pnm',
-  '.sgi',
-  '.dds',
-]);
+// Same formats the app accepts (shared list), as dotted extensions for extname().
+const IMAGE_EXTS = new Set(IMAGE_EXTENSIONS.map((e) => '.' + e));
 
 function die(msg: string): never {
   console.error(`[imgplex] ${msg}`);
@@ -78,24 +37,6 @@ function usage(): never {
     ].join('\n')
   );
   process.exit(0);
-}
-
-// BFS backward from outputNodeId through image edges to find the connected inputNode.
-function traceInputNodeId(nodes: GraphNode[], edges: GraphEdge[], outputNodeId: string): string | null {
-  const visited = new Set<string>();
-  const queue = [outputNodeId];
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    if (visited.has(id)) continue;
-    visited.add(id);
-    if (nodes.find((n) => n.id === id)?.type === 'inputNode') return id;
-    for (const e of edges) {
-      if (e.target === id && !e.sourceHandle?.startsWith('param-') && !e.targetHandle?.startsWith('param-')) {
-        queue.push(e.source);
-      }
-    }
-  }
-  return null;
 }
 
 function nodeCliName(node: GraphNode): string {

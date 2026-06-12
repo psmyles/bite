@@ -22,6 +22,7 @@
   <div
     class="dialog"
     role="dialog"
+    tabindex="-1"
     aria-modal="true"
     aria-label="Incompatible Workflow Version"
     onclick={(e) => e.stopPropagation()}

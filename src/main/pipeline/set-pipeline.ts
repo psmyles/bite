@@ -147,14 +147,9 @@ export async function executeSetBatch(
   }
 
   const threadsPerSetProcess = Math.max(1, Math.floor(os.cpus().length / setConcurrency));
-  const prevThreadLimitSet = process.env.MAGICK_THREAD_LIMIT;
-  process.env.MAGICK_THREAD_LIMIT = String(threadsPerSetProcess);
-  try {
-    await Promise.all(Array.from({ length: setConcurrency }, processOneSet));
-  } finally {
-    if (prevThreadLimitSet !== undefined) process.env.MAGICK_THREAD_LIMIT = prevThreadLimitSet;
-    else delete process.env.MAGICK_THREAD_LIMIT;
-  }
+  // Per-spawn env (via ctx) instead of mutating process.env — see batch-pipeline.ts.
+  ctx.spawnEnv = { ...process.env, MAGICK_THREAD_LIMIT: String(threadsPerSetProcess) };
+  await Promise.all(Array.from({ length: setConcurrency }, processOneSet));
   if (timings.enabled) {
     const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null);
     timings.endBatch(resolvedOutputDir);

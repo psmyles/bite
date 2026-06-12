@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { NodeGraph, Progress } from '../../shared/types.js';
-import { EXECUTOR } from '../../shared/constants.js';
+import { EXECUTOR, LIGHT_META_EXECUTORS } from '../../shared/constants.js';
 import { topoSort, findOutputContributors } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
 import {
@@ -78,6 +78,8 @@ export async function executeBatch(
     'info',
     `[batch] start: ${imagePaths.length} image(s), output: ${outputDir ?? 'same as source'}, overwrite: ${overwrite}`
   );
+  // Nothing to do — avoids concurrency=0 → os.cpus()/0 === Infinity downstream.
+  if (imagePaths.length === 0) return { processed: 0, skipped: 0, failed: 0, errors: [], outputFiles: [] };
   const outputFiles: string[] = [];
   const batchVerboseEntries: string[] = [];
   const sorted = topoSort(graph.nodes, graph.edges);
@@ -103,16 +105,6 @@ export async function executeBatch(
     const def = registry.get(n.data.definitionId);
     return def?.needs_image_meta === true;
   });
-  // These nodes only need cheap I/O (fs.stat + header read) — no ImageMagick identify needed.
-  // Heavy nodes (prop_bitdepth, prop_resolution, prop_exif) still need the full identify.
-  const LIGHT_META_EXECUTORS = new Set<string>([
-    EXECUTOR.PROP_NAME,
-    EXECUTOR.PROP_PATH,
-    EXECUTOR.PROP_SIZE,
-    EXECUTOR.PROP_FILETYPE,
-    EXECUTOR.PROP_DIMENSIONS,
-    EXECUTOR.PROP_POWER_OF_TWO,
-  ]);
   const hasHeavyMetaNodes = sorted.some((n) => {
     if (!outputContributorIds.has(n.id)) return false;
     const def = registry.get(n.data.definitionId);
@@ -215,6 +207,7 @@ export async function executeBatch(
     outputDir,
     overwrite,
     isCancelled,
+    spawnEnv: process.env, // overridden below once this run's concurrency is known
   };
 
   // ── Set batch mode ─────────────────────────────────────────────────────────
@@ -404,7 +397,8 @@ export async function executeBatch(
                 [...verboseArgs, inputPath, ...opArgs, fmtOut],
                 magickBucket ?? undefined,
                 undefined,
-                timings.enabled ? verboseCapture : undefined
+                timings.enabled ? verboseCapture : undefined,
+                { env: ctx.spawnEnv }
               );
               if (timings.enabled && verboseCapture.length > 0) {
                 const verboseText = verboseCapture.join('').trim();
@@ -453,14 +447,11 @@ export async function executeBatch(
   // competing for cores threads — massive context-switching overhead.  Giving each
   // process an equal share of the hardware threads keeps total thread count at os.cpus().
   const threadsPerProcess = Math.max(1, Math.floor(os.cpus().length / concurrency));
-  const prevThreadLimit = process.env.MAGICK_THREAD_LIMIT;
-  process.env.MAGICK_THREAD_LIMIT = String(threadsPerProcess);
-  try {
-    await Promise.all(Array.from({ length: concurrency }, processOne));
-  } finally {
-    if (prevThreadLimit !== undefined) process.env.MAGICK_THREAD_LIMIT = prevThreadLimit;
-    else delete process.env.MAGICK_THREAD_LIMIT;
-  }
+  // Pass the thread limit per-spawn (not via process.env) so concurrent previews,
+  // thumbnail generation, or a second output node don't inherit this throttle and
+  // overlapping batches can't clobber each other's save/restore.
+  ctx.spawnEnv = { ...process.env, MAGICK_THREAD_LIMIT: String(threadsPerProcess) };
+  await Promise.all(Array.from({ length: concurrency }, processOne));
   if (timings.enabled) {
     const resolvedOutputDir = outputDir ?? (outputFiles.length > 0 ? path.dirname(outputFiles[0]) : null);
     timings.endBatch(resolvedOutputDir, batchVerboseEntries.length > 0 ? batchVerboseEntries : undefined);

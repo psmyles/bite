@@ -144,19 +144,3 @@ export interface BatchResult {
   errors?: string[];
 }
 
-export interface PipelineService {
-  loadImages(paths: string[]): Promise<ImageInfo[]>;
-  generateThumbnail(imagePath: string, size: number): Promise<string>;
-  executePreview(graph: NodeGraph, imagePath: string, fromNodeId?: string): Promise<string>;
-  executeBatch(
-    graph: NodeGraph,
-    outputNodeId: string,
-    inputNodeId: string,
-    imagePaths: string[],
-    outputDir: string | null,
-    overwrite: 'skip' | 'overwrite',
-    generateLog: boolean,
-    onProgress: (p: Progress) => void
-  ): Promise<void>;
-  exportCLI(graph: NodeGraph): string;
-}

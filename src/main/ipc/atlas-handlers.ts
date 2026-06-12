@@ -1,9 +1,8 @@
 import { ipcMain, dialog } from 'electron';
 import type { BrowserWindow } from 'electron';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
 
-import { getMagickBinary } from '../pipeline/magick-path.js';
+import { spawnMagick } from '../pipeline/magick-spawn.js';
 import { IPC } from '../../shared/constants.js';
 import { writeOutputLog } from '../pipeline/output-log.js';
 import { log } from '../logger.js';
@@ -73,7 +72,6 @@ export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void 
     // Truncate to grid capacity
     const selected = sorted.slice(0, rows * cols);
 
-    const magick = getMagickBinary();
     // -geometry WxH!+0+0 : force exact cell size (stretch), 0px border between tiles
     // -background none   : transparent fill for unfilled cells (PNG/WebP)
     // -tile COLSxROWS    : fixed grid layout
@@ -89,26 +87,13 @@ export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void 
       outputPath,
     ];
 
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(magick, args, { stdio: ['ignore', 'ignore', 'pipe'] });
-      let stderr = '';
-      child.stderr?.on('data', (d: Buffer) => {
-        stderr += d.toString();
-      });
-      child.on('close', (code) => {
-        if (code === 0) {
-          log('info', `[atlas] done in ${Date.now() - atlasT0}ms → ${outputPath}`);
-          resolve();
-        } else {
-          log('error', `[atlas] failed (code ${code}): ${stderr.slice(0, 300).trim()}`);
-          reject(new Error(`magick montage exited with code ${code}: ${stderr.slice(0, 300).trim()}`));
-        }
-      });
-      child.on('error', (err: Error) => {
-        log('error', `[atlas] spawn failed: ${err.message}`);
-        reject(new Error(`Failed to launch magick: ${err.message}`));
-      });
-    });
+    try {
+      await spawnMagick(args);
+      log('info', `[atlas] done in ${Date.now() - atlasT0}ms → ${outputPath}`);
+    } catch (err) {
+      log('error', `[atlas] failed: ${(err as Error).message}`);
+      throw err;
+    }
 
     if (generateLog) {
       await writeOutputLog({

@@ -1,5 +1,21 @@
 import path from 'node:path';
-import type { GraphEdge, GraphNode, NodeGraph } from '../../shared/types.js';
+import type { GraphEdge, GraphNode } from '../../shared/types.js';
+import { log } from '../logger.js';
+
+/** Forward BFS from startNodeIds; returns those nodes plus all of their descendants. */
+export function findDescendants(edges: GraphEdge[], startNodeIds: string[]): Set<string> {
+  const descendants = new Set<string>();
+  const queue = [...startNodeIds];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (descendants.has(id)) continue;
+    descendants.add(id);
+    for (const e of edges) {
+      if (e.source === id) queue.push(e.target);
+    }
+  }
+  return descendants;
+}
 
 /** Backward BFS from startNodeIds; returns all nodes that contribute to those outputs. */
 export function findOutputContributors(edges: GraphEdge[], startNodeIds: string[]): Set<string> {
@@ -26,6 +42,13 @@ export function applyParamWires(
   resolvedParams: Map<string, Record<string, unknown>>
 ): Record<string, unknown> {
   const rawParams: Record<string, unknown> = { ...node.data.params };
+  // Security: never let `__`-prefixed keys survive from workflow data. The only
+  // legitimate one (`__compute_js__`) is injected at runtime from the trusted node
+  // definition (resolve-params.ts). A malicious .imgplex could otherwise set it on
+  // any node's params and achieve arbitrary code execution in the main process.
+  for (const key of Object.keys(rawParams)) {
+    if (key.startsWith('__')) delete rawParams[key];
+  }
   for (const edge of edges) {
     if (edge.target !== node.id) continue;
     const th = edge.targetHandle ?? '';
@@ -73,29 +96,14 @@ export function topoSort(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] {
     }
   }
 
-  return sorted;
-}
-
-/**
- * BFS backwards from outputNodeId through image edges to find the connected inputNode.
- * Returns the inputNode's ID, or null if none found.
- */
-export function traceInputNode(graph: NodeGraph, outputNodeId: string): string | null {
-  const visited = new Set<string>();
-  const queue = [outputNodeId];
-  while (queue.length > 0) {
-    const nodeId = queue.shift()!;
-    if (visited.has(nodeId)) continue;
-    visited.add(nodeId);
-    const node = graph.nodes.find((n) => n.id === nodeId);
-    if (node?.type === 'inputNode') return nodeId;
-    for (const edge of graph.edges) {
-      if (edge.target === nodeId && !edge.sourceHandle?.startsWith('param-')) {
-        queue.push(edge.source);
-      }
-    }
+  // Kahn's algorithm leaves cycle members out of `sorted`. A cycle shouldn't be
+  // reachable via the UI, but a hand-edited/corrupt .imgplex can introduce one —
+  // warn rather than silently dropping nodes from execution.
+  if (sorted.length !== nodes.length) {
+    log('warn', `[topoSort] graph contains a cycle: ${nodes.length - sorted.length} node(s) dropped from execution`);
   }
-  return null;
+
+  return sorted;
 }
 
 export function groupBySetPattern(

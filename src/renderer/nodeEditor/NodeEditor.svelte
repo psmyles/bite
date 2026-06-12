@@ -578,7 +578,7 @@
   const connectionLineStyle = $derived(
     wireType
       ? `stroke: ${portColor(wireType)}; stroke-width: 2; stroke-dasharray: 6 4;`
-      : `stroke: #6b7280; stroke-width: 2; stroke-dasharray: 6 4;`
+      : `stroke: var(--edge-stroke); stroke-width: 2; stroke-dasharray: 6 4;`
   );
 
   // ── Viewport (zoom level) ──────────────────────────────────────────────────
@@ -694,6 +694,10 @@
 
     if (selectedGroupIds.size === 0 && toDelete.size === 0 && selectedEdgeIds.size === 0) return;
 
+    // Capture which deleted nodes are input nodes BEFORE reassigning `nodes` below —
+    // otherwise the lookup can never find them (they're filtered out).
+    const deletedInputIds = [...toDelete].filter((id) => nodes.find((n) => n.id === id)?.type === 'inputNode');
+
     nodes = nodes
       .filter((n) => !selectedGroupIds.has(n.id) && !toDelete.has(n.id))
       .map((n) => {
@@ -713,9 +717,7 @@
     edges = edges.filter((e) => !selectedEdgeIds.has(e.id) && !toDelete.has(e.source) && !toDelete.has(e.target));
 
     // Free image lists for deleted input nodes
-    for (const id of toDelete) {
-      if (nodes.find((n) => n.id === id)?.type === 'inputNode') imageStore.removeNode(id);
-    }
+    for (const id of deletedInputIds) imageStore.removeNode(id);
 
     pushHistory();
   }
@@ -866,8 +868,14 @@
 
   function makeWorkflowCliName(workflowType: string, currentNodes: typeof nodes): string {
     const prefix = CLI_NAME_PREFIXES[workflowType] ?? workflowType;
-    const count = currentNodes.filter((n) => n.type === workflowType).length;
-    return `${prefix}-${count + 1}`;
+    // Pick the first `prefix-N` not already taken — a plain count collides after a
+    // middle node is deleted (e.g. delete input-1 → next add would reuse input-2).
+    const used = new Set(
+      currentNodes.map((n) => (n.data?.params?.cliName as string | undefined)?.trim()).filter(Boolean)
+    );
+    let n = 1;
+    while (used.has(`${prefix}-${n}`)) n++;
+    return `${prefix}-${n}`;
   }
 
   function onDrop(e: DragEvent) {
@@ -1063,10 +1071,10 @@
     border-radius: 0 !important;
     background: transparent !important;
     /* Override dark mode defaults that paint edges/handles white */
-    --xy-edge-stroke: #6b7280;
-    --xy-edge-stroke-selected: #ffffff;
-    --xy-handle-background-color: #6b7280;
-    --xy-handle-border-color: #6b7280;
+    --xy-edge-stroke: var(--edge-stroke);
+    --xy-edge-stroke-selected: var(--edge-stroke-selected);
+    --xy-handle-background-color: var(--edge-stroke);
+    --xy-handle-border-color: var(--edge-stroke);
   }
 
   :global(.svelte-flow__minimap) {

@@ -84,6 +84,7 @@ function makeCtx(
     outputDir: null,
     overwrite: 'overwrite',
     isCancelled: () => false,
+    spawnEnv: process.env,
     ...overrides,
   };
 }

@@ -38,6 +38,7 @@
   <div
     class="modal"
     role="dialog"
+    tabindex="-1"
     aria-modal="true"
     aria-label={done ? 'Import Complete' : 'Importing Images'}
     onclick={(e) => e.stopPropagation()}

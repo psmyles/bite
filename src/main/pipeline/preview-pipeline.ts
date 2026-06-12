@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { NodeGraph } from '../../shared/types.js';
 import { log } from '../logger.js';
 import { EXECUTOR } from '../../shared/constants.js';
-import { topoSort } from './graph-utils.js';
+import { topoSort, findDescendants } from './graph-utils.js';
 import type { NodeRegistry } from '../nodes/registry.js';
 import { buildCommandArgs, buildCommandArgsFromJs, buildFormatConvertArgs } from './command-builder.js';
 import { getExecutor } from './executorRegistry.js';
@@ -14,6 +14,12 @@ import { resolveNodeParams } from './resolve-params.js';
 import { spawnMagick } from './magick-spawn.js';
 import { fileToDataUrl } from './image-header.js';
 import { TEMP_DIR, shortHash } from './thumbnail-service.js';
+
+const fileExists = (p: string) =>
+  fs.promises
+    .access(p)
+    .then(() => true)
+    .catch(() => false);
 
 export async function executePreview(
   previewCache: PreviewCache,
@@ -55,10 +61,7 @@ export async function executePreview(
   // (e.g. preview triggered before import, or thumbnail size changed).
   const inputHash = shortHash(imagePath);
   const downscaledPath = path.join(TEMP_DIR, `thumb_${inputHash}_${thumbnailSize}.webp`);
-  const downscaledExists = await fs.promises
-    .access(downscaledPath)
-    .then(() => true)
-    .catch(() => false);
+  const downscaledExists = await fileExists(downscaledPath);
 
   if (!downscaledExists) {
     try {
@@ -72,10 +75,7 @@ export async function executePreview(
       ]);
     } catch (err) {
       // Concurrent preview request may have written the file first; retry access
-      const nowExists = await fs.promises
-        .access(downscaledPath)
-        .then(() => true)
-        .catch(() => false);
+      const nowExists = await fileExists(downscaledPath);
       if (!nowExists) throw err;
     }
   }
@@ -94,13 +94,12 @@ export async function executePreview(
 
   const sorted = topoSort(graph.nodes, graph.edges);
 
-  // Invalidate stale cache entries when a specific node changed
+  // Invalidate stale cache entries when a specific node changed — only the changed
+  // node and its actual descendants, not unrelated parallel branches that merely
+  // sort after it in topological order.
   if (fromNodeId) {
-    const changeIdx = sorted.findIndex((n) => n.id === fromNodeId);
-    if (changeIdx >= 0) {
-      for (let i = changeIdx; i < sorted.length; i++) {
-        previewCache.invalidateFrom(sorted[i].id);
-      }
+    for (const id of findDescendants(graph.edges, [fromNodeId])) {
+      previewCache.invalidateFrom(id);
     }
   }
 
@@ -131,19 +130,10 @@ export async function executePreview(
     if (middleName !== null) {
       for (let i = 0; i < setSuffixes.length; i++) {
         const companionPath = path.join(imgDir, setPrefix + middleName + setSuffixes[i] + imgExt);
-        const companionExists = await fs.promises
-          .access(companionPath)
-          .then(() => true)
-          .catch(() => false);
-        if (!companionExists) continue;
+        if (!(await fileExists(companionPath))) continue;
         const companionHash = shortHash(companionPath);
         const companionDownscaled = path.join(TEMP_DIR, `thumb_${companionHash}_${thumbnailSize}.webp`);
-        if (
-          !(await fs.promises
-            .access(companionDownscaled)
-            .then(() => true)
-            .catch(() => false))
-        ) {
+        if (!(await fileExists(companionDownscaled))) {
           try {
             await spawnMagick([
               `${companionPath}[0]`,
@@ -157,12 +147,7 @@ export async function executePreview(
             /* companion downscale failure is non-fatal */
           }
         }
-        if (
-          await fs.promises
-            .access(companionDownscaled)
-            .then(() => true)
-            .catch(() => false)
-        ) {
+        if (await fileExists(companionDownscaled)) {
           imageBuffers.set(`${previewSetNode.id}:out-${i}`, companionDownscaled);
         }
       }
@@ -175,12 +160,6 @@ export async function executePreview(
     if (!edge) return downscaledPath;
     return imageBuffers.get(`${edge.source}:${edge.sourceHandle ?? 'out-0'}`) ?? downscaledPath;
   };
-
-  const fileExists = (p: string) =>
-    fs.promises
-      .access(p)
-      .then(() => true)
-      .catch(() => false);
 
   // Tracks resolved params per node so downstream param-wire consumers can read them.
   const resolvedParams = new Map<string, Record<string, unknown>>();

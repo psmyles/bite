@@ -19,6 +19,22 @@ type ParamSpec = {
   required: boolean;
 };
 
+// Per-shell escaping for user-entered default values (output paths). Without
+// these, a path containing a quote or shell metacharacter produces an invalid or
+// unsafe generated script.
+function escapeCmd(v: string): string {
+  // In `set "VAR=..."`, only % triggers expansion; " is illegal in Windows paths.
+  return v.replace(/%/g, '%%');
+}
+function escapePs(v: string): string {
+  // Single-quoted PowerShell string: a literal quote is written as two quotes.
+  return v.replace(/'/g, "''");
+}
+function escapeBashDq(v: string): string {
+  // Inside a double-quoted `${n:-default}`, neutralise expansion and command subst.
+  return v.replace(/[\\$`"]/g, (c) => '\\' + c);
+}
+
 export function flagToVarName(flag: string): string {
   return flag.toUpperCase().replace(/-/g, '_');
 }
@@ -97,13 +113,13 @@ export function cliScriptCmd(workflowFileName: string, date: string, graph: Node
 
   allParams.forEach((p, i) => {
     lines.push(`set "${p.varName}=%~${i + 1}"`);
-    lines.push(`if "%${p.varName}%"=="" set "${p.varName}=${p.defaultValue}"`);
+    lines.push(`if "%${p.varName}%"=="" set "${p.varName}=${escapeCmd(p.defaultValue)}"`);
   });
 
   if (allParams.length > 0) lines.push('');
 
   const flagArgs = allParams.map((p) => `--${p.flag} "%${p.varName}%"`).join(' ');
-  lines.push(`imgplex-cli run "%~dp0${workflowFileName}"${flagArgs ? ' ' + flagArgs : ''}`);
+  lines.push(`imgplex-cli run "%~dp0${escapeCmd(workflowFileName)}"${flagArgs ? ' ' + flagArgs : ''}`);
 
   return lines.join('\r\n') + '\r\n'; // CRLF for Windows
 }
@@ -131,12 +147,12 @@ export function cliScriptPS(workflowFileName: string, date: string, graph: NodeG
     lines.push('param (');
     allParams.forEach((p, i) => {
       const comma = i < allParams.length - 1 ? ',' : '';
-      lines.push(`  [string]$${p.psName} = '${p.defaultValue}'${comma}`);
+      lines.push(`  [string]$${p.psName} = '${escapePs(p.defaultValue)}'${comma}`);
     });
     lines.push(')', '');
   }
 
-  lines.push(`$WorkflowFile = Join-Path $PSScriptRoot '${workflowFileName}'`);
+  lines.push(`$WorkflowFile = Join-Path $PSScriptRoot '${escapePs(workflowFileName)}'`);
 
   const flagArgs = allParams.map((p) => `--${p.flag} $${p.psName}`).join(' ');
   lines.push(`imgplex-cli run $WorkflowFile${flagArgs ? ' ' + flagArgs : ''}`);
@@ -166,17 +182,17 @@ export function cliScriptBash(workflowFileName: string, date: string, graph: Nod
   lines.push('SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"');
 
   allParams.forEach((p, i) => {
-    lines.push(`${p.varName}="\${${i + 1}:-${p.defaultValue}}"`);
+    lines.push(`${p.varName}="\${${i + 1}:-${escapeBashDq(p.defaultValue)}}"`);
   });
 
   if (allParams.length > 0) lines.push('');
 
   const flagArgs = allParams.map((p) => `--${p.flag} "\${${p.varName}}"`).join(' \\\n  ');
   if (flagArgs) {
-    lines.push(`imgplex-cli run "\${SCRIPT_DIR}/${workflowFileName}" \\`);
+    lines.push(`imgplex-cli run "\${SCRIPT_DIR}/${escapeBashDq(workflowFileName)}" \\`);
     lines.push(`  ${flagArgs}`);
   } else {
-    lines.push(`imgplex-cli run "\${SCRIPT_DIR}/${workflowFileName}"`);
+    lines.push(`imgplex-cli run "\${SCRIPT_DIR}/${escapeBashDq(workflowFileName)}"`);
   }
 
   return lines.join('\n') + '\n';

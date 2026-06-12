@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -6,16 +5,21 @@ import path from 'node:path';
 
 import type { ImageInfo } from '../../shared/types.js';
 import { log } from '../logger.js';
-import { getMagickBinary } from './magick-path.js';
 import { readHeaderDimensions, fileToDataUrl } from './image-header.js';
-import { spawnMagick } from './magick-spawn.js';
+import { spawnMagick, spawnMagickCapture } from './magick-spawn.js';
 import { timings } from './timing.js';
 
 export const TEMP_DIR = path.join(os.tmpdir(), 'imgplex-preview');
 fs.mkdirSync(TEMP_DIR, { recursive: true });
 
+// Thumbnail generation always pins magick to a single thread — concurrency is at
+// the JS level (many images at once), so each spawn should stay out of OpenMP.
+const THUMB_SPAWN_ENV = { ...process.env, MAGICK_THREAD_LIMIT: '1' };
+
 export function shortHash(data: string): string {
-  return crypto.createHash('md5').update(data).digest('hex').slice(0, 8);
+  // 16 hex chars (64 bits): keeps filenames short while making path collisions in
+  // a large library effectively impossible (8 chars / 32 bits collides at ~77k paths).
+  return crypto.createHash('md5').update(data).digest('hex').slice(0, 16);
 }
 
 const _metaCache = new Map<string, { width: number; height: number; format: string }>();
@@ -26,35 +30,6 @@ export function getMetaCached(imagePath: string): { width: number; height: numbe
 
 export function clearMetaCache(): void {
   _metaCache.clear();
-}
-
-export async function loadImage(imagePath: string): Promise<ImageInfo> {
-  const output = await new Promise<string>((resolve, reject) => {
-    const proc = spawn(getMagickBinary(), ['identify', '-format', '%w %h %m', imagePath]);
-    const out: string[] = [];
-    const err: string[] = [];
-    proc.stdout.on('data', (c: Buffer) => out.push(c.toString()));
-    proc.stderr.on('data', (c: Buffer) => err.push(c.toString()));
-    proc.on('close', (code) => {
-      if (code === 0) resolve(out.join('').trim());
-      else reject(new Error(err.join('').trim()));
-    });
-    proc.on('error', reject);
-  });
-
-  // identify returns one line per frame; take the first
-  const firstLine = output.split('\n')[0];
-  const [widthStr, heightStr, format] = firstLine.split(' ');
-  const stat = await fs.promises.stat(imagePath);
-
-  return {
-    path: imagePath,
-    name: path.basename(imagePath),
-    width: parseInt(widthStr ?? '0', 10) || 0,
-    height: parseInt(heightStr ?? '0', 10) || 0,
-    format: format ?? 'UNKNOWN',
-    sizeBytes: stat.size,
-  };
 }
 
 export async function loadImageWithThumbnail(
@@ -108,43 +83,17 @@ export async function loadImageWithThumbnail(
       magickArgs.push('-define', `jpeg:size=${size * 2}x${size * 2}`);
     }
     magickArgs.push(`${imagePath}[0]`, '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPath);
-    await new Promise<void>((resolve, reject) => {
-      const proc = spawn(getMagickBinary(), magickArgs, { env: { ...process.env, MAGICK_THREAD_LIMIT: '1' } });
-      const stderr: string[] = [];
-      proc.stderr.on('data', (d: Buffer) => stderr.push(d.toString()));
-      proc.on('close', (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`magick exited ${code}: ${stderr.join('').trim()}`));
-      });
-      proc.on('error', (err) =>
-        reject(new Error(`Failed to spawn magick: ${err.message}. Is ImageMagick v7 in PATH?`))
-      );
-    });
+    await spawnMagick(magickArgs, undefined, undefined, undefined, { env: THUMB_SPAWN_ENV });
     width = hdr.width;
     height = hdr.height;
     format = hdr.format;
   } else {
     // Slow path (RAW, TIFF, PSD, GIF, …): combined -print + thumbnail spawn
-    let stdout = '';
-    await new Promise<void>((resolve, reject) => {
-      const proc = spawn(
-        getMagickBinary(),
-        [`${imagePath}[0]`, '-print', '%w %h %m\n', '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPath],
-        { env: { ...process.env, MAGICK_THREAD_LIMIT: '1' } }
-      );
-      proc.stdout.on('data', (d: Buffer) => {
-        stdout += d.toString();
-      });
-      const stderr: string[] = [];
-      proc.stderr.on('data', (d: Buffer) => stderr.push(d.toString()));
-      proc.on('close', (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`magick exited ${code}: ${stderr.join('').trim()}`));
-      });
-      proc.on('error', (err) =>
-        reject(new Error(`Failed to spawn magick: ${err.message}. Is ImageMagick v7 in PATH?`))
-      );
-    });
+    const stdout = await spawnMagickCapture(
+      [`${imagePath}[0]`, '-print', '%w %h %m\n', '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPath],
+      undefined,
+      { env: THUMB_SPAWN_ENV }
+    );
     const [ws, hs, fmt] = stdout.trim().split(' ');
     width = parseInt(ws, 10) || 0;
     height = parseInt(hs, 10) || 0;
@@ -226,12 +175,8 @@ export async function loadImageWithThumbnailBatch(
   // ── Phase 2b: meta-only identify for slow-path cached images ─────────────
   for (const i of metaOnlyMisses) {
     try {
-      const output = await new Promise<string>((resolve, reject) => {
-        const proc = spawn(getMagickBinary(), ['identify', '-format', '%w %h %m\n', `${imagePaths[i]}[0]`]);
-        const out: string[] = [];
-        proc.stdout.on('data', (d: Buffer) => out.push(d.toString()));
-        proc.on('close', (code) => (code === 0 ? resolve(out.join('')) : reject(new Error(`identify exited ${code}`))));
-        proc.on('error', (err) => reject(err));
+      const output = await spawnMagickCapture(['identify', '-format', '%w %h %m\n', `${imagePaths[i]}[0]`], undefined, {
+        env: THUMB_SPAWN_ENV,
       });
       const [ws, hs, fmt] = output.split('\n')[0].split(' ');
       _metaCache.set(imagePaths[i], {
@@ -261,17 +206,7 @@ export async function loadImageWithThumbnailBatch(
     let batchOk = true;
     const batchSpawnT0 = Date.now();
     try {
-      await new Promise<void>((resolve, reject) => {
-        const proc = spawn(getMagickBinary(), batchArgs, { env: { ...process.env, MAGICK_THREAD_LIMIT: '1' } });
-        const stderr: string[] = [];
-        proc.stderr.on('data', (d: Buffer) => stderr.push(d.toString()));
-        proc.on('close', (code) =>
-          code === 0 ? resolve() : reject(new Error(`magick exited ${code}: ${stderr.join('').trim()}`))
-        );
-        proc.on('error', (err) =>
-          reject(new Error(`Failed to spawn magick: ${err.message}. Is ImageMagick v7 in PATH?`))
-        );
-      });
+      await spawnMagick(batchArgs, undefined, undefined, undefined, { env: THUMB_SPAWN_ENV });
     } catch (err) {
       batchOk = false;
       console.warn('[import] Batch spawn failed, falling back to individual processing:', (err as Error).message);
@@ -292,35 +227,12 @@ export async function loadImageWithThumbnailBatch(
   const slowThumbMs = new Map<number, number>();
   for (const i of slowMisses) {
     try {
-      let stdout = '';
       const slowT0 = Date.now();
-      await new Promise<void>((resolve, reject) => {
-        const proc = spawn(
-          getMagickBinary(),
-          [
-            `${imagePaths[i]}[0]`,
-            '-print',
-            '%w %h %m\n',
-            '-thumbnail',
-            `${size}x${size}>`,
-            '-quality',
-            '85',
-            thumbPaths[i],
-          ],
-          { env: { ...process.env, MAGICK_THREAD_LIMIT: '1' } }
-        );
-        proc.stdout.on('data', (d: Buffer) => {
-          stdout += d.toString();
-        });
-        const stderr: string[] = [];
-        proc.stderr.on('data', (d: Buffer) => stderr.push(d.toString()));
-        proc.on('close', (code) =>
-          code === 0 ? resolve() : reject(new Error(`magick exited ${code}: ${stderr.join('').trim()}`))
-        );
-        proc.on('error', (err) =>
-          reject(new Error(`Failed to spawn magick: ${err.message}. Is ImageMagick v7 in PATH?`))
-        );
-      });
+      const stdout = await spawnMagickCapture(
+        [`${imagePaths[i]}[0]`, '-print', '%w %h %m\n', '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPaths[i]],
+        undefined,
+        { env: THUMB_SPAWN_ENV }
+      );
       slowThumbMs.set(i, Date.now() - slowT0);
       const [ws, hs, fmt] = stdout.trim().split(' ');
       _metaCache.set(imagePaths[i], {
@@ -339,13 +251,20 @@ export async function loadImageWithThumbnailBatch(
   const avgHeaderPerImage = imagePaths.length > 0 ? Math.round(headerTotalMs / imagePaths.length) : 0;
   const avgFastThumb = fastMisses.length > 0 ? Math.round(fastThumbMs / fastMisses.length) : 0;
 
-  return Promise.all(
+  const settled = await Promise.all(
     imagePaths.map(async (imagePath, i) => {
       const meta = _metaCache.get(imagePath) ?? { width: 0, height: 0, format: 'UNKNOWN' };
+      // Read the thumbnail defensively: a single unreadable thumb (failed spawn,
+      // locked/corrupt source) must not reject the whole batch and drop its good
+      // neighbors. Failed images return null and are filtered out below.
       const [fileStat, thumbnailDataUrl] = await Promise.all([
         fs.promises.stat(imagePath).catch(() => null),
-        fileToDataUrl(thumbPaths[i]),
+        fileToDataUrl(thumbPaths[i]).catch(() => null),
       ]);
+      if (thumbnailDataUrl === null) {
+        console.error('[import] Skipping image with no readable thumbnail:', imagePath);
+        return null;
+      }
       if (timings.enabled) {
         const pathType: 'fast' | 'slow' | 'cached' = fastMissSet.has(i)
           ? 'fast'
@@ -369,6 +288,8 @@ export async function loadImageWithThumbnailBatch(
       };
     })
   );
+
+  return settled.filter((r): r is ImageInfo & { thumbnailDataUrl: string } => r !== null);
 }
 
 export async function generateThumbnail(imagePath: string, size: number): Promise<string> {

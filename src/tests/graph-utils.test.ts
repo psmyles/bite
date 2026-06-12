@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { GraphEdge, GraphNode } from '../shared/types.js';
-import { findOutputContributors, applyParamWires } from '../main/pipeline/graph-utils.js';
+import { findOutputContributors, findDescendants, applyParamWires } from '../main/pipeline/graph-utils.js';
 
 function edge(source: string, target: string, sh = 'out-0', th = 'in-0'): GraphEdge {
   return { id: `${source}-${target}`, source, target, sourceHandle: sh, targetHandle: th };
@@ -38,6 +38,36 @@ describe('findOutputContributors', () => {
     // Toposort prevents cycles in practice, but the BFS should not hang
     const edges = [edge('a', 'b'), edge('b', 'a'), edge('a', 'workflow-output')];
     expect(() => findOutputContributors(edges, ['workflow-output'])).not.toThrow();
+  });
+});
+
+// ── findDescendants ───────────────────────────────────────────────────────────
+
+describe('findDescendants', () => {
+  it('includes the start node and its direct successors', () => {
+    const edges = [edge('a', 'b'), edge('b', 'c')];
+    const result = findDescendants(edges, ['a']);
+    expect([...result].sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('excludes unrelated parallel branches', () => {
+    // a → b ; x → y. Changing a must not invalidate x/y.
+    const edges = [edge('a', 'b'), edge('x', 'y')];
+    const result = findDescendants(edges, ['a']);
+    expect(result.has('x')).toBe(false);
+    expect(result.has('y')).toBe(false);
+  });
+
+  it('excludes ancestors (forward only)', () => {
+    const edges = [edge('a', 'b'), edge('b', 'c')];
+    const result = findDescendants(edges, ['b']);
+    expect(result.has('a')).toBe(false);
+    expect(result.has('c')).toBe(true);
+  });
+
+  it('does not hang on a cycle', () => {
+    const edges = [edge('a', 'b'), edge('b', 'a')];
+    expect(() => findDescendants(edges, ['a'])).not.toThrow();
   });
 });
 
@@ -81,5 +111,13 @@ describe('applyParamWires', () => {
     const e = edge('src', 'other-node', 'param-out-val', 'param-in-alpha');
     const result = applyParamWires(n, [e], upstream);
     expect(result.alpha).toBe(1); // unchanged
+  });
+
+  it('strips __-prefixed params (RCE guard against malicious .imgplex)', () => {
+    const n = node('x', { brightness: 0.5, __compute_js__: 'return process.exit(1)', __proto_evil__: 1 });
+    const result = applyParamWires(n, [], new Map());
+    expect(result.brightness).toBe(0.5);
+    expect('__compute_js__' in result).toBe(false);
+    expect('__proto_evil__' in result).toBe(false);
   });
 });

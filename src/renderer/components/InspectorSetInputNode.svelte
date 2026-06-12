@@ -110,10 +110,10 @@
 <div class="inspector-set">
   <!-- Prefix -->
   <div class="row">
-    <label class="row-label">
+    <span class="row-label">
       Prefix
       {#if isPrefixWired()}<span class="wired-badge">wired</span>{/if}
-    </label>
+    </span>
     {#if isPrefixWired()}
       <div class="wired-value row-input">{getWiredPrefixValue()}</div>
     {:else}

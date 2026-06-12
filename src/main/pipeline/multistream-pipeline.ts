@@ -36,6 +36,10 @@ export interface BatchContext {
   outputDir: string | null;
   overwrite: 'skip' | 'overwrite';
   isCancelled: () => boolean;
+  // Per-spawn environment carrying MAGICK_THREAD_LIMIT for this run's concurrency.
+  // Set by each pipeline after it computes its own concurrency, so overlapping
+  // batches/previews never clobber a shared process.env.
+  spawnEnv: NodeJS.ProcessEnv;
 }
 
 // Multi-stream execution for a single image with two speed optimisations:
@@ -59,6 +63,7 @@ export async function executeMultiStream(
     graph,
     hasHeavyMetaNodes,
     hasImageMetaNodes,
+    spawnEnv,
   } = ctx;
 
   const tmpId = shortHash(inputPath + String(imageIndex));
@@ -91,7 +96,7 @@ export async function executeMultiStream(
     }
     const out = newTmp();
     const matVerboseArgs = verboseOut ? ['-verbose'] : [];
-    await spawnMagick([...matVerboseArgs, v.base, ...v.args, out], undefined, undefined, verboseOut);
+    await spawnMagick([...matVerboseArgs, v.base, ...v.args, out], undefined, undefined, verboseOut, { env: spawnEnv });
     buffers.set(key, out); // upgrade to concrete path so re-materialisation is free
     return out;
   };
@@ -222,7 +227,7 @@ export async function executeMultiStream(
             args.push('(', '+clone', '-channel', CHAN[usedIdxs[k]], '-separate', '-write', outs[k], '+delete', ')');
           }
           args.push('-channel', CHAN[usedIdxs[lastK]], '-separate', outs[lastK]);
-          await spawnMagick(args);
+          await spawnMagick(args, undefined, undefined, undefined, { env: spawnEnv });
           for (let k = 0; k < usedIdxs.length; k++) {
             buffers.set(`${node.id}:out-${usedIdxs[k]}`, outs[k]);
           }
@@ -273,7 +278,7 @@ export async function executeMultiStream(
         '-combine',
         ...(hasAlpha ? ['-alpha', 'on'] : []),
         out,
-      ]);
+      ], undefined, undefined, undefined, { env: spawnEnv });
       buffers.set(`${node.id}:out-0`, out);
     } else if (def.executor === EXECUTOR.MEAN_VALUE) {
       try {
@@ -296,7 +301,9 @@ export async function executeMultiStream(
       const out = newTmp(outputExt);
       const fmtVerboseArgs = verboseOut ? ['-verbose'] : [];
       const fmtArgs = buildFormatConvertArgs(fmt, params);
-      await spawnMagick([...fmtVerboseArgs, src, ...fmtArgs, `${fmt}:${out}`], undefined, undefined, verboseOut);
+      await spawnMagick([...fmtVerboseArgs, src, ...fmtArgs, `${fmt}:${out}`], undefined, undefined, verboseOut, {
+        env: spawnEnv,
+      });
       buffers.set(`${node.id}:out-0`, out);
     } else if (params._enabled !== false) {
       // Standard image op — fuse into a lazy chain when safe to do so.
@@ -350,7 +357,7 @@ export async function executeMultiStream(
     if (path.extname(finalVal).toLowerCase() !== outputExt.toLowerCase()) {
       const finalOut = newTmp(outputExt);
       const extVerboseArgs = verboseOut ? ['-verbose'] : [];
-      await spawnMagick([...extVerboseArgs, finalVal, finalOut], undefined, undefined, verboseOut);
+      await spawnMagick([...extVerboseArgs, finalVal, finalOut], undefined, undefined, verboseOut, { env: spawnEnv });
       return { resultPath: finalOut, outputExt, cleanup };
     }
     return { resultPath: finalVal, outputExt, cleanup };
@@ -364,7 +371,8 @@ export async function executeMultiStream(
       [...finalVerboseArgs, finalVal.base, ...finalVal.args, finalOut],
       undefined,
       undefined,
-      verboseOut
+      verboseOut,
+      { env: spawnEnv }
     );
   } else await fs.promises.copyFile(finalVal.base, finalOut);
   return { resultPath: finalOut, outputExt, cleanup };

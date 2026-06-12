@@ -300,7 +300,7 @@
         </div>
       </div>
       <div class="ctrl-group">
-        <label class="ctrl-label">Checkbox</label>
+        <span class="ctrl-label">Checkbox</span>
         <label class="sc-check-label">
           <input type="checkbox" checked class="sc-checkbox" />
           <span>Match Case</span>

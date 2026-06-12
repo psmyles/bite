@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, globalShortcut, dialog, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, dialog, shell, ipcMain } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -19,6 +19,8 @@ import {
 import { timings } from '../src/main/pipeline/timing.js';
 import { TEMP_DIR, clearMetaCache } from '../src/main/pipeline/thumbnail-service.js';
 import { spawnMagickCapture } from '../src/main/pipeline/magick-spawn.js';
+import { getMagickBinary } from '../src/main/pipeline/magick-path.js';
+import { extractImgplexPath, compareSemver } from './update-utils.js';
 import { IPC } from '../src/shared/constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,17 +31,8 @@ app.setName('imgplex');
 
 // Extract the first .imgplex path from a process.argv array.
 // In dev: argv = ['electron', 'main.js', ...user args...]  → start at index 2
-// Packaged: argv = ['imgplex.exe', ...user args...]        → start at index 1
-function extractImgplexPath(argv: string[]): string | null {
-  const start = app.isPackaged ? 1 : 2;
-  for (let i = start; i < argv.length; i++) {
-    if (!argv[i].startsWith('-') && argv[i].endsWith('.imgplex')) return argv[i];
-  }
-  return null;
-}
-
 // File path queued before the renderer finishes loading
-let pendingFilePath: string | null = extractImgplexPath(process.argv);
+let pendingFilePath: string | null = extractImgplexPath(process.argv, app.isPackaged);
 
 // macOS: OS delivers the file via this event (fires before or after ready)
 app.on('open-file', (event, filePath) => {
@@ -58,7 +51,7 @@ if (!gotSingleInstanceLock) {
   app.quit();
 } else {
   app.on('second-instance', (_event, argv) => {
-    const fp = extractImgplexPath(argv);
+    const fp = extractImgplexPath(argv, app.isPackaged);
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
@@ -119,7 +112,12 @@ function openLogWindow() {
     height: 600,
     title: 'imgplex — Log',
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
   });
   setLogWindow(logWin);
   logWin.on('closed', () => {
@@ -143,7 +141,12 @@ function openShowcaseWindow() {
     height: 800,
     title: 'imgplex — UI Showcase',
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
   });
   showcaseWin.on('closed', () => {
     showcaseWin = null;
@@ -275,6 +278,10 @@ function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      // Make the security posture explicit rather than relying on Electron defaults.
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -301,18 +308,12 @@ async function showImageMagickMissingDialog() {
 }
 
 function checkImageMagick() {
-  const child = spawn('magick', ['--version'], { stdio: 'ignore' });
+  // Probe the same binary the pipeline uses (bundled exe in packaged builds),
+  // not the literal 'magick' on PATH — otherwise a bundled-only install warns spuriously.
+  const child = spawn(getMagickBinary(), ['--version'], { stdio: 'ignore' });
   child.on('error', () => showImageMagickMissingDialog());
 }
 
-function compareSemver(a: string, b: string): number {
-  const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number);
-  const [aMaj, aMin, aPat] = parse(a);
-  const [bMaj, bMin, bPat] = parse(b);
-  if (aMaj !== bMaj) return aMaj - bMaj;
-  if (aMin !== bMin) return aMin - bMin;
-  return aPat - bPat;
-}
 
 type UpdateCheckResult =
   | { status: 'update'; version: string; body: string; url: string }
@@ -351,12 +352,34 @@ async function checkForUpdates() {
 app.whenReady().then(async () => {
   initLogger(app.getPath('logs'));
 
-  // Remove orphaned batch intermediate files left by a previous crash.
-  fs.readdir(TEMP_DIR, (_err, files) => {
-    for (const f of files ?? []) {
-      if (f.startsWith('batch_ms_')) fs.unlink(path.join(TEMP_DIR, f), () => {});
+  // Prune the temp dir at startup: always drop orphaned batch intermediates
+  // (left by a previous crash), and age out cached thumbnails/previews so the
+  // folder doesn't grow without bound. Best-effort — failures are ignored.
+  void (async () => {
+    const THUMB_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+    const now = Date.now();
+    let files: string[];
+    try {
+      files = await fs.promises.readdir(TEMP_DIR);
+    } catch {
+      return;
     }
-  });
+    await Promise.all(
+      files.map(async (f) => {
+        const full = path.join(TEMP_DIR, f);
+        try {
+          if (f.startsWith('batch_ms_')) {
+            await fs.promises.unlink(full);
+          } else if (f.startsWith('thumb_') || f.startsWith('preview_')) {
+            const stat = await fs.promises.stat(full);
+            if (now - stat.mtimeMs > THUMB_MAX_AGE_MS) await fs.promises.unlink(full);
+          }
+        } catch {
+          /* file vanished or in use — ignore */
+        }
+      })
+    );
+  })();
   const _cLog = console.log.bind(console);
   const _cWarn = console.warn.bind(console);
   const _cError = console.error.bind(console);
@@ -431,12 +454,19 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Re-register DevTools shortcuts removed with the custom menu
-  globalShortcut.register('F12', () => win?.webContents.toggleDevTools());
-  globalShortcut.register('CmdOrCtrl+Shift+I', () => win?.webContents.toggleDevTools());
+  // Re-register DevTools shortcuts removed with the custom menu.
+  // Scope them to this window via before-input-event — globalShortcut would steal
+  // F12 / Ctrl+Shift+I from every other application while imgplex runs.
+  win!.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const isF12 = input.key === 'F12';
+    const isInspect = (input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i';
+    if (isF12 || isInspect) {
+      win?.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
 });
-
-app.on('will-quit', () => globalShortcut.unregisterAll());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

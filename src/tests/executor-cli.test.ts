@@ -181,3 +181,35 @@ describe('cliScriptBash', () => {
     expect(script).toContain('--src');
   });
 });
+
+describe('default-value escaping (no script injection)', () => {
+  it('PowerShell: a single quote in the path is doubled', () => {
+    const graph = makeGraph(
+      makeNode('o1', 'imageOutputNode', { cliName: 'dest', outputPath: 'custom', customPath: "C:\\it's\\out" })
+    );
+    const script = cliScriptPS(WF, DATE, graph);
+    expect(script).toContain("= 'C:\\it''s\\out'");
+    // No unbalanced single quote that would break the literal.
+    expect(script).not.toContain("= 'C:\\it's\\out'");
+  });
+
+  it('CMD: a percent sign is doubled to avoid variable expansion', () => {
+    const graph = makeGraph(
+      makeNode('o1', 'imageOutputNode', { cliName: 'dest', outputPath: 'custom', customPath: 'C:\\100%done' })
+    );
+    const script = cliScriptCmd(WF, DATE, graph);
+    expect(script).toContain('C:\\100%%done');
+  });
+
+  it('Bash: $, backtick and quotes are neutralised in the default', () => {
+    const graph = makeGraph(
+      makeNode('o1', 'imageOutputNode', { cliName: 'dest', outputPath: 'custom', customPath: './out$(whoami)`id`"x"' })
+    );
+    const script = cliScriptBash(WF, DATE, graph);
+    expect(script).toContain('\\$(whoami)');
+    expect(script).toContain('\\`id\\`');
+    expect(script).toContain('\\"x\\"');
+    // Raw command substitution must not survive unescaped.
+    expect(script).not.toContain(':-./out$(whoami)');
+  });
+});

@@ -93,7 +93,6 @@ export function installBrowserIpc(): void {
         // values that cause the calling code to short-circuit gracefully.
         case IPC.OPEN_IMAGES_DIALOG:
         case IPC.SCAN_FOLDER_DIALOG:
-        case IPC.LOAD_IMAGES:
         case IPC.LOAD_IMAGES_STREAMING_START:
           return [];
 

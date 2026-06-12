@@ -44,6 +44,14 @@ export default tseslint.config(
     },
   },
   {
+    // CommonJS build scripts legitimately use require() — they run under plain Node,
+    // not the bundler, so the TS-eslint ESM rule does not apply to them.
+    files: ['**/*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -61,6 +69,7 @@ export default tseslint.config(
       '.github/',
       '.husky/',
       'build/',
+      'coverage/',
       'dist/',
       'dist-cli/',
       'dist-electron/',

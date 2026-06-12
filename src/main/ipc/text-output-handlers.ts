@@ -16,11 +16,11 @@ import {
   getSeparator,
   buildEmptyImageMeta,
 } from '../pipeline/executor-compute.js';
-import { IPC } from '../../shared/constants.js';
+import { IPC, LIGHT_META_EXECUTORS } from '../../shared/constants.js';
 import { writeOutputLog } from '../pipeline/output-log.js';
 import { log } from '../logger.js';
 
-function valueToString(val: unknown): string {
+export function valueToString(val: unknown): string {
   if (val === null || val === undefined) return '';
   if (typeof val === 'boolean') return val ? 'true' : 'false';
   if (typeof val === 'number') {
@@ -37,16 +37,6 @@ function valueToString(val: unknown): string {
   }
   return String(val);
 }
-
-// These nodes need only cheap I/O — no magick spawn needed.
-const LIGHT_META_EXECUTORS = new Set([
-  'prop_name',
-  'prop_path',
-  'prop_size',
-  'prop_filetype',
-  'prop_dimensions',
-  'prop_power_of_two',
-]);
 
 interface ResolveContext {
   sorted: ReturnType<typeof topoSort>;

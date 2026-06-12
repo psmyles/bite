@@ -329,6 +329,14 @@
   --port-color-path: #86efac;
   /* folder path — mint green */
 
+  /* ── Node Graph: Edges & Handles (default / untyped) ────────
+     Used for resting edges, handles, and the wire being dragged
+     before a target type is known. */
+  --edge-stroke: #6b7280;
+  /* default edge / handle gray */
+  --edge-stroke-selected: var(--port-color-any);
+  /* selected edge — white */
+
   /* ── Node Graph: Connection Handles ─────────────────────────
      The circular ports on the sides of node cards.           */
   --handle-port-size: 10px;

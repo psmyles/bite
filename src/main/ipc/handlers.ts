@@ -1,16 +1,17 @@
 import { ipcMain, dialog, app, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
-import { readFileSync, writeFileSync, chmodSync } from 'node:fs';
+import { readFile, writeFile, chmod } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { writeOutputLog } from '../pipeline/output-log.js';
 import { log } from '../logger.js';
 import { scanFolder } from '../pipeline/scan-folder.js';
+import { sanitizeWorkflowGraph } from './workflow-sanitize.js';
 import type { NodeGraph } from '../../shared/types.js';
 import type { NodeRegistry } from '../nodes/registry.js';
 import { PipelineExecutor } from '../pipeline/executor.js';
-import { IPC } from '../../shared/constants.js';
+import { IPC, IMAGE_EXTENSIONS } from '../../shared/constants.js';
 import { timings } from '../pipeline/timing.js';
 import { registerTextOutputHandlers } from './text-output-handlers.js';
 import { registerAtlasHandlers } from './atlas-handlers.js';
@@ -32,10 +33,6 @@ export function registerPipelineHandlers(
 ): void {
   ipcMain.handle(IPC.TIMERS_SET_ENABLED, (_e, enabled: boolean) => {
     timings.enabled = enabled;
-  });
-
-  ipcMain.handle(IPC.LOAD_IMAGES, async (_e, paths: string[]) => {
-    return Promise.all(paths.map((p) => executor.loadImage(p)));
   });
 
   ipcMain.handle(IPC.LOAD_IMAGES_WITH_THUMBNAILS, async (_e, paths: string[], size: number) => {
@@ -164,9 +161,9 @@ export function registerPipelineHandlers(
     const workflowPath = path.join(path.dirname(result.filePath), workflowFile);
 
     const scriptContent = executor.exportCLI(shellType, workflowFile, graph);
-    writeFileSync(result.filePath, scriptContent, 'utf-8');
+    await writeFile(result.filePath, scriptContent, 'utf-8');
     const now = new Date().toISOString();
-    writeFileSync(
+    await writeFile(
       workflowPath,
       JSON.stringify({ version: '1.0', appVersion: app.getVersion(), createdAt: now, modifiedAt: now, graph }, null, 2),
       'utf-8'
@@ -174,7 +171,7 @@ export function registerPipelineHandlers(
 
     if (shellType === 'bash') {
       try {
-        chmodSync(result.filePath, 0o755);
+        await chmod(result.filePath, 0o755);
       } catch {
         /* non-fatal on Windows */
       }
@@ -183,96 +180,20 @@ export function registerPipelineHandlers(
   });
 }
 
-const IMAGE_EXTENSIONS = [
-  // Common web / display formats
-  'jpg',
-  'jpeg',
-  'png',
-  'gif',
-  'webp',
-  'avif',
-  'svg',
-  'svgz',
-  'ico',
-  'bmp',
-  // TIFF family
-  'tif',
-  'tiff',
-  // HEIF / Apple
-  'heic',
-  'heif',
-  // JPEG variants
-  'jp2',
-  'j2k',
-  'jpf',
-  'jpx',
-  'jxl',
-  // Professional / compositing
-  'psd',
-  'psb',
-  'exr',
-  'hdr',
-  'dpx',
-  'cin',
-  // Camera RAW
-  'cr2',
-  'cr3',
-  'nef',
-  'nrw',
-  'arw',
-  'dng',
-  'orf',
-  'raf',
-  'rw2',
-  'pef',
-  'srw',
-  'x3f',
-  '3fr',
-  'kdc',
-  'mrw',
-  'erf',
-  'rwl',
-  // Legacy / misc raster
-  'tga',
-  'pcx',
-  'ppm',
-  'pgm',
-  'pbm',
-  'pnm',
-  'sgi',
-  'rgb',
-  'rgba',
-  'miff',
-  'mng',
-  'jng',
-  'xbm',
-  'xpm',
-  'xwd',
-  'sun',
-  'iff',
-  'lbm',
-  'wbmp',
-  'pict',
-  'pct',
-  'dds',
-  'fits',
-  'fts',
-];
-
-function readWorkflowFile(filePath: string): {
+async function readWorkflowFile(filePath: string): Promise<{
   graph: unknown;
   filePath: string;
   appVersion: string | null;
   createdAt: string | null;
   modifiedAt: string | null;
-} {
-  const raw = readFileSync(filePath, 'utf-8');
+}> {
+  const raw = await readFile(filePath, 'utf-8');
   const data = JSON.parse(raw) as Record<string, unknown>;
   if (!data || typeof data !== 'object' || !data.graph) {
     throw new Error('Invalid workflow file: missing graph data');
   }
   return {
-    graph: data.graph,
+    graph: sanitizeWorkflowGraph(data.graph),
     filePath,
     appVersion: typeof data.appVersion === 'string' ? data.appVersion : null,
     createdAt: typeof data.createdAt === 'string' ? data.createdAt : null,
@@ -295,7 +216,7 @@ export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): vo
       }
       const now = new Date().toISOString();
       const createdAt = existingCreatedAt ?? now;
-      writeFileSync(
+      await writeFile(
         targetPath,
         JSON.stringify({ version: '1.0', appVersion: app.getVersion(), createdAt, modifiedAt: now, graph }, null, 2),
         'utf-8'

@@ -6,7 +6,6 @@ import { executePreview as executePreviewFn } from './preview-pipeline.js';
 import { executeBatch as executeBatchFn } from './batch-pipeline.js';
 import { cliScriptPS, cliScriptBash, cliScriptCmd } from './executor-cli.js';
 import {
-  loadImage as loadImageFn,
   loadImageWithThumbnail as loadImageWithThumbnailFn,
   loadImageWithThumbnailBatch as loadImageWithThumbnailBatchFn,
   generateThumbnail as generateThumbnailFn,
@@ -22,9 +21,6 @@ export class PipelineExecutor {
     this._batchCancelled = true;
   }
 
-  loadImage(imagePath: string) {
-    return loadImageFn(imagePath);
-  }
   loadImageWithThumbnail(imagePath: string, size: number) {
     return loadImageWithThumbnailFn(imagePath, size);
   }

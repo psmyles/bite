@@ -16,7 +16,14 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="backdrop" onclick={onCancel}>
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Run Workflow" onclick={(e) => e.stopPropagation()}>
+  <div
+    class="dialog"
+    role="dialog"
+    tabindex="-1"
+    aria-modal="true"
+    aria-label="Run Workflow"
+    onclick={(e) => e.stopPropagation()}
+  >
     <div class="dialog-header">
       <span class="dialog-title">Run Workflow</span>
     </div>
