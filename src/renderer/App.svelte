@@ -44,8 +44,8 @@
     const onProgress = (_e: unknown, p: Progress) => {
       graphStore.batchProgress = p;
     };
-    window.ipcRenderer.on(`${IPC.EXECUTE_BATCH}:progress`, onProgress);
-    return () => window.ipcRenderer.off(`${IPC.EXECUTE_BATCH}:progress`, onProgress);
+    window.ipcRenderer.on(IPC.EXECUTE_BATCH_PROGRESS, onProgress);
+    return () => window.ipcRenderer.off(IPC.EXECUTE_BATCH_PROGRESS, onProgress);
   });
 
   // ── Active input node tracking ────────────────────────────────────────────

@@ -267,18 +267,24 @@ export async function executeMultiStream(
       const [r, g, b] = resolved;
       const a = hasAlpha ? resolved[3] : null;
       const out = newTmp();
-      await spawnMagick([
-        ...expand(r),
-        ...expand(g),
-        ...expand(b),
-        ...(hasAlpha && a ? expand(a) : []),
-        '-set',
-        'colorspace',
-        'sRGB',
-        '-combine',
-        ...(hasAlpha ? ['-alpha', 'on'] : []),
-        out,
-      ], undefined, undefined, undefined, { env: spawnEnv });
+      await spawnMagick(
+        [
+          ...expand(r),
+          ...expand(g),
+          ...expand(b),
+          ...(hasAlpha && a ? expand(a) : []),
+          '-set',
+          'colorspace',
+          'sRGB',
+          '-combine',
+          ...(hasAlpha ? ['-alpha', 'on'] : []),
+          out,
+        ],
+        undefined,
+        undefined,
+        undefined,
+        { env: spawnEnv }
+      );
       buffers.set(`${node.id}:out-0`, out);
     } else if (def.executor === EXECUTOR.MEAN_VALUE) {
       try {

@@ -127,7 +127,7 @@ export function registerPipelineHandlers(
         overwrite,
         registry,
         (progress) => {
-          getWin()?.webContents.send(`${IPC.EXECUTE_BATCH}:progress`, progress);
+          getWin()?.webContents.send(IPC.EXECUTE_BATCH_PROGRESS, progress);
         }
       );
       if (generateLog) {

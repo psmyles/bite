@@ -30,6 +30,7 @@
   import { portColor } from './portColors.js';
   import { isNodeEffectivelyEnabled } from './nodeEnabledState.js';
   import { nodeTypeForDef, buildNodeData, firstMatchingHandle } from './nodeEditorHelpers.js';
+  import { computeDeleteSelected, computeDuplicateNodes, makeWorkflowCliName } from './graphTransforms.js';
   import {
     isValidConnection as validateConnection,
     handleToWireType,
@@ -678,46 +679,14 @@
     )
       return;
 
-    const selectedGroups = nodes.filter((n) => n.selected && n.type === 'group');
-    const selectedGroupIds = new Set(selectedGroups.map((g) => g.id));
-    const groupMap = new Map(selectedGroups.map((g) => [g.id, g]));
+    const result = computeDeleteSelected(nodes, edges, (id) => graphStore.canDeleteNode(id));
+    if (!result.changed) return;
 
-    // Non-group nodes to delete: selected, passes deletion guard, not children of a selected group
-    const toDelete = new Set(
-      nodes
-        .filter((n) => n.selected && n.type !== 'group' && graphStore.canDeleteNode(n.id))
-        .filter((n) => !n.parentId || !selectedGroupIds.has(n.parentId))
-        .map((n) => n.id)
-    );
-
-    const selectedEdgeIds = new Set(edges.filter((e) => e.selected).map((e) => e.id));
-
-    if (selectedGroupIds.size === 0 && toDelete.size === 0 && selectedEdgeIds.size === 0) return;
-
-    // Capture which deleted nodes are input nodes BEFORE reassigning `nodes` below —
-    // otherwise the lookup can never find them (they're filtered out).
-    const deletedInputIds = [...toDelete].filter((id) => nodes.find((n) => n.id === id)?.type === 'inputNode');
-
-    nodes = nodes
-      .filter((n) => !selectedGroupIds.has(n.id) && !toDelete.has(n.id))
-      .map((n) => {
-        // Children of deleted groups get converted to absolute-positioned free nodes
-        if (n.parentId && selectedGroupIds.has(n.parentId)) {
-          const parent = groupMap.get(n.parentId)!;
-          return {
-            ...n,
-            position: { x: n.position.x + parent.position.x, y: n.position.y + parent.position.y },
-            parentId: undefined,
-            extent: undefined,
-          };
-        }
-        return n;
-      });
-
-    edges = edges.filter((e) => !selectedEdgeIds.has(e.id) && !toDelete.has(e.source) && !toDelete.has(e.target));
+    nodes = result.nodes;
+    edges = result.edges;
 
     // Free image lists for deleted input nodes
-    for (const id of deletedInputIds) imageStore.removeNode(id);
+    for (const id of result.deletedInputIds) imageStore.removeNode(id);
 
     pushHistory();
   }
@@ -778,34 +747,9 @@
   }
 
   function duplicateNodes(targets: Node[]) {
-    if (targets.length === 0) return;
-    // Include children of any selected group nodes that aren't already in targets
-    const selectedGroupIds = new Set(targets.filter((n) => n.type === 'group').map((n) => n.id));
-    if (selectedGroupIds.size > 0) {
-      const extraChildren = nodes.filter(
-        (n) => n.parentId && selectedGroupIds.has(n.parentId) && !targets.some((t) => t.id === n.id)
-      );
-      targets = [...targets, ...extraChildren];
-    }
-    const ts = Date.now();
-    const idMap = new Map(targets.map((n, i) => [n.id, `${n.id}-dup${ts}${i}`]));
-    const groups: Node[] = [];
-    const rest: Node[] = [];
-    for (const n of targets) {
-      const dup: Node = {
-        ...n,
-        id: idMap.get(n.id)!,
-        position: { x: n.position.x + 20, y: n.position.y + 20 },
-        selected: true,
-        data: { ...(n.data as object) },
-        // Remap parentId to duplicated group if parent was also duplicated
-        ...(n.parentId && idMap.has(n.parentId) ? { parentId: idMap.get(n.parentId) } : {}),
-      };
-      if (n.type === 'group') groups.push(dup);
-      else rest.push(dup);
-    }
-    // Groups must precede their children
-    nodes = [...nodes.map((n) => ({ ...n, selected: false })), ...groups, ...rest];
+    const result = computeDuplicateNodes(nodes, targets, Date.now());
+    if (!result.changed) return;
+    nodes = result.nodes;
     pushHistory();
   }
 
@@ -858,25 +802,6 @@
       },
     },
   };
-
-  const CLI_NAME_PREFIXES: Record<string, string> = {
-    inputNode: 'input',
-    imageOutputNode: 'output-image',
-    textOutputNode: 'output-text',
-    flipbookOutputNode: 'output-flipbook',
-  };
-
-  function makeWorkflowCliName(workflowType: string, currentNodes: typeof nodes): string {
-    const prefix = CLI_NAME_PREFIXES[workflowType] ?? workflowType;
-    // Pick the first `prefix-N` not already taken — a plain count collides after a
-    // middle node is deleted (e.g. delete input-1 → next add would reuse input-2).
-    const used = new Set(
-      currentNodes.map((n) => (n.data?.params?.cliName as string | undefined)?.trim()).filter(Boolean)
-    );
-    let n = 1;
-    while (used.has(`${prefix}-${n}`)) n++;
-    return `${prefix}-${n}`;
-  }
 
   function onDrop(e: DragEvent) {
     e.preventDefault();

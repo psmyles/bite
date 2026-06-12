@@ -314,7 +314,6 @@ function checkImageMagick() {
   child.on('error', () => showImageMagickMissingDialog());
 }
 
-
 type UpdateCheckResult =
   | { status: 'update'; version: string; body: string; url: string }
   | { status: 'latest'; version: string; body: string; url: string }

@@ -601,7 +601,7 @@ Build outputs:
   - Inspector shows the resulting flag (`Flag: --<name>`) and a conflict warning when two nodes share the same name
   - `executor-cli.ts` is graph-aware: reads the workflow graph and emits one typed param per named node in all three script formats (PS / Bash / CMD)
   - `imgplex-cli run` parses `--<flag> <path>` pairs, iterates all output nodes, traces each to its input node, and runs `executeBatch` per output; clear error if a required input flag is missing
-- Unit tests: Vitest with 450 tests across 26 test files. Coverage via `npm run test:coverage` (`@vitest/coverage-v8`, thresholds enforced).
+- Unit tests: Vitest with 473 tests across 29 test files, split into two projects — a Node project for pure logic and a `jsdom` project for Svelte component tests (`@testing-library/svelte`, `*.svelte.test.ts`, resolved against svelte's browser/client build). Coverage via `npm run test:coverage` (`@vitest/coverage-v8`, thresholds enforced).
 
 ### Pending - Priority Order
 

@@ -8,14 +8,9 @@
   import { getNodeParams } from '../nodeEditor/nodeEditorHelpers.js';
   import { traceInputNodeId } from '../workflowUtils.js';
   import RunWorkflowDialog from './RunWorkflowDialog.svelte';
+  import type { OutputNodeStatus } from './runWorkflowTypes.js';
 
-  export type OutputNodeStatus = {
-    nodeId: string;
-    label: string;
-    type: 'imageOutputNode' | 'textOutputNode' | 'flipbookOutputNode';
-    valid: boolean;
-    reasons: string[];
-  };
+  export type { OutputNodeStatus };
 
   const outputNodeStatuses = $derived.by((): OutputNodeStatus[] => {
     const outputTypes = new Set(['imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);

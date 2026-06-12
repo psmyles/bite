@@ -229,7 +229,16 @@ export async function loadImageWithThumbnailBatch(
     try {
       const slowT0 = Date.now();
       const stdout = await spawnMagickCapture(
-        [`${imagePaths[i]}[0]`, '-print', '%w %h %m\n', '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPaths[i]],
+        [
+          `${imagePaths[i]}[0]`,
+          '-print',
+          '%w %h %m\n',
+          '-thumbnail',
+          `${size}x${size}>`,
+          '-quality',
+          '85',
+          thumbPaths[i],
+        ],
         undefined,
         { env: THUMB_SPAWN_ENV }
       );
