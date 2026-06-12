@@ -12,8 +12,10 @@ A batch image workflow builder application built around a visual node graph edit
 - **Filmstrip view** - per-input-node thumbnail strip; tracks whichever Input node is selected
 - **Real-time preview** - selected image rendered through the current node network, node-level cached
 - **JSON-based node definitions** - add new nodes without recompiling
+- **Data-driven output formats** - per-format encoding controls and ImageMagick args defined in `format-definitions/*.json`; add/tune a format with no recompile
 - **CLI command export** - export any graph as an ImageMagick shell script (PS / Bash / CMD)
-- **Workflow save/load** - serialize graphs as `.imgplex` JSON files; double-clicking a `.imgplex` file opens it directly in the app
+- **Workflow save/load** - serialize graphs as `.imgplex` JSON files; double-clicking a `.imgplex` file opens it directly in the app; untrusted params sanitized and version-compatibility checked on load
+- **Update notification** - startup (and on-demand) check against the latest GitHub release; shows an Update Available dialog (no auto-download)
 - **Batch processing** - all images through the pipeline at full resolution, progress-reported
 - **Pure-value node graph** - math, logic, and value nodes with typed wires route parameters without touching the image pipeline
 - **Node groups** - visually organise sets of nodes into resizable labelled containers
@@ -103,14 +105,21 @@ Renderer Process (Chromium)
 ```
 project-root/
 ├── electron/
-│   ├── main.ts            - App bootstrap, BrowserWindow, native menus, IPC registration
-│   └── preload.ts         - contextBridge exposes window.ipcRenderer (invoke/on/off/send)
+│   ├── main.ts            - App bootstrap, BrowserWindow, native menus, IPC registration, GitHub update check, file-association open
+│   ├── preload.ts         - contextBridge exposes window.ipcRenderer (invoke/on/off/send)
+│   ├── update-utils.ts    - Pure helpers (no electron imports): extractImgplexPath (find .imgplex in argv), compareSemver
+│   ├── ipcListenerTracker.ts - Dev-only guard that tracks ipcMain listener registration to catch duplicate handlers on hot-reload
+│   └── electron-env.d.ts  - Ambient types for the preload-exposed window.ipcRenderer
 ├── src/
 │   ├── shared/
-│   │   ├── types.ts       - NodeDefinition, GraphNode, GraphEdge, NodeGraph, ImageInfo, Progress
-│   │   ├── constants.ts   - IPC channel name map (IPC.*), EXECUTOR key map, PREVIEW_MAX_EDGE_PX, THUMBNAIL_SIZE_PX, PREVIEW_DEBOUNCE_MS, APP_NAME
+│   │   ├── types.ts       - NodeDefinition, GraphNode, GraphEdge, NodeGraph, ImageInfo, FormatDefinition, Progress
+│   │   ├── constants.ts   - IPC channel name map (IPC.*), EXECUTOR key map, LIGHT_META_EXECUTORS, IMAGE_EXTENSIONS, PREVIEW_MAX_EDGE_PX, THUMBNAIL_SIZE_PX, PREVIEW_DEBOUNCE_MS, APP_NAME
+│   │   ├── graphTrace.ts  - traceInputNodeId(nodes, edges, outputNodeId): canonical backward-BFS (skips param- wires); shared by renderer, main, and CLI
+│   │   ├── compatUtils.ts - isCompatible(fileVersion, appVersion): checks a .imgplex file's version against the app using compat-ranges.json
+│   │   ├── compat-ranges.json - Ordered list of mutually-compatible app version ranges; files load only within the same range as the running app
 │   │   └── renameUtils.ts - Filename token expansion for Rename node
 │   ├── main/              - Node.js / Electron main-process business logic
+│   │   ├── logger.ts                - Process-wide logger; mirrors entries to the renderer log viewer via IPC.LOG_ENTRY and a ring buffer
 │   │   ├── nodes/
 │   │   │   └── registry.ts          - Loads and watches node-definitions/*.json; hot-reloads in dev
 │   │   ├── pipeline/
@@ -128,7 +137,7 @@ project-root/
 │   │   │   ├── executor-cli.ts      - CLI script generators (PowerShell / Bash / CMD); graph-aware — reads cliName params to emit one named flag per workflow node
 │   │   │   ├── executorRegistry.ts  - ArgBuilderFn registry for nodes needing custom argument building beyond command_template/command_js
 │   │   │   ├── imageNodeExecutors.ts - Registers executors for image-processing nodes with logic beyond a template
-│   │   │   ├── command-builder.ts   - Converts command_template / command_js + resolved params into string[] of ImageMagick args
+│   │   │   ├── command-builder.ts   - Converts command_template / command_js + resolved params into string[] of ImageMagick args; also buildFormatConvertArgs(format, params) (evaluates a format-definition's args_js) and getFormatExtension(format)
 │   │   │   ├── cache.ts             - Node-level output cache (PreviewCache) keyed by nodeId:inputHash
 │   │   │   ├── timing.ts            - Optional perf instrumentation (timings.enabled); writes perf.log with batch timing summary and per-image ImageMagick verbose output
 │   │   │   ├── output-log.ts        - Writes a timestamped output log file to the output directory after a batch completes
@@ -136,8 +145,9 @@ project-root/
 │   │   │   └── magick-path.ts       - Resolves bundled resources/win/magick/magick.exe in production, system magick in dev
 │   │   └── ipc/
 │   │       ├── handlers.ts          - Core IPC handler registration (registry, pipeline, dialogs, shell, app lifecycle, workflows)
+│   │       ├── workflow-sanitize.ts - sanitizeWorkflowGraph: strips `__`-prefixed param keys (e.g. __compute_js__) from untrusted .imgplex data on load
 │   │       ├── text-output-handlers.ts - IPC handlers for text output operations (browse, preview, write, cancel)
-│   │       └── atlas-handlers.ts    - IPC handlers for the atlas (contact sheet) generation feature
+│   │       └── atlas-handlers.ts    - IPC handlers for the flipbook atlas generation feature
 │   └── renderer/
 │       ├── main.ts        - Svelte app mount entry point
 │       ├── App.svelte     - 3-panel resizable layout; workflow save/load; menu IPC listeners; two $effects for active input node tracking (selecting an inputNode calls imageStore.setActive; falls back to first inputNode if active is deleted)
@@ -152,7 +162,9 @@ project-root/
 │       │   ├── InspectorInputNode.svelte    - Takes nodeId prop; scopes all image ops (add/clear/select) to that node
 │       │   ├── InspectorImageOutputNode.svelte - Output path, overwrite mode, log generation; no per-node run button (execution goes through RunWorkflowButton)
 │       │   ├── InspectorTextOutputNode.svelte  - Text output settings; uses traceInputNodeId for connected image list; dynamic value port management
-│       │   ├── InspectorFlipbookOutputNode.svelte - Flipbook atlas settings (grid, padding, format)
+│       │   ├── InspectorFlipbookOutputNode.svelte - Flipbook atlas settings (grid, padding, format, skip/overwrite mode)
+│       │   ├── InspectorFormatConvertNode.svelte  - Format dropdown + format-specific encoding params sourced from format-definitions/<format>.json; params shown/hidden via params_visibility rules
+│       │   ├── InspectorSetInputNode.svelte - Process-As-Set inspector (prefix + suffix list; adds/removes suffix output ports)
 │       │   ├── InspectorParamEditor.svelte  - Dynamic param widgets for ProcessNode
 │       │   ├── InspectorCommentNode.svelte      - Comment node text editing
 │       │   ├── InspectorRenameNode.svelte       - Rename node block editor
@@ -162,14 +174,24 @@ project-root/
 │       │   ├── Filmstrip.svelte         - Horizontal thumbnail strip; shows active input node's images; click-to-select
 │       │   ├── Dropdown.svelte          - Reusable styled dropdown
 │       │   ├── ColorPicker.svelte       - HSL/hex color picker
+│       │   ├── colorConversions.ts      - Pure RGB/HSL/hex conversion helpers used by ColorPicker
 │       │   ├── MenuBar.svelte           - Custom menubar (File / Help) rendered in renderer
+│       │   ├── BatchProgressModal.svelte - Live batch progress (per-image counter, cancel button) wired to IPC.EXECUTE_BATCH_PROGRESS / EXECUTE_BATCH_CANCEL
 │       │   ├── BatchSummaryModal.svelte - Post-batch summary dialog (processed/skipped/failed + open output folder)
+│       │   ├── ImportProgressModal.svelte - Streaming-import progress (images loaded so far) with cancel
+│       │   ├── ConfirmModal.svelte      - Generic confirm/cancel dialog (Cancel autofocused as the safe default)
+│       │   ├── UpdateModal.svelte       - "Update available" dialog shown on IPC.UPDATE_AVAILABLE; release notes + link to GitHub release
+│       │   ├── IncompatibleVersionModal.svelte - Shown when a loaded .imgplex was saved by an incompatible app version (compatUtils)
+│       │   ├── runWorkflowTypes.ts      - Shared OutputNodeStatus type imported by RunWorkflowButton / RunWorkflowDialog / their component tests
 │       │   ├── AboutModal.svelte        - About dialog (version, links to GitHub)
 │       │   └── CreditsModal.svelte      - Credits modal (open source deps + fonts) with system-browser links
 │       ├── nodeEditor/
 │       │   ├── NodeEditor.svelte        - Svelte Flow canvas; drag-drop, context menu, undo/redo, grouping; deletion guard; workflow node drag/drop and context menu
+│       │   ├── graphTransforms.ts       - Pure graph transforms extracted from NodeEditor (computeDeleteSelected, duplicate, CLI-name assignment) so delete/duplicate logic is unit-testable without a DOM
 │       │   ├── ProcessNode.svelte       - Standard processing node (image ports, param rows, bypass tick)
 │       │   ├── InputNode.svelte         - Image source node; shows per-node image count via imageStore.getImages(id)
+│       │   ├── SetInputNode.svelte      - Renderer node for the process_as_set definition; one image input + dynamic per-suffix string/image outputs
+│       │   ├── CompareNode.svelte       - Comparison node rendering operator symbols (=, ≠, >, <, ≥, ≤) inline
 │       │   ├── ImageOutputNode.svelte   - Image file output node; amber header tint; output path footer
 │       │   ├── TextOutputNode.svelte    - Text/metadata output node; in-0 image input + dynamic txo-* value ports; output file footer
 │       │   ├── FlipbookOutputNode.svelte - Flipbook atlas output node; grid dimensions footer
@@ -183,7 +205,7 @@ project-root/
 │       │   ├── undoRedoManager.ts       - UndoRedoManager class: push / schedulePush (deferred batching) / undo / redo
 │       │   ├── portColors.ts            - Wire color map keyed by data type
 │       │   ├── wireTypeUtils.ts         - Wire-type compatibility, paramTypeToWireType, paramInHandle/paramOutHandle
-│       │   ├── nodeEditorHelpers.ts     - buildNodeData, expandNodeData, buildResizeParamDefs, sortNodesGroupFirst, firstMatchingHandle
+│       │   ├── nodeEditorHelpers.ts     - buildNodeData, expandNodeData, buildResizeParamDefs, sortNodesGroupFirst, firstMatchingHandle; maps process_as_set → setInputNode component type
 │       │   └── nodeEnabledState.ts      - Bypass state helpers
 │       ├── stores/
 │       │   ├── graph.svelte.ts          - GraphStore: nodes (seeded via makeSeedNodes()), edges, selection, batch state, viewport; canDeleteNode() guards last inputNode / last output node of any type
@@ -191,21 +213,12 @@ project-root/
 │       ├── workflowUtils.ts             - hasSetInputInChain(...) + re-exports traceInputNodeId from shared/graphTrace.ts; renderer calls window.ipcRenderer.invoke directly (no service layer)
 │       ├── platform.ts                  - IS_ELECTRON flag (detects Electron vs browser context)
 │       └── browserIpc.ts               - Browser shim for window.ipcRenderer (workflow builder without Electron)
-├── src/tests/             - Vitest unit tests for pure-function modules
-│   ├── batch-pipeline.test.ts
-│   ├── commandBuilder.test.ts
-│   ├── executor-compute.test.ts
-│   ├── graph-utils.test.ts
-│   ├── groupBySetPattern.test.ts
-│   ├── ipcListenerTracker.test.ts
-│   ├── nodeEditorHelpers.test.ts
-│   ├── pipelineService.test.ts
-│   ├── preview-pipeline.test.ts
-│   ├── renameUtils.test.ts
-│   ├── timing.test.ts
-│   ├── topoSort.test.ts
-│   └── wireTypeUtils.test.ts
+├── src/tests/             - Vitest unit tests; node project for pure logic + jsdom project for *.svelte.test.ts component tests
+│                            (graph-utils, graphTrace, graphTransforms, batch-pipeline, preview-pipeline, command-builder,
+│                            format-definitions, executor-cli, workflow-sanitize, update-utils, compatUtils, store tests,
+│                            registry, ipc-channels, RunWorkflowDialog component test, etc.)
 ├── node-definitions/      - JSON node descriptor files (loaded at runtime, hot-reloaded in dev)
+├── format-definitions/    - Per-format encoding definitions (jpeg/png/webp/avif/tiff/bmp/tga .json); FormatDefinition shape, loaded via import.meta.glob in command-builder.ts and InspectorFormatConvertNode.svelte
 ├── workflows/             - User workflow save files (.imgplex JSON)
 ├── scripts/
 │   └── patch-nsis.cjs     - Postinstall script: patches electron-builder NSIS templates to show install file details
@@ -315,20 +328,23 @@ Each workflow node also stores a **`cliName`** param — auto-assigned at creati
 
 ### JSON-Defined Node Categories
 
-| Category        | Nodes                                                                  |
-| --------------- | ---------------------------------------------------------------------- |
-| **Transform**   | Resize, Crop, Rotate, Flip                                             |
-| **Adjustments** | Brightness/Contrast, Levels, Grayscale, Hue Offset, Saturation, Negate |
-| **Filters**     | Blur, Sharpen                                                          |
-| **Channels**    | Channel Split, Channel Merge                                           |
-| **Format**      | Format Convert                                                         |
-| **Output**      | Rename                                                                 |
-| **Logic**       | Gate, Text Filter, Comparison, AND, OR, NOT, Branch                    |
-| **Properties**  | Name, Path, Dimensions, Size, Bit Depth, File Type, Resolution, EXIF   |
-| **Values**      | Boolean, Float, String, Color, Vector2, Vector3, Vector4, Solid Image  |
-| **Math**        | Add, Subtract, Multiply, Divide, Power, Lerp, Mean Value               |
-| **Vector**      | Append Vec, Split Vec, Dot Product, Length, Normalize                  |
-| **Graph**       | Comment (annotation node), Group (visual container)                    |
+| Category        | Nodes                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------- |
+| **Source**      | Process As Set                                                                                 |
+| **Transform**   | Resize, Resize (Nearest Neighbor), Crop, Rotate, Flip, Auto Orient, Extend Canvas, Pixelate, Trim Alpha |
+| **Adjustments** | Brightness/Contrast, Levels, Grayscale, Hue Offset, Saturation, Negate                         |
+| **Color**       | Quantize, Threshold, Tint                                                                       |
+| **Filters**     | Blur, Sharpen                                                                                   |
+| **FX**          | Outline                                                                                         |
+| **Channels**    | Channel Split, Channel Merge, Extract Alpha, Premultiply Alpha, Normal Map Flip                |
+| **Format**      | Format Convert, Strip Metadata                                                                  |
+| **Output**      | Rename                                                                                          |
+| **Logic**       | Gate, Text Filter, Comparison, AND, OR, NOT, Branch                                            |
+| **Properties**  | Name, Path, Dimensions, Size, Bit Depth, File Type, Resolution, EXIF, Power of Two              |
+| **Values**      | Boolean, Float, String, Color, Vector2, Vector3, Vector4, Solid Image                          |
+| **Math**        | Add, Subtract, Multiply, Divide, Power, Lerp, Mean Value                                        |
+| **Vector**      | Append Vec, Split Vec, Dot Product, Length, Normalize                                          |
+| **Graph**       | Comment (annotation node), Group (visual container)                                            |
 
 ---
 
@@ -336,7 +352,7 @@ Each workflow node also stores a **`cliName`** param — auto-assigned at creati
 
 ### 7.1 Execution Model
 
-1. **Topological sort** (Kahn's algorithm) to determine execution order.
+1. **Topological sort** (Kahn's algorithm) to determine execution order. A cycle (only reachable via a hand-edited/corrupt `.imgplex`) leaves nodes out of the sort; `topoSort` logs a warning rather than silently dropping them.
 2. **Resolve parameters per node** - start from Inspector values, override with upstream wired values.
 3. **Pure nodes** (no image ports): `computeNodeParams()` evaluates output values; skip ImageMagick.
 4. **Image nodes**: build ImageMagick args from resolved params, execute `magick`, cache output.
@@ -347,7 +363,7 @@ Each workflow node also stores a **`cliName`** param — auto-assigned at creati
 - Graph trimmed to ancestors of the selected node (backward BFS via all edge types).
 - Input downscaled proportionally to `PREVIEW_MAX_EDGE_PX = 1024px` before entering the pipeline.
 - **Node-level caching:** output keyed by `(nodeId, hash(inputPath + params))`; only re-runs invalidated nodes.
-- **Incremental invalidation:** when a node changes, it and all downstream nodes are cache-invalidated.
+- **Incremental invalidation:** when a node changes, it and only its **actual descendants** are cache-invalidated, via `findDescendants` (forward BFS over edges). Earlier code invalidated everything that merely sorted after the changed node in topological order, needlessly busting the cache for unrelated parallel branches.
 - **Debounce:** 80ms after last param change (0ms when no nodes present).
 - **Temp file race guard:** concurrent preview requests for the same input don't conflict - write errors are caught and re-checked for existence.
 - Single image: only the currently selected filmstrip image.
@@ -397,7 +413,7 @@ Result: ~1.6s for 1983 mixed PNG/TGA/JPG/PSD images (vs ~44s before batching).
 | `vec_math_length`                                                                                                                 | `result = length(v)`                                                |
 | `vec_math_normalize`                                                                                                              | `result = v / length(v)`                                            |
 | `rename`                                                                                                                          | Builds filename from ordered blocks (text / number / original-name) |
-| `prop_name` / `prop_path` / `prop_dimensions` / `prop_size` / `prop_bitdepth` / `prop_filetype` / `prop_resolution` / `prop_exif` | Per-image metadata from `magick identify`                           |
+| `prop_name` / `prop_path` / `prop_dimensions` / `prop_size` / `prop_bitdepth` / `prop_filetype` / `prop_resolution` / `prop_exif` / `prop_power_of_two` | Per-image metadata. The "light" subset (`prop_name`, `prop_path`, `prop_size`, `prop_filetype`, `prop_dimensions`, `prop_power_of_two` — see `LIGHT_META_EXECUTORS`) is satisfied with a cheap `fs.stat` + header read and **no** `magick identify` spawn |
 | _(no executor)_                                                                                                                   | Value nodes - params are the output values directly                 |
 
 ### 7.6 CLI Export
@@ -424,6 +440,18 @@ imgplex-cli run workflow.imgplex --input-1 ./photos --input-2 ./overlays --outpu
   3. Computes the output path: uses the CLI flag value if provided, otherwise falls back to the node's baked-in `customPath` / `outputPath` / `flipbookOutputPath` param (for textOutputNode and flipbookOutputNode, overrides are applied by patching a graph copy before calling `executeBatch`).
   4. Calls `executor.executeBatch(graph, outNode.id, inputNodeId, images, outputDir, overwrite, registry, onProgress)`.
 - **Nodes without a cliName** are still executed (using their baked-in paths) but do not appear as flags in the exported script.
+
+### 7.7 Format Definitions (data-driven encoding)
+
+Output encoding settings live in `format-definitions/` — one JSON file per format (`jpeg`, `png`, `webp`, `avif`, `tiff`, `bmp`, `tga`). Each file is a `FormatDefinition`:
+
+- `id` — uppercase format name (e.g. `"JPEG"`), the lookup key
+- `extension` — canonical output extension (e.g. `".jpg"`)
+- `params` — `ParamDefinition[]` rendered by `InspectorFormatConvertNode` (same widgets as node params: slider/dropdown/checkbox)
+- `params_visibility` (optional) — conditional show/hide rules (e.g. hide WebP Quality when Lossless is on)
+- `args_js` — JS function body receiving `params`, returns `string[]` of ImageMagick encoding args
+
+The files are loaded eagerly via `import.meta.glob` in both `command-builder.ts` (main, via `buildFormatConvertArgs`/`getFormatExtension`) and `InspectorFormatConvertNode.svelte` (renderer). The `format_convert` node's own definition carries only the format dropdown; every encoding control comes from the matching format definition at runtime. Adding or changing a format is therefore a JSON edit with no recompile. `args_js` runs in the main process and is treated as app-controlled code (same trust boundary as `command_js`/`compute_js`).
 
 ---
 
@@ -484,7 +512,6 @@ Additional behaviours:
 | --------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
 | `registry:get-all`                      | invoke    | Load all node definitions                                                                                    |
 | `registry:updated`                      | push      | Hot-reload notification                                                                                      |
-| `pipeline:load-images`                  | invoke    | Load image list with metadata (legacy; used by non-streaming paths)                                          |
 | `pipeline:load-images-with-thumbnails`  | invoke    | Load images + generate thumbnails in one call                                                                |
 | `pipeline:load-images-streaming-start`  | invoke    | Begin streaming import; results pushed per image                                                             |
 | `pipeline:load-images-streaming-result` | push      | One loaded image result during streaming import                                                              |
@@ -493,11 +520,14 @@ Additional behaviours:
 | `pipeline:execute-preview`              | invoke    | Run preview pipeline                                                                                         |
 | `pipeline:execute-batch`                | invoke    | Run batch pipeline; payload: graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog |
 | `pipeline:execute-batch:progress`       | push      | Progress updates during batch                                                                                |
+| `pipeline:execute-batch-cancel`         | invoke    | Cancel an in-progress batch run                                                                              |
 | `pipeline:export-cli`                   | invoke    | Export CLI script (PS/Bash/CMD)                                                                              |
 | `dialog:open-images`                    | invoke    | File open dialog for images                                                                                  |
 | `dialog:open-folder`                    | invoke    | Folder picker (no scan)                                                                                      |
-| `dialog:scan-folder-dialog`             | invoke    | Pick folder via dialog then scan for matching extensions                                                     |
-| `dialog:scan-folder`                    | invoke    | Scan a given folder path for matching extensions (no dialog)                                                 |
+| `dialog:scan-folder`                    | invoke    | Pick folder via dialog then scan for matching extensions                                                     |
+| `dialog:scan-folder-only`               | invoke    | Scan a given folder path for matching extensions (no dialog)                                                 |
+| `atlas:generate`                        | invoke    | Generate a flipbook atlas from the connected images                                                          |
+| `atlas:browse`                          | invoke    | Save-file dialog for the flipbook atlas output path                                                          |
 | `text-output:browse`                    | invoke    | Save-file dialog for text output path                                                                        |
 | `text-output:preview`                   | invoke    | Compute text output lines without writing (preview)                                                          |
 | `text-output:write`                     | invoke    | Write text output file; sends per-image progress                                                             |
@@ -508,9 +538,15 @@ Additional behaviours:
 | `workflow:open-path`                    | invoke    | Load workflow JSON from a given file path (no dialog)                                                        |
 | `app:quit`                              | invoke    | Graceful quit with dirty-state check                                                                         |
 | `app:open-file-path`                    | push      | Main → renderer: carry file path from OS file-association open                                               |
+| `app:update-available`                  | push      | Main → renderer: a newer GitHub release exists (version, notes, url) → UpdateModal                           |
+| `app:check-for-updates`                 | invoke    | Renderer-triggered update check                                                                             |
+| `app:get-versions`                      | invoke    | App / Electron / Chromium / ImageMagick version strings for the About dialog                                |
 | `shell:open-external`                   | invoke    | Open URL in default system browser                                                                           |
 | `shell:open-path`                       | invoke    | Open a folder path in the system file manager                                                                |
-| `menu:*`                                | push      | Native menu action forwarding to renderer                                                                    |
+| `timers:set-enabled`                    | invoke    | Toggle optional perf instrumentation (timings.enabled)                                                       |
+| `log:entry`                             | push      | Main → renderer: one log line for the in-app log viewer                                                      |
+| `log:get-entries`                       | invoke    | Fetch buffered log entries                                                                                  |
+| `menu:*`                                | push      | Native menu action forwarding to renderer (new, open, save, duplicate, delete, run-workflow, check-for-updates, export-cli-\*, about, credits) |
 
 ---
 
@@ -530,6 +566,9 @@ Additional behaviours:
 - **Group node ordering** - Group nodes must appear before their children in the nodes array for @xyflow/svelte to render them behind children.
 - **`shell.openExternal`** - Must be called from main process via IPC (`shell:open-external`); do not import `shell` in the preload script.
 - **NSIS installer patching** - `scripts/patch-nsis.cjs` runs as a postinstall hook and patches `common.nsh` (`ShowInstDetails show`) and `installSection.nsh` (`SetDetailsPrint both`) in electron-builder's templates to display file names and progress during installation.
+- **Untrusted workflow files** - `.imgplex` files are shareable and double-click-openable, so their node `data.params` are untrusted. Runtime JS (`command_js` / `compute_js` / `args_js`) is only ever sourced from `node-definitions/` and `format-definitions/` and runs in the main process via `new Function`. To stop a malicious workflow from injecting executable JS, `__`-prefixed param keys (notably `__compute_js__`) are stripped in two places: `sanitizeWorkflowGraph` (`workflow-sanitize.ts`, on load) and `applyParamWires` (`graph-utils.ts`, at runtime). The legitimate `__compute_js__` is re-injected from the trusted node definition in `resolve-params.ts`.
+- **Workflow version compatibility** - on load, `compatUtils.isCompatible(fileVersion, appVersion)` checks the saved version against `compat-ranges.json`; files outside the running app's range trigger `IncompatibleVersionModal` instead of loading silently.
+- **Update check** - on startup (and via Help → Check for Updates) the main process fetches the latest GitHub release, compares with `compareSemver`, and pushes `IPC.UPDATE_AVAILABLE` to show `UpdateModal`. This is a notification only — no auto-download/install.
 
 ---
 
@@ -567,7 +606,11 @@ Build outputs:
 - Batch execution with progress reporting, fast/slow path, Gate node suppression
 - Per-image metadata loading for Properties nodes in batch
 - Text Filter node, Format Convert node, Rename node, Solid Image node
-- Workflow save / load (`.imgplex` JSON, dirty-state tracking, close confirmation)
+- Data-driven output formats: `format-definitions/*.json` (JPEG/PNG/WebP/AVIF/TIFF/BMP/TGA) drive both the inspector encoding controls and the ImageMagick args via `args_js`
+- Expanded node set: Auto Orient, Extend Canvas, Pixelate, Trim Alpha, Resize (Nearest Neighbor), Quantize, Threshold, Tint, Outline, Extract/Premultiply Alpha, Normal Map Flip, Strip Metadata, Power-of-Two property
+- Workflow save / load (`.imgplex` JSON, dirty-state tracking, close confirmation, untrusted-param sanitization, version-compatibility check with `IncompatibleVersionModal`)
+- Update-availability notification: startup + Help → Check for Updates fetch the latest GitHub release and show `UpdateModal` (notification only)
+- In-app log viewer fed by the main-process logger over IPC
 - Filmstrip (loaded images, click-to-select, thumbnail generation)
 - Wire preview with accurate start-point (DOM `getBoundingClientRect`)
 - Custom app menu with keyboard shortcuts; DevTools shortcuts preserved
@@ -618,8 +661,7 @@ Build outputs:
 8. **Color Balance** - Separate highlight/midtone/shadow RGB adjustments.
 9. **Noise Reduction** - `-despeckle` / `-enhance` / `-noise` operations.
 10. **Vignette** - Radial darkening effect.
-11. **Border / Padding** - Add solid-color or transparent border.
-12. **Auto-orient** - Apply EXIF rotation (`-auto-orient`) for phone photos.
+11. **Border / Padding** - Add solid-color or transparent border. (Partially covered by the Extend Canvas node.)
 
 #### P3 - Advanced graph features
 
@@ -629,7 +671,7 @@ Build outputs:
 #### P4 - Polish & infrastructure
 
 15. **Settings panel** - ImageMagick path override, default output folder, theme (dark/light).
-16. **Auto-update** - electron-updater integration for delivering new releases.
+16. **Auto-update** - electron-updater integration for downloading/installing new releases. (Update _detection_ + notification already ships; only auto-download/install is pending.)
 
 ## 14. Alternatives Considered and Rejected
 
