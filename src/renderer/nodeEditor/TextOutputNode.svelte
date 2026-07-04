@@ -3,6 +3,7 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { portColor } from './portColors.js';
   import { graphStore } from '../stores/graph.svelte.js';
+  import ProcessingBadge from './ProcessingBadge.svelte';
 
   let {
     id = '',
@@ -62,6 +63,8 @@
     style="background: {anyColor}; border-color: {anyColor}; top: {handleTop(i)};"
   />
 {/each}
+
+<ProcessingBadge nodeId={id} />
 
 <div class="node" class:selected>
   <header class="node-head">

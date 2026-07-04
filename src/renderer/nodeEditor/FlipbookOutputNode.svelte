@@ -1,8 +1,13 @@
 <script lang="ts">
   import { Handle, Position } from '@xyflow/svelte';
   import { portColor } from './portColors.js';
+  import ProcessingBadge from './ProcessingBadge.svelte';
 
-  let { data = {}, selected = false }: { data?: Record<string, unknown>; selected?: boolean } = $props();
+  let {
+    id = '',
+    data = {},
+    selected = false,
+  }: { id?: string; data?: Record<string, unknown>; selected?: boolean } = $props();
 
   const imgColor = portColor('image');
   const numColor = portColor('number');
@@ -50,6 +55,8 @@
   id="param-in-bgColor"
   style="background: {colorColor}; border-color: {colorColor}; top: 193px;"
 />
+
+<ProcessingBadge nodeId={id} />
 
 <div class="node" class:selected>
   <header class="node-head">

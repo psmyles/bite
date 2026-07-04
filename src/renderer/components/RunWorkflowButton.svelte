@@ -121,6 +121,7 @@
       const generateLog = Boolean(params.generateLog ?? false);
 
       graphStore.batchRunning = true;
+      graphStore.batchRunningNodeId = status.nodeId;
       graphStore.batchProgress = null;
       graphStore.batchError = null;
       graphStore.batchDone = false;
@@ -148,6 +149,7 @@
         if (msg !== 'CANCELLED') graphStore.batchError = msg;
       } finally {
         graphStore.batchRunning = false;
+        graphStore.batchRunningNodeId = null;
       }
 
       if (!graphStore.batchDone && graphStore.batchError === null) break;

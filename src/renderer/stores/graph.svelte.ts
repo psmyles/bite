@@ -75,6 +75,8 @@ class GraphStore {
 
   // ── Batch execution ───────────────────────────────────────────────────────
   batchRunning = $state(false);
+  /** Output node currently being executed by the Run Workflow loop */
+  batchRunningNodeId = $state<string | null>(null);
   batchProgress = $state<Progress | null>(null);
   batchError = $state<string | null>(null);
   batchDone = $state(false);
