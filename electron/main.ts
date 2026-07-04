@@ -285,6 +285,21 @@ function createWindow() {
     },
   });
 
+  // Open external links (e.g. the release-notes changelog link) in the default
+  // system browser instead of navigating the app window itself.
+  const openExternalUrl = (url: string) => {
+    if (url.startsWith('http:') || url.startsWith('https:')) shell.openExternal(url);
+  };
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openExternalUrl(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (VITE_DEV_SERVER_URL && url.startsWith(VITE_DEV_SERVER_URL)) return; // allow dev-server navigation/HMR
+    event.preventDefault();
+    openExternalUrl(url);
+  });
+
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
