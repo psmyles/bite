@@ -124,6 +124,10 @@ When you click a node, the Inspector shows its parameters. Changes are immediate
 
 Some parameters have a small port icon, meaning they can be **driven by a wire** instead of typed manually. For example, you could connect a Float value node to the Blur node's sigma parameter to control blur strength from outside the node.
 
+**Format-specific settings.** The **Convert Format** node's inspector adapts to the selected output format: JPEG exposes Quality, Chroma Subsampling, and Progressive scan; WebP exposes a Lossless toggle, Quality, and Method; PNG exposes Compression Level and Bit Depth; AVIF exposes Quality and Effort; TIFF exposes the Compression type. BMP and TGA are lossless with no options. Switching the format dropdown updates the controls instantly.
+
+**Thumbnail size.** The Input node's inspector has a thumbnail-size setting (128–2048 px, default 256). It controls the filmstrip thumbnail resolution **and** the resolution the live Preview runs at - lower it for faster imports and snappier previews, raise it for more detail. Batch runs always process at full resolution regardless of this setting.
+
 ---
 
 ## Groups and Comments
@@ -158,13 +162,20 @@ You can also wire a **Boolean value node** to a node's enable port to control by
 
 Wire colors indicate what type of data flows through a connection. imgplex will reject connections between incompatible types.
 
-| Color  | Type     | What it carries                       |
-| ------ | -------- | ------------------------------------- |
-| Orange | `image`  | Full pixel data (the image itself)    |
-| Purple | `mask`   | Grayscale mask image                  |
-| Cyan   | `number` | A numeric value (int or float)        |
-| Green  | `path`   | A file or folder path string          |
-| Slate  | `any`    | Flexible - adapts to what's connected |
+| Color       | Type      | What it carries                          |
+| ----------- | --------- | ---------------------------------------- |
+| Orange      | `image`   | Full pixel data (the image itself)       |
+| Purple      | `mask`    | Grayscale mask image                     |
+| Cyan        | `number`  | A numeric value (int or float)           |
+| Green       | `string`  | Text                                     |
+| Yellow      | `boolean` | True / false                             |
+| Pink        | `color`   | A color value                            |
+| Amber       | `vector2` | A 2-component vector                     |
+| Indigo      | `vector3` | A 3-component vector                     |
+| Teal        | `vector4` | A 4-component vector                     |
+| Grey        | `numeric` | Any numeric value (number or vector)     |
+| Light green | `path`    | A file or folder path string             |
+| White       | `any`     | Flexible - adapts to what's connected    |
 
 If you try to connect mismatched types, the wire snaps back. Check the colors on both ports.
 
@@ -210,16 +221,20 @@ Select any Input or output node on the canvas. In the Inspector you'll see a **C
 
 ### Running the script
 
-`imgplex-cli` is installed alongside imgplex and added to your PATH automatically. After exporting:
+`imgplex-cli` is installed alongside imgplex and added to your PATH automatically. The Bash and CMD scripts take **positional** values (in the order documented in the script's usage comments); the PowerShell script takes named parameters:
 
 ```bash
 bash imgplex-batch.sh ./my-photos ./output
 ```
 
-or with named flags:
+```powershell
+.\imgplex-batch.ps1 -Background .\photos -Overlay .\overlays
+```
+
+You can also skip the wrapper script and call the CLI directly with named flags:
 
 ```bash
-bash imgplex-batch.sh --background ./photos --overlay ./overlays
+imgplex-cli run workflow.imgplex --background ./photos --overlay ./overlays
 ```
 
 See the comments inside the exported script for the exact syntax for your chosen shell.
@@ -252,6 +267,8 @@ See the comments inside the exported script for the exact syntax for your chosen
 
 **Loops are blocked.** imgplex processes nodes in order, so circular wiring is not allowed. The editor will reject a wire that would create a cycle.
 
+**The Preview runs at thumbnail resolution, not full resolution.** The live preview reuses the Input node's thumbnail (configurable size, default 256 px) as its source, so effects that depend on absolute pixel dimensions can look slightly different from the final batch output, which always runs at full resolution.
+
 **The Preview only renders up to the preview target.** By default this is the last node before Output. If you add nodes after the current preview target, you won't see them until you double-click to update the target (or let it auto-detect).
 
 **Bypassed nodes affect Preview auto-detection.** The preview target walks backward through the chain and skips bypassed nodes. If your last few nodes are all bypassed, the preview may jump further back than expected.
@@ -267,8 +284,10 @@ See the comments inside the exported script for the exact syntax for your chosen
 | Key                 | Action                                    |
 | ------------------- | ----------------------------------------- |
 | Space / Tab         | Open node context menu at cursor position |
+| Ctrl+R              | Run Workflow                              |
+| Ctrl+S              | Save workflow                             |
 | Ctrl+Z              | Undo                                      |
-| Ctrl+Y              | Redo                                      |
+| Ctrl+Y / Ctrl+Shift+Z | Redo                                    |
 | Ctrl+D              | Duplicate selected node                   |
 | Ctrl+G              | Group selected nodes                      |
 | Ctrl+Shift+G        | Ungroup                                   |

@@ -17,6 +17,7 @@ A functional web version of the application is available at [psmyles.github.io/i
 - **Live preview** - real-time pipeline output on the selected image, node-level cached
 - **CLI export** - export any workflow as a standalone script (PowerShell, Bash, or Windows Command Prompt)
 - **Workflow files** - save and load pipelines as `.imgplex` JSON; double-clicking a `.imgplex` file opens it directly in the app; version compatibility is checked on open
+- **Per-format export settings** - format-specific encoding controls (JPEG quality/chroma/progressive, WebP lossless, PNG compression, AVIF effort, …) driven by data files in `format-definitions/`
 - **Extensible** - add new nodes by dropping a JSON file into `node-definitions/`, no recompile needed
 - **Pure-value graph** - math, logic, and value constant nodes with typed wires route parameters without touching the image pipeline
 - **Node groups & comments** - visually organise your graph with resizable containers and sticky notes
@@ -42,6 +43,7 @@ A functional web version of the application is available at [psmyles.github.io/i
 ```bash
 npm install
 npm run dev        # Electron + Vite hot reload
+npm test           # Run the unit test suite (Vitest)
 ```
 
 ### Build

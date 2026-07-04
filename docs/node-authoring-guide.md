@@ -1,6 +1,6 @@
 # Node Authoring Guide
 
-Nodes are described by plain JSON files in this folder. The app loads them at startup and hot-reloads them automatically during development — no recompile, no restart required. Drop a new `.json` file here and it appears in the Node Library immediately.
+Nodes are described by plain JSON files in the `node-definitions/` folder. The app loads them at startup and hot-reloads them automatically on file change — in development **and** in packaged builds (the folder ships as loose JSON files beside the executable). No recompile, no restart required. Drop a new `.json` file into `node-definitions/` and it appears in the Node Library immediately.
 
 ---
 
@@ -17,6 +17,7 @@ Nodes are described by plain JSON files in this folder. The app loads them at st
 9. [params_visibility — show/hide Inspector rows](#9-params_visibility--showhide-inspector-rows)
 10. [Worked examples](#10-worked-examples)
 11. [Limitations and known constraints](#11-limitations-and-known-constraints)
+12. [Format definitions (`format-definitions/`)](#12-format-definitions-format-definitions)
 
 ---
 
@@ -48,8 +49,9 @@ Save it as `node-definitions/auto-orient.json` and it will appear in the **Trans
 | `version`           | string            | no           | Semantic version string (e.g. `"1.0.0"`). Not enforced, but useful for tracking breaking changes in saved workflows.                                                                                                             |
 | `label`             | string            | **yes**      | Display name shown in the Node Library and on the node card header.                                                                                                                                                              |
 | `description`       | string            | no           | Tooltip text shown on a 1-second hover of the node header. Keep it to one sentence.                                                                                                                                              |
-| `category`          | string            | **yes**      | Node Library group. Any string is valid — a new string creates a new category. Existing categories: `Transform`, `Color`, `Filters`, `Channels`, `Format`, `Output`, `Logic`, `Properties`, `Values`, `Math`, `Vector`, `Graph`. |
-| `icon`              | string            | no           | Lucide icon name for the node card header. Supported values: `blur`, `circle-half`, `crop`, `droplets`, `file-output`, `flip-horizontal`, `palette`, `resize`, `rotate-cw`, `sliders`, `sun`, `zap`. Omit to show no icon.       |
+| `category`          | string            | **yes**      | Node Library group. Any string is valid — a new string creates a new category. Existing categories: `Source`, `Transform`, `Color`, `Filters`, `FX`, `Channels`, `Format`, `Output`, `Logic`, `Properties`, `Values`, `Math`, `Utility`. |
+| `aliases`           | string[]          | no           | Alternate names matched by the Node Library and context-menu search (e.g. Negate declares `"invert"`, `"flip colors"`). Helps users find a node without knowing its exact label.                                                 |
+| `icon`              | string            | no           | Reserved. Accepted by the schema but not currently rendered anywhere in the UI — safe to omit.                                                                                                                                   |
 | `inputs`            | PortDefinition[]  | **yes**      | Upstream image/path ports on the left side. Use `[]` for source nodes (no image input).                                                                                                                                          |
 | `outputs`           | PortDefinition[]  | **yes**      | Downstream image/path ports on the right side. Use `[]` for pure-value nodes.                                                                                                                                                    |
 | `params`            | ParamDefinition[] | **yes**      | Inspector and wire-connectable parameters. Can be `[]`.                                                                                                                                                                          |
@@ -165,8 +167,8 @@ magick <input_file>  <command_template args>  <output_file>
 ### Rules
 
 - **One template per node.** The template produces all arguments for the node. It cannot branch or loop.
-- **Whitespace splitting.** The interpolated string is split on one or more spaces. The result is a flat `string[]` — no shell quoting is performed. This means multi-word values (e.g. filter names like `"Mitchell Netravali"`) would be split into two arguments. Avoid param values with embedded spaces; prefer hyphenated names.
-- **Fallback to default.** If a param name has no current value, its `default` is used. If `default` is also absent, the placeholder becomes an empty string.
+- **Split first, substitute second.** The template string is split on whitespace into words, then `{{param}}` placeholders are substituted within each word. Each template word becomes exactly one argument token — no shell quoting is performed. Adjacent literal+param text stays one token (`{{w}}x{{h}}` → `1024x768`), and a multi-word param value (e.g. `rgba(0, 0, 0, 1)` or a font name like `Open Sans`) stays a **single** token rather than being split.
+- **Fallback to default.** If a param name has no current value, its `default` is used. If `default` is also absent, the placeholder becomes an empty string; a word that ends up entirely empty is dropped from the argument list.
 - **All values are stringified.** Numbers, booleans, and arrays are converted via `String()`. For arrays (vector/color types) this produces a comma-separated list — which is rarely what ImageMagick expects. Avoid using vector params directly in `command_template`; use `command_js` instead.
 - **Literal `%` signs.** ImageMagick uses `%` as a format-string prefix. In templates representing percentage values, write the literal `%` directly: `"-level {{black_point}}%,{{white_point}}%"`. The shell is not involved — no escaping needed beyond what ImageMagick expects.
 
@@ -541,7 +543,7 @@ Use `command_js` for any of the above.
 
 ### Multi-output nodes require a TypeScript executor
 
-`command_template` and `command_js` always produce exactly one output image. To split into multiple image outputs (like Channel Split's R/G/B/A outputs), a hardcoded executor key in `executor.ts` is required. This is not something a JSON-only node can do.
+`command_template` and `command_js` always produce exactly one output image. To split into multiple image outputs (like Channel Split's R/G/B/A outputs), a hardcoded executor key in the TypeScript pipeline is required. This is not something a JSON-only node can do.
 
 ### No dynamic port counts
 
@@ -549,8 +551,43 @@ The number of `inputs`, `outputs`, and `params` is fixed at load time. You canno
 
 ### `executor` keys are reserved
 
-The following `executor` values are handled by hardcoded branches in `executor.ts` and `executor-compute.ts` and must not be used in new nodes unless you are modifying the TypeScript source:
+The following `executor` values are handled by hardcoded TypeScript branches (in the pipeline modules `batch-pipeline.ts` / `multistream-pipeline.ts` / `preview-pipeline.ts`, in `executor-compute.ts`, or registered via `executorRegistry.ts`) and must not be used in new nodes unless you are modifying the TypeScript source:
 
-`resize`, `gate`, `rename`, `channel_split`, `channel_merge`, `mean_value`, `solid_image`, `format_convert`, `text_output`, `process_as_set`, `math_add`, `math_subtract`, `math_multiply`, `math_divide`, `math_power`, `math_lerp`, `logic_and`, `logic_or`, `logic_not`, `logic_branch`, `logic_comparison`, `text_filter`, `split_vec`, `append_vec`, `vec_math_dot`, `vec_math_length`, `vec_math_normalize`, `value_color`, `prop_name`, `prop_path`, `prop_dimensions`, `prop_size`, `prop_bitdepth`, `prop_filetype`, `prop_resolution`, `prop_exif`, `prop_power_of_two`
+`resize`, `gate`, `rename`, `channel_split`, `channel_merge`, `mean_value`, `solid_image`, `format_convert`, `text_output`, `process_as_set`, `comment`, `math_add`, `math_subtract`, `math_multiply`, `math_divide`, `math_power`, `math_lerp`, `logic_and`, `logic_or`, `logic_not`, `logic_branch`, `logic_comparison`, `text_filter`, `split_vec`, `append_vec`, `vec_math_dot`, `vec_math_length`, `vec_math_normalize`, `value_color`, `value_vector2`, `value_vector3`, `value_vector4`, `prop_name`, `prop_path`, `prop_dimensions`, `prop_size`, `prop_bitdepth`, `prop_filetype`, `prop_resolution`, `prop_exif`, `prop_power_of_two`
 
 For new custom logic, use `command_js` (image nodes) or `compute_js` (pure-value nodes) instead.
+
+---
+
+## 12. Format definitions (`format-definitions/`)
+
+Output-format encoding settings live in a sibling JSON system: one file per format in `format-definitions/` (`jpeg.json`, `png.json`, `webp.json`, `avif.json`, `tiff.json`, `bmp.json`, `tga.json`). The **Convert Format** node's own definition carries only the format dropdown — every encoding control (JPEG quality, WebP lossless toggle, PNG compression level, …) comes from the matching format definition at runtime.
+
+Each file is a `FormatDefinition`:
+
+| Field               | Type              | Description                                                                                                                                    |
+| ------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                | string            | Uppercase format name (e.g. `"JPEG"`) — the lookup key selected by the Convert Format dropdown.                                                |
+| `extension`         | string            | Canonical output file extension including the dot (e.g. `".jpg"`).                                                                            |
+| `params`            | ParamDefinition[] | Encoding params rendered in the Convert Format inspector. Same shape and widgets as node params (`slider`, `dropdown`, `checkbox`).            |
+| `params_visibility` | VisibilityRule[]  | Optional show/hide rules, same syntax as [section 9](#9-params_visibility--showhide-inspector-rows) (e.g. WebP hides Quality when Lossless is on). |
+| `args_js`           | string            | JS function body receiving `params`, must return `string[]` of ImageMagick encoding args (e.g. `['-quality', '85']`). Same sandbox as `command_js`. |
+
+Example (`webp.json`, abridged):
+
+```json
+{
+  "id": "WEBP",
+  "extension": ".webp",
+  "params": [
+    { "name": "webp_lossless", "label": "Lossless", "type": "bool", "widget": "checkbox", "default": false },
+    { "name": "webp_quality", "label": "Quality", "type": "int", "widget": "slider", "default": 85, "min": 1, "max": 100 }
+  ],
+  "params_visibility": [
+    { "show": "webp_quality", "when": { "param": "webp_lossless", "eq": false } }
+  ],
+  "args_js": "const a = []; if (params.webp_lossless === true) { a.push('-define', 'webp:lossless=true'); } else { a.push('-quality', String(params.webp_quality ?? 85)); } return a;"
+}
+```
+
+**One important difference from node definitions:** format definitions are loaded via `import.meta.glob` and **bundled into the app at build time**. In dev they hot-reload like everything else under Vite, but in a packaged build adding or changing a format requires a rebuild — they are not loose runtime-loaded files the way `node-definitions/` are. No TypeScript changes are needed either way; `args_js` runs in the main process under the same trust model as `command_js` / `compute_js`.

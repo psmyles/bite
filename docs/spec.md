@@ -44,7 +44,7 @@ A batch image workflow builder application built around a visual node graph edit
 
 | Layer             | Technology                         | Notes                                                                                |
 | ----------------- | ---------------------------------- | ------------------------------------------------------------------------------------ |
-| Desktop shell     | Electron 30                        | Window management, file dialogs, auto-update, bundling                               |
+| Desktop shell     | Electron 42                        | Window management, file dialogs, update notification, bundling                       |
 | Build             | Vite 5 + vite-plugin-electron      | Hot-reload dev, separate renderer/main/preload bundles                               |
 | UI framework      | Svelte 5 (runes) + TypeScript      | Entire UI - panels, filmstrip, inspector, preview                                    |
 | Node graph editor | @xyflow/svelte 1.x (Svelte Flow)   | Custom node components, minimap, controls                                            |
@@ -113,7 +113,7 @@ project-root/
 ├── src/
 │   ├── shared/
 │   │   ├── types.ts       - NodeDefinition, GraphNode, GraphEdge, NodeGraph, ImageInfo, FormatDefinition, Progress
-│   │   ├── constants.ts   - IPC channel name map (IPC.*), EXECUTOR key map, LIGHT_META_EXECUTORS, IMAGE_EXTENSIONS, PREVIEW_MAX_EDGE_PX, THUMBNAIL_SIZE_PX, PREVIEW_DEBOUNCE_MS, APP_NAME
+│   │   ├── constants.ts   - IPC channel name map (IPC.*), EXECUTOR key map, LIGHT_META_EXECUTORS, IMAGE_EXTENSIONS, EMPTY_GRAPH
 │   │   ├── graphTrace.ts  - traceInputNodeId(nodes, edges, outputNodeId): canonical backward-BFS (skips param- wires); shared by renderer, main, and CLI
 │   │   ├── compatUtils.ts - isCompatible(fileVersion, appVersion): checks a .imgplex file's version against the app using compat-ranges.json
 │   │   ├── compat-ranges.json - Ordered list of mutually-compatible app version ranges; files load only within the same range as the running app
@@ -213,6 +213,8 @@ project-root/
 │       ├── workflowUtils.ts             - hasSetInputInChain(...) + re-exports traceInputNodeId from shared/graphTrace.ts; renderer calls window.ipcRenderer.invoke directly (no service layer)
 │       ├── platform.ts                  - IS_ELECTRON flag (detects Electron vs browser context)
 │       └── browserIpc.ts               - Browser shim for window.ipcRenderer (workflow builder without Electron)
+├── src/cli/
+│   └── index.ts           - imgplex-cli entry point (packaged to dist-cli/ via @yao-pkg/pkg); parses named flags, loads the workflow, runs executeBatch per output node
 ├── src/tests/             - Vitest unit tests; node project for pure logic + jsdom project for *.svelte.test.ts component tests
 │                            (graph-utils, graphTrace, graphTransforms, batch-pipeline, preview-pipeline, command-builder,
 │                            format-definitions, executor-cli, workflow-sanitize, update-utils, compatUtils, store tests,
@@ -297,19 +299,22 @@ Each node is described by a JSON file in `node-definitions/`:
 
 ### Port / Wire Colors (WCAG AAA on node background `#212121`)
 
-| Type                       | Color      | Hex       |
-| -------------------------- | ---------- | --------- |
-| `image`                    | Orange     | `#ff8c3f` |
-| `mask`                     | Purple     | `#d8a4fc` |
-| `number` / `int` / `float` | Cyan       | `#22d3ee` |
-| `string`                   | Green      | `#22c55e` |
-| `boolean`                  | Yellow     | `#eab308` |
-| `color`                    | Pink       | `#fc86bc` |
-| `vector2`                  | Amber      | `#fb923c` |
-| `vector3`                  | Indigo     | `#a5b4fc` |
-| `vector4`                  | Teal       | `#2dd4bf` |
-| `numeric`                  | Near-white | `#e2e8f0` |
-| `any`                      | Slate      | `#aaaaaa` |
+| Type                       | Color       | Hex       |
+| -------------------------- | ----------- | --------- |
+| `image`                    | Orange      | `#ff8c3f` |
+| `mask`                     | Purple      | `#d8a4fc` |
+| `number` / `int` / `float` | Cyan        | `#22d3ee` |
+| `string`                   | Green       | `#22c55e` |
+| `boolean`                  | Yellow      | `#eab308` |
+| `color`                    | Pink        | `#fc86bc` |
+| `vector2`                  | Amber       | `#fb923c` |
+| `vector3`                  | Indigo      | `#a5b4fc` |
+| `vector4`                  | Teal        | `#2dd4bf` |
+| `numeric`                  | Slate grey  | `#94a3b8` |
+| `path`                     | Light green | `#86efac` |
+| `any`                      | White       | `#ffffff` |
+
+All values live in `theme.css` as `--port-color-*` custom properties, read lazily by `portColors.ts`.
 
 ### Built-in Workflow Node Types
 
@@ -328,23 +333,23 @@ Each workflow node also stores a **`cliName`** param — auto-assigned at creati
 
 ### JSON-Defined Node Categories
 
-| Category        | Nodes                                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| **Source**      | Process As Set                                                                                 |
-| **Transform**   | Resize, Resize (Nearest Neighbor), Crop, Rotate, Flip, Auto Orient, Extend Canvas, Pixelate, Trim Alpha |
-| **Adjustments** | Brightness/Contrast, Levels, Grayscale, Hue Offset, Saturation, Negate                         |
-| **Color**       | Quantize, Threshold, Tint                                                                       |
-| **Filters**     | Blur, Sharpen                                                                                   |
-| **FX**          | Outline                                                                                         |
-| **Channels**    | Channel Split, Channel Merge, Extract Alpha, Premultiply Alpha, Normal Map Flip                |
-| **Format**      | Format Convert, Strip Metadata                                                                  |
-| **Output**      | Rename                                                                                          |
-| **Logic**       | Gate, Text Filter, Comparison, AND, OR, NOT, Branch                                            |
-| **Properties**  | Name, Path, Dimensions, Size, Bit Depth, File Type, Resolution, EXIF, Power of Two              |
-| **Values**      | Boolean, Float, String, Color, Vector2, Vector3, Vector4, Solid Image                          |
-| **Math**        | Add, Subtract, Multiply, Divide, Power, Lerp, Mean Value                                        |
-| **Vector**      | Append Vec, Split Vec, Dot Product, Length, Normalize                                          |
-| **Graph**       | Comment (annotation node), Group (visual container)                                            |
+| Category       | Nodes                                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------- |
+| **Source**     | Process As Set                                                                                            |
+| **Transform**  | Resize, Resize (Nearest Neighbor), Crop, Rotate, Flip, Auto Orient, Extend Canvas, Pixelate, Trim Alpha   |
+| **Color**      | Brightness/Contrast, Levels, Grayscale, Hue Offset, Saturation, Quantize, Threshold, Tint                 |
+| **Filters**    | Blur, Sharpen                                                                                              |
+| **FX**         | Outline                                                                                                    |
+| **Channels**   | Split Channels, Merge Channels, Extract Alpha, Premultiply Alpha, Normal Map Flip, Solid Image            |
+| **Format**     | Strip Metadata                                                                                             |
+| **Output**     | Convert Format, Rename                                                                                     |
+| **Logic**      | Gate, Text Filter, Compare, And, Or, Not, Branch                                                           |
+| **Properties** | Name, Path, Dimensions, Size, Bit Depth, File Type, Resolution, EXIF, Power of Two                        |
+| **Values**     | Boolean, Float, String, Color, Vector 2, Vector 3, Vector 4                                               |
+| **Math**       | Add, Subtract, Multiply, Divide, Power, Lerp, Negate, Mean Value, Dot Product, Length, Normalize          |
+| **Utility**    | Comment (annotation node), Folder Path, Append (vector), Split (vector)                                    |
+
+The Group node (visual container) is not a JSON definition — it is created via Ctrl+G in the editor.
 
 ---
 
@@ -361,10 +366,10 @@ Each workflow node also stores a **`cliName`** param — auto-assigned at creati
 
 - Triggered on: node selection change, parameter edit, active image change, or after a graph edit.
 - Graph trimmed to ancestors of the selected node (backward BFS via all edge types).
-- Input downscaled proportionally to `PREVIEW_MAX_EDGE_PX = 1024px` before entering the pipeline.
+- The preview input is the WebP thumbnail generated at import time (regenerated on demand if missing), sized by the Input node's `thumbnailSize` param (default 256 px, options 128–2048) — no separate preview downscale spawn.
 - **Node-level caching:** output keyed by `(nodeId, hash(inputPath + params))`; only re-runs invalidated nodes.
 - **Incremental invalidation:** when a node changes, it and only its **actual descendants** are cache-invalidated, via `findDescendants` (forward BFS over edges). Earlier code invalidated everything that merely sorted after the changed node in topological order, needlessly busting the cache for unrelated parallel branches.
-- **Debounce:** 80ms after last param change (0ms when no nodes present).
+- **Debounce:** 80ms after last param change (0ms when no image-processing nodes are connected).
 - **Temp file race guard:** concurrent preview requests for the same input don't conflict - write errors are caught and re-checked for existence.
 - Single image: only the currently selected filmstrip image.
 
@@ -377,8 +382,8 @@ Importing images uses a multi-stage streaming pipeline optimised for Windows (wh
 3. **Native header parsing** - PNG, BMP, WEBP, JPEG, and TGA dimensions are read directly from file headers in Node.js (no magick spawn). These "fast-path" images are classified and batched together.
 4. **Batch magick spawn** - all fast-path images in a chunk are processed in one `magick` invocation using `-write <thumbN> +delete` sequencing. This amortises ~200ms process-spawn cost over 8 images instead of paying it per image.
 5. **Slow-path fallback** - formats requiring magick for dimensions (PSD, TIFF, RAW, GIF, …) fall back to individual `-print %w %h %m` + thumbnail spawns; these are rare.
-6. **In-memory metadata cache** - `_metaCache` on `PipelineExecutor` stores `{width, height, format}` per path for the session; re-importing the same folder hits the cache and skips all magick calls.
-7. **Thumbnail disk cache** - thumbnails are written to `%TEMP%/imgplex-preview/thumb_<hash>_<size>.png` and reused if the source file has not changed (mtime comparison).
+6. **In-memory metadata cache** - a module-level `_metaCache` in `thumbnail-service.ts` stores `{width, height, format}` per path for the session; re-importing the same folder hits the cache and skips all magick calls.
+7. **Thumbnail disk cache** - thumbnails are written as WebP to `%TEMP%/imgplex-preview/thumb_<hash>_<size>.webp` and reused if the source file has not changed (mtime comparison). At startup, cached thumbnails/previews older than 14 days are pruned (and orphaned `batch_ms_*` intermediates are always removed) so the cache folder doesn't grow without bound.
 
 Result: ~1.6s for 1983 mixed PNG/TGA/JPG/PSD images (vs ~44s before batching).
 
@@ -451,7 +456,7 @@ Output encoding settings live in `format-definitions/` — one JSON file per for
 - `params_visibility` (optional) — conditional show/hide rules (e.g. hide WebP Quality when Lossless is on)
 - `args_js` — JS function body receiving `params`, returns `string[]` of ImageMagick encoding args
 
-The files are loaded eagerly via `import.meta.glob` in both `command-builder.ts` (main, via `buildFormatConvertArgs`/`getFormatExtension`) and `InspectorFormatConvertNode.svelte` (renderer). The `format_convert` node's own definition carries only the format dropdown; every encoding control comes from the matching format definition at runtime. Adding or changing a format is therefore a JSON edit with no recompile. `args_js` runs in the main process and is treated as app-controlled code (same trust boundary as `command_js`/`compute_js`).
+The files are loaded eagerly via `import.meta.glob` in both `command-builder.ts` (main, via `buildFormatConvertArgs`/`getFormatExtension`) and `InspectorFormatConvertNode.svelte` (renderer). The `format_convert` node's own definition carries only the format dropdown; every encoding control comes from the matching format definition at runtime. Adding or changing a format is a JSON edit with no TypeScript changes — hot-reloaded in dev, though `import.meta.glob` bundles the files at build time, so a packaged build needs a rebuild (unlike `node-definitions/`, which ship as loose runtime-loaded files). `args_js` runs in the main process and is treated as app-controlled code (same trust boundary as `command_js`/`compute_js`).
 
 ---
 
@@ -558,7 +563,7 @@ Additional behaviours:
 - **`$derived` cannot reference itself.** Fallbacks in derived expressions must reference a different value - never the derived variable itself.
 - **Viewport → canvas coords** - `x = (clientX - rect.left - vp.x) / vp.zoom`
 - **Wire preview start point** - Query `[data-handleid]` via DOM and use `getBoundingClientRect()`; do not compute from canvas coordinates.
-- **Store files** - Do not use `.svelte.ts` or `.ts` store files imported from `.svelte` components - Vite cannot resolve them. Use prop drilling or Svelte context instead.
+- **Store files** - All shared reactive state lives in exactly two rune-based stores: `stores/graph.svelte.ts` and `stores/images.svelte.ts`. Do not add further `.svelte.ts` store files imported from `.svelte` components - Vite/vite-plugin-svelte resolution is fragile for that pattern; extend the existing two stores instead.
 - **Node definitions** - Loaded once in `App.svelte` via IPC `$effect`, passed as `{definitions}` prop to NodeLibrary and NodeEditor.
 - **Dynamic paramDefs** - The Resize node updates its `paramDefs` array at runtime via `graphStore.updateResizeParamDefs()` when mode or preserve-aspect changes, removing stale wired edges automatically. `buildResizeParamDefs(mode, preserve)` is the pure function driving this.
 - **Properties nodes in batch** - Require per-image evaluation; `hasPropNodes` flag in executor triggers slow path with `magick identify` per image.
@@ -598,7 +603,7 @@ Build outputs:
 - 3-panel resizable layout (NodeLibrary / NodeEditor / Inspector+Preview + Filmstrip)
 - Svelte Flow canvas: drag-to-canvas, wire connections, minimap, zoom controls
 - Full node definition system (JSON-driven, hot-reloaded in dev)
-- All node categories: Transform, Adjustments, Filters, Channels, Format, Output, Logic, Properties, Values, Math, Vector
+- All node categories: Source, Transform, Color, Filters, FX, Channels, Format, Output, Logic, Properties, Values, Math, Utility
 - Inspector: all widget types (slider, number, checkbox, text, dropdown, color picker, vector)
 - Param-wire system (wire any typed output port to any compatible param input)
 - Bypass system (`_enabled` port with visual bypass tick; conditional processing)
@@ -644,7 +649,7 @@ Build outputs:
   - Inspector shows the resulting flag (`Flag: --<name>`) and a conflict warning when two nodes share the same name
   - `executor-cli.ts` is graph-aware: reads the workflow graph and emits one typed param per named node in all three script formats (PS / Bash / CMD)
   - `imgplex-cli run` parses `--<flag> <path>` pairs, iterates all output nodes, traces each to its input node, and runs `executeBatch` per output; clear error if a required input flag is missing
-- Unit tests: Vitest with 473 tests across 29 test files, split into two projects — a Node project for pure logic and a `jsdom` project for Svelte component tests (`@testing-library/svelte`, `*.svelte.test.ts`, resolved against svelte's browser/client build). Coverage via `npm run test:coverage` (`@vitest/coverage-v8`, thresholds enforced).
+- Unit tests: Vitest with 474 tests across 30 test files, split into two projects — a Node project for pure logic and a `jsdom` project for Svelte component tests (`@testing-library/svelte`, `*.svelte.test.ts`, resolved against svelte's browser/client build). Coverage via `npm run test:coverage` (`@vitest/coverage-v8`, thresholds enforced).
 
 ### Pending - Priority Order
 
