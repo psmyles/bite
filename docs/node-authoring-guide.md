@@ -43,24 +43,24 @@ Save it as `node-definitions/auto-orient.json` and it will appear in the **Trans
 
 ## 2. Top-level fields reference
 
-| Field               | Type              | Required     | Description                                                                                                                                                                                                                      |
-| ------------------- | ----------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                | string            | **yes**      | Unique identifier. Snake_case. Never reuse an ID — the executor router, CLI exporter, and graph files all key on it.                                                                                                             |
-| `version`           | string            | no           | Semantic version string (e.g. `"1.0.0"`). Not enforced, but useful for tracking breaking changes in saved workflows.                                                                                                             |
-| `label`             | string            | **yes**      | Display name shown in the Node Library and on the node card header.                                                                                                                                                              |
-| `description`       | string            | no           | Tooltip text shown on a 1-second hover of the node header. Keep it to one sentence.                                                                                                                                              |
+| Field               | Type              | Required     | Description                                                                                                                                                                                                                              |
+| ------------------- | ----------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                | string            | **yes**      | Unique identifier. Snake_case. Never reuse an ID — the executor router, CLI exporter, and graph files all key on it.                                                                                                                     |
+| `version`           | string            | no           | Semantic version string (e.g. `"1.0.0"`). Not enforced, but useful for tracking breaking changes in saved workflows.                                                                                                                     |
+| `label`             | string            | **yes**      | Display name shown in the Node Library and on the node card header.                                                                                                                                                                      |
+| `description`       | string            | no           | Tooltip text shown on a 1-second hover of the node header. Keep it to one sentence.                                                                                                                                                      |
 | `category`          | string            | **yes**      | Node Library group. Any string is valid — a new string creates a new category. Existing categories: `Source`, `Transform`, `Color`, `Filters`, `FX`, `Channels`, `Format`, `Output`, `Logic`, `Properties`, `Values`, `Math`, `Utility`. |
-| `aliases`           | string[]          | no           | Alternate names matched by the Node Library and context-menu search (e.g. Negate declares `"invert"`, `"flip colors"`). Helps users find a node without knowing its exact label.                                                 |
-| `icon`              | string            | no           | Reserved. Accepted by the schema but not currently rendered anywhere in the UI — safe to omit.                                                                                                                                   |
-| `inputs`            | PortDefinition[]  | **yes**      | Upstream image/path ports on the left side. Use `[]` for source nodes (no image input).                                                                                                                                          |
-| `outputs`           | PortDefinition[]  | **yes**      | Downstream image/path ports on the right side. Use `[]` for pure-value nodes.                                                                                                                                                    |
-| `params`            | ParamDefinition[] | **yes**      | Inspector and wire-connectable parameters. Can be `[]`.                                                                                                                                                                          |
-| `command_template`  | string            | one of these | ImageMagick argument string with `{{param}}` placeholders. Use for simple nodes.                                                                                                                                                 |
-| `command_js`        | string            | one of these | JS function body returning `string[]` of IM args. Use when args depend on logic.                                                                                                                                                 |
-| `executor`          | string            | one of these | Key for a hardcoded TypeScript executor (reserved for built-in complex nodes).                                                                                                                                                   |
-| `compute_js`        | string            | no           | JS function body returning `Record<string, unknown>` of output values. Pure-value nodes only (no image ports). Alternative to `executor` for custom math/logic.                                                                  |
-| `needs_image_meta`  | boolean           | no           | Set `true` to receive per-image metadata (dimensions, name, EXIF, etc.) in `compute_js`. Only meaningful for pure-value nodes that read file properties.                                                                         |
-| `params_visibility` | VisibilityRule[]  | no           | Inspector show/hide rules — hides a param row when another param has a specific value.                                                                                                                                           |
+| `aliases`           | string[]          | no           | Alternate names matched by the Node Library and context-menu search (e.g. Negate declares `"invert"`, `"flip colors"`). Helps users find a node without knowing its exact label.                                                         |
+| `icon`              | string            | no           | Reserved. Accepted by the schema but not currently rendered anywhere in the UI — safe to omit.                                                                                                                                           |
+| `inputs`            | PortDefinition[]  | **yes**      | Upstream image/path ports on the left side. Use `[]` for source nodes (no image input).                                                                                                                                                  |
+| `outputs`           | PortDefinition[]  | **yes**      | Downstream image/path ports on the right side. Use `[]` for pure-value nodes.                                                                                                                                                            |
+| `params`            | ParamDefinition[] | **yes**      | Inspector and wire-connectable parameters. Can be `[]`.                                                                                                                                                                                  |
+| `command_template`  | string            | one of these | ImageMagick argument string with `{{param}}` placeholders. Use for simple nodes.                                                                                                                                                         |
+| `command_js`        | string            | one of these | JS function body returning `string[]` of IM args. Use when args depend on logic.                                                                                                                                                         |
+| `executor`          | string            | one of these | Key for a hardcoded TypeScript executor (reserved for built-in complex nodes).                                                                                                                                                           |
+| `compute_js`        | string            | no           | JS function body returning `Record<string, unknown>` of output values. Pure-value nodes only (no image ports). Alternative to `executor` for custom math/logic.                                                                          |
+| `needs_image_meta`  | boolean           | no           | Set `true` to receive per-image metadata (dimensions, name, EXIF, etc.) in `compute_js`. Only meaningful for pure-value nodes that read file properties.                                                                                 |
+| `params_visibility` | VisibilityRule[]  | no           | Inspector show/hide rules — hides a param row when another param has a specific value.                                                                                                                                                   |
 
 **Exactly one** of `command_template`, `command_js`, or `executor` must be present on any image node.
 Pure-value nodes (empty `inputs` and `outputs`) use `executor` or `compute_js` — not `command_template` / `command_js`.
@@ -565,12 +565,12 @@ Output-format encoding settings live in a sibling JSON system: one file per form
 
 Each file is a `FormatDefinition`:
 
-| Field               | Type              | Description                                                                                                                                    |
-| ------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                | string            | Uppercase format name (e.g. `"JPEG"`) — the lookup key selected by the Convert Format dropdown.                                                |
-| `extension`         | string            | Canonical output file extension including the dot (e.g. `".jpg"`).                                                                            |
-| `params`            | ParamDefinition[] | Encoding params rendered in the Convert Format inspector. Same shape and widgets as node params (`slider`, `dropdown`, `checkbox`).            |
-| `params_visibility` | VisibilityRule[]  | Optional show/hide rules, same syntax as [section 9](#9-params_visibility--showhide-inspector-rows) (e.g. WebP hides Quality when Lossless is on). |
+| Field               | Type              | Description                                                                                                                                         |
+| ------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                | string            | Uppercase format name (e.g. `"JPEG"`) — the lookup key selected by the Convert Format dropdown.                                                     |
+| `extension`         | string            | Canonical output file extension including the dot (e.g. `".jpg"`).                                                                                  |
+| `params`            | ParamDefinition[] | Encoding params rendered in the Convert Format inspector. Same shape and widgets as node params (`slider`, `dropdown`, `checkbox`).                 |
+| `params_visibility` | VisibilityRule[]  | Optional show/hide rules, same syntax as [section 9](#9-params_visibility--showhide-inspector-rows) (e.g. WebP hides Quality when Lossless is on).  |
 | `args_js`           | string            | JS function body receiving `params`, must return `string[]` of ImageMagick encoding args (e.g. `['-quality', '85']`). Same sandbox as `command_js`. |
 
 Example (`webp.json`, abridged):
@@ -581,11 +581,17 @@ Example (`webp.json`, abridged):
   "extension": ".webp",
   "params": [
     { "name": "webp_lossless", "label": "Lossless", "type": "bool", "widget": "checkbox", "default": false },
-    { "name": "webp_quality", "label": "Quality", "type": "int", "widget": "slider", "default": 85, "min": 1, "max": 100 }
+    {
+      "name": "webp_quality",
+      "label": "Quality",
+      "type": "int",
+      "widget": "slider",
+      "default": 85,
+      "min": 1,
+      "max": 100
+    }
   ],
-  "params_visibility": [
-    { "show": "webp_quality", "when": { "param": "webp_lossless", "eq": false } }
-  ],
+  "params_visibility": [{ "show": "webp_quality", "when": { "param": "webp_lossless", "eq": false } }],
   "args_js": "const a = []; if (params.webp_lossless === true) { a.push('-define', 'webp:lossless=true'); } else { a.push('-quality', String(params.webp_quality ?? 85)); } return a;"
 }
 ```

@@ -162,20 +162,20 @@ You can also wire a **Boolean value node** to a node's enable port to control by
 
 Wire colors indicate what type of data flows through a connection. imgplex will reject connections between incompatible types.
 
-| Color       | Type      | What it carries                          |
-| ----------- | --------- | ---------------------------------------- |
-| Orange      | `image`   | Full pixel data (the image itself)       |
-| Purple      | `mask`    | Grayscale mask image                     |
-| Cyan        | `number`  | A numeric value (int or float)           |
-| Green       | `string`  | Text                                     |
-| Yellow      | `boolean` | True / false                             |
-| Pink        | `color`   | A color value                            |
-| Amber       | `vector2` | A 2-component vector                     |
-| Indigo      | `vector3` | A 3-component vector                     |
-| Teal        | `vector4` | A 4-component vector                     |
-| Grey        | `numeric` | Any numeric value (number or vector)     |
-| Light green | `path`    | A file or folder path string             |
-| White       | `any`     | Flexible - adapts to what's connected    |
+| Color       | Type      | What it carries                       |
+| ----------- | --------- | ------------------------------------- |
+| Orange      | `image`   | Full pixel data (the image itself)    |
+| Purple      | `mask`    | Grayscale mask image                  |
+| Cyan        | `number`  | A numeric value (int or float)        |
+| Green       | `string`  | Text                                  |
+| Yellow      | `boolean` | True / false                          |
+| Pink        | `color`   | A color value                         |
+| Amber       | `vector2` | A 2-component vector                  |
+| Indigo      | `vector3` | A 3-component vector                  |
+| Teal        | `vector4` | A 4-component vector                  |
+| Grey        | `numeric` | Any numeric value (number or vector)  |
+| Light green | `path`    | A file or folder path string          |
+| White       | `any`     | Flexible - adapts to what's connected |
 
 If you try to connect mismatched types, the wire snaps back. Check the colors on both ports.
 
@@ -281,16 +281,16 @@ See the comments inside the exported script for the exact syntax for your chosen
 
 ## Keyboard Shortcuts Quick Reference
 
-| Key                 | Action                                    |
-| ------------------- | ----------------------------------------- |
-| Space / Tab         | Open node context menu at cursor position |
-| Ctrl+R              | Run Workflow                              |
-| Ctrl+S              | Save workflow                             |
-| Ctrl+Z              | Undo                                      |
-| Ctrl+Y / Ctrl+Shift+Z | Redo                                    |
-| Ctrl+D              | Duplicate selected node                   |
-| Ctrl+G              | Group selected nodes                      |
-| Ctrl+Shift+G        | Ungroup                                   |
-| Delete / Backspace  | Delete selected nodes or wires            |
-| Double-click node   | Set as preview target (toggle)            |
-| Double-click canvas | Reset zoom to 100%                        |
+| Key                   | Action                                    |
+| --------------------- | ----------------------------------------- |
+| Space / Tab           | Open node context menu at cursor position |
+| Ctrl+R                | Run Workflow                              |
+| Ctrl+S                | Save workflow                             |
+| Ctrl+Z                | Undo                                      |
+| Ctrl+Y / Ctrl+Shift+Z | Redo                                      |
+| Ctrl+D                | Duplicate selected node                   |
+| Ctrl+G                | Group selected nodes                      |
+| Ctrl+Shift+G          | Ungroup                                   |
+| Delete / Backspace    | Delete selected nodes or wires            |
+| Double-click node     | Set as preview target (toggle)            |
+| Double-click canvas   | Reset zoom to 100%                        |

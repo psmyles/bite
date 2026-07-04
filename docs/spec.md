@@ -333,21 +333,21 @@ Each workflow node also stores a **`cliName`** param — auto-assigned at creati
 
 ### JSON-Defined Node Categories
 
-| Category       | Nodes                                                                                                    |
-| -------------- | --------------------------------------------------------------------------------------------------------- |
-| **Source**     | Process As Set                                                                                            |
-| **Transform**  | Resize, Resize (Nearest Neighbor), Crop, Rotate, Flip, Auto Orient, Extend Canvas, Pixelate, Trim Alpha   |
-| **Color**      | Brightness/Contrast, Levels, Grayscale, Hue Offset, Saturation, Quantize, Threshold, Tint                 |
-| **Filters**    | Blur, Sharpen                                                                                              |
-| **FX**         | Outline                                                                                                    |
-| **Channels**   | Split Channels, Merge Channels, Extract Alpha, Premultiply Alpha, Normal Map Flip, Solid Image            |
-| **Format**     | Strip Metadata                                                                                             |
-| **Output**     | Convert Format, Rename                                                                                     |
-| **Logic**      | Gate, Text Filter, Compare, And, Or, Not, Branch                                                           |
-| **Properties** | Name, Path, Dimensions, Size, Bit Depth, File Type, Resolution, EXIF, Power of Two                        |
-| **Values**     | Boolean, Float, String, Color, Vector 2, Vector 3, Vector 4                                               |
-| **Math**       | Add, Subtract, Multiply, Divide, Power, Lerp, Negate, Mean Value, Dot Product, Length, Normalize          |
-| **Utility**    | Comment (annotation node), Folder Path, Append (vector), Split (vector)                                    |
+| Category       | Nodes                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------- |
+| **Source**     | Process As Set                                                                                          |
+| **Transform**  | Resize, Resize (Nearest Neighbor), Crop, Rotate, Flip, Auto Orient, Extend Canvas, Pixelate, Trim Alpha |
+| **Color**      | Brightness/Contrast, Levels, Grayscale, Hue Offset, Saturation, Quantize, Threshold, Tint               |
+| **Filters**    | Blur, Sharpen                                                                                           |
+| **FX**         | Outline                                                                                                 |
+| **Channels**   | Split Channels, Merge Channels, Extract Alpha, Premultiply Alpha, Normal Map Flip, Solid Image          |
+| **Format**     | Strip Metadata                                                                                          |
+| **Output**     | Convert Format, Rename                                                                                  |
+| **Logic**      | Gate, Text Filter, Compare, And, Or, Not, Branch                                                        |
+| **Properties** | Name, Path, Dimensions, Size, Bit Depth, File Type, Resolution, EXIF, Power of Two                      |
+| **Values**     | Boolean, Float, String, Color, Vector 2, Vector 3, Vector 4                                             |
+| **Math**       | Add, Subtract, Multiply, Divide, Power, Lerp, Negate, Mean Value, Dot Product, Length, Normalize        |
+| **Utility**    | Comment (annotation node), Folder Path, Append (vector), Split (vector)                                 |
 
 The Group node (visual container) is not a JSON definition — it is created via Ctrl+G in the editor.
 
@@ -402,24 +402,24 @@ Result: ~1.6s for 1983 mixed PNG/TGA/JPG/PSD images (vs ~44s before batching).
 
 ### 7.5 Pure Node Executors (`computeNodeParams`)
 
-| Executor key                                                                                                                      | Operation                                                           |
-| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `math_add` / `math_subtract` / `math_multiply` / `math_divide`                                                                    | `result = a OP b`                                                   |
-| `math_power`                                                                                                                      | `result = base ^ exponent`                                          |
-| `math_lerp`                                                                                                                       | `result = a + (b − a) × t`                                          |
-| `mean_value`                                                                                                                      | `result = mean(inputs)`                                             |
-| `logic_and` / `logic_or` / `logic_not`                                                                                            | Boolean operators                                                   |
-| `logic_branch`                                                                                                                    | `result = condition ? value_true : value_false`                     |
-| `logic_comparison`                                                                                                                | `result = a {==, !=, >, <, >=, <=} b`                               |
-| `text_filter`                                                                                                                     | `result = string matches(prefix/suffix/contains) pattern`           |
-| `split_vec`                                                                                                                       | `{x, y[, z[, w]]} = vec[0..N]`                                      |
-| `append_vec`                                                                                                                      | `vec = [x, y[, z[, w]]]`                                            |
-| `vec_math_dot`                                                                                                                    | `result = dot(a, b)`                                                |
-| `vec_math_length`                                                                                                                 | `result = length(v)`                                                |
-| `vec_math_normalize`                                                                                                              | `result = v / length(v)`                                            |
-| `rename`                                                                                                                          | Builds filename from ordered blocks (text / number / original-name) |
+| Executor key                                                                                                                                            | Operation                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `math_add` / `math_subtract` / `math_multiply` / `math_divide`                                                                                          | `result = a OP b`                                                                                                                                                                                                                                         |
+| `math_power`                                                                                                                                            | `result = base ^ exponent`                                                                                                                                                                                                                                |
+| `math_lerp`                                                                                                                                             | `result = a + (b − a) × t`                                                                                                                                                                                                                                |
+| `mean_value`                                                                                                                                            | `result = mean(inputs)`                                                                                                                                                                                                                                   |
+| `logic_and` / `logic_or` / `logic_not`                                                                                                                  | Boolean operators                                                                                                                                                                                                                                         |
+| `logic_branch`                                                                                                                                          | `result = condition ? value_true : value_false`                                                                                                                                                                                                           |
+| `logic_comparison`                                                                                                                                      | `result = a {==, !=, >, <, >=, <=} b`                                                                                                                                                                                                                     |
+| `text_filter`                                                                                                                                           | `result = string matches(prefix/suffix/contains) pattern`                                                                                                                                                                                                 |
+| `split_vec`                                                                                                                                             | `{x, y[, z[, w]]} = vec[0..N]`                                                                                                                                                                                                                            |
+| `append_vec`                                                                                                                                            | `vec = [x, y[, z[, w]]]`                                                                                                                                                                                                                                  |
+| `vec_math_dot`                                                                                                                                          | `result = dot(a, b)`                                                                                                                                                                                                                                      |
+| `vec_math_length`                                                                                                                                       | `result = length(v)`                                                                                                                                                                                                                                      |
+| `vec_math_normalize`                                                                                                                                    | `result = v / length(v)`                                                                                                                                                                                                                                  |
+| `rename`                                                                                                                                                | Builds filename from ordered blocks (text / number / original-name)                                                                                                                                                                                       |
 | `prop_name` / `prop_path` / `prop_dimensions` / `prop_size` / `prop_bitdepth` / `prop_filetype` / `prop_resolution` / `prop_exif` / `prop_power_of_two` | Per-image metadata. The "light" subset (`prop_name`, `prop_path`, `prop_size`, `prop_filetype`, `prop_dimensions`, `prop_power_of_two` — see `LIGHT_META_EXECUTORS`) is satisfied with a cheap `fs.stat` + header read and **no** `magick identify` spawn |
-| _(no executor)_                                                                                                                   | Value nodes - params are the output values directly                 |
+| _(no executor)_                                                                                                                                         | Value nodes - params are the output values directly                                                                                                                                                                                                       |
 
 ### 7.6 CLI Export
 
@@ -513,44 +513,44 @@ Additional behaviours:
 
 ## 10. IPC Channels
 
-| Channel                                 | Direction | Purpose                                                                                                      |
-| --------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
-| `registry:get-all`                      | invoke    | Load all node definitions                                                                                    |
-| `registry:updated`                      | push      | Hot-reload notification                                                                                      |
-| `pipeline:load-images-with-thumbnails`  | invoke    | Load images + generate thumbnails in one call                                                                |
-| `pipeline:load-images-streaming-start`  | invoke    | Begin streaming import; results pushed per image                                                             |
-| `pipeline:load-images-streaming-result` | push      | One loaded image result during streaming import                                                              |
-| `pipeline:load-images-streaming-cancel` | invoke    | Cancel an in-progress streaming import                                                                       |
-| `pipeline:generate-thumbnail`           | invoke    | Generate a single thumbnail (used for preview warm-up)                                                       |
-| `pipeline:execute-preview`              | invoke    | Run preview pipeline                                                                                         |
-| `pipeline:execute-batch`                | invoke    | Run batch pipeline; payload: graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog |
-| `pipeline:execute-batch:progress`       | push      | Progress updates during batch                                                                                |
-| `pipeline:execute-batch-cancel`         | invoke    | Cancel an in-progress batch run                                                                              |
-| `pipeline:export-cli`                   | invoke    | Export CLI script (PS/Bash/CMD)                                                                              |
-| `dialog:open-images`                    | invoke    | File open dialog for images                                                                                  |
-| `dialog:open-folder`                    | invoke    | Folder picker (no scan)                                                                                      |
-| `dialog:scan-folder`                    | invoke    | Pick folder via dialog then scan for matching extensions                                                     |
-| `dialog:scan-folder-only`               | invoke    | Scan a given folder path for matching extensions (no dialog)                                                 |
-| `atlas:generate`                        | invoke    | Generate a flipbook atlas from the connected images                                                          |
-| `atlas:browse`                          | invoke    | Save-file dialog for the flipbook atlas output path                                                          |
-| `text-output:browse`                    | invoke    | Save-file dialog for text output path                                                                        |
-| `text-output:preview`                   | invoke    | Compute text output lines without writing (preview)                                                          |
-| `text-output:write`                     | invoke    | Write text output file; sends per-image progress                                                             |
-| `text-output:write-progress`            | push      | Progress during text output write                                                                            |
-| `text-output:write-cancel`              | invoke    | Cancel an in-progress text output write                                                                      |
-| `workflow:save`                         | invoke    | Save workflow JSON                                                                                           |
-| `workflow:load`                         | invoke    | Load workflow JSON (shows open dialog)                                                                       |
-| `workflow:open-path`                    | invoke    | Load workflow JSON from a given file path (no dialog)                                                        |
-| `app:quit`                              | invoke    | Graceful quit with dirty-state check                                                                         |
-| `app:open-file-path`                    | push      | Main → renderer: carry file path from OS file-association open                                               |
-| `app:update-available`                  | push      | Main → renderer: a newer GitHub release exists (version, notes, url) → UpdateModal                           |
-| `app:check-for-updates`                 | invoke    | Renderer-triggered update check                                                                             |
-| `app:get-versions`                      | invoke    | App / Electron / Chromium / ImageMagick version strings for the About dialog                                |
-| `shell:open-external`                   | invoke    | Open URL in default system browser                                                                           |
-| `shell:open-path`                       | invoke    | Open a folder path in the system file manager                                                                |
-| `timers:set-enabled`                    | invoke    | Toggle optional perf instrumentation (timings.enabled)                                                       |
-| `log:entry`                             | push      | Main → renderer: one log line for the in-app log viewer                                                      |
-| `log:get-entries`                       | invoke    | Fetch buffered log entries                                                                                  |
+| Channel                                 | Direction | Purpose                                                                                                                                        |
+| --------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registry:get-all`                      | invoke    | Load all node definitions                                                                                                                      |
+| `registry:updated`                      | push      | Hot-reload notification                                                                                                                        |
+| `pipeline:load-images-with-thumbnails`  | invoke    | Load images + generate thumbnails in one call                                                                                                  |
+| `pipeline:load-images-streaming-start`  | invoke    | Begin streaming import; results pushed per image                                                                                               |
+| `pipeline:load-images-streaming-result` | push      | One loaded image result during streaming import                                                                                                |
+| `pipeline:load-images-streaming-cancel` | invoke    | Cancel an in-progress streaming import                                                                                                         |
+| `pipeline:generate-thumbnail`           | invoke    | Generate a single thumbnail (used for preview warm-up)                                                                                         |
+| `pipeline:execute-preview`              | invoke    | Run preview pipeline                                                                                                                           |
+| `pipeline:execute-batch`                | invoke    | Run batch pipeline; payload: graph, outputNodeId, inputNodeId, imagePaths, outputDir, overwrite, generateLog                                   |
+| `pipeline:execute-batch:progress`       | push      | Progress updates during batch                                                                                                                  |
+| `pipeline:execute-batch-cancel`         | invoke    | Cancel an in-progress batch run                                                                                                                |
+| `pipeline:export-cli`                   | invoke    | Export CLI script (PS/Bash/CMD)                                                                                                                |
+| `dialog:open-images`                    | invoke    | File open dialog for images                                                                                                                    |
+| `dialog:open-folder`                    | invoke    | Folder picker (no scan)                                                                                                                        |
+| `dialog:scan-folder`                    | invoke    | Pick folder via dialog then scan for matching extensions                                                                                       |
+| `dialog:scan-folder-only`               | invoke    | Scan a given folder path for matching extensions (no dialog)                                                                                   |
+| `atlas:generate`                        | invoke    | Generate a flipbook atlas from the connected images                                                                                            |
+| `atlas:browse`                          | invoke    | Save-file dialog for the flipbook atlas output path                                                                                            |
+| `text-output:browse`                    | invoke    | Save-file dialog for text output path                                                                                                          |
+| `text-output:preview`                   | invoke    | Compute text output lines without writing (preview)                                                                                            |
+| `text-output:write`                     | invoke    | Write text output file; sends per-image progress                                                                                               |
+| `text-output:write-progress`            | push      | Progress during text output write                                                                                                              |
+| `text-output:write-cancel`              | invoke    | Cancel an in-progress text output write                                                                                                        |
+| `workflow:save`                         | invoke    | Save workflow JSON                                                                                                                             |
+| `workflow:load`                         | invoke    | Load workflow JSON (shows open dialog)                                                                                                         |
+| `workflow:open-path`                    | invoke    | Load workflow JSON from a given file path (no dialog)                                                                                          |
+| `app:quit`                              | invoke    | Graceful quit with dirty-state check                                                                                                           |
+| `app:open-file-path`                    | push      | Main → renderer: carry file path from OS file-association open                                                                                 |
+| `app:update-available`                  | push      | Main → renderer: a newer GitHub release exists (version, notes, url) → UpdateModal                                                             |
+| `app:check-for-updates`                 | invoke    | Renderer-triggered update check                                                                                                                |
+| `app:get-versions`                      | invoke    | App / Electron / Chromium / ImageMagick version strings for the About dialog                                                                   |
+| `shell:open-external`                   | invoke    | Open URL in default system browser                                                                                                             |
+| `shell:open-path`                       | invoke    | Open a folder path in the system file manager                                                                                                  |
+| `timers:set-enabled`                    | invoke    | Toggle optional perf instrumentation (timings.enabled)                                                                                         |
+| `log:entry`                             | push      | Main → renderer: one log line for the in-app log viewer                                                                                        |
+| `log:get-entries`                       | invoke    | Fetch buffered log entries                                                                                                                     |
 | `menu:*`                                | push      | Native menu action forwarding to renderer (new, open, save, duplicate, delete, run-workflow, check-for-updates, export-cli-\*, about, credits) |
 
 ---
