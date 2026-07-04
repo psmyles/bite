@@ -1,35 +1,7 @@
 import { ipcMain, dialog } from 'electron';
 import type { BrowserWindow } from 'electron';
-import path from 'node:path';
 
-import { spawnMagick } from '../pipeline/magick-spawn.js';
 import { IPC } from '../../shared/constants.js';
-import { writeOutputLog } from '../pipeline/output-log.js';
-import { log } from '../logger.js';
-
-interface AtlasConfig {
-  outputPath: string;
-  rows: number;
-  cols: number;
-  cellWidth: number;
-  cellHeight: number;
-  sortBy: string;
-  bgColor?: number[] | string;
-  generateLog?: boolean;
-}
-
-function resolveBgColor(bgColor: number[] | string | undefined): string {
-  if (Array.isArray(bgColor)) {
-    const [r = 0, g = 0, b = 0, a = 1] = bgColor;
-    if (a < 0.01) return 'none';
-    const h = (v: number) =>
-      Math.round(Math.max(0, Math.min(1, v)) * 255)
-        .toString(16)
-        .padStart(2, '0');
-    return `#${h(r)}${h(g)}${h(b)}${h(a)}`;
-  }
-  return typeof bgColor === 'string' && bgColor ? bgColor : 'none';
-}
 
 export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.ATLAS_BROWSE, async () => {
@@ -44,67 +16,5 @@ export function registerAtlasHandlers(getWin: () => BrowserWindow | null): void 
       defaultPath: 'atlas.png',
     });
     return result.canceled ? null : result.filePath;
-  });
-
-  ipcMain.handle(IPC.ATLAS_GENERATE, async (_e, imagePaths: string[], config: AtlasConfig) => {
-    const { outputPath, rows, cols, cellWidth, cellHeight, sortBy, bgColor, generateLog } = config;
-    const atlasT0 = Date.now();
-    log(
-      'info',
-      `[atlas] generate start: ${imagePaths.length} image(s), ${cols}×${rows} grid (${cellWidth}×${cellHeight}px) → ${outputPath}`
-    );
-
-    if (!outputPath?.trim()) throw new Error('No output file path specified.');
-    if (imagePaths.length === 0) throw new Error('No images loaded.');
-
-    // Sort images
-    const sorted =
-      sortBy === 'name'
-        ? [...imagePaths].sort((a, b) =>
-            path.basename(a).localeCompare(path.basename(b), undefined, { numeric: true, sensitivity: 'base' })
-          )
-        : sortBy === 'name_desc'
-          ? [...imagePaths].sort((a, b) =>
-              path.basename(b).localeCompare(path.basename(a), undefined, { numeric: true, sensitivity: 'base' })
-            )
-          : imagePaths;
-
-    // Truncate to grid capacity
-    const selected = sorted.slice(0, rows * cols);
-
-    // -geometry WxH!+0+0 : force exact cell size (stretch), 0px border between tiles
-    // -background none   : transparent fill for unfilled cells (PNG/WebP)
-    // -tile COLSxROWS    : fixed grid layout
-    const args = [
-      'montage',
-      ...selected,
-      '-tile',
-      `${cols}x${rows}`,
-      '-geometry',
-      `${cellWidth}x${cellHeight}!+0+0`,
-      '-background',
-      resolveBgColor(bgColor),
-      outputPath,
-    ];
-
-    try {
-      await spawnMagick(args);
-      log('info', `[atlas] done in ${Date.now() - atlasT0}ms → ${outputPath}`);
-    } catch (err) {
-      log('error', `[atlas] failed: ${(err as Error).message}`);
-      throw err;
-    }
-
-    if (generateLog) {
-      await writeOutputLog({
-        outputFiles: [outputPath],
-        durationMs: Date.now() - atlasT0,
-        outputDir: path.dirname(outputPath),
-      }).catch((e) => {
-        console.error('[log] Failed to write output log:', e);
-      });
-    }
-
-    return outputPath;
   });
 }

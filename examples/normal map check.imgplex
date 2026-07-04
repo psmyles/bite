@@ -1,0 +1,445 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.2",
+  "createdAt": "2026-07-04T15:10:36.717Z",
+  "modifiedAt": "2026-07-04T16:26:29.460Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1783177241123",
+        "type": "inputNode",
+        "position": {
+          "x": 203.05810504992803,
+          "y": 96.66086340912348
+        },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": {
+            "thumbnailSize": 256,
+            "cliName": "input-1"
+          }
+        }
+      },
+      {
+        "id": "imageOutput-1783177241124",
+        "type": "imageOutputNode",
+        "position": {
+          "x": 2162.143562348238,
+          "y": 70.67439597381579
+        },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "C:\\Users\\Chandan Singh\\Desktop\\Output",
+            "overwrite": "overwrite",
+            "generateLog": true,
+            "cliName": "output-image-1"
+          }
+        }
+      },
+      {
+        "id": "channel_split-1783177262519",
+        "type": "process",
+        "position": {
+          "x": 442,
+          "y": 274
+        },
+        "data": {
+          "label": "Split Channels",
+          "definitionId": "channel_split",
+          "params": {
+            "_enabled": true
+          }
+        }
+      },
+      {
+        "id": "mean_value-1783177536253",
+        "type": "process",
+        "position": {
+          "x": 752,
+          "y": 178
+        },
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": {
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "mean_value-1783177536253-dup17831775791700",
+        "type": "process",
+        "position": {
+          "x": 752,
+          "y": 300
+        },
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": {
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "mean_value-1783177536253-dup17831775791700-dup17831775845550",
+        "type": "process",
+        "position": {
+          "x": 754,
+          "y": 429
+        },
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": {
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "logic_comparison-1783177621534",
+        "type": "compareNode",
+        "position": {
+          "x": 1139,
+          "y": 178
+        },
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": {
+            "a": null,
+            "operator": "greater than",
+            "b": null,
+            "result": null
+          }
+        }
+      },
+      {
+        "id": "value_float-1783177629019",
+        "type": "process",
+        "position": {
+          "x": 934,
+          "y": 276
+        },
+        "data": {
+          "label": "Float",
+          "definitionId": "value_float",
+          "params": {
+            "value": 0.7
+          }
+        }
+      },
+      {
+        "id": "logic_comparison-1783177621534-dup17831776447700",
+        "type": "compareNode",
+        "position": {
+          "x": 1140,
+          "y": 323
+        },
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": {
+            "a": null,
+            "operator": "less than",
+            "b": null,
+            "result": null
+          }
+        }
+      },
+      {
+        "id": "logic_comparison-1783177621534-dup17831776447700-dup17831777819100",
+        "type": "compareNode",
+        "position": {
+          "x": 1140,
+          "y": 466
+        },
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": {
+            "a": null,
+            "operator": "greater than",
+            "b": null,
+            "result": null
+          }
+        }
+      },
+      {
+        "id": "logic_and-1783177877679",
+        "type": "process",
+        "position": {
+          "x": 1528.6027583591956,
+          "y": 343.5787927438937
+        },
+        "data": {
+          "label": "And",
+          "definitionId": "logic_and",
+          "params": {
+            "a": null,
+            "b": null,
+            "result": false
+          }
+        }
+      },
+      {
+        "id": "value_float-1783177629019-dup17831795909770",
+        "type": "process",
+        "position": {
+          "x": 942,
+          "y": 536
+        },
+        "data": {
+          "label": "Float",
+          "definitionId": "value_float",
+          "params": {
+            "value": 0.9
+          }
+        }
+      },
+      {
+        "id": "logic_or-1783179726533",
+        "type": "process",
+        "position": {
+          "x": 1341,
+          "y": 257
+        },
+        "data": {
+          "label": "Or",
+          "definitionId": "logic_or",
+          "params": {
+            "a": null,
+            "b": null,
+            "result": false
+          }
+        }
+      },
+      {
+        "id": "gate-1783179817285",
+        "type": "process",
+        "position": {
+          "x": 1735.7065503607698,
+          "y": 116.96449737223024
+        },
+        "data": {
+          "label": "Gate",
+          "definitionId": "gate",
+          "params": {
+            "condition": true,
+            "_enabled": true
+          }
+        }
+      },
+      {
+        "id": "format_convert-1783182110858",
+        "type": "process",
+        "position": {
+          "x": 1940.676464193427,
+          "y": 65.54103533261497
+        },
+        "data": {
+          "label": "Convert Format",
+          "definitionId": "format_convert",
+          "params": {
+            "format": "WEBP",
+            "_enabled": true,
+            "webp_lossless": false,
+            "webp_quality": 72
+          }
+        }
+      },
+      {
+        "id": "textOutputNode-1783182210732",
+        "type": "textOutputNode",
+        "position": {
+          "x": 2150.183360091415,
+          "y": 214.73456924335483
+        },
+        "data": {
+          "label": "Text Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "C:\\Users\\Chandan Singh\\Desktop\\Output\\output.txt",
+            "portIds": [
+              "txo-0",
+              "txo-1"
+            ],
+            "nextPortIndex": 2,
+            "separatorType": "comma",
+            "customSeparator": "",
+            "generateLog": false,
+            "cliName": "output-text-1",
+            "overwrite": "overwrite"
+          }
+        }
+      },
+      {
+        "id": "prop_name-1783182289939",
+        "type": "process",
+        "position": {
+          "x": 1880.8220668735635,
+          "y": 249.3732760255029
+        },
+        "data": {
+          "label": "Name",
+          "definitionId": "prop_name",
+          "params": {
+            "value": "",
+            "strip_extension": false
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "xy-edge__input-1783177241123out-0-channel_split-1783177262519in-0",
+        "source": "input-1783177241123",
+        "sourceHandle": "out-0",
+        "target": "channel_split-1783177262519",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__channel_split-1783177262519out-0-mean_value-1783177536253in-0",
+        "source": "channel_split-1783177262519",
+        "sourceHandle": "out-0",
+        "target": "mean_value-1783177536253",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__channel_split-1783177262519out-1-mean_value-1783177536253-dup17831775791700in-0",
+        "source": "channel_split-1783177262519",
+        "sourceHandle": "out-1",
+        "target": "mean_value-1783177536253-dup17831775791700",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__channel_split-1783177262519out-2-mean_value-1783177536253-dup17831775791700-dup17831775845550in-0",
+        "source": "channel_split-1783177262519",
+        "sourceHandle": "out-2",
+        "target": "mean_value-1783177536253-dup17831775791700-dup17831775845550",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__mean_value-1783177536253param-out-value-logic_comparison-1783177621534param-in-a",
+        "source": "mean_value-1783177536253",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1783177621534",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__value_float-1783177629019param-out-value-logic_comparison-1783177621534param-in-b",
+        "source": "value_float-1783177629019",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1783177621534",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__mean_value-1783177536253-dup17831775791700param-out-value-logic_comparison-1783177621534-dup17831776447700param-in-a",
+        "source": "mean_value-1783177536253-dup17831775791700",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1783177621534-dup17831776447700",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__value_float-1783177629019param-out-value-logic_comparison-1783177621534-dup17831776447700param-in-b",
+        "source": "value_float-1783177629019",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1783177621534-dup17831776447700",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__mean_value-1783177536253-dup17831775791700-dup17831775845550param-out-value-logic_comparison-1783177621534-dup17831776447700-dup17831777819100param-in-a",
+        "source": "mean_value-1783177536253-dup17831775791700-dup17831775845550",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1783177621534-dup17831776447700-dup17831777819100",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__logic_comparison-1783177621534-dup17831776447700-dup17831777819100param-out-result-logic_and-1783177877679param-in-b",
+        "source": "logic_comparison-1783177621534-dup17831776447700-dup17831777819100",
+        "sourceHandle": "param-out-result",
+        "target": "logic_and-1783177877679",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__value_float-1783177629019-dup17831795909770param-out-value-logic_comparison-1783177621534-dup17831776447700-dup17831777819100param-in-b",
+        "source": "value_float-1783177629019-dup17831795909770",
+        "sourceHandle": "param-out-value",
+        "target": "logic_comparison-1783177621534-dup17831776447700-dup17831777819100",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__logic_comparison-1783177621534param-out-result-logic_or-1783179726533param-in-a",
+        "source": "logic_comparison-1783177621534",
+        "sourceHandle": "param-out-result",
+        "target": "logic_or-1783179726533",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__logic_comparison-1783177621534-dup17831776447700param-out-result-logic_or-1783179726533param-in-b",
+        "source": "logic_comparison-1783177621534-dup17831776447700",
+        "sourceHandle": "param-out-result",
+        "target": "logic_or-1783179726533",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "xy-edge__logic_or-1783179726533param-out-result-logic_and-1783177877679param-in-a",
+        "source": "logic_or-1783179726533",
+        "sourceHandle": "param-out-result",
+        "target": "logic_and-1783177877679",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "xy-edge__logic_and-1783177877679param-out-result-gate-1783179817285param-in-condition",
+        "source": "logic_and-1783177877679",
+        "sourceHandle": "param-out-result",
+        "target": "gate-1783179817285",
+        "targetHandle": "param-in-condition"
+      },
+      {
+        "id": "xy-edge__input-1783177241123out-0-gate-1783179817285in-0",
+        "source": "input-1783177241123",
+        "sourceHandle": "out-0",
+        "target": "gate-1783179817285",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__gate-1783179817285out-0-format_convert-1783182110858in-0",
+        "source": "gate-1783179817285",
+        "sourceHandle": "out-0",
+        "target": "format_convert-1783182110858",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__format_convert-1783182110858out-0-imageOutput-1783177241124in-0",
+        "source": "format_convert-1783182110858",
+        "sourceHandle": "out-0",
+        "target": "imageOutput-1783177241124",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__gate-1783179817285out-0-textOutputNode-1783182210732in-0",
+        "source": "gate-1783179817285",
+        "sourceHandle": "out-0",
+        "target": "textOutputNode-1783182210732",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__prop_name-1783182289939param-out-value-textOutputNode-1783182210732txo-0",
+        "source": "prop_name-1783182289939",
+        "sourceHandle": "param-out-value",
+        "target": "textOutputNode-1783182210732",
+        "targetHandle": "txo-0"
+      }
+    ],
+    "viewport": {
+      "x": -67.85123016807279,
+      "y": 308.2239256050067,
+      "zoom": 0.858950606273635
+    }
+  }
+}

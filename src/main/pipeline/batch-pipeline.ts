@@ -21,6 +21,8 @@ import { computeNewName, type RenameParams } from '../../shared/renameUtils.js';
 import { timings } from './timing.js';
 import { executeMultiStream, type BatchContext } from './multistream-pipeline.js';
 import { executeSetBatch } from './set-pipeline.js';
+import { executeTextBatch } from './text-output.js';
+import { executeFlipbookBatch } from './atlas.js';
 
 /**
  * Parse the compact IM7 verbose line into labeled fields.
@@ -73,6 +75,16 @@ export async function executeBatch(
   onProgress: (p: Progress) => void,
   isCancelled: () => boolean
 ): Promise<{ processed: number; skipped: number; failed: number; errors: string[]; outputFiles: string[] }> {
+  // Text and flipbook output nodes have their own execution paths — the rest of
+  // this function writes per-image image files, which only fits imageOutputNode.
+  const outputNode = graph.nodes.find((n) => n.id === outputNodeId);
+  if (outputNode?.type === 'textOutputNode') {
+    return executeTextBatch(graph, outputNodeId, imagePaths, overwrite, registry, onProgress, isCancelled);
+  }
+  if (outputNode?.type === 'flipbookOutputNode') {
+    return executeFlipbookBatch(graph, outputNodeId, imagePaths, overwrite);
+  }
+
   const batchT0 = Date.now();
   log(
     'info',

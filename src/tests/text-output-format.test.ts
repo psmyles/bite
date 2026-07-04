@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { valueToString } from '../main/ipc/text-output-handlers.js';
+import { valueToString } from '../main/pipeline/text-output.js';
 
 describe('valueToString', () => {
   it('renders null/undefined as empty string', () => {

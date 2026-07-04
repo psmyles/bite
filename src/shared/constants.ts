@@ -163,12 +163,8 @@ export const IPC = {
   // Performance timers
   TIMERS_SET_ENABLED: 'timers:set-enabled',
   // Flipbook Atlas node
-  ATLAS_GENERATE: 'atlas:generate',
   ATLAS_BROWSE: 'atlas:browse',
   // Text Output node
-  TEXT_OUTPUT_WRITE: 'text-output:write',
-  TEXT_OUTPUT_WRITE_PROGRESS: 'text-output:write-progress',
-  TEXT_OUTPUT_WRITE_CANCEL: 'text-output:write-cancel',
   TEXT_OUTPUT_BROWSE: 'text-output:browse',
   TEXT_OUTPUT_PREVIEW: 'text-output:preview',
   // Log viewer
