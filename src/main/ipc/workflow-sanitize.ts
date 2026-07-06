@@ -30,6 +30,12 @@ export function sanitizeWorkflowGraph(graph: unknown): unknown {
     if (typeof e.id !== 'string' || typeof e.source !== 'string' || typeof e.target !== 'string') {
       throw new Error('Invalid workflow file: edge id/source/target must be strings');
     }
+    // Defense-in-depth: a wire targeting a `__`-prefixed param (e.g.
+    // `param-in-__compute_js__`) would reintroduce a stripped key at runtime.
+    // applyParamWires re-rejects these too, but drop them at load as well.
+    if (typeof e.targetHandle === 'string' && e.targetHandle.slice('param-in-'.length).startsWith('__')) {
+      delete e.targetHandle;
+    }
   }
   return graph;
 }

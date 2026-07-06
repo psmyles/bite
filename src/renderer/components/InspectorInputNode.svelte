@@ -87,6 +87,7 @@
   }
 
   // Re-scan whenever folder, recursion flag, or active formats change
+  let scanSeq = 0;
   $effect(() => {
     const fp = folderPath;
     const rec = recursive;
@@ -95,14 +96,16 @@
       matchingPaths = [];
       return;
     }
+    // Guard against out-of-order responses: only the newest scan may apply.
+    const mySeq = ++scanSeq;
     counting = true;
     window.ipcRenderer
       .invoke(IPC.SCAN_FOLDER, { folderPath: fp, recursive: rec, extensions: exts })
       .then((paths: string[]) => {
-        matchingPaths = paths;
+        if (mySeq === scanSeq) matchingPaths = paths;
       })
       .finally(() => {
-        counting = false;
+        if (mySeq === scanSeq) counting = false;
       });
   });
 

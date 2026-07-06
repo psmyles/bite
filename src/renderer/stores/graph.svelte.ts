@@ -167,6 +167,12 @@ class GraphStore {
         const count = Math.min(4, Math.max(2, Number(value) || 3));
         extraData.inputs = ['image', 'image', 'image', 'image'].slice(0, count);
         extraData.inputLabels = ['R', 'G', 'B', 'A'].slice(0, count);
+        // Drop edges to image input ports that no longer exist (in-2, in-3, …).
+        this.edges = this.edges.filter((e) => {
+          if (e.target !== nodeId) return true;
+          const m = /^in-(\d+)$/.exec(e.targetHandle ?? '');
+          return !m || Number(m[1]) < count;
+        });
       }
 
       return {

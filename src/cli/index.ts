@@ -5,6 +5,7 @@ import { NodeRegistry } from '../main/nodes/registry.js';
 import { PipelineExecutor } from '../main/pipeline/executor.js';
 import type { NodeGraph } from '../shared/types.js';
 import { traceInputNodeId } from '../shared/graphTrace.js';
+import { sanitizeWorkflowGraph } from '../main/ipc/workflow-sanitize.js';
 import { IMAGE_EXTENSIONS } from '../shared/constants.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -69,7 +70,9 @@ async function main(): Promise<void> {
   let graph: NodeGraph;
   try {
     const raw = JSON.parse(readFileSync(workflowPath, 'utf-8')) as Record<string, unknown>;
-    graph = (raw.graph ?? raw) as NodeGraph;
+    // A .imgplex is untrusted — strip `__`-prefixed params / malicious param wires,
+    // matching the Electron load path (defense-in-depth over runtime stripping).
+    graph = sanitizeWorkflowGraph(raw.graph ?? raw) as NodeGraph;
   } catch {
     die(`Cannot read workflow: ${workflowPath}`);
   }

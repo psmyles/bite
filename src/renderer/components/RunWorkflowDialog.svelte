@@ -37,7 +37,7 @@
       </p>
 
       <div class="node-list">
-        {#each statuses as status (status.label)}
+        {#each statuses as status (status.nodeId)}
           <div class="node-row" class:valid={status.valid} class:invalid={!status.valid}>
             <span class="node-icon" class:valid={status.valid} class:invalid={!status.valid}></span>
             <div class="node-info">

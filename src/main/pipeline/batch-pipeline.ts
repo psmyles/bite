@@ -249,6 +249,28 @@ export async function executeBatch(
   const activeImages = new Set<string>();
   onProgress({ completed: 0, total: imagePaths.length, currentFile: '', active: [] });
 
+  // Two source images with the same basename (from different folders, or produced by
+  // a rename config that maps many inputs to one name) would resolve to the same
+  // output path and silently clobber each other. Reserve each output path in a shared
+  // set and disambiguate collisions with a numeric suffix. The claim is synchronous, so
+  // concurrent workers can never observe the same free path.
+  const claimedOutPaths = new Set<string>();
+  const claimOutPath = (desired: string): string => {
+    let candidate = desired;
+    if (claimedOutPaths.has(candidate)) {
+      const ext = path.extname(desired);
+      const stem = desired.slice(0, desired.length - ext.length);
+      let i = 1;
+      do {
+        candidate = `${stem}_${i}${ext}`;
+        i++;
+      } while (claimedOutPaths.has(candidate));
+      log('warn', `[batch] output name collision: ${path.basename(desired)} → ${path.basename(candidate)}`);
+    }
+    claimedOutPaths.add(candidate);
+    return candidate;
+  };
+
   // Resolve rename node params once (shared across all images — index varies per image)
   const renameNode = sorted.find((n) => registry.get(n.data.definitionId)?.executor === EXECUTOR.RENAME);
   const renameParams = renameNode ? (renameNode.data.params as RenameParams) : undefined;
@@ -312,7 +334,7 @@ export async function executeBatch(
             const { resultPath, outputExt: msExt, cleanup } = msResult;
             const outExt = msExt || path.extname(renamedFileName);
             const outBase = path.basename(renamedFileName, path.extname(renamedFileName));
-            const outPath = path.join(targetDir, outBase + outExt);
+            const outPath = claimOutPath(path.join(targetDir, outBase + outExt));
 
             if (overwrite === 'skip') {
               const accessT0 = timings.enabled ? Date.now() : 0;
@@ -378,7 +400,7 @@ export async function executeBatch(
             const { opArgs, outputFormat } = plan;
             const outExt = outputFormat ? getFormatExtension(outputFormat) : path.extname(renamedFileName);
             const outBase = path.basename(renamedFileName, path.extname(renamedFileName));
-            const outPath = path.join(targetDir, outBase + outExt);
+            const outPath = claimOutPath(path.join(targetDir, outBase + outExt));
 
             if (overwrite === 'skip') {
               const accessT0 = timings.enabled ? Date.now() : 0;

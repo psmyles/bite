@@ -37,5 +37,5 @@
       "default": "#000000"
     }
   ],
-  "command_template": "-background '{{background}}' -rotate {{angle}}"
+  "command_template": "-background {{background}} -rotate {{angle}}"
 }

@@ -36,7 +36,14 @@ export function registerPipelineHandlers(
   });
 
   ipcMain.handle(IPC.LOAD_IMAGES_WITH_THUMBNAILS, async (_e, paths: string[], size: number) => {
-    return Promise.all(paths.map((p) => executor.loadImageWithThumbnail(p, size)));
+    // Isolate per-item failures: one corrupt/locked file must not reject the whole
+    // batch and drop every thumbnail in the call.
+    const settled = await Promise.allSettled(paths.map((p) => executor.loadImageWithThumbnail(p, size)));
+    return settled.flatMap((r, i) => {
+      if (r.status === 'fulfilled') return [r.value];
+      console.error('[thumbnails] failed to load:', paths[i], r.reason);
+      return [];
+    });
   });
 
   // ── Streaming import: N concurrent workers, one push per result ──────────
@@ -48,7 +55,7 @@ export function registerPipelineHandlers(
     _streamGeneration++;
   });
 
-  ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_START, async (_e, paths: string[], size: number) => {
+  ipcMain.handle(IPC.LOAD_IMAGES_STREAMING_START, async (_e, paths: string[], size: number, token?: number) => {
     const myGen = ++_streamGeneration;
     const isCancelled = () => _streamGeneration !== myGen;
     const importT0 = Date.now();
@@ -74,7 +81,7 @@ export function registerPipelineHandlers(
           for (const result of results) {
             allResults.push(result);
             log('info', `[import] ${result.name} ${result.width}×${result.height} ${result.format}`);
-            if (!isCancelled()) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result);
+            if (!isCancelled()) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result, token);
           }
         } catch (err) {
           console.error('[streaming] Batch failed starting at:', batch[0], err);

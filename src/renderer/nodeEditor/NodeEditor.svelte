@@ -12,7 +12,6 @@
     type Viewport,
   } from '@xyflow/svelte';
   import { untrack, tick } from 'svelte';
-  import { SvelteSet } from 'svelte/reactivity';
   import '@xyflow/svelte/dist/style.css';
   import DropHelper from './DropHelper.svelte';
   import ProcessNode from './ProcessNode.svelte';
@@ -179,7 +178,8 @@
         if (n.type !== 'textOutputNode') return n;
         const p = (n.data.params ?? {}) as Record<string, unknown>;
         const portIds = [...((p.portIds as string[]) ?? ['txo-0'])];
-        let nextPortIndex = (p.nextPortIndex as number) ?? 1;
+        const origNextPortIndex = (p.nextPortIndex as number) ?? 1;
+        let nextPortIndex = origNextPortIndex;
 
         const connected = new Set(
           currentEdges
@@ -196,8 +196,7 @@
           nextPortIndex++;
         }
 
-        if (JSON.stringify(filtered) === JSON.stringify(portIds) && nextPortIndex === (p.nextPortIndex as number))
-          return n;
+        if (JSON.stringify(filtered) === JSON.stringify(portIds) && nextPortIndex === origNextPortIndex) return n;
 
         changed = true;
         return { ...n, data: { ...n.data, params: { ...p, portIds: filtered, nextPortIndex } } };
@@ -225,6 +224,7 @@
     if (s) {
       nodes = s.nodes;
       edges = s.edges;
+      imageStore.reconcileNodes(s.nodes.filter((n) => n.type === 'inputNode').map((n) => n.id));
     }
   }
   function redo() {
@@ -232,6 +232,7 @@
     if (s) {
       nodes = s.nodes;
       edges = s.edges;
+      imageStore.reconcileNodes(s.nodes.filter((n) => n.type === 'inputNode').map((n) => n.id));
     }
   }
 
@@ -887,19 +888,19 @@
     }
 
     function onDelete() {
-      const targetIds = new SvelteSet(
-        nodes.filter((n) => n.selected && graphStore.canDeleteNode(n.id)).map((n) => n.id)
-      );
-      if (targetIds.size === 0 && graphStore.selectedNodeId) {
+      // Route through the same logic as the keyboard path so group children are
+      // ungrouped (not orphaned) and selected edges are removed. The inspector-selected
+      // node may not carry xyflow's `selected` flag, so flag it before computing.
+      let workingNodes = nodes;
+      if (!nodes.some((n) => n.selected) && graphStore.selectedNodeId) {
         const id = graphStore.selectedNodeId;
-        if (graphStore.canDeleteNode(id)) targetIds.add(id);
+        workingNodes = nodes.map((n) => (n.id === id ? { ...n, selected: true } : n));
       }
-      if (targetIds.size === 0) return;
-      for (const id of targetIds) {
-        if (nodes.find((n) => n.id === id)?.type === 'inputNode') imageStore.removeNode(id);
-      }
-      nodes = nodes.filter((n) => !targetIds.has(n.id));
-      edges = edges.filter((e) => !targetIds.has(e.source) && !targetIds.has(e.target));
+      const result = computeDeleteSelected(workingNodes, edges, (id) => graphStore.canDeleteNode(id));
+      if (!result.changed) return;
+      nodes = result.nodes;
+      edges = result.edges;
+      for (const id of result.deletedInputIds) imageStore.removeNode(id);
       graphStore.selectedNodeId = null;
       pushHistory();
     }

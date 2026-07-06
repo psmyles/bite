@@ -28,5 +28,5 @@
       "options": ["horizontal", "vertical"]
     }
   ],
-  "command_template": "-flop"
+  "command_js": "return [params.axis === 'vertical' ? '-flip' : '-flop'];"
 }

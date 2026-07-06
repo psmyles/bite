@@ -46,6 +46,25 @@ export async function executeSetBatch(
 
   onProgress({ completed: 0, total: totalSets, currentFile: '', active: [] });
 
+  // Reserve each output path so two sets resolving to the same name can't clobber
+  // each other. Synchronous claim → concurrent workers never see the same free path.
+  const claimedOutPaths = new Set<string>();
+  const claimOutPath = (desired: string): string => {
+    let candidate = desired;
+    if (claimedOutPaths.has(candidate)) {
+      const ext = path.extname(desired);
+      const stem = desired.slice(0, desired.length - ext.length);
+      let i = 1;
+      do {
+        candidate = `${stem}_${i}${ext}`;
+        i++;
+      } while (claimedOutPaths.has(candidate));
+      log('warn', `[batch] output name collision: ${path.basename(desired)} → ${path.basename(candidate)}`);
+    }
+    claimedOutPaths.add(candidate);
+    return candidate;
+  };
+
   const setConcurrency = Math.min(Math.max(1, os.cpus().length), Math.max(1, totalSets));
 
   async function processOneSet(): Promise<void> {
@@ -99,7 +118,7 @@ export async function executeSetBatch(
           const { resultPath, outputExt: msExt, cleanup } = msResult;
           const outBase = setOutputPrefix + middleName + setOutputSuffix;
           const outExt = msExt || path.extname(firstPath);
-          const outPath = path.join(targetDir, outBase + outExt);
+          const outPath = claimOutPath(path.join(targetDir, outBase + outExt));
 
           if (overwrite === 'skip') {
             const accessT0 = timings.enabled ? Date.now() : 0;

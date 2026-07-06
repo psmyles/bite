@@ -1,4 +1,4 @@
-import { ipcRenderer, contextBridge } from 'electron';
+import { ipcRenderer, contextBridge, webUtils } from 'electron';
 import { createListenerTracker, type AnyFn } from './ipcListenerTracker.js';
 import { IPC } from '../src/shared/constants.js';
 
@@ -41,5 +41,13 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const [channel, ...omit] = args;
     assertAllowed(channel);
     return ipcRenderer.invoke(channel, ...omit);
+  },
+});
+
+// Electron 32+ removed the non-standard File.path property; the filesystem path
+// of a dropped file must now be resolved through webUtils.getPathForFile.
+contextBridge.exposeInMainWorld('webUtils', {
+  getPathForFile(file: File) {
+    return webUtils.getPathForFile(file);
   },
 });

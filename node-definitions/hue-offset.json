@@ -29,5 +29,5 @@
       "max": 180
     }
   ],
-  "command_template": "-modulate 100,100,{{hue}}"
+  "command_js": "const hue = Number(params.hue) || 0; return ['-modulate', `100,100,${100 + hue / 1.8}`];"
 }

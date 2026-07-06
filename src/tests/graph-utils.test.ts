@@ -120,4 +120,15 @@ describe('applyParamWires', () => {
     expect('__compute_js__' in result).toBe(false);
     expect('__proto_evil__' in result).toBe(false);
   });
+
+  it('rejects a param wire targeting a __-prefixed key (RCE injection guard)', () => {
+    // Malicious workflow: a wire whose target handle reintroduces __compute_js__
+    // from an attacker-controlled source param. Must NOT land in the resolved params.
+    const n = node('x', { brightness: 0.5 });
+    const upstream = new Map([['src', { payload: "return require('child_process').execSync('calc')" }]]);
+    const e = edge('src', 'x', 'param-out-payload', 'param-in-__compute_js__');
+    const result = applyParamWires(n, [e], upstream);
+    expect('__compute_js__' in result).toBe(false);
+    expect(result.brightness).toBe(0.5);
+  });
 });

@@ -7,7 +7,14 @@ import type { NodeGraph } from '../../shared/types.js';
 type GraphNode = NodeGraph['nodes'][number];
 
 function nodeCliName(node: GraphNode): string {
-  return ((node.data.params.cliName as string) ?? '').trim();
+  const raw = ((node.data.params.cliName as string) ?? '').trim();
+  // The name becomes a shell flag (`--name`) and a variable name in the exported
+  // script. Restrict it to a safe slug so a workflow-supplied cliName containing
+  // whitespace or shell metacharacters can't produce a broken/injectable script.
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 type ParamSpec = {

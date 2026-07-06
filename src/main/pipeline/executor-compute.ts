@@ -245,7 +245,8 @@ export function buildResizeArgs(params: Record<string, unknown>): string[] {
   const density = Math.round(Number(params.density ?? 72));
   const densityArgs = density > 0 ? ['-density', String(density), '-units', 'PixelsPerInch'] : [];
 
-  return [...densityArgs, '-resize', geometry, '-filter', filter];
+  // `-filter` is a setting that must precede the `-resize` it influences.
+  return [...densityArgs, '-filter', filter, '-resize', geometry];
 }
 
 // ─── Pure value / math / logic computation ────────────────────────────────────

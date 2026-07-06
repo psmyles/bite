@@ -187,6 +187,9 @@ export async function executeMultiStream(
 
   const resolvedParams = new Map<string, Record<string, unknown>>();
 
+  // If any spawn below throws, the intermediates created so far would leak until
+  // the next-launch prune; clean them up before propagating the error.
+  try {
   for (const node of sorted) {
     if (!outputContributorIds.has(node.id)) continue;
     // process_as_set is a source node — buffers are pre-seeded externally; skip processing.
@@ -382,4 +385,8 @@ export async function executeMultiStream(
     );
   } else await fs.promises.copyFile(finalVal.base, finalOut);
   return { resultPath: finalOut, outputExt, cleanup };
+  } catch (err) {
+    await cleanupAll();
+    throw err;
+  }
 }

@@ -47,4 +47,13 @@ describe('sanitizeWorkflowGraph', () => {
     const g = graph([{ id: 'n1', data: { params: {} } }], [{ id: 'e1', source: 'n1', target: 'n2' }]);
     expect(() => sanitizeWorkflowGraph(g)).not.toThrow();
   });
+
+  it('drops a targetHandle that would reintroduce a __-prefixed param', () => {
+    const g = graph(
+      [{ id: 'n1', data: { params: {} } }],
+      [{ id: 'e1', source: 'src', target: 'n1', sourceHandle: 'param-out-x', targetHandle: 'param-in-__compute_js__' }]
+    );
+    const out = sanitizeWorkflowGraph(g) as typeof g;
+    expect((out.edges[0] as { targetHandle?: string }).targetHandle).toBeUndefined();
+  });
 });

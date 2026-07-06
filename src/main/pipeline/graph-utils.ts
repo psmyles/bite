@@ -58,7 +58,13 @@ export function applyParamWires(
       const srcResolved = resolvedParams.get(edge.source);
       if (srcResolved && sourceParam in srcResolved) {
         if (th.startsWith('param-in-')) {
-          rawParams[th.slice('param-in-'.length)] = srcResolved[sourceParam];
+          const destKey = th.slice('param-in-'.length);
+          // Security: a wire target handle is attacker-controlled data from the
+          // .imgplex file. Never let it write a `__`-prefixed key (e.g.
+          // `param-in-__compute_js__`), which would inject executable JS back in
+          // after the strip above.
+          if (destKey.startsWith('__')) continue;
+          rawParams[destKey] = srcResolved[sourceParam];
         } else if (th.startsWith('txo-')) {
           rawParams[`_txo_${th.slice('txo-'.length)}`] = srcResolved[sourceParam];
         }

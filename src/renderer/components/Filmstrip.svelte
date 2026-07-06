@@ -68,7 +68,7 @@
           f.name
         )
       )
-      .map((f) => (f as unknown as { path: string }).path)
+      .map((f) => window.webUtils?.getPathForFile(f) ?? '')
       .filter(Boolean);
   }
 

@@ -502,4 +502,9 @@ describe('buildResizeArgs', () => {
     const args = buildResizeArgs({ density: 150 });
     expect(args.indexOf('-density')).toBeLessThan(args.indexOf('-resize'));
   });
+
+  it('-filter comes before -resize (a filter after -resize has no effect)', () => {
+    const args = buildResizeArgs({ filter: 'Point' });
+    expect(args.indexOf('-filter')).toBeLessThan(args.indexOf('-resize'));
+  });
 });

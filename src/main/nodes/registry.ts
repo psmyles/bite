@@ -78,6 +78,11 @@ export class NodeRegistry {
         return;
       }
       const def = data as NodeDefinition;
+      if (this.definitions.has(def.id)) {
+        console.warn(
+          `[registry] Duplicate node id "${def.id}" in ${path.basename(filePath)} — overwriting the earlier definition.`
+        );
+      }
       this.definitions.set(def.id, def);
     } catch (err) {
       console.warn(`[registry] Failed to load ${path.basename(filePath)}:`, err);

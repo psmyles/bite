@@ -10,6 +10,9 @@ class ImageStore {
   // This avoids creating a new Map + spreading arrays for every streaming result
   // (which was O(N²) work for an import of N images).
   private _nodes = new Map<string, ImageInfo[]>();
+  // Images of deleted input nodes are retained here (not discarded) so that undoing
+  // the deletion can restore them — the undo history only snapshots nodes/edges.
+  private _detached = new Map<string, ImageInfo[]>();
   private _tick = $state(0);
 
   activeInputNodeId = $state<string | null>(null);
@@ -21,6 +24,7 @@ class ImageStore {
 
   private _importCancelled = false;
   private _importStartTime = 0;
+  private _importToken = 0;
 
   /** Images for the currently active input node (shown in filmstrip). */
   get images(): ImageInfo[] {
@@ -60,6 +64,11 @@ class ImageStore {
     if (paths.length === 0) return;
 
     const autoSelect = this.activeInputNodeId === targetNodeId && this.selectedIndex === -1;
+    // Unique per-import token: results are broadcast on a shared IPC channel, so a
+    // concurrent import (e.g. filmstrip drop during a folder scan) would otherwise
+    // fire every import's listener and duplicate/misplace images. Each result carries
+    // the token of the import that produced it; ignore results for other imports.
+    const myToken = ++this._importToken;
     this._importCancelled = false;
     this._importStartTime = performance.now();
     this.importDone = false;
@@ -68,8 +77,10 @@ class ImageStore {
     let doneCount = 0;
 
     let listenerActive = true;
-    const onResult = (_e: unknown, info: ImageInfo) => {
-      if (!listenerActive) return;
+    const onResult = (_e: unknown, info: ImageInfo, token?: number) => {
+      if (!listenerActive || token !== myToken) return;
+      // Don't recreate an image list for a node deleted mid-import.
+      if (!graphStore.nodes.some((n) => n.id === targetNodeId)) return;
       doneCount++;
       // Mutate in-place — no new Map, no array spread. O(1) per image.
       let nodeImages = this._nodes.get(targetNodeId);
@@ -93,7 +104,8 @@ class ImageStore {
       const allResults: ImageInfo[] = await window.ipcRenderer.invoke(
         IPC.LOAD_IMAGES_STREAMING_START,
         paths,
-        thumbSize
+        thumbSize,
+        myToken
       );
       if (Array.isArray(allResults)) {
         const addedPaths = new Set(allAdded.map((img) => img.path));
@@ -104,7 +116,7 @@ class ImageStore {
             allAdded.push(info);
           }
         }
-        if (extra.length > 0) {
+        if (extra.length > 0 && graphStore.nodes.some((n) => n.id === targetNodeId)) {
           let nodeImages = this._nodes.get(targetNodeId);
           if (!nodeImages) {
             nodeImages = [];
@@ -180,12 +192,44 @@ class ImageStore {
   }
 
   removeNode(nodeId: string): void {
+    const imgs = this._nodes.get(nodeId);
+    if (imgs && imgs.length > 0) this._detached.set(nodeId, imgs); // retain for undo
     this._nodes.delete(nodeId);
     this._tick++;
     if (this.activeInputNodeId === nodeId) {
       this.activeInputNodeId = null;
       this.selectedIndex = -1;
     }
+  }
+
+  /**
+   * Reconcile image storage with the input nodes present after an undo/redo.
+   * Restores detached images for nodes that reappeared, and detaches images for
+   * nodes that were removed by the snapshot (so a subsequent redo/undo is symmetric).
+   */
+  reconcileNodes(presentNodeIds: string[]): void {
+    const present = new Set(presentNodeIds);
+    let changed = false;
+    for (const id of [...this._nodes.keys()]) {
+      if (!present.has(id)) {
+        const imgs = this._nodes.get(id);
+        if (imgs && imgs.length > 0) this._detached.set(id, imgs);
+        this._nodes.delete(id);
+        if (this.activeInputNodeId === id) {
+          this.activeInputNodeId = null;
+          this.selectedIndex = -1;
+        }
+        changed = true;
+      }
+    }
+    for (const id of present) {
+      if (!this._nodes.has(id) && this._detached.has(id)) {
+        this._nodes.set(id, this._detached.get(id)!);
+        this._detached.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) this._tick++;
   }
 }
 
