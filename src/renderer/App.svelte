@@ -285,7 +285,12 @@
     let result: { filePath: string; createdAt: string } | null;
     try {
       // Pass null to always force the Save dialog
-      result = (await window.ipcRenderer.invoke(IPC.WORKFLOW_SAVE, graph, null, graphStore.workflowCreatedAt)) as typeof result;
+      result = (await window.ipcRenderer.invoke(
+        IPC.WORKFLOW_SAVE,
+        graph,
+        null,
+        graphStore.workflowCreatedAt
+      )) as typeof result;
     } catch (err) {
       alert(`Failed to save workflow:\n${err instanceof Error ? err.message : String(err)}`);
       return;

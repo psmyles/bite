@@ -45,9 +45,9 @@ test workflows after the automated suite passes.
 - [ ] Copy a workflow, hand-edit the JSON to add `"__compute_js__": "return {}"` inside some
       node's `params`, open it in the GUI, save, and re-inspect the JSON: the `__`-prefixed
       key must be stripped (`sanitizeWorkflowGraph`).
-      *Note: the CLI loads workflow JSON without this sanitize pass — flagged as a hardening
+      _Note: the CLI loads workflow JSON without this sanitize pass — flagged as a hardening
       gap during suite design (`command_js` runs only from trusted node-definitions, so the
-      strip is defense-in-depth, but GUI and CLI should behave the same).*
+      strip is defense-in-depth, but GUI and CLI should behave the same)._
 
 ## CLI script export
 
@@ -57,7 +57,7 @@ test workflows after the automated suite passes.
 
 ## Known quirks found while designing the suite (not workflow bugs)
 
-- `flip` node: the command template is hardcoded `-flop`; the *axis* dropdown is never read,
+- `flip` node: the command template is hardcoded `-flop`; the _axis_ dropdown is never read,
   so "vertical" also mirrors horizontally.
 - `solid_image` declares `executor: "solid_image"` but no handler is registered — the node
   is a pass-through in both preview and batch.

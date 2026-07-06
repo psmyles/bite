@@ -30,12 +30,12 @@ they must be re-loaded per session.
 
 ## Conventions (apply to every workflow)
 
-| Node | Setting |
-|---|---|
-| Input node | CLI Name = `in` |
-| Image Output node | CLI Name = `out` (WF-08 uses `out-<format>`), Output Path = Custom, Custom Path = `<repo>\test-workflows\out\<wf-name>` (absolute), Overwrite = **overwrite**, Generate Log = off |
-| Text Output node | CLI Name = `report`, Output Path = `<repo>\test-workflows\out\<wf-name>\report.txt`, Separator = **comma**, Overwrite = **overwrite** |
-| Flipbook Output node | CLI Name = `atlas`, Output Path = `<repo>\test-workflows\out\<wf-name>\atlas.png` |
+| Node                 | Setting                                                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Input node           | CLI Name = `in`                                                                                                                                                                   |
+| Image Output node    | CLI Name = `out` (WF-08 uses `out-<format>`), Output Path = Custom, Custom Path = `<repo>\test-workflows\out\<wf-name>` (absolute), Overwrite = **overwrite**, Generate Log = off |
+| Text Output node     | CLI Name = `report`, Output Path = `<repo>\test-workflows\out\<wf-name>\report.txt`, Separator = **comma**, Overwrite = **overwrite**                                             |
+| Flipbook Output node | CLI Name = `atlas`, Output Path = `<repo>\test-workflows\out\<wf-name>\atlas.png`                                                                                                 |
 
 Save each workflow as `test-workflows\wf-NN-<name>.imgplex` (exact filenames below — the
 runner looks them up by name and reports missing ones as SKIP).
@@ -70,19 +70,19 @@ spawn per image), `resize` executor, `command_template` nodes.
 Input ─ out-0 → in-0 ─ Resize ─ out-0 → in-0 ─ Flip ─ out-0 → in-0 ─ Brightness/Contrast ─ out-0 → in-0 ─ Blur ─ out-0 → in-0 ─ Image Output
 ```
 
-| Node | Params |
-|---|---|
-| Resize | mode `absolute`, width `128`, height `128`, **preserve_aspect off**, filter `Lanczos` |
-| Flip | axis `horizontal` |
-| Brightness/Contrast | brightness `10`, contrast `10` |
-| Blur | sigma `1` |
+| Node                | Params                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| Resize              | mode `absolute`, width `128`, height `128`, **preserve_aspect off**, filter `Lanczos` |
+| Flip                | axis `horizontal`                                                                     |
+| Brightness/Contrast | brightness `10`, contrast `10`                                                        |
+| Blur                | sigma `1`                                                                             |
 
 **CLI:** `imgplex-cli run wf-01-fastpath.imgplex --in fixtures\main --out out\wf-01`
 
 **Expected:** 6 output PNGs with the original filenames, all exactly **128×128**.
 
 > Known quirk found during spec design: the `flip` node's command template is hardcoded to
-> `-flop`; the *axis* dropdown is never read, so "vertical" also mirrors horizontally.
+> `-flop`; the _axis_ dropdown is never read, so "vertical" also mirrors horizontally.
 > Use `horizontal` here. (Candidate app bug, not a workflow problem.)
 
 ---
@@ -96,14 +96,14 @@ reads, no magick spawn), `textOutputNode` → `executeTextBatch`, multiple `txo-
 
 **Graph:** `Input.out-0 → Text Output.in-0`, plus value wires in this port order:
 
-| Port | Source |
-|---|---|
+| Port  | Source                                                    |
+| ----- | --------------------------------------------------------- |
 | txo-0 | Name (`prop_name`, strip_extension off) `param-out-value` |
-| txo-1 | File Type (`prop_filetype`) `param-out-value` |
-| txo-2 | Size (`prop_size`, unit `KB`) `param-out-value` |
-| txo-3 | Dimensions (`prop_dimensions`) `param-out-width` |
-| txo-4 | Dimensions (same node) `param-out-height` |
-| txo-5 | Power of Two (`prop_power_of_two`) `param-out-result` |
+| txo-1 | File Type (`prop_filetype`) `param-out-value`             |
+| txo-2 | Size (`prop_size`, unit `KB`) `param-out-value`           |
+| txo-3 | Dimensions (`prop_dimensions`) `param-out-width`          |
+| txo-4 | Dimensions (same node) `param-out-height`                 |
+| txo-5 | Power of Two (`prop_power_of_two`) `param-out-result`     |
 
 **CLI:** `imgplex-cli run wf-02-props-light.imgplex --in fixtures\main --report out\wf-02\report.txt`
 
@@ -128,12 +128,12 @@ red_256.png,png,<size>,256,256,true
 
 **Graph:** same shape as WF-02. Ports:
 
-| Port | Source |
-|---|---|
-| txo-0 | Name `param-out-value` |
-| txo-1 | Bit Depth (`prop_bitdepth`) `param-out-value` |
+| Port  | Source                                           |
+| ----- | ------------------------------------------------ |
+| txo-0 | Name `param-out-value`                           |
+| txo-1 | Bit Depth (`prop_bitdepth`) `param-out-value`    |
 | txo-2 | Resolution (`prop_resolution`) `param-out-dpi_x` |
-| txo-3 | EXIF (`prop_exif`) `param-out-camera_make` |
+| txo-3 | EXIF (`prop_exif`) `param-out-camera_make`       |
 
 **CLI:** `imgplex-cli run wf-03-props-heavy.imgplex --in fixtures\meta --report out\wf-03\report.txt`
 
@@ -160,10 +160,10 @@ Float.param-out-value    → Merge Channels.in-2 (B)      ← value wire into an
 Merge Channels.out-0     → Image Output.in-0
 ```
 
-| Node | Params |
-|---|---|
-| Float (`value_float`) | value `0.5` |
-| Merge Channels | channels `3` (alpha port left unconnected) |
+| Node                  | Params                                     |
+| --------------------- | ------------------------------------------ |
+| Float (`value_float`) | value `0.5`                                |
+| Merge Channels        | channels `3` (alpha port left unconnected) |
 
 **CLI:** `imgplex-cli run wf-04-channels.imgplex --in fixtures\main --out out\wf-04`
 
@@ -241,11 +241,11 @@ Process As Set.out-2 (_rough)   → Negate.in-0 ; Negate.out-0 → Merge Channel
 Merge Channels.out-0 → Image Output.in-0
 ```
 
-| Node | Params |
-|---|---|
+| Node           | Params                                                                  |
+| -------------- | ----------------------------------------------------------------------- |
 | Process As Set | prefix `set_`, suffixes `_diffuse`, `_normal`, `_rough` (in that order) |
-| Merge Channels | channels `3` |
-| Image Output | set output prefix `packed_`, set output suffix *(empty)* |
+| Merge Channels | channels `3`                                                            |
+| Image Output   | set output prefix `packed_`, set output suffix _(empty)_                |
 
 **CLI:** `imgplex-cli run wf-06-setmode.imgplex --in fixtures\sets --out out\wf-06`
 
@@ -270,8 +270,8 @@ Text Filter.param-out-result → Gate.param-in-condition
 Input.out-0 → Gate.in-0 ; Gate.out-0 → Image Output.in-0
 ```
 
-| Node | Params |
-|---|---|
+| Node        | Params                                               |
+| ----------- | ---------------------------------------------------- |
 | Text Filter | contains `red` (prefix/suffix empty, match_case off) |
 
 **CLI:** `imgplex-cli run wf-07-gate.imgplex --in fixtures\main --out out\wf-07`
@@ -291,15 +291,15 @@ nodes).
 **Graph:** one Input; seven parallel branches, each
 `Input.out-0 → Convert Format.in-0 ; Convert Format.out-0 → Image Output.in-0`:
 
-| Branch | Convert Format params | Image Output CLI Name / Custom Path |
-|---|---|---|
-| PNG | format `PNG`, compression `9`, depth `16` | `out-png` / `…\out\wf-08\png` |
-| JPEG | format `JPEG`, quality `85`, sampling `4:4:4`, progressive on | `out-jpeg` / `…\out\wf-08\jpeg` |
-| WEBP | format `WEBP`, **lossless on** | `out-webp` / `…\out\wf-08\webp` |
-| AVIF | format `AVIF`, quality `60`, speed `8` | `out-avif` / `…\out\wf-08\avif` |
-| TIFF | format `TIFF`, compression `LZW` | `out-tiff` / `…\out\wf-08\tiff` |
-| BMP | format `BMP` | `out-bmp` / `…\out\wf-08\bmp` |
-| TGA | format `TGA`, RLE on | `out-tga` / `…\out\wf-08\tga` |
+| Branch | Convert Format params                                         | Image Output CLI Name / Custom Path |
+| ------ | ------------------------------------------------------------- | ----------------------------------- |
+| PNG    | format `PNG`, compression `9`, depth `16`                     | `out-png` / `…\out\wf-08\png`       |
+| JPEG   | format `JPEG`, quality `85`, sampling `4:4:4`, progressive on | `out-jpeg` / `…\out\wf-08\jpeg`     |
+| WEBP   | format `WEBP`, **lossless on**                                | `out-webp` / `…\out\wf-08\webp`     |
+| AVIF   | format `AVIF`, quality `60`, speed `8`                        | `out-avif` / `…\out\wf-08\avif`     |
+| TIFF   | format `TIFF`, compression `LZW`                              | `out-tiff` / `…\out\wf-08\tiff`     |
+| BMP    | format `BMP`                                                  | `out-bmp` / `…\out\wf-08\bmp`       |
+| TGA    | format `TGA`, RLE on                                          | `out-tga` / `…\out\wf-08\tga`       |
 
 **CLI:**
 
@@ -326,8 +326,8 @@ per-image auto-increment), copy fast path (no image op at all), skip-vs-overwrit
 
 **Graph:** `Input.out-0 → Rename.in-0 ; Rename.out-0 → Image Output.in-0`
 
-| Node | Params |
-|---|---|
+| Node   | Params                                                                                                            |
+| ------ | ----------------------------------------------------------------------------------------------------------------- |
 | Rename | blocks in order: **Text** `test_` → **Number** start `1`, pad `3` → **Text** `_` → **Old Name** (no find/replace) |
 
 **CLI:** `imgplex-cli run wf-09-rename.imgplex --in fixtures\main --out out\wf-09`
@@ -355,10 +355,10 @@ Input.out-0 → Flipbook Output.in-0
 Color.param-out-rgba → Flipbook Output.param-in-bgColor
 ```
 
-| Node | Params |
-|---|---|
-| Color (`value_color`) | color `(1, 0, 1, 1)` — magenta |
-| Flipbook Output | rows `2`, cols `2`, cell `64×64`, sort by `name`, output path `…\out\wf-10\atlas.png` |
+| Node                  | Params                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| Color (`value_color`) | color `(1, 0, 1, 1)` — magenta                                                        |
+| Flipbook Output       | rows `2`, cols `2`, cell `64×64`, sort by `name`, output path `…\out\wf-10\atlas.png` |
 
 **CLI:** `imgplex-cli run wf-10-flipbook.imgplex --in fixtures\flip --atlas out\wf-10\atlas.png`
 
@@ -413,21 +413,21 @@ lines: `5,5,0.6,1024,OK`.
 
 ## Coverage map
 
-| Pipeline area | Workflow |
-|---|---|
-| Path A: fused single command | WF-01, WF-09 (pure copy) |
-| Path B: per-image plan, light meta | WF-02, WF-07 |
-| Path B: heavy meta (`loadImageMeta`) | WF-03 |
-| Path C: multi-stream, visual split + lazy fusion + constant merge channel | WF-04 |
-| Path C: analysis-only split (`loadMultipleChannelMeans`) | WF-05 |
-| Path D: set-mode | WF-06 |
-| Gate suppression | WF-05 (computed), WF-07 (name filter) |
-| `executeTextBatch` | WF-02, WF-03, WF-05, WF-11 |
-| `executeFlipbookBatch` | WF-10 |
-| format_convert × 7 format definitions | WF-08 |
-| rename / `computeNewName` | WF-09 |
-| Overwrite skip vs overwrite | WF-09 (runner) |
-| Param wires (value→param, value→image port, value→txo, value→bgColor) | WF-04, WF-05, WF-10, WF-11 |
-| Multiple output nodes per run | WF-05, WF-08, WF-11 |
-| CLI flag mapping / missing flag / `--overwrite` | runner |
-| Preview cache, cancellation, dialogs, sanitize-on-load | `MANUAL_CHECKLIST.md` |
+| Pipeline area                                                             | Workflow                              |
+| ------------------------------------------------------------------------- | ------------------------------------- |
+| Path A: fused single command                                              | WF-01, WF-09 (pure copy)              |
+| Path B: per-image plan, light meta                                        | WF-02, WF-07                          |
+| Path B: heavy meta (`loadImageMeta`)                                      | WF-03                                 |
+| Path C: multi-stream, visual split + lazy fusion + constant merge channel | WF-04                                 |
+| Path C: analysis-only split (`loadMultipleChannelMeans`)                  | WF-05                                 |
+| Path D: set-mode                                                          | WF-06                                 |
+| Gate suppression                                                          | WF-05 (computed), WF-07 (name filter) |
+| `executeTextBatch`                                                        | WF-02, WF-03, WF-05, WF-11            |
+| `executeFlipbookBatch`                                                    | WF-10                                 |
+| format_convert × 7 format definitions                                     | WF-08                                 |
+| rename / `computeNewName`                                                 | WF-09                                 |
+| Overwrite skip vs overwrite                                               | WF-09 (runner)                        |
+| Param wires (value→param, value→image port, value→txo, value→bgColor)     | WF-04, WF-05, WF-10, WF-11            |
+| Multiple output nodes per run                                             | WF-05, WF-08, WF-11                   |
+| CLI flag mapping / missing flag / `--overwrite`                           | runner                                |
+| Preview cache, cancellation, dialogs, sanitize-on-load                    | `MANUAL_CHECKLIST.md`                 |
