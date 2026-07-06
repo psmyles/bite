@@ -1,0 +1,192 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-05T11:51:40.357Z",
+  "modifiedAt": "2026-07-05T11:51:49.574Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1783250688891",
+        "type": "inputNode",
+        "position": {
+          "x": -23,
+          "y": 135
+        },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": {
+            "thumbnailSize": 256,
+            "cliName": "in"
+          }
+        }
+      },
+      {
+        "id": "textOutputNode-1783252092216",
+        "type": "textOutputNode",
+        "position": {
+          "x": 539,
+          "y": 132
+        },
+        "data": {
+          "label": "Text Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-02\\report.txt",
+            "overwrite": "overwrite",
+            "portIds": [
+              "txo-0",
+              "txo-1",
+              "txo-2",
+              "txo-3",
+              "txo-4",
+              "txo-5",
+              "txo-6"
+            ],
+            "nextPortIndex": 7,
+            "separatorType": "comma",
+            "customSeparator": "",
+            "generateLog": false,
+            "cliName": "report"
+          }
+        }
+      },
+      {
+        "id": "prop_name-1783252116251",
+        "type": "process",
+        "position": {
+          "x": 206,
+          "y": 192
+        },
+        "data": {
+          "label": "Name",
+          "definitionId": "prop_name",
+          "params": {
+            "value": "",
+            "strip_extension": false
+          }
+        }
+      },
+      {
+        "id": "prop_filetype-1783252202661",
+        "type": "process",
+        "position": {
+          "x": 206,
+          "y": 291
+        },
+        "data": {
+          "label": "File Type",
+          "definitionId": "prop_filetype",
+          "params": {
+            "value": ""
+          }
+        }
+      },
+      {
+        "id": "prop_size-1783252224762",
+        "type": "process",
+        "position": {
+          "x": 205,
+          "y": 370
+        },
+        "data": {
+          "label": "Size",
+          "definitionId": "prop_size",
+          "params": {
+            "unit": "KB",
+            "value": 0
+          }
+        }
+      },
+      {
+        "id": "prop_dimensions-1783252253747",
+        "type": "process",
+        "position": {
+          "x": 205,
+          "y": 446
+        },
+        "data": {
+          "label": "Dimensions",
+          "definitionId": "prop_dimensions",
+          "params": {
+            "width": 0,
+            "height": 0
+          }
+        }
+      },
+      {
+        "id": "prop_power_of_two-1783252272287",
+        "type": "process",
+        "position": {
+          "x": 205,
+          "y": 548
+        },
+        "data": {
+          "label": "Power of Two",
+          "definitionId": "prop_power_of_two",
+          "params": {
+            "width_ok": false,
+            "height_ok": false,
+            "result": false
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "xy-edge__input-1783250688891out-0-textOutputNode-1783252092216in-0",
+        "source": "input-1783250688891",
+        "sourceHandle": "out-0",
+        "target": "textOutputNode-1783252092216",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__prop_name-1783252116251param-out-value-textOutputNode-1783252092216txo-0",
+        "source": "prop_name-1783252116251",
+        "sourceHandle": "param-out-value",
+        "target": "textOutputNode-1783252092216",
+        "targetHandle": "txo-0"
+      },
+      {
+        "id": "xy-edge__prop_filetype-1783252202661param-out-value-textOutputNode-1783252092216txo-1",
+        "source": "prop_filetype-1783252202661",
+        "sourceHandle": "param-out-value",
+        "target": "textOutputNode-1783252092216",
+        "targetHandle": "txo-1"
+      },
+      {
+        "id": "xy-edge__prop_size-1783252224762param-out-value-textOutputNode-1783252092216txo-2",
+        "source": "prop_size-1783252224762",
+        "sourceHandle": "param-out-value",
+        "target": "textOutputNode-1783252092216",
+        "targetHandle": "txo-2"
+      },
+      {
+        "id": "xy-edge__prop_dimensions-1783252253747param-out-width-textOutputNode-1783252092216txo-3",
+        "source": "prop_dimensions-1783252253747",
+        "sourceHandle": "param-out-width",
+        "target": "textOutputNode-1783252092216",
+        "targetHandle": "txo-3"
+      },
+      {
+        "id": "xy-edge__prop_dimensions-1783252253747param-out-height-textOutputNode-1783252092216txo-4",
+        "source": "prop_dimensions-1783252253747",
+        "sourceHandle": "param-out-height",
+        "target": "textOutputNode-1783252092216",
+        "targetHandle": "txo-4"
+      },
+      {
+        "id": "xy-edge__prop_power_of_two-1783252272287param-out-result-textOutputNode-1783252092216txo-5",
+        "source": "prop_power_of_two-1783252272287",
+        "sourceHandle": "param-out-result",
+        "target": "textOutputNode-1783252092216",
+        "targetHandle": "txo-5"
+      }
+    ],
+    "viewport": {
+      "x": 118,
+      "y": 242,
+      "zoom": 1
+    }
+  }
+}

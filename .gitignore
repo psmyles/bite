@@ -41,6 +41,10 @@ pnpm-debug.log*
 # ── Local test data ───────────────────────────────────────────────────────────
 test_images/
 
+# ── Pipeline test suite (workflows/scripts are tracked; generated data is not) ─
+test-workflows/fixtures/
+test-workflows/out/
+
 # ── OS files ──────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

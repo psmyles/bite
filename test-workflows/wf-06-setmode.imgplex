@@ -1,0 +1,116 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-06T00:00:00.000Z",
+  "modifiedAt": "2026-07-06T00:00:00.000Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "inputNode",
+        "position": { "x": 0, "y": 200 },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": { "thumbnailSize": 256, "cliName": "in" }
+        }
+      },
+      {
+        "id": "set-1",
+        "type": "process",
+        "position": { "x": 220, "y": 200 },
+        "data": {
+          "label": "Process As Set",
+          "definitionId": "process_as_set",
+          "params": {
+            "prefix": "set_",
+            "suffixes": ["_diffuse", "_normal", "_rough"]
+          }
+        }
+      },
+      {
+        "id": "negate-1",
+        "type": "process",
+        "position": { "x": 470, "y": 380 },
+        "data": {
+          "label": "Negate",
+          "definitionId": "negate",
+          "params": { "_enabled": true }
+        }
+      },
+      {
+        "id": "merge-1",
+        "type": "process",
+        "position": { "x": 700, "y": 200 },
+        "data": {
+          "label": "Merge Channels",
+          "definitionId": "channel_merge",
+          "params": { "channels": "3", "_enabled": true }
+        }
+      },
+      {
+        "id": "imageOutput-1",
+        "type": "imageOutputNode",
+        "position": { "x": 940, "y": 200 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-06",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out",
+            "setOutputPrefix": "packed_",
+            "setOutputSuffix": ""
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-in-set",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "set-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-diffuse-r",
+        "source": "set-1",
+        "sourceHandle": "out-0",
+        "target": "merge-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-normal-g",
+        "source": "set-1",
+        "sourceHandle": "out-1",
+        "target": "merge-1",
+        "targetHandle": "in-1"
+      },
+      {
+        "id": "e-rough-negate",
+        "source": "set-1",
+        "sourceHandle": "out-2",
+        "target": "negate-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-negate-b",
+        "source": "negate-1",
+        "sourceHandle": "out-0",
+        "target": "merge-1",
+        "targetHandle": "in-2"
+      },
+      {
+        "id": "e-merge-out",
+        "source": "merge-1",
+        "sourceHandle": "out-0",
+        "target": "imageOutput-1",
+        "targetHandle": "in-0"
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  }
+}

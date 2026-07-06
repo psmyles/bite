@@ -1,0 +1,301 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-06T00:00:00.000Z",
+  "modifiedAt": "2026-07-06T00:00:00.000Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "inputNode",
+        "position": { "x": 0, "y": 300 },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": { "thumbnailSize": 256, "cliName": "in" }
+        }
+      },
+      {
+        "id": "split-1",
+        "type": "process",
+        "position": { "x": 220, "y": 300 },
+        "data": {
+          "label": "Split Channels",
+          "definitionId": "channel_split",
+          "params": { "_enabled": true }
+        }
+      },
+      {
+        "id": "mean-r",
+        "type": "process",
+        "position": { "x": 450, "y": 150 },
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": { "value": 0 }
+        }
+      },
+      {
+        "id": "mean-g",
+        "type": "process",
+        "position": { "x": 450, "y": 300 },
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": { "value": 0 }
+        }
+      },
+      {
+        "id": "mean-b",
+        "type": "process",
+        "position": { "x": 450, "y": 450 },
+        "data": {
+          "label": "Mean Value",
+          "definitionId": "mean_value",
+          "params": { "value": 0 }
+        }
+      },
+      {
+        "id": "float-09",
+        "type": "process",
+        "position": { "x": 450, "y": 40 },
+        "data": {
+          "label": "Float",
+          "definitionId": "value_float",
+          "params": { "value": 0.9 }
+        }
+      },
+      {
+        "id": "float-01",
+        "type": "process",
+        "position": { "x": 450, "y": 560 },
+        "data": {
+          "label": "Float",
+          "definitionId": "value_float",
+          "params": { "value": 0.1 }
+        }
+      },
+      {
+        "id": "cmp-r",
+        "type": "compareNode",
+        "position": { "x": 700, "y": 150 },
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": { "a": null, "operator": "greater than", "b": null, "result": null }
+        }
+      },
+      {
+        "id": "cmp-g",
+        "type": "compareNode",
+        "position": { "x": 700, "y": 350 },
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": { "a": null, "operator": "less than", "b": null, "result": null }
+        }
+      },
+      {
+        "id": "and-1",
+        "type": "process",
+        "position": { "x": 950, "y": 250 },
+        "data": {
+          "label": "And",
+          "definitionId": "logic_and",
+          "params": { "a": null, "b": null, "result": false }
+        }
+      },
+      {
+        "id": "gate-1",
+        "type": "process",
+        "position": { "x": 1180, "y": 100 },
+        "data": {
+          "label": "Gate",
+          "definitionId": "gate",
+          "params": { "condition": true, "_enabled": true }
+        }
+      },
+      {
+        "id": "prop_name-1",
+        "type": "process",
+        "position": { "x": 950, "y": 550 },
+        "data": {
+          "label": "Name",
+          "definitionId": "prop_name",
+          "params": { "value": "", "strip_extension": false }
+        }
+      },
+      {
+        "id": "imageOutput-1",
+        "type": "imageOutputNode",
+        "position": { "x": 1420, "y": 100 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-05\\images",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out"
+          }
+        }
+      },
+      {
+        "id": "textOutput-1",
+        "type": "textOutputNode",
+        "position": { "x": 1420, "y": 400 },
+        "data": {
+          "label": "Text Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-05\\report.txt",
+            "portIds": ["txo-0", "txo-1", "txo-2", "txo-3", "txo-4", "txo-5"],
+            "nextPortIndex": 6,
+            "separatorType": "comma",
+            "customSeparator": "",
+            "generateLog": false,
+            "cliName": "report",
+            "overwrite": "overwrite"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-in-split",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "split-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-split-mr",
+        "source": "split-1",
+        "sourceHandle": "out-0",
+        "target": "mean-r",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-split-mg",
+        "source": "split-1",
+        "sourceHandle": "out-1",
+        "target": "mean-g",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-split-mb",
+        "source": "split-1",
+        "sourceHandle": "out-2",
+        "target": "mean-b",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-mr-cmpr",
+        "source": "mean-r",
+        "sourceHandle": "param-out-value",
+        "target": "cmp-r",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "e-f09-cmpr",
+        "source": "float-09",
+        "sourceHandle": "param-out-value",
+        "target": "cmp-r",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "e-mg-cmpg",
+        "source": "mean-g",
+        "sourceHandle": "param-out-value",
+        "target": "cmp-g",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "e-f01-cmpg",
+        "source": "float-01",
+        "sourceHandle": "param-out-value",
+        "target": "cmp-g",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "e-cmpr-and",
+        "source": "cmp-r",
+        "sourceHandle": "param-out-result",
+        "target": "and-1",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "e-cmpg-and",
+        "source": "cmp-g",
+        "sourceHandle": "param-out-result",
+        "target": "and-1",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "e-and-gate",
+        "source": "and-1",
+        "sourceHandle": "param-out-result",
+        "target": "gate-1",
+        "targetHandle": "param-in-condition"
+      },
+      {
+        "id": "e-in-gate",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "gate-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-gate-imgout",
+        "source": "gate-1",
+        "sourceHandle": "out-0",
+        "target": "imageOutput-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-in-txt",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "textOutput-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-name-txo0",
+        "source": "prop_name-1",
+        "sourceHandle": "param-out-value",
+        "target": "textOutput-1",
+        "targetHandle": "txo-0"
+      },
+      {
+        "id": "e-mr-txo1",
+        "source": "mean-r",
+        "sourceHandle": "param-out-value",
+        "target": "textOutput-1",
+        "targetHandle": "txo-1"
+      },
+      {
+        "id": "e-mg-txo2",
+        "source": "mean-g",
+        "sourceHandle": "param-out-value",
+        "target": "textOutput-1",
+        "targetHandle": "txo-2"
+      },
+      {
+        "id": "e-mb-txo3",
+        "source": "mean-b",
+        "sourceHandle": "param-out-value",
+        "target": "textOutput-1",
+        "targetHandle": "txo-3"
+      },
+      {
+        "id": "e-and-txo4",
+        "source": "and-1",
+        "sourceHandle": "param-out-result",
+        "target": "textOutput-1",
+        "targetHandle": "txo-4"
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  }
+}

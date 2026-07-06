@@ -1,0 +1,68 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-06T00:00:00.000Z",
+  "modifiedAt": "2026-07-06T00:00:00.000Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "inputNode",
+        "position": { "x": 0, "y": 200 },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": { "thumbnailSize": 256, "cliName": "in" }
+        }
+      },
+      {
+        "id": "color-1",
+        "type": "process",
+        "position": { "x": 0, "y": 420 },
+        "data": {
+          "label": "Color",
+          "definitionId": "value_color",
+          "params": { "color": [1, 0, 1, 1] }
+        }
+      },
+      {
+        "id": "flipbook-1",
+        "type": "flipbookOutputNode",
+        "position": { "x": 320, "y": 200 },
+        "data": {
+          "label": "Flipbook Output",
+          "definitionId": "",
+          "params": {
+            "flipbookOutputPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-10\\atlas.png",
+            "cols": 2,
+            "rows": 2,
+            "cellWidth": 64,
+            "cellHeight": 64,
+            "sortBy": "name",
+            "bgColor": [0, 0, 0, 0],
+            "generateLog": false,
+            "cliName": "atlas",
+            "overwrite": "overwrite"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-in-fb",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "flipbook-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-color-bg",
+        "source": "color-1",
+        "sourceHandle": "param-out-rgba",
+        "target": "flipbook-1",
+        "targetHandle": "param-in-bgColor"
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  }
+}

@@ -1,0 +1,280 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-06T00:00:00.000Z",
+  "modifiedAt": "2026-07-06T00:00:00.000Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "inputNode",
+        "position": { "x": 0, "y": 100 },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": { "thumbnailSize": 256, "cliName": "in" }
+        }
+      },
+      {
+        "id": "float-05",
+        "type": "process",
+        "position": { "x": 0, "y": 300 },
+        "data": {
+          "label": "Float",
+          "definitionId": "value_float",
+          "params": { "value": 0.5 }
+        }
+      },
+      {
+        "id": "lerp-1",
+        "type": "process",
+        "position": { "x": 220, "y": 300 },
+        "data": {
+          "label": "Lerp",
+          "definitionId": "math_lerp",
+          "params": { "a": 0, "b": 10, "t": 0.5, "result": 0.5 }
+        }
+      },
+      {
+        "id": "blur-1",
+        "type": "process",
+        "position": { "x": 450, "y": 100 },
+        "data": {
+          "label": "Blur",
+          "definitionId": "blur",
+          "params": { "sigma": 2, "_enabled": true }
+        }
+      },
+      {
+        "id": "imageOutput-1",
+        "type": "imageOutputNode",
+        "position": { "x": 700, "y": 100 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-11\\images",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out"
+          }
+        }
+      },
+      {
+        "id": "vec3-1",
+        "type": "process",
+        "position": { "x": 0, "y": 500 },
+        "data": {
+          "label": "Vector 3",
+          "definitionId": "value_vector3",
+          "params": { "vec": [3, 0, 4] }
+        }
+      },
+      {
+        "id": "length-1",
+        "type": "process",
+        "position": { "x": 250, "y": 450 },
+        "data": {
+          "label": "Length",
+          "definitionId": "vec_math_length",
+          "params": { "vec": 0, "result": 0 }
+        }
+      },
+      {
+        "id": "normalize-1",
+        "type": "process",
+        "position": { "x": 250, "y": 580 },
+        "data": {
+          "label": "Normalize",
+          "definitionId": "vec_math_normalize",
+          "params": { "vec": 0, "result": 0 }
+        }
+      },
+      {
+        "id": "split-1",
+        "type": "process",
+        "position": { "x": 480, "y": 580 },
+        "data": {
+          "label": "Split",
+          "definitionId": "split_vec",
+          "params": { "vec": 0, "x": 0, "y": 0, "z": 0, "w": 0 }
+        }
+      },
+      {
+        "id": "power-1",
+        "type": "process",
+        "position": { "x": 0, "y": 720 },
+        "data": {
+          "label": "Power",
+          "definitionId": "math_power",
+          "params": { "base": 2, "exponent": 10, "result": 4 }
+        }
+      },
+      {
+        "id": "float-49",
+        "type": "process",
+        "position": { "x": 250, "y": 720 },
+        "data": {
+          "label": "Float",
+          "definitionId": "value_float",
+          "params": { "value": 4.9 }
+        }
+      },
+      {
+        "id": "cmp-1",
+        "type": "compareNode",
+        "position": { "x": 480, "y": 450 },
+        "data": {
+          "label": "Compare",
+          "definitionId": "logic_comparison",
+          "params": { "a": null, "operator": "greater than", "b": null, "result": null }
+        }
+      },
+      {
+        "id": "branch-1",
+        "type": "process",
+        "position": { "x": 700, "y": 450 },
+        "data": {
+          "label": "Branch",
+          "definitionId": "logic_branch",
+          "params": { "condition": false, "value_true": "OK", "value_false": "BAD", "result": null }
+        }
+      },
+      {
+        "id": "textOutput-1",
+        "type": "textOutputNode",
+        "position": { "x": 950, "y": 400 },
+        "data": {
+          "label": "Text Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-11\\report.txt",
+            "portIds": ["txo-0", "txo-1", "txo-2", "txo-3", "txo-4", "txo-5"],
+            "nextPortIndex": 6,
+            "separatorType": "comma",
+            "customSeparator": "",
+            "generateLog": false,
+            "cliName": "report",
+            "overwrite": "overwrite"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-f05-lerp",
+        "source": "float-05",
+        "sourceHandle": "param-out-value",
+        "target": "lerp-1",
+        "targetHandle": "param-in-t"
+      },
+      {
+        "id": "e-lerp-blur",
+        "source": "lerp-1",
+        "sourceHandle": "param-out-result",
+        "target": "blur-1",
+        "targetHandle": "param-in-sigma"
+      },
+      {
+        "id": "e-in-blur",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "blur-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-blur-out",
+        "source": "blur-1",
+        "sourceHandle": "out-0",
+        "target": "imageOutput-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-vec-length",
+        "source": "vec3-1",
+        "sourceHandle": "param-out-xyz",
+        "target": "length-1",
+        "targetHandle": "param-in-vec"
+      },
+      {
+        "id": "e-vec-normalize",
+        "source": "vec3-1",
+        "sourceHandle": "param-out-xyz",
+        "target": "normalize-1",
+        "targetHandle": "param-in-vec"
+      },
+      {
+        "id": "e-normalize-split",
+        "source": "normalize-1",
+        "sourceHandle": "param-out-result",
+        "target": "split-1",
+        "targetHandle": "param-in-vec"
+      },
+      {
+        "id": "e-length-cmp",
+        "source": "length-1",
+        "sourceHandle": "param-out-result",
+        "target": "cmp-1",
+        "targetHandle": "param-in-a"
+      },
+      {
+        "id": "e-f49-cmp",
+        "source": "float-49",
+        "sourceHandle": "param-out-value",
+        "target": "cmp-1",
+        "targetHandle": "param-in-b"
+      },
+      {
+        "id": "e-cmp-branch",
+        "source": "cmp-1",
+        "sourceHandle": "param-out-result",
+        "target": "branch-1",
+        "targetHandle": "param-in-condition"
+      },
+      {
+        "id": "e-in-txt",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "textOutput-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-lerp-txo0",
+        "source": "lerp-1",
+        "sourceHandle": "param-out-result",
+        "target": "textOutput-1",
+        "targetHandle": "txo-0"
+      },
+      {
+        "id": "e-length-txo1",
+        "source": "length-1",
+        "sourceHandle": "param-out-result",
+        "target": "textOutput-1",
+        "targetHandle": "txo-1"
+      },
+      {
+        "id": "e-splitx-txo2",
+        "source": "split-1",
+        "sourceHandle": "param-out-x",
+        "target": "textOutput-1",
+        "targetHandle": "txo-2"
+      },
+      {
+        "id": "e-power-txo3",
+        "source": "power-1",
+        "sourceHandle": "param-out-result",
+        "target": "textOutput-1",
+        "targetHandle": "txo-3"
+      },
+      {
+        "id": "e-branch-txo4",
+        "source": "branch-1",
+        "sourceHandle": "param-out-result",
+        "target": "textOutput-1",
+        "targetHandle": "txo-4"
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  }
+}

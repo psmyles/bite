@@ -1,0 +1,104 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-06T00:00:00.000Z",
+  "modifiedAt": "2026-07-06T00:00:00.000Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "inputNode",
+        "position": { "x": 0, "y": 200 },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": { "thumbnailSize": 256, "cliName": "in" }
+        }
+      },
+      {
+        "id": "prop_name-1",
+        "type": "process",
+        "position": { "x": 100, "y": 400 },
+        "data": {
+          "label": "Name",
+          "definitionId": "prop_name",
+          "params": { "value": "", "strip_extension": false }
+        }
+      },
+      {
+        "id": "text_filter-1",
+        "type": "process",
+        "position": { "x": 340, "y": 400 },
+        "data": {
+          "label": "Text Filter",
+          "definitionId": "text_filter",
+          "params": {
+            "input": "",
+            "prefix": "",
+            "suffix": "",
+            "contains": "red",
+            "match_case": false,
+            "result": false
+          }
+        }
+      },
+      {
+        "id": "gate-1",
+        "type": "process",
+        "position": { "x": 580, "y": 200 },
+        "data": {
+          "label": "Gate",
+          "definitionId": "gate",
+          "params": { "condition": true, "_enabled": true }
+        }
+      },
+      {
+        "id": "imageOutput-1",
+        "type": "imageOutputNode",
+        "position": { "x": 820, "y": 200 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-07",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-name-filter",
+        "source": "prop_name-1",
+        "sourceHandle": "param-out-value",
+        "target": "text_filter-1",
+        "targetHandle": "param-in-input"
+      },
+      {
+        "id": "e-filter-gate",
+        "source": "text_filter-1",
+        "sourceHandle": "param-out-result",
+        "target": "gate-1",
+        "targetHandle": "param-in-condition"
+      },
+      {
+        "id": "e-in-gate",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "gate-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-gate-out",
+        "source": "gate-1",
+        "sourceHandle": "out-0",
+        "target": "imageOutput-1",
+        "targetHandle": "in-0"
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-05T11:24:45.255Z",
+  "modifiedAt": "2026-07-05T11:24:45.255Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1783250522425",
+        "type": "inputNode",
+        "position": {
+          "x": -112,
+          "y": 197
+        },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": {
+            "thumbnailSize": 256,
+            "cliName": "in"
+          }
+        }
+      },
+      {
+        "id": "imageOutput-1783250522426",
+        "type": "imageOutputNode",
+        "position": {
+          "x": 1080,
+          "y": 197
+        },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-01",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out"
+          }
+        }
+      },
+      {
+        "id": "resize-1783250543636",
+        "type": "process",
+        "position": {
+          "x": 141,
+          "y": 195
+        },
+        "data": {
+          "label": "Resize",
+          "definitionId": "resize",
+          "params": {
+            "mode": "absolute",
+            "width": 128,
+            "height": 128,
+            "scale": 100,
+            "scale_width": 100,
+            "scale_height": 100,
+            "preserve_aspect": false,
+            "anchor": "width",
+            "density": 72,
+            "filter": "Lanczos",
+            "_enabled": true
+          }
+        }
+      },
+      {
+        "id": "flip-1783250558483",
+        "type": "process",
+        "position": {
+          "x": 367,
+          "y": 196
+        },
+        "data": {
+          "label": "Flip",
+          "definitionId": "flip",
+          "params": {
+            "axis": "horizontal",
+            "_enabled": true
+          }
+        }
+      },
+      {
+        "id": "brightness_contrast-1783250575237",
+        "type": "process",
+        "position": {
+          "x": 582,
+          "y": 195
+        },
+        "data": {
+          "label": "Brightness / Contrast",
+          "definitionId": "brightness_contrast",
+          "params": {
+            "brightness": 10,
+            "contrast": 10,
+            "_enabled": true
+          }
+        }
+      },
+      {
+        "id": "blur-1783250589996",
+        "type": "process",
+        "position": {
+          "x": 872,
+          "y": 196
+        },
+        "data": {
+          "label": "Blur",
+          "definitionId": "blur",
+          "params": {
+            "sigma": 1,
+            "_enabled": true
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "xy-edge__input-1783250522425out-0-resize-1783250543636in-0",
+        "source": "input-1783250522425",
+        "sourceHandle": "out-0",
+        "target": "resize-1783250543636",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__resize-1783250543636out-0-flip-1783250558483in-0",
+        "source": "resize-1783250543636",
+        "sourceHandle": "out-0",
+        "target": "flip-1783250558483",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__flip-1783250558483out-0-brightness_contrast-1783250575237in-0",
+        "source": "flip-1783250558483",
+        "sourceHandle": "out-0",
+        "target": "brightness_contrast-1783250575237",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__brightness_contrast-1783250575237out-0-blur-1783250589996in-0",
+        "source": "brightness_contrast-1783250575237",
+        "sourceHandle": "out-0",
+        "target": "blur-1783250589996",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "xy-edge__blur-1783250589996out-0-imageOutput-1783250522426in-0",
+        "source": "blur-1783250589996",
+        "sourceHandle": "out-0",
+        "target": "imageOutput-1783250522426",
+        "targetHandle": "in-0"
+      }
+    ],
+    "viewport": {
+      "x": 313,
+      "y": 219,
+      "zoom": 1
+    }
+  }
+}

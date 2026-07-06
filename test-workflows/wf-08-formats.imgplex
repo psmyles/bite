@@ -1,0 +1,225 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-06T00:00:00.000Z",
+  "modifiedAt": "2026-07-06T00:00:00.000Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "inputNode",
+        "position": { "x": 0, "y": 700 },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": { "thumbnailSize": 256, "cliName": "in" }
+        }
+      },
+      {
+        "id": "fc-png",
+        "type": "process",
+        "position": { "x": 300, "y": 0 },
+        "data": {
+          "label": "Convert Format",
+          "definitionId": "format_convert",
+          "params": { "format": "PNG", "png_compression": 9, "png_depth": "16", "_enabled": true }
+        }
+      },
+      {
+        "id": "out-png",
+        "type": "imageOutputNode",
+        "position": { "x": 600, "y": 0 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\png",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out-png"
+          }
+        }
+      },
+      {
+        "id": "fc-jpeg",
+        "type": "process",
+        "position": { "x": 300, "y": 230 },
+        "data": {
+          "label": "Convert Format",
+          "definitionId": "format_convert",
+          "params": {
+            "format": "JPEG",
+            "jpeg_quality": 85,
+            "jpeg_sampling": "4:4:4",
+            "jpeg_progressive": true,
+            "_enabled": true
+          }
+        }
+      },
+      {
+        "id": "out-jpeg",
+        "type": "imageOutputNode",
+        "position": { "x": 600, "y": 230 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\jpeg",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out-jpeg"
+          }
+        }
+      },
+      {
+        "id": "fc-webp",
+        "type": "process",
+        "position": { "x": 300, "y": 460 },
+        "data": {
+          "label": "Convert Format",
+          "definitionId": "format_convert",
+          "params": { "format": "WEBP", "webp_lossless": true, "webp_method": 4, "_enabled": true }
+        }
+      },
+      {
+        "id": "out-webp",
+        "type": "imageOutputNode",
+        "position": { "x": 600, "y": 460 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\webp",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out-webp"
+          }
+        }
+      },
+      {
+        "id": "fc-avif",
+        "type": "process",
+        "position": { "x": 300, "y": 690 },
+        "data": {
+          "label": "Convert Format",
+          "definitionId": "format_convert",
+          "params": { "format": "AVIF", "avif_quality": 60, "avif_speed": 8, "_enabled": true }
+        }
+      },
+      {
+        "id": "out-avif",
+        "type": "imageOutputNode",
+        "position": { "x": 600, "y": 690 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\avif",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out-avif"
+          }
+        }
+      },
+      {
+        "id": "fc-tiff",
+        "type": "process",
+        "position": { "x": 300, "y": 920 },
+        "data": {
+          "label": "Convert Format",
+          "definitionId": "format_convert",
+          "params": { "format": "TIFF", "tiff_compression": "LZW", "_enabled": true }
+        }
+      },
+      {
+        "id": "out-tiff",
+        "type": "imageOutputNode",
+        "position": { "x": 600, "y": 920 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\tiff",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out-tiff"
+          }
+        }
+      },
+      {
+        "id": "fc-bmp",
+        "type": "process",
+        "position": { "x": 300, "y": 1150 },
+        "data": {
+          "label": "Convert Format",
+          "definitionId": "format_convert",
+          "params": { "format": "BMP", "_enabled": true }
+        }
+      },
+      {
+        "id": "out-bmp",
+        "type": "imageOutputNode",
+        "position": { "x": 600, "y": 1150 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\bmp",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out-bmp"
+          }
+        }
+      },
+      {
+        "id": "fc-tga",
+        "type": "process",
+        "position": { "x": 300, "y": 1380 },
+        "data": {
+          "label": "Convert Format",
+          "definitionId": "format_convert",
+          "params": { "format": "TGA", "tga_rle": true, "_enabled": true }
+        }
+      },
+      {
+        "id": "out-tga",
+        "type": "imageOutputNode",
+        "position": { "x": 600, "y": 1380 },
+        "data": {
+          "label": "Image Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "custom",
+            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\tga",
+            "overwrite": "overwrite",
+            "generateLog": false,
+            "cliName": "out-tga"
+          }
+        }
+      }
+    ],
+    "edges": [
+      { "id": "e-in-png", "source": "input-1", "sourceHandle": "out-0", "target": "fc-png", "targetHandle": "in-0" },
+      { "id": "e-png-out", "source": "fc-png", "sourceHandle": "out-0", "target": "out-png", "targetHandle": "in-0" },
+      { "id": "e-in-jpeg", "source": "input-1", "sourceHandle": "out-0", "target": "fc-jpeg", "targetHandle": "in-0" },
+      { "id": "e-jpeg-out", "source": "fc-jpeg", "sourceHandle": "out-0", "target": "out-jpeg", "targetHandle": "in-0" },
+      { "id": "e-in-webp", "source": "input-1", "sourceHandle": "out-0", "target": "fc-webp", "targetHandle": "in-0" },
+      { "id": "e-webp-out", "source": "fc-webp", "sourceHandle": "out-0", "target": "out-webp", "targetHandle": "in-0" },
+      { "id": "e-in-avif", "source": "input-1", "sourceHandle": "out-0", "target": "fc-avif", "targetHandle": "in-0" },
+      { "id": "e-avif-out", "source": "fc-avif", "sourceHandle": "out-0", "target": "out-avif", "targetHandle": "in-0" },
+      { "id": "e-in-tiff", "source": "input-1", "sourceHandle": "out-0", "target": "fc-tiff", "targetHandle": "in-0" },
+      { "id": "e-tiff-out", "source": "fc-tiff", "sourceHandle": "out-0", "target": "out-tiff", "targetHandle": "in-0" },
+      { "id": "e-in-bmp", "source": "input-1", "sourceHandle": "out-0", "target": "fc-bmp", "targetHandle": "in-0" },
+      { "id": "e-bmp-out", "source": "fc-bmp", "sourceHandle": "out-0", "target": "out-bmp", "targetHandle": "in-0" },
+      { "id": "e-in-tga", "source": "input-1", "sourceHandle": "out-0", "target": "fc-tga", "targetHandle": "in-0" },
+      { "id": "e-tga-out", "source": "fc-tga", "sourceHandle": "out-0", "target": "out-tga", "targetHandle": "in-0" }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 0.5 }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "version": "1.0",
+  "appVersion": "0.4.3",
+  "createdAt": "2026-07-06T00:00:00.000Z",
+  "modifiedAt": "2026-07-06T00:00:00.000Z",
+  "graph": {
+    "nodes": [
+      {
+        "id": "input-1",
+        "type": "inputNode",
+        "position": { "x": 0, "y": 200 },
+        "data": {
+          "label": "Input",
+          "definitionId": "",
+          "params": { "thumbnailSize": 256, "cliName": "in" }
+        }
+      },
+      {
+        "id": "textOutput-1",
+        "type": "textOutputNode",
+        "position": { "x": 600, "y": 200 },
+        "data": {
+          "label": "Text Output",
+          "definitionId": "",
+          "params": {
+            "outputPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-03\\report.txt",
+            "portIds": ["txo-0", "txo-1", "txo-2", "txo-3", "txo-4"],
+            "nextPortIndex": 5,
+            "separatorType": "comma",
+            "customSeparator": "",
+            "generateLog": false,
+            "cliName": "report",
+            "overwrite": "overwrite"
+          }
+        }
+      },
+      {
+        "id": "prop_name-1",
+        "type": "process",
+        "position": { "x": 250, "y": 100 },
+        "data": {
+          "label": "Name",
+          "definitionId": "prop_name",
+          "params": { "value": "", "strip_extension": false }
+        }
+      },
+      {
+        "id": "prop_bitdepth-1",
+        "type": "process",
+        "position": { "x": 250, "y": 220 },
+        "data": {
+          "label": "Bit Depth",
+          "definitionId": "prop_bitdepth",
+          "params": { "value": 0 }
+        }
+      },
+      {
+        "id": "prop_resolution-1",
+        "type": "process",
+        "position": { "x": 250, "y": 340 },
+        "data": {
+          "label": "Resolution",
+          "definitionId": "prop_resolution",
+          "params": { "dpi_x": 0, "dpi_y": 0 }
+        }
+      },
+      {
+        "id": "prop_exif-1",
+        "type": "process",
+        "position": { "x": 250, "y": 460 },
+        "data": {
+          "label": "EXIF",
+          "definitionId": "prop_exif",
+          "params": {
+            "camera_make": "",
+            "camera_model": "",
+            "lens": "",
+            "exposure_time": "",
+            "shutter_speed": "",
+            "aperture": 0,
+            "iso": 0,
+            "focal_length": 0,
+            "date_taken": ""
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-img",
+        "source": "input-1",
+        "sourceHandle": "out-0",
+        "target": "textOutput-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-name",
+        "source": "prop_name-1",
+        "sourceHandle": "param-out-value",
+        "target": "textOutput-1",
+        "targetHandle": "txo-0"
+      },
+      {
+        "id": "e-depth",
+        "source": "prop_bitdepth-1",
+        "sourceHandle": "param-out-value",
+        "target": "textOutput-1",
+        "targetHandle": "txo-1"
+      },
+      {
+        "id": "e-dpi",
+        "source": "prop_resolution-1",
+        "sourceHandle": "param-out-dpi_x",
+        "target": "textOutput-1",
+        "targetHandle": "txo-2"
+      },
+      {
+        "id": "e-make",
+        "source": "prop_exif-1",
+        "sourceHandle": "param-out-camera_make",
+        "target": "textOutput-1",
+        "targetHandle": "txo-3"
+      }
+    ],
+    "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  }
+}

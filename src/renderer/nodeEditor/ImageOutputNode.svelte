@@ -134,5 +134,4 @@
     text-overflow: ellipsis;
     max-width: 165px;
   }
-
 </style>
