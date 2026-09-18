@@ -249,8 +249,25 @@ echo "==> Signing with identity: $IDENTITY"
 sign_args=(--force --sign "$IDENTITY")
 [[ "$IDENTITY" != "-" ]] && sign_args+=(--options runtime --timestamp)
 
+# Apple's timestamp authority throttles bursts, and this loop is a burst of
+# ~150 requests, so a failure here is usually transient - retry before giving up.
+sign_one() {
+  local f="$1" attempt out
+  for attempt in 1 2 3; do
+    # Capture rather than pipe: a pipeline would report grep's status, not codesign's.
+    if out="$(codesign "${sign_args[@]}" "$f" 2>&1)"; then
+      return 0
+    fi
+    echo "   $(basename "$f"): ${out##*: }" >&2
+    [[ $attempt -lt 3 ]] || break
+    sleep $((attempt * 5))
+  done
+  echo "error: could not sign $f after 3 attempts: $out" >&2
+  return 1
+}
+
 for f in "$DEST"/lib/*.dylib ${MODULES[@]+"${MODULES[@]}"} "$DEST/bin/magick"; do
-  codesign "${sign_args[@]}" "$f"
+  sign_one "$f"
 done
 codesign --verify --strict "$DEST/bin/magick"
 

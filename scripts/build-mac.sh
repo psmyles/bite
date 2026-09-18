@@ -93,22 +93,28 @@ if [[ -z "${APPLE_TEAM_ID:-}" ]]; then
 fi
 
 # Notarization credentials - electron-builder accepts any of these three sets.
+# NOTARIZE_ARGS goes to electron-builder (which notarizes the .app), NOTARY_CREDS
+# to notarytool directly (which notarizes the .dmg afterwards - see below).
 if [[ "$SKIP_NOTARIZE" -eq 1 ]]; then
   NOTARIZE_ARGS=(-c.mac.notarize=false)
+  NOTARY_CREDS=()
   echo "WARNING: --skip-notarize - the dmg will warn on other machines."
 elif [[ -n "${APPLE_KEYCHAIN_PROFILE:-}" ]]; then
   NOTARIZE_ARGS=()
-  xcrun notarytool history --keychain-profile "$APPLE_KEYCHAIN_PROFILE" >/dev/null 2>&1 \
+  NOTARY_CREDS=(--keychain-profile "$APPLE_KEYCHAIN_PROFILE")
+  xcrun notarytool history "${NOTARY_CREDS[@]}" >/dev/null 2>&1 \
     || fail "notarytool cannot use keychain profile '$APPLE_KEYCHAIN_PROFILE'. Re-create it with: xcrun notarytool store-credentials"
 elif [[ -n "${APPLE_ID:-}" || -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]]; then
   NOTARIZE_ARGS=()
   [[ -n "${APPLE_ID:-}" ]] || fail "APPLE_ID is set empty - it is required alongside APPLE_APP_SPECIFIC_PASSWORD."
   [[ -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]] || fail "APPLE_APP_SPECIFIC_PASSWORD is not set (create one at appleid.apple.com)."
+  NOTARY_CREDS=(--apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID")
 elif [[ -n "${APPLE_API_KEY:-}" || -n "${APPLE_API_KEY_ID:-}" || -n "${APPLE_API_ISSUER:-}" ]]; then
   NOTARIZE_ARGS=()
   for var in APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
     [[ -n "${!var:-}" ]] || fail "$var is not set (all three App Store Connect API key vars are required)."
   done
+  NOTARY_CREDS=(--key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER")
 else
   fail "no notarization credentials. Easiest setup, once:
 
@@ -160,13 +166,28 @@ step "Packaging (sign + notarize + staple)"
 npx electron-builder --mac --arm64 ${NOTARIZE_ARGS[@]+"${NOTARIZE_ARGS[@]}"}
 
 # ---------------------------------------------------------------------------
+# The dmg itself
+# ---------------------------------------------------------------------------
+
+DMG="$(ls -t "release/$VERSION"/*.dmg 2>/dev/null | head -1)" || true
+[[ -n "${DMG:-}" ]] || fail "no .dmg in release/$VERSION."
+
+# electron-builder notarizes and staples the .app, then wraps it in a dmg it
+# neither signs nor submits. The app inside is therefore fine, but the container
+# users actually download carries no signature of its own, so Gatekeeper has
+# nothing to check when it is opened. Sign and staple it too.
+if [[ "$SKIP_NOTARIZE" -eq 0 ]]; then
+  step "Signing and notarizing the dmg"
+  codesign --force --sign "$SIGN_IDENTITY" --timestamp "$DMG"
+  xcrun notarytool submit "$DMG" ${NOTARY_CREDS[@]+"${NOTARY_CREDS[@]}"} --wait
+  xcrun stapler staple "$DMG"
+fi
+
+# ---------------------------------------------------------------------------
 # Verify what came out
 # ---------------------------------------------------------------------------
 
 step "Verifying"
-
-DMG="$(ls -t "release/$VERSION"/*.dmg 2>/dev/null | head -1)" || true
-[[ -n "${DMG:-}" ]] || fail "no .dmg in release/$VERSION."
 
 APP="release/$VERSION/mac-arm64/Bite.app"
 [[ -d "$APP" ]] || APP="$(find "release/$VERSION" -maxdepth 2 -name 'Bite.app' -print -quit)"
@@ -180,6 +201,10 @@ fi
 
 if [[ "$SKIP_NOTARIZE" -eq 0 ]]; then
   xcrun stapler validate "$DMG"
+  # --type open --context context:primary-signature is how Gatekeeper assesses a
+  # downloaded disk image; --type execute would assess it as an app and pass
+  # even when the dmg itself is unsigned.
+  spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
 fi
 
 echo
