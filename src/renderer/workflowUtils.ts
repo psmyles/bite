@@ -6,7 +6,7 @@ export { traceInputNodeId } from '../shared/graphTrace.js';
 /**
  * BFS backwards from nodeId through image edges; returns true if a
  * setInputNode is anywhere in the upstream chain.
- * Skips param and string (suf-in-*) wires — only follows image-stream edges.
+ * Skips param and string (suf-in-*) wires - only follows image-stream edges.
  */
 export function hasSetInputInChain(nodes: Node[], edges: Edge[], nodeId: string): boolean {
   const visited = new Set<string>();

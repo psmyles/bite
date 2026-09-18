@@ -9,7 +9,7 @@ vi.mock('../main/pipeline/magick-spawn.js', () => ({
 }));
 
 vi.mock('../main/pipeline/thumbnail-service.js', () => ({
-  TEMP_DIR: '/tmp/imgplex-test',
+  TEMP_DIR: '/tmp/bite-test',
   shortHash: (s: string) => Buffer.from(s).toString('hex').slice(0, 8),
 }));
 

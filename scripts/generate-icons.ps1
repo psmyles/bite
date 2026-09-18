@@ -34,7 +34,7 @@ if (-not (Test-Path $appBuilder)) {
     throw "app-builder.exe not found at $appBuilder (run npm install)"
 }
 
-$work = Join-Path $env:TEMP "imgplex-icon-gen-$([guid]::NewGuid())"
+$work = Join-Path $env:TEMP "bite-icon-gen-$([guid]::NewGuid())"
 New-Item -ItemType Directory -Path $work | Out-Null
 
 try {

@@ -33,55 +33,55 @@ function edge(source: string, target: string, sourceHandle = 'out-0', targetHand
   return { id: `${source}-${target}`, source, target, sourceHandle, targetHandle } as unknown as Edge;
 }
 
-// ── handleToWireType ──────────────────────────────────────────────────────────
+// -- handleToWireType ----------------------------------------------------------
 
 describe('handleToWireType', () => {
-  it('folder-in → path', () => {
+  it('folder-in -> path', () => {
     expect(handleToWireType('n1', 'folder-in', 'target', [])).toBe('path');
   });
 
-  it('prefix-in → string', () => {
+  it('prefix-in -> string', () => {
     expect(handleToWireType('n1', 'prefix-in', 'target', [])).toBe('string');
   });
 
-  it('suf-in-* → string', () => {
+  it('suf-in-* -> string', () => {
     expect(handleToWireType('n1', 'suf-in-0', 'target', [])).toBe('string');
   });
 
-  it('txo-condition → boolean', () => {
+  it('txo-condition -> boolean', () => {
     expect(handleToWireType('n1', 'txo-condition', 'target', [])).toBe('boolean');
   });
 
-  it('txo-anything else → any', () => {
+  it('txo-anything else -> any', () => {
     expect(handleToWireType('n1', 'txo-somevalue', 'target', [])).toBe('any');
   });
 
-  it('param-in-* with float paramDef → number', () => {
+  it('param-in-* with float paramDef -> number', () => {
     const nodes = [paramNode('n1', [{ name: 'brightness', type: 'float' }])];
     expect(handleToWireType('n1', 'param-in-brightness', 'target', nodes)).toBe('number');
   });
 
-  it('param-in-* with bool paramDef → boolean', () => {
+  it('param-in-* with bool paramDef -> boolean', () => {
     const nodes = [paramNode('n1', [{ name: 'enabled', type: 'bool' }])];
     expect(handleToWireType('n1', 'param-in-enabled', 'target', nodes)).toBe('boolean');
   });
 
-  it('param-in-_enabled → boolean (built-in)', () => {
+  it('param-in-_enabled -> boolean (built-in)', () => {
     expect(handleToWireType('n1', 'param-in-_enabled', 'target', [])).toBe('boolean');
   });
 
-  it('image node source handle → image', () => {
+  it('image node source handle -> image', () => {
     const nodes = [imgNode('n1')];
     expect(handleToWireType('n1', 'out-0', 'source', nodes)).toBe('image');
   });
 
-  it('image node target handle → image', () => {
+  it('image node target handle -> image', () => {
     const nodes = [imgNode('n1')];
     expect(handleToWireType('n1', 'in-0', 'target', nodes)).toBe('image');
   });
 });
 
-// ── isValidConnection ─────────────────────────────────────────────────────────
+// -- isValidConnection ---------------------------------------------------------
 
 describe('isValidConnection', () => {
   it('self-loop is rejected', () => {
@@ -89,23 +89,23 @@ describe('isValidConnection', () => {
     expect(isValidConnection(conn('a', 'a'), nodes, [])).toBe(false);
   });
 
-  it('cycle detection: A→B exists, B→A is rejected', () => {
+  it('cycle detection: A->B exists, B->A is rejected', () => {
     const nodes = [imgNode('a'), imgNode('b')];
     const edges = [edge('a', 'b')];
     expect(isValidConnection(conn('b', 'a'), nodes, edges)).toBe(false);
   });
 
-  it('compatible types (image→image) → true', () => {
+  it('compatible types (image->image) -> true', () => {
     const nodes = [imgNode('a'), imgNode('b')];
     expect(isValidConnection(conn('a', 'b'), nodes, [])).toBe(true);
   });
 
-  it('incompatible types (number param out → image in) → false', () => {
+  it('incompatible types (number param out -> image in) -> false', () => {
     const nodes = [paramNode('a', [{ name: 'val', type: 'float' }]), imgNode('b')];
     expect(isValidConnection(conn('a', 'b', 'param-out-val', 'in-0'), nodes, [])).toBe(false);
   });
 
-  it('channel_merge scalar→image in-N special case → true', () => {
+  it('channel_merge scalar->image in-N special case -> true', () => {
     const mergeNode: Node = {
       id: 'merge',
       type: 'default',
@@ -117,7 +117,7 @@ describe('isValidConnection', () => {
     expect(isValidConnection(conn('src', 'merge', 'param-out-val', 'in-0'), nodes, [])).toBe(true);
   });
 
-  it('any port constrained by incompatible wired sibling → false', () => {
+  it('any port constrained by incompatible wired sibling -> false', () => {
     // Target node has two any-typed param inputs: alpha and beta.
     // alpha is already wired from a number source.
     // Connecting an image source to beta should be rejected.
@@ -132,14 +132,14 @@ describe('isValidConnection', () => {
     expect(isValidConnection(conn('img', 'tgt', 'out-0', 'param-in-beta'), nodes, [existingEdge])).toBe(false);
   });
 
-  it('any port with no constrained siblings → true', () => {
+  it('any port with no constrained siblings -> true', () => {
     const src = imgNode('src');
     const target = paramNode('tgt', [{ name: 'input', type: 'any' }]);
     const nodes = [src, target];
     expect(isValidConnection(conn('src', 'tgt', 'out-0', 'param-in-input'), nodes, [])).toBe(true);
   });
 
-  it('compatible number connections → true', () => {
+  it('compatible number connections -> true', () => {
     const a = paramNode('a', [{ name: 'val', type: 'float' }]);
     const b = paramNode('b', [{ name: 'inp', type: 'int' }]);
     const nodes = [a, b];

@@ -1,27 +1,27 @@
 # Node Authoring Guide
 
-Nodes are described by plain JSON files in the `node-definitions/` folder. The app loads them at startup and hot-reloads them automatically on file change — in development **and** in packaged builds (the folder ships as loose JSON files beside the executable). No recompile, no restart required. Drop a new `.json` file into `node-definitions/` and it appears in the Node Library immediately.
+Nodes are described by plain JSON files in the `node-definitions/` folder. The app loads them at startup and hot-reloads them automatically on file change - in development **and** in packaged builds (the folder ships as loose JSON files beside the executable). No recompile, no restart required. Drop a new `.json` file into `node-definitions/` and it appears in the Node Library immediately.
 
 ---
 
 ## Table of Contents
 
-1. [Quickstart — minimal working node](#1-quickstart--minimal-working-node)
+1. [Quickstart - minimal working node](#1-quickstart--minimal-working-node)
 2. [Top-level fields reference](#2-top-level-fields-reference)
 3. [Port definitions (`inputs` / `outputs`)](#3-port-definitions-inputs--outputs)
 4. [Param definitions (`params`)](#4-param-definitions-params)
-5. [command_template — simple ImageMagick nodes](#5-command_template--simple-imagemagick-nodes)
-6. [command_js — conditional ImageMagick args](#6-command_js--conditional-imagemagick-args)
-7. [compute_js — pure-value nodes (no ImageMagick)](#7-compute_js--pure-value-nodes-no-imagemagick)
-8. [needs_image_meta — per-image metadata](#8-needs_image_meta--per-image-metadata)
-9. [params_visibility — show/hide Inspector rows](#9-params_visibility--showhide-inspector-rows)
+5. [command_template - simple ImageMagick nodes](#5-command_template--simple-imagemagick-nodes)
+6. [command_js - conditional ImageMagick args](#6-command_js--conditional-imagemagick-args)
+7. [compute_js - pure-value nodes (no ImageMagick)](#7-compute_js--pure-value-nodes-no-imagemagick)
+8. [needs_image_meta - per-image metadata](#8-needs_image_meta--per-image-metadata)
+9. [params_visibility - show/hide Inspector rows](#9-params_visibility--showhide-inspector-rows)
 10. [Worked examples](#10-worked-examples)
 11. [Limitations and known constraints](#11-limitations-and-known-constraints)
 12. [Format definitions (`format-definitions/`)](#12-format-definitions-format-definitions)
 
 ---
 
-## 1. Quickstart — minimal working node
+## 1. Quickstart - minimal working node
 
 The smallest possible image-processing node needs six fields:
 
@@ -45,13 +45,13 @@ Save it as `node-definitions/auto-orient.json` and it will appear in the **Trans
 
 | Field               | Type              | Required     | Description                                                                                                                                                                                                                              |
 | ------------------- | ----------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                | string            | **yes**      | Unique identifier. Snake_case. Never reuse an ID — the executor router, CLI exporter, and graph files all key on it.                                                                                                                     |
+| `id`                | string            | **yes**      | Unique identifier. Snake_case. Never reuse an ID - the executor router, CLI exporter, and graph files all key on it.                                                                                                                     |
 | `version`           | string            | no           | Semantic version string (e.g. `"1.0.0"`). Not enforced, but useful for tracking breaking changes in saved workflows.                                                                                                                     |
 | `label`             | string            | **yes**      | Display name shown in the Node Library and on the node card header.                                                                                                                                                                      |
 | `description`       | string            | no           | Tooltip text shown on a 1-second hover of the node header. Keep it to one sentence.                                                                                                                                                      |
-| `category`          | string            | **yes**      | Node Library group. Any string is valid — a new string creates a new category. Existing categories: `Source`, `Transform`, `Color`, `Filters`, `FX`, `Channels`, `Format`, `Output`, `Logic`, `Properties`, `Values`, `Math`, `Utility`. |
+| `category`          | string            | **yes**      | Node Library group. Any string is valid - a new string creates a new category. Existing categories: `Source`, `Transform`, `Color`, `Filters`, `FX`, `Channels`, `Format`, `Output`, `Logic`, `Properties`, `Values`, `Math`, `Utility`. |
 | `aliases`           | string[]          | no           | Alternate names matched by the Node Library and context-menu search (e.g. Negate declares `"invert"`, `"flip colors"`). Helps users find a node without knowing its exact label.                                                         |
-| `icon`              | string            | no           | Reserved. Accepted by the schema but not currently rendered anywhere in the UI — safe to omit.                                                                                                                                           |
+| `icon`              | string            | no           | Reserved. Accepted by the schema but not currently rendered anywhere in the UI - safe to omit.                                                                                                                                           |
 | `inputs`            | PortDefinition[]  | **yes**      | Upstream image/path ports on the left side. Use `[]` for source nodes (no image input).                                                                                                                                                  |
 | `outputs`           | PortDefinition[]  | **yes**      | Downstream image/path ports on the right side. Use `[]` for pure-value nodes.                                                                                                                                                            |
 | `params`            | ParamDefinition[] | **yes**      | Inspector and wire-connectable parameters. Can be `[]`.                                                                                                                                                                                  |
@@ -60,10 +60,10 @@ Save it as `node-definitions/auto-orient.json` and it will appear in the **Trans
 | `executor`          | string            | one of these | Key for a hardcoded TypeScript executor (reserved for built-in complex nodes).                                                                                                                                                           |
 | `compute_js`        | string            | no           | JS function body returning `Record<string, unknown>` of output values. Pure-value nodes only (no image ports). Alternative to `executor` for custom math/logic.                                                                          |
 | `needs_image_meta`  | boolean           | no           | Set `true` to receive per-image metadata (dimensions, name, EXIF, etc.) in `compute_js`. Only meaningful for pure-value nodes that read file properties.                                                                                 |
-| `params_visibility` | VisibilityRule[]  | no           | Inspector show/hide rules — hides a param row when another param has a specific value.                                                                                                                                                   |
+| `params_visibility` | VisibilityRule[]  | no           | Inspector show/hide rules - hides a param row when another param has a specific value.                                                                                                                                                   |
 
 **Exactly one** of `command_template`, `command_js`, or `executor` must be present on any image node.
-Pure-value nodes (empty `inputs` and `outputs`) use `executor` or `compute_js` — not `command_template` / `command_js`.
+Pure-value nodes (empty `inputs` and `outputs`) use `executor` or `compute_js` - not `command_template` / `command_js`.
 
 ---
 
@@ -79,7 +79,7 @@ Each entry in `inputs` and `outputs` is an object with two fields:
 
 | Type     | Color            | Use for                                      |
 | -------- | ---------------- | -------------------------------------------- |
-| `image`  | Orange `#ff8c3f` | Pixel data — the main image pipeline         |
+| `image`  | Orange `#ff8c3f` | Pixel data - the main image pipeline         |
 | `mask`   | Purple `#d8a4fc` | Grayscale mask (treated as image internally) |
 | `path`   | Yellow-green     | File system path string                      |
 | `number` | Cyan `#22d3ee`   | Numeric values (rarely used as image ports)  |
@@ -101,7 +101,7 @@ Nodes can have more than one output port. Each gets its own handle, indexed from
 ]
 ```
 
-This creates four handles (`out-0` through `out-3`). Multi-output nodes require a hardcoded TypeScript executor — `command_template` and `command_js` produce a single output only.
+This creates four handles (`out-0` through `out-3`). Multi-output nodes require a hardcoded TypeScript executor - `command_template` and `command_js` produce a single output only.
 
 ---
 
@@ -115,7 +115,7 @@ Each entry in the `params` array describes one parameter: its data type, the Ins
 | ---------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`     | string                                  | Internal identifier. Snake_case. Becomes the `{{name}}` placeholder in `command_template` and the key in `params` passed to `command_js` / `compute_js`.                                              |
 | `label`    | string                                  | Display name shown in the Inspector and on the port row.                                                                                                                                              |
-| `type`     | ParamType                               | Data type — controls wire color and type-checking. See type table below.                                                                                                                              |
+| `type`     | ParamType                               | Data type - controls wire color and type-checking. See type table below.                                                                                                                              |
 | `widget`   | WidgetType                              | Inspector control. See widget table below. Can be omitted when `readonly: true` and `portOnly: true` (display-only port).                                                                             |
 | `default`  | number \| string \| boolean \| number[] | Initial value when the node is placed. Must be compatible with `type`.                                                                                                                                |
 | `min`      | number                                  | Lower bound for numeric types. Enforced by `slider` and `number` widgets.                                                                                                                             |
@@ -123,8 +123,8 @@ Each entry in the `params` array describes one parameter: its data type, the Ins
 | `step`     | number                                  | Increment step for `slider` and `number` widgets. Defaults to `1` for `int`, `0.01` for `float`.                                                                                                      |
 | `options`  | string[]                                | Required for `enum` type. The dropdown option list. The stored value is one of these strings.                                                                                                         |
 | `readonly` | boolean                                 | If `true`: right-side output handle only; no input handle. In the Inspector the widget is display-only (shows the value but the user cannot edit it). Use for computed outputs like `result`.         |
-| `portOnly` | boolean                                 | If `true`: the param is rendered only as a right-side port handle — no row in the node body, no Inspector row. Use for derived multi-output params (e.g. RGBA component outputs). Implies `readonly`. |
-| `noPort`   | boolean                                 | If `true`: Inspector row and widget only — no wire handle at all. Use for params that are UI-only (e.g. a color picker that controls the node's display but is never wired).                          |
+| `portOnly` | boolean                                 | If `true`: the param is rendered only as a right-side port handle - no row in the node body, no Inspector row. Use for derived multi-output params (e.g. RGBA component outputs). Implies `readonly`. |
+| `noPort`   | boolean                                 | If `true`: Inspector row and widget only - no wire handle at all. Use for params that are UI-only (e.g. a color picker that controls the node's display but is never wired).                          |
 
 ### Param types
 
@@ -132,11 +132,11 @@ Each entry in the `params` array describes one parameter: its data type, the Ins
 | --------- | --------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
 | `int`     | integer number                          | Cyan       | Parsed with `parseInt`. Slider snaps to whole numbers.                                                       |
 | `float`   | decimal number                          | Cyan       | Parsed with `parseFloat`.                                                                                    |
-| `numeric` | number or number[]                      | Near-white | Accepts int, float, vector, or color — use for math nodes that should accept anything numeric.               |
+| `numeric` | number or number[]                      | Near-white | Accepts int, float, vector, or color - use for math nodes that should accept anything numeric.               |
 | `string`  | string                                  | Green      | Plain text.                                                                                                  |
 | `enum`    | string                                  | Green      | One of the `options` values. Always use a `dropdown` widget.                                                 |
 | `bool`    | boolean                                 | Yellow     | `true` / `false`. Use a `checkbox` widget.                                                                   |
-| `color`   | `"#rrggbb"` string or `[r,g,b,a]` array | Pink       | Use `"#rrggbb"` default for `color-picker` widget; use `[r,g,b,a]` (0–1 floats) default for `vector` widget. |
+| `color`   | `"#rrggbb"` string or `[r,g,b,a]` array | Pink       | Use `"#rrggbb"` default for `color-picker` widget; use `[r,g,b,a]` (0-1 floats) default for `vector` widget. |
 | `vector2` | `[x, y]`                                | Amber      | 2-component float array.                                                                                     |
 | `vector3` | `[x, y, z]`                             | Indigo     | 3-component float array.                                                                                     |
 | `vector4` | `[x, y, z, w]`                          | Teal       | 4-component float array.                                                                                     |
@@ -156,7 +156,7 @@ Each entry in the `params` array describes one parameter: its data type, the Ins
 
 ---
 
-## 5. `command_template` — simple ImageMagick nodes
+## 5. `command_template` - simple ImageMagick nodes
 
 `command_template` is a string of ImageMagick arguments with `{{param_name}}` placeholders. On execution, each placeholder is replaced by the current (or default) value of the matching param, then the whole string is split on whitespace and appended to the `magick` invocation.
 
@@ -167,16 +167,16 @@ magick <input_file>  <command_template args>  <output_file>
 ### Rules
 
 - **One template per node.** The template produces all arguments for the node. It cannot branch or loop.
-- **Split first, substitute second.** The template string is split on whitespace into words, then `{{param}}` placeholders are substituted within each word. Each template word becomes exactly one argument token — no shell quoting is performed. Adjacent literal+param text stays one token (`{{w}}x{{h}}` → `1024x768`), and a multi-word param value (e.g. `rgba(0, 0, 0, 1)` or a font name like `Open Sans`) stays a **single** token rather than being split.
+- **Split first, substitute second.** The template string is split on whitespace into words, then `{{param}}` placeholders are substituted within each word. Each template word becomes exactly one argument token - no shell quoting is performed. Adjacent literal+param text stays one token (`{{w}}x{{h}}` -> `1024x768`), and a multi-word param value (e.g. `rgba(0, 0, 0, 1)` or a font name like `Open Sans`) stays a **single** token rather than being split.
 - **Fallback to default.** If a param name has no current value, its `default` is used. If `default` is also absent, the placeholder becomes an empty string; a word that ends up entirely empty is dropped from the argument list.
-- **All values are stringified.** Numbers, booleans, and arrays are converted via `String()`. For arrays (vector/color types) this produces a comma-separated list — which is rarely what ImageMagick expects. Avoid using vector params directly in `command_template`; use `command_js` instead.
-- **Literal `%` signs.** ImageMagick uses `%` as a format-string prefix. In templates representing percentage values, write the literal `%` directly: `"-level {{black_point}}%,{{white_point}}%"`. The shell is not involved — no escaping needed beyond what ImageMagick expects.
+- **All values are stringified.** Numbers, booleans, and arrays are converted via `String()`. For arrays (vector/color types) this produces a comma-separated list - which is rarely what ImageMagick expects. Avoid using vector params directly in `command_template`; use `command_js` instead.
+- **Literal `%` signs.** ImageMagick uses `%` as a format-string prefix. In templates representing percentage values, write the literal `%` directly: `"-level {{black_point}}%,{{white_point}}%"`. The shell is not involved - no escaping needed beyond what ImageMagick expects.
 
 ### Examples
 
 | Template                                             | ImageMagick docs       | Effect                                               |
 | ---------------------------------------------------- | ---------------------- | ---------------------------------------------------- |
-| `"-blur 0x{{sigma}}"`                                | `-blur radius×sigma`   | Gaussian blur                                        |
+| `"-blur 0x{{sigma}}"`                                | `-blur radiusxsigma`   | Gaussian blur                                        |
 | `"-brightness-contrast {{brightness}}x{{contrast}}"` | `-brightness-contrast` | Brightness/contrast                                  |
 | `"-level {{black}}%,{{white}}%,{{gamma}}"`           | `-level`               | Black/white point + gamma                            |
 | `"-crop {{w}}x{{h}}+{{x}}+{{y}} +repage"`            | `-crop`                | Crop + reset canvas origin                           |
@@ -185,11 +185,11 @@ magick <input_file>  <command_template args>  <output_file>
 
 ---
 
-## 6. `command_js` — conditional ImageMagick args
+## 6. `command_js` - conditional ImageMagick args
 
-When the arguments depend on logic that `command_template`'s dumb substitution cannot express — conditional flags, computed geometry, string concatenation — use `command_js` instead.
+When the arguments depend on logic that `command_template`'s dumb substitution cannot express - conditional flags, computed geometry, string concatenation - use `command_js` instead.
 
-`command_js` is the **body** of a JavaScript function. The function receives a single argument named `params` (a `Record<string, unknown>` of the fully-resolved param values) and **must return `string[]`** — a flat array of ImageMagick argument tokens, one token per string, ready to spread into `spawn()`.
+`command_js` is the **body** of a JavaScript function. The function receives a single argument named `params` (a `Record<string, unknown>` of the fully-resolved param values) and **must return `string[]`** - a flat array of ImageMagick argument tokens, one token per string, ready to spread into `spawn()`.
 
 ```json
 "command_js": "return ['-some-flag', String(params.value)]"
@@ -210,18 +210,18 @@ The sandbox is minimal: only `params` is in scope. No `require`, no `fs`, no glo
 
 ### Return value requirements
 
-- Must be `string[]` — an array where every element is a string.
+- Must be `string[]` - an array where every element is a string.
 - Each element is one whitespace-separated token as you would write it in a shell. Do **not** include shell quotes; they are not interpreted. Write `"50x50"` not `'"50x50"'`.
 - Return `[]` to emit no arguments (pass-through with no operation).
 - Throwing an error cancels processing for that image and logs the error to the console.
 
 ---
 
-## 7. `compute_js` — pure-value nodes (no ImageMagick)
+## 7. `compute_js` - pure-value nodes (no ImageMagick)
 
 Pure-value nodes have empty `inputs: []` and `outputs: []` arrays. They perform computation in JavaScript (no ImageMagick spawning) and expose their outputs via `readonly` params connected to downstream nodes via param-wires.
 
-`compute_js` is the **body** of a JavaScript function. It receives `params` (the current resolved param values) and **must return a plain `Record<string, unknown>`** — an object mapping param names to their new output values. The returned values are merged back into `params` and forwarded to downstream wires.
+`compute_js` is the **body** of a JavaScript function. It receives `params` (the current resolved param values) and **must return a plain `Record<string, unknown>`** - an object mapping param names to their new output values. The returned values are merged back into `params` and forwarded to downstream wires.
 
 ```json
 "compute_js": "return { result: params.a + params.b }"
@@ -236,12 +236,12 @@ Use it for any custom pure math or logic that the built-in executor keys (`math_
 ### Return value requirements
 
 - Must be a plain object (`{}`). Arrays and primitives are rejected.
-- Keys must match param `name` values of `readonly` params — those are the output ports that downstream nodes can wire to.
+- Keys must match param `name` values of `readonly` params - those are the output ports that downstream nodes can wire to.
 - You do not need to include non-output params in the return value; the engine merges your return with the existing `params`.
 
 ---
 
-## 8. `needs_image_meta` — per-image metadata
+## 8. `needs_image_meta` - per-image metadata
 
 For pure-value nodes that read per-image properties (like the built-in Properties nodes), set:
 
@@ -249,16 +249,16 @@ For pure-value nodes that read per-image properties (like the built-in Propertie
 "needs_image_meta": true
 ```
 
-This opts the node into the per-image metadata loading path. Without this flag, `compute_js` receives only the static param values from the Inspector — no image information.
+This opts the node into the per-image metadata loading path. Without this flag, `compute_js` receives only the static param values from the Inspector - no image information.
 
 **What metadata is available via `needs_image_meta`:**
-The built-in Properties nodes cover all available metadata fields: file name, file path, pixel dimensions (width/height), file size in bytes, bit depth, file type/format, DPI resolution, and raw EXIF tags. Custom `compute_js` nodes with `needs_image_meta: true` currently receive static params only — metadata fields are not yet injected into the `params` object for custom nodes. This flag primarily prevents the executor from skipping the `magick identify` call, which is a prerequisite for any future metadata injection.
+The built-in Properties nodes cover all available metadata fields: file name, file path, pixel dimensions (width/height), file size in bytes, bit depth, file type/format, DPI resolution, and raw EXIF tags. Custom `compute_js` nodes with `needs_image_meta: true` currently receive static params only - metadata fields are not yet injected into the `params` object for custom nodes. This flag primarily prevents the executor from skipping the `magick identify` call, which is a prerequisite for any future metadata injection.
 
 > **Practical advice:** If you need per-image metadata in a custom node today, chain it after a built-in Properties node (Name, Dimensions, etc.) and wire the output value to your node's input param. That is simpler than building a custom `needs_image_meta` node.
 
 ---
 
-## 9. `params_visibility` — show/hide Inspector rows
+## 9. `params_visibility` - show/hide Inspector rows
 
 `params_visibility` is an array of rules that control which param rows are visible in the Inspector depending on the current value of another param. This is useful for showing advanced options only when a particular mode is selected.
 
@@ -276,15 +276,15 @@ Each rule object has:
 | `when.param` | The `name` of the controlling param.                                                           |
 | `when.eq`    | The value the controlling param must equal for the row to be visible. Strict equality (`===`). |
 
-Rules are applied only in the Inspector — they do not affect port handles or `command_template` substitution. A param hidden by a visibility rule still participates in command building using its current (or default) value.
+Rules are applied only in the Inspector - they do not affect port handles or `command_template` substitution. A param hidden by a visibility rule still participates in command building using its current (or default) value.
 
-A param with no matching rule is always visible. Only one rule per `show` name is evaluated — the first match wins.
+A param with no matching rule is always visible. Only one rule per `show` name is evaluated - the first match wins.
 
 ---
 
 ## 10. Worked examples
 
-### Example A — Posterize (simple `command_template`)
+### Example A - Posterize (simple `command_template`)
 
 Posterize reduces each channel to a fixed number of distinct levels, creating a flat graphic art effect. The ImageMagick argument is `-posterize <levels>`.
 
@@ -323,7 +323,7 @@ magick input.png  -posterize 4  output.png
 
 ---
 
-### Example B — Add Noise (`command_js` with enum → conditional arg)
+### Example B - Add Noise (`command_js` with enum -> conditional arg)
 
 ImageMagick's noise injection uses two arguments: an optional `-attenuate <amount>` to scale the intensity, followed by `+noise <Type>` where `Type` is one of `Gaussian`, `Impulse`, `Laplacian`, `Multiplicative`, `Poisson`, `Random`, or `Uniform`.
 
@@ -390,9 +390,9 @@ return args;
 
 ---
 
-### Example C — Remap Range (`compute_js` pure-value node)
+### Example C - Remap Range (`compute_js` pure-value node)
 
-This node linearly remaps an input value from one numeric range to another — for example, turning a 0–255 byte value into a 0–1 normalised float, or mapping a 0–1 value to a custom decibel range. No ImageMagick involvement.
+This node linearly remaps an input value from one numeric range to another - for example, turning a 0-255 byte value into a 0-1 normalised float, or mapping a 0-1 value to a custom decibel range. No ImageMagick involvement.
 
 ```json
 {
@@ -467,7 +467,7 @@ The `value` param has no `readonly` or `portOnly` flag, so it appears as an **in
 
 ---
 
-### Example D — Adaptive Resize with `params_visibility`
+### Example D - Adaptive Resize with `params_visibility`
 
 Demonstrates hiding a param row depending on another param's value. When `mode` is `"pixels"` the `scale` slider is hidden; when `mode` is `"percent"` the `pixels` input is hidden.
 
@@ -517,7 +517,7 @@ Demonstrates hiding a param row depending on another param's value. When `mode` 
 }
 ```
 
-When the user selects **percent** in the dropdown, the **Size (px)** row disappears and the **Scale (%)** slider appears. The hidden row's value is still substituted in the command (using its current or default value) — visibility rules only affect the Inspector display.
+When the user selects **percent** in the dropdown, the **Size (px)** row disappears and the **Scale (%)** slider appears. The hidden row's value is still substituted in the command (using its current or default value) - visibility rules only affect the Inspector display.
 
 ---
 
@@ -537,9 +537,9 @@ Use `command_js` for any of the above.
 
 - Only `params` is in scope. No Node.js modules (`fs`, `path`, `child_process`, etc.).
 - Standard JS globals are available: `Math`, `Number`, `String`, `Array`, `Object`, `JSON`, `parseInt`, `parseFloat`, template literals, destructuring.
-- Do not rely on `this` — the function is called as a plain function, not a method.
+- Do not rely on `this` - the function is called as a plain function, not a method.
 - Errors thrown inside the body propagate as processing errors for that image. The batch continues; the failed image is counted in the error summary.
-- The body is a string stored in the JSON file, evaluated once per image via `new Function('params', body)`. Keep it fast — it runs for every image in the batch.
+- The body is a string stored in the JSON file, evaluated once per image via `new Function('params', body)`. Keep it fast - it runs for every image in the batch.
 
 ### Multi-output nodes require a TypeScript executor
 
@@ -561,13 +561,13 @@ For new custom logic, use `command_js` (image nodes) or `compute_js` (pure-value
 
 ## 12. Format definitions (`format-definitions/`)
 
-Output-format encoding settings live in a sibling JSON system: one file per format in `format-definitions/` (`jpeg.json`, `png.json`, `webp.json`, `avif.json`, `tiff.json`, `bmp.json`, `tga.json`). The **Convert Format** node's own definition carries only the format dropdown — every encoding control (JPEG quality, WebP lossless toggle, PNG compression level, …) comes from the matching format definition at runtime.
+Output-format encoding settings live in a sibling JSON system: one file per format in `format-definitions/` (`jpeg.json`, `png.json`, `webp.json`, `avif.json`, `tiff.json`, `bmp.json`, `tga.json`). The **Convert Format** node's own definition carries only the format dropdown - every encoding control (JPEG quality, WebP lossless toggle, PNG compression level, ...) comes from the matching format definition at runtime.
 
 Each file is a `FormatDefinition`:
 
 | Field               | Type              | Description                                                                                                                                         |
 | ------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                | string            | Uppercase format name (e.g. `"JPEG"`) — the lookup key selected by the Convert Format dropdown.                                                     |
+| `id`                | string            | Uppercase format name (e.g. `"JPEG"`) - the lookup key selected by the Convert Format dropdown.                                                     |
 | `extension`         | string            | Canonical output file extension including the dot (e.g. `".jpg"`).                                                                                  |
 | `params`            | ParamDefinition[] | Encoding params rendered in the Convert Format inspector. Same shape and widgets as node params (`slider`, `dropdown`, `checkbox`).                 |
 | `params_visibility` | VisibilityRule[]  | Optional show/hide rules, same syntax as [section 9](#9-params_visibility--showhide-inspector-rows) (e.g. WebP hides Quality when Lossless is on).  |
@@ -596,4 +596,4 @@ Example (`webp.json`, abridged):
 }
 ```
 
-**One important difference from node definitions:** format definitions are loaded via `import.meta.glob` and **bundled into the app at build time**. In dev they hot-reload like everything else under Vite, but in a packaged build adding or changing a format requires a rebuild — they are not loose runtime-loaded files the way `node-definitions/` are. No TypeScript changes are needed either way; `args_js` runs in the main process under the same trust model as `command_js` / `compute_js`.
+**One important difference from node definitions:** format definitions are loaded via `import.meta.glob` and **bundled into the app at build time**. In dev they hot-reload like everything else under Vite, but in a packaged build adding or changing a format requires a rebuild - they are not loose runtime-loaded files the way `node-definitions/` are. No TypeScript changes are needed either way; `args_js` runs in the main process under the same trust model as `command_js` / `compute_js`.

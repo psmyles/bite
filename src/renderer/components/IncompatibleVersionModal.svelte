@@ -11,7 +11,7 @@
   } = $props();
 
   function viewReleases() {
-    const url = 'https://github.com/psmyles/imgplex/releases';
+    const url = 'https://github.com/psmyles/bite/releases';
     if (IS_ELECTRON) window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url);
     else window.open(url, '_blank');
   }
@@ -34,16 +34,16 @@
     <div class="dialog-body">
       {#if fileVersion}
         <p class="dialog-desc">
-          This workflow was created with imgplex <strong>v{fileVersion}</strong>, which is not compatible with the
-          current version (<strong>v{__APP_VERSION__}</strong>).
+          This workflow was created with Bite <strong>v{fileVersion}</strong>, which is not compatible with the current
+          version (<strong>v{__APP_VERSION__}</strong>).
         </p>
       {:else}
         <p class="dialog-desc">
-          This workflow was created with an older version of imgplex that does not include version information. It is
-          not compatible with the current version (<strong>v{__APP_VERSION__}</strong>).
+          This workflow was created with an older version of Bite that does not include version information. It is not
+          compatible with the current version (<strong>v{__APP_VERSION__}</strong>).
         </p>
       {/if}
-      <p class="dialog-desc">Please download an older compatible version of imgplex from GitHub to open this file.</p>
+      <p class="dialog-desc">Please download an older compatible version of Bite from GitHub to open this file.</p>
     </div>
 
     <div class="dialog-footer">

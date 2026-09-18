@@ -122,7 +122,7 @@
     user-select: none;
   }
 
-  /* ── Slider ── */
+  /* -- Slider -- */
   .slider-wrap {
     display: flex;
     align-items: center;

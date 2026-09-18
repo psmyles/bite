@@ -56,7 +56,7 @@
   const fbUnfilled = $derived(fbCellCount > fbImgCount);
   const generateLog = $derived(Boolean(params.generateLog ?? false));
 
-  // ── BG color wiring ───────────────────────────────────────────────────────
+  // -- BG color wiring -------------------------------------------------------
 
   const bgColorWired = $derived(
     graphStore.edges.some((e) => e.target === selectedNode.id && e.targetHandle === 'param-in-bgColor')
@@ -70,7 +70,7 @@
     if (!src) return fbBgColor;
     const srcParams = getNodeParams(src.data);
     const srcParamName = (edge.sourceHandle ?? '').replace('param-out-', '');
-    // value_color stores the colour in 'color'; computed outputs (rgba, rgb…) aren't in params
+    // value_color stores the colour in 'color'; computed outputs (rgba, rgb...) aren't in params
     const val = srcParams[srcParamName] ?? srcParams['color'];
     return Array.isArray(val) ? (val as number[]) : fbBgColor;
   });
@@ -93,7 +93,7 @@
 </script>
 
 <div class="flipbook-inspector">
-  <!-- ── CLI Name ──────────────────────────────────────────────── -->
+  <!-- -- CLI Name ------------------------------------------------ -->
   <div class="section">
     <div class="section-title">CLI Name</div>
     <input
@@ -115,7 +115,7 @@
     </span>
   </div>
 
-  <!-- ── Output File ─────────────────────────────────────────── -->
+  <!-- -- Output File ------------------------------------------- -->
   <div class="section">
     <div class="section-title">Output File</div>
     <div class="path-row">
@@ -123,15 +123,16 @@
         type="text"
         class="text-input path-input"
         value={fbOutputPath}
-        placeholder="Enter file path…"
+        placeholder="Enter file path..."
         oninput={(e) =>
           graphStore.setParam(selectedNode.id, 'flipbookOutputPath', (e.target as HTMLInputElement).value)}
       />
-      {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFlipbookOutput} title="Browse…">…</button>{/if}
+      {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFlipbookOutput} title="Browse...">...</button
+        >{/if}
     </div>
   </div>
 
-  <!-- ── Overwrite ─────────────────────────────────────────── -->
+  <!-- -- Overwrite ------------------------------------------- -->
   <div class="section">
     <div class="section-title">Overwrite</div>
     <Dropdown
@@ -142,7 +143,7 @@
     />
   </div>
 
-  <!-- ── Grid ────────────────────────────────────────────────── -->
+  <!-- -- Grid -------------------------------------------------- -->
   <div class="section">
     <div class="section-title">Grid</div>
     <div class="two-col">
@@ -207,18 +208,18 @@
     </div>
   </div>
 
-  <!-- ── Sort Order ──────────────────────────────────────────── -->
+  <!-- -- Sort Order -------------------------------------------- -->
   <div class="section">
     <div class="section-title">Sort Order</div>
     <Dropdown
       value={fbSortBy}
       options={['import_order', 'name', 'name_desc']}
-      labels={['Import order', 'File name (A→Z)', 'File name (Z→A)']}
+      labels={['Import order', 'File name (A->Z)', 'File name (Z->A)']}
       onchange={(v) => graphStore.setParam(selectedNode.id, 'sortBy', v)}
     />
   </div>
 
-  <!-- ── Background Color ──────────────────────────────────────── -->
+  <!-- -- Background Color ---------------------------------------- -->
   <div class="section section--color">
     <div class="section-title">
       Background Color
@@ -231,23 +232,23 @@
     />
   </div>
 
-  <!-- ── Atlas Summary ───────────────────────────────────────── -->
+  <!-- -- Atlas Summary ----------------------------------------- -->
   <div class="summary-box">
     <div class="summary-row">
       <span class="summary-key">Atlas size</span>
-      <span class="summary-val">{fbAtlasW} × {fbAtlasH} px</span>
+      <span class="summary-val">{fbAtlasW} x {fbAtlasH} px</span>
     </div>
     <div class="summary-row">
       <span class="summary-key">Cells</span>
-      <span class="summary-val">{fbCellCount} ({fbCols} × {fbRows})</span>
+      <span class="summary-val">{fbCellCount} ({fbCols} x {fbRows})</span>
     </div>
     <div class="summary-row">
       <span class="summary-key">Images</span>
       <span class="summary-val" class:warn={fbTruncated || fbUnfilled}>
         {fbImgCount} loaded
-        {#if fbTruncated}— {fbImgCount - fbCellCount} will be truncated{/if}
+        {#if fbTruncated}- {fbImgCount - fbCellCount} will be truncated{/if}
         {#if fbUnfilled}
-          — {fbCellCount - fbImgCount} cells:
+          - {fbCellCount - fbImgCount} cells:
           {#if bgIsTransparent}
             transparent
           {:else}
@@ -258,7 +259,7 @@
     </div>
   </div>
 
-  <!-- ── Output Log ──────────────────────────────────────────── -->
+  <!-- -- Output Log -------------------------------------------- -->
   <div class="section">
     <div class="section-title">Output Log</div>
     <label class="log-toggle">
@@ -278,7 +279,7 @@
     flex-direction: column;
   }
 
-  /* ── Section layout ── */
+  /* -- Section layout -- */
   .section {
     padding: 10px 12px;
     border-bottom: 1px solid var(--node-border);
@@ -339,7 +340,7 @@
     user-select: none;
   }
 
-  /* ── Path row ── */
+  /* -- Path row -- */
   .path-row {
     display: flex;
     gap: 4px;
@@ -351,7 +352,7 @@
     min-width: 0;
   }
 
-  /* ── Background color ── */
+  /* -- Background color -- */
   .section--color {
     padding: 10px 0;
     gap: 4px;
@@ -374,7 +375,7 @@
     line-height: 14px;
   }
 
-  /* ── Summary inline swatch ── */
+  /* -- Summary inline swatch -- */
   .summary-swatch {
     display: inline-block;
     width: 10px;
@@ -385,7 +386,7 @@
     margin: 0 2px 1px;
   }
 
-  /* ── Number inputs ── */
+  /* -- Number inputs -- */
   .num-input {
     width: 100%;
     -moz-appearance: textfield;
@@ -396,7 +397,7 @@
     -webkit-appearance: none;
   }
 
-  /* ── Atlas summary ── */
+  /* -- Atlas summary -- */
   .summary-box {
     margin: 8px 12px;
     background: color-mix(in srgb, var(--border) 20%, transparent);

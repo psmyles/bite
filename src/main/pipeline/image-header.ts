@@ -3,7 +3,7 @@ import path from 'node:path';
 
 const JPEG_SOF_MARKERS = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
 const TGA_VALID_TYPES = new Set([0, 1, 2, 3, 9, 10, 11]);
-const HEADER_READ_BYTES = 131072; // 128 KB — covers EXIF/APP markers before SOF in virtually all JPEGs
+const HEADER_READ_BYTES = 131072; // 128 KB - covers EXIF/APP markers before SOF in virtually all JPEGs
 
 export interface HeaderDims {
   width: number;
@@ -20,13 +20,13 @@ export async function readHeaderDimensions(filePath: string): Promise<HeaderDims
     const { bytesRead } = await fd.read(buf, 0, HEADER_READ_BYTES, 0);
     if (bytesRead < 12) return null;
 
-    // ── PNG ──────────────────────────────────────────────────────────────────
+    // -- PNG ------------------------------------------------------------------
     if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
       if (bytesRead < 24) return null;
       return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20), isJpeg: false, format: 'PNG' };
     }
 
-    // ── BMP ──────────────────────────────────────────────────────────────────
+    // -- BMP ------------------------------------------------------------------
     if (buf[0] === 0x42 && buf[1] === 0x4d) {
       // "BM"
       if (bytesRead < 26) return null;
@@ -36,7 +36,7 @@ export async function readHeaderDimensions(filePath: string): Promise<HeaderDims
       return null;
     }
 
-    // ── WEBP ─────────────────────────────────────────────────────────────────
+    // -- WEBP -----------------------------------------------------------------
     if (
       buf[0] === 0x52 &&
       buf[1] === 0x49 &&
@@ -70,7 +70,7 @@ export async function readHeaderDimensions(filePath: string): Promise<HeaderDims
       return null;
     }
 
-    // ── JPEG ─────────────────────────────────────────────────────────────────
+    // -- JPEG -----------------------------------------------------------------
     if (buf[0] === 0xff && buf[1] === 0xd8) {
       let pos = 2;
       while (pos + 1 < bytesRead) {
@@ -92,8 +92,8 @@ export async function readHeaderDimensions(filePath: string): Promise<HeaderDims
       return null;
     }
 
-    // ── TGA ──────────────────────────────────────────────────────────────────
-    // No universal magic bytes — detect by extension + header validation
+    // -- TGA ------------------------------------------------------------------
+    // No universal magic bytes - detect by extension + header validation
     const extLower = path.extname(filePath).toLowerCase();
     if (extLower === '.tga' || extLower === '.targa') {
       if (bytesRead < 16) return null;

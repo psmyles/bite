@@ -14,7 +14,7 @@ import {
   type ImageMeta,
 } from '../main/pipeline/executor-compute.js';
 
-// ── numericRaw ────────────────────────────────────────────────────────────────
+// -- numericRaw ----------------------------------------------------------------
 
 describe('numericRaw', () => {
   it('converts number to number', () => expect(numericRaw(5)).toBe(5));
@@ -28,7 +28,7 @@ describe('numericRaw', () => {
   });
 });
 
-// ── numericAdd ────────────────────────────────────────────────────────────────
+// -- numericAdd ----------------------------------------------------------------
 
 describe('numericAdd', () => {
   it('scalar + scalar', () => expect(numericAdd(3, 4)).toBe(7));
@@ -37,7 +37,7 @@ describe('numericAdd', () => {
   it('array + array (element-wise)', () => expect(numericAdd([1, 2, 3], [4, 5, 6])).toEqual([5, 7, 9]));
 });
 
-// ── numericSub ────────────────────────────────────────────────────────────────
+// -- numericSub ----------------------------------------------------------------
 
 describe('numericSub', () => {
   it('scalar - scalar', () => expect(numericSub(10, 3)).toBe(7));
@@ -46,16 +46,16 @@ describe('numericSub', () => {
   it('array - array', () => expect(numericSub([5, 6], [1, 2])).toEqual([4, 4]));
 });
 
-// ── numericMul ────────────────────────────────────────────────────────────────
+// -- numericMul ----------------------------------------------------------------
 
 describe('numericMul', () => {
-  it('scalar × scalar', () => expect(numericMul(3, 4)).toBe(12));
-  it('scalar × array', () => expect(numericMul(2, [3, 4])).toEqual([6, 8]));
-  it('array × scalar', () => expect(numericMul([3, 4], 2)).toEqual([6, 8]));
-  it('array × array', () => expect(numericMul([2, 3], [4, 5])).toEqual([8, 15]));
+  it('scalar * scalar', () => expect(numericMul(3, 4)).toBe(12));
+  it('scalar * array', () => expect(numericMul(2, [3, 4])).toEqual([6, 8]));
+  it('array * scalar', () => expect(numericMul([3, 4], 2)).toEqual([6, 8]));
+  it('array * array', () => expect(numericMul([2, 3], [4, 5])).toEqual([8, 15]));
 });
 
-// ── numericDiv ────────────────────────────────────────────────────────────────
+// -- numericDiv ----------------------------------------------------------------
 
 describe('numericDiv', () => {
   it('scalar / scalar', () => expect(numericDiv(10, 2)).toBe(5));
@@ -64,14 +64,14 @@ describe('numericDiv', () => {
   it('array element / zero returns 0', () => expect(numericDiv([4, 6], [2, 0])).toEqual([2, 0]));
 });
 
-// ── numericPow ────────────────────────────────────────────────────────────────
+// -- numericPow ----------------------------------------------------------------
 
 describe('numericPow', () => {
   it('scalar ^ exponent', () => expect(numericPow(2, 10)).toBe(1024));
   it('array ^ exponent (element-wise)', () => expect(numericPow([2, 3], 2)).toEqual([4, 9]));
 });
 
-// ── numericLerp ───────────────────────────────────────────────────────────────
+// -- numericLerp ---------------------------------------------------------------
 
 describe('numericLerp', () => {
   it('t=0 returns a', () => expect(numericLerp(0, 10, 0)).toBe(0));
@@ -82,7 +82,7 @@ describe('numericLerp', () => {
   });
 });
 
-// ── numericTruthy ─────────────────────────────────────────────────────────────
+// -- numericTruthy -------------------------------------------------------------
 
 describe('numericTruthy', () => {
   it('non-zero scalar is truthy', () => expect(numericTruthy(1)).toBe(true));
@@ -93,7 +93,7 @@ describe('numericTruthy', () => {
   it('true is truthy', () => expect(numericTruthy(true)).toBe(true));
 });
 
-// ── numericScalar ─────────────────────────────────────────────────────────────
+// -- numericScalar -------------------------------------------------------------
 
 describe('numericScalar', () => {
   it('scalar passes through', () => expect(numericScalar(5)).toBe(5));
@@ -103,10 +103,10 @@ describe('numericScalar', () => {
   it('null/undefined returns 0', () => expect(numericScalar(null)).toBe(0));
 });
 
-// ── computeNodeParams ─────────────────────────────────────────────────────────
+// -- computeNodeParams ---------------------------------------------------------
 
 describe('computeNodeParams', () => {
-  // ── math ──────────────────────────────────────────────────────────────────
+  // -- math ------------------------------------------------------------------
 
   it('math_add: adds scalars', () => {
     const result = computeNodeParams('math_add', { a: 3, b: 7 });
@@ -138,7 +138,7 @@ describe('computeNodeParams', () => {
     expect(result.result).toBe(10);
   });
 
-  // ── logic ─────────────────────────────────────────────────────────────────
+  // -- logic -----------------------------------------------------------------
 
   it('logic_and: true && true = true', () => {
     expect(computeNodeParams('logic_and', { a: 1, b: 1 }).result).toBe(true);
@@ -200,7 +200,7 @@ describe('computeNodeParams', () => {
     });
   });
 
-  // ── vector ────────────────────────────────────────────────────────────────
+  // -- vector ----------------------------------------------------------------
 
   it('split_vec: splits array into xyzw', () => {
     const r = computeNodeParams('split_vec', { vec: [1, 2, 3, 4] });
@@ -248,7 +248,7 @@ describe('computeNodeParams', () => {
     expect(r.result).toEqual([0, 0, 0]);
   });
 
-  // ── text_filter ───────────────────────────────────────────────────────────
+  // -- text_filter -----------------------------------------------------------
 
   it('text_filter: matches when all empty constraints', () => {
     const r = computeNodeParams('text_filter', { input: 'hello', prefix: '', suffix: '', contains: '' });
@@ -287,7 +287,7 @@ describe('computeNodeParams', () => {
     expect(r.result).toBe(false);
   });
 
-  // ── Properties ───────────────────────────────────────────────────────────
+  // -- Properties -----------------------------------------------------------
 
   const mockMeta: ImageMeta = {
     path: '/images/photo.jpg',
@@ -346,7 +346,7 @@ describe('computeNodeParams', () => {
     expect(r.iso).toBe(400);
   });
 
-  // ── value_color ───────────────────────────────────────────────────────────
+  // -- value_color -----------------------------------------------------------
 
   it('value_color: splits rgba channels', () => {
     const r = computeNodeParams('value_color', { color: [0.1, 0.2, 0.3, 1.0] });
@@ -358,7 +358,7 @@ describe('computeNodeParams', () => {
     expect(r.rgba).toEqual([0.1, 0.2, 0.3, 1.0]);
   });
 
-  // ── unknown executor ──────────────────────────────────────────────────────
+  // -- unknown executor ------------------------------------------------------
 
   it('unknown executor key: returns params unchanged', () => {
     const params = { x: 1 };
@@ -372,7 +372,7 @@ describe('computeNodeParams', () => {
     expect(r).toEqual(params);
   });
 
-  // ── prop_power_of_two ──────────────────────────────────────────────────────
+  // -- prop_power_of_two ------------------------------------------------------
 
   describe('prop_power_of_two', () => {
     const pot = (w: number, h: number) =>
@@ -409,7 +409,7 @@ describe('computeNodeParams', () => {
       expect(pot(0, 1).width_ok).toBe(false);
     });
 
-    it('exact powers: 2, 4, 8, 16, …, 4096', () => {
+    it('exact powers: 2, 4, 8, 16, ..., 4096', () => {
       for (const n of [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]) {
         expect(pot(n, n).result).toBe(true);
       }
@@ -423,7 +423,7 @@ describe('computeNodeParams', () => {
   });
 });
 
-// ── buildResizeArgs ───────────────────────────────────────────────────────────
+// -- buildResizeArgs -----------------------------------------------------------
 
 describe('buildResizeArgs', () => {
   it('absolute + preserve + anchor=width (default): width-only geometry', () => {

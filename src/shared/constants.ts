@@ -2,7 +2,7 @@ import type { NodeGraph } from './types.js';
 
 export const EMPTY_GRAPH: NodeGraph = { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } };
 
-// Executor IDs — must match the "executor" field in node-definition JSON files
+// Executor IDs - must match the "executor" field in node-definition JSON files
 export const EXECUTOR = {
   CHANNEL_SPLIT: 'channel_split',
   CHANNEL_MERGE: 'channel_merge',
@@ -21,7 +21,7 @@ export const EXECUTOR = {
   RESIZE: 'resize',
 } as const;
 
-// Property executors that only need cheap I/O (fs.stat + header read) — no
+// Property executors that only need cheap I/O (fs.stat + header read) - no
 // ImageMagick `identify` spawn. Shared by batch-pipeline and text-output-handlers
 // so the two paths never disagree on whether a magick identify is required.
 export const LIGHT_META_EXECUTORS = new Set<string>([
@@ -133,7 +133,7 @@ export const IPC = {
   OPEN_FOLDER_DIALOG: 'dialog:open-folder',
   SCAN_FOLDER_DIALOG: 'dialog:scan-folder',
   SCAN_FOLDER: 'dialog:scan-folder-only',
-  // Menu actions (main → renderer)
+  // Menu actions (main -> renderer)
   MENU_NEW: 'menu:new',
   MENU_OPEN_WORKFLOW: 'menu:open-workflow',
   MENU_SAVE_WORKFLOW: 'menu:save-workflow',
@@ -152,7 +152,7 @@ export const IPC = {
   WORKFLOW_SAVE: 'workflow:save',
   WORKFLOW_LOAD: 'workflow:load',
   WORKFLOW_OPEN_PATH: 'workflow:open-path',
-  // File association: main → renderer, carries the file path to open
+  // File association: main -> renderer, carries the file path to open
   OPEN_FILE_PATH: 'app:open-file-path',
   // App lifecycle
   APP_QUIT: 'app:quit',

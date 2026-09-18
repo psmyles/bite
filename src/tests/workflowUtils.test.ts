@@ -24,7 +24,7 @@ describe('hasSetInputInChain', () => {
 
   it('ignores param-, suf-in-, and prefix-in wires', () => {
     const nodes = [n('set-1', 'setInputNode'), n('out-1', 'imageOutputNode')];
-    // Connected only via a suffix/param wire — not a real image-stream link.
+    // Connected only via a suffix/param wire - not a real image-stream link.
     const edges = [e('set-1', 'out-1', 'out-0', 'suf-in-0')];
     expect(hasSetInputInChain(nodes, edges, 'out-1')).toBe(false);
   });

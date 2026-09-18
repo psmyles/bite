@@ -27,7 +27,7 @@
   let listEl = $state<HTMLElement | undefined>(undefined);
   let subListEl = $state<HTMLElement | undefined>(undefined);
 
-  // ── Keyboard navigation state ────────────────────────────────────────────
+  // -- Keyboard navigation state --------------------------------------------
   let activeIndex = $state(-1); // search mode: index in filtered[]
   let activeCatIndex = $state(-1); // browse mode: index in grouped()
   let activeSubIndex = $state(-1); // browse mode: index in subDefs[]
@@ -39,14 +39,14 @@
     activeIndex = -1;
   });
 
-  // Scroll active item into view — search list
+  // Scroll active item into view - search list
   $effect(() => {
     if (activeIndex < 0 || !listEl) return;
     const items = listEl.querySelectorAll<HTMLElement>('.ctx-item');
     items[activeIndex]?.scrollIntoView({ block: 'nearest' });
   });
 
-  // Scroll active item into view — sub-menu
+  // Scroll active item into view - sub-menu
   $effect(() => {
     if (activeSubIndex < 0 || !subListEl) return;
     const items = subListEl.querySelectorAll<HTMLElement>('.ctx-item');
@@ -78,7 +78,7 @@
   const spaceBelow = $derived(window.innerHeight - y - 8);
   const spaceAbove = $derived(y - 8);
   const isFlipped = $derived(spaceAbove > spaceBelow);
-  // Give the panel all available space in the chosen direction — no fixed cap, no scrollbar when room exists
+  // Give the panel all available space in the chosen direction - no fixed cap, no scrollbar when room exists
   const actualMaxH = $derived(isFlipped ? spaceAbove : spaceBelow);
   // When flipped, anchor the bottom of the panel to the cursor; otherwise anchor the top
   const panelStyle = $derived(
@@ -95,7 +95,7 @@
   // Sub-menu vertical: anchor to the hovered category row, flip upward if near bottom edge.
   // Use CSS `bottom` when flipping so the browser pins the real rendered bottom to the row edge,
   // rather than estimating height and computing `top` (which drifts when estimate != actual).
-  const ITEM_H = 32; // estimate only — used to decide whether to flip, not for positioning
+  const ITEM_H = 32; // estimate only - used to decide whether to flip, not for positioning
   const subFlipUp = $derived(subMenuY + subDefs.length * ITEM_H + 8 > window.innerHeight);
   const subAvailH = $derived(subFlipUp ? subMenuRowBottom - 8 : window.innerHeight - subMenuY - 8);
   const subMenuStyle = $derived(
@@ -117,9 +117,9 @@
           if (filterType === 'any') return true;
           // Nodes with 'any' params accept any wire type
           if (d.params.some((p) => p.type === 'any')) return true;
-          // Match on inputs (wire from a source handle — drop target needs an input of that type)
+          // Match on inputs (wire from a source handle - drop target needs an input of that type)
           if (d.inputs.some((p) => p.type === filterType)) return true;
-          // Match on outputs (wire from a target handle — drop target needs an output of that type)
+          // Match on outputs (wire from a target handle - drop target needs an output of that type)
           if (d.outputs.some((p) => p.type === filterType)) return true;
           // Param-level type aliases
           if (filterType === 'number' || filterType === 'numeric')
@@ -166,7 +166,7 @@
   // Nodes for the currently hovered/focused category
   const subDefs = $derived(grouped().find((g) => g.category === hoveredCategory)?.defs ?? []);
 
-  // ── Tooltip ───────────────────────────────────────────────────────────────
+  // -- Tooltip ---------------------------------------------------------------
   let tooltipDef = $state<NodeDefinition | null>(null);
   let tooltipX = $state(0);
   let tooltipY = $state(0);
@@ -225,7 +225,7 @@
     }
 
     if (search.trim()) {
-      // ── Search mode navigation ───────────────────────────────────────────
+      // -- Search mode navigation -------------------------------------------
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         activeIndex = Math.min(activeIndex + 1, filtered.length - 1);
@@ -238,7 +238,7 @@
         if (idx >= 0) select(filtered[idx]);
       }
     } else {
-      // ── Browse mode navigation ───────────────────────────────────────────
+      // -- Browse mode navigation -------------------------------------------
       const cats = grouped();
       if (!subMenuActive) {
         if (e.key === 'ArrowDown') {
@@ -295,7 +295,7 @@
   }
 </script>
 
-<!-- Portal wrapper — teleported to document.body so position:fixed uses the viewport -->
+<!-- Portal wrapper - teleported to document.body so position:fixed uses the viewport -->
 <div use:portal>
   <!-- Backdrop: click outside to close -->
   <div class="ctx-backdrop" onclick={onClose} role="presentation"></div>
@@ -318,7 +318,7 @@
     <input
       class="ctx-search"
       type="text"
-      placeholder="Search nodes…"
+      placeholder="Search nodes..."
       autocomplete="off"
       spellcheck="false"
       bind:value={search}
@@ -364,7 +364,7 @@
             aria-haspopup="true"
           >
             <span>{group.category}</span>
-            <span class="ctx-arrow">›</span>
+            <span class="ctx-arrow">></span>
           </button>
         {/each}
       {/if}

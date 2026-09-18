@@ -6,7 +6,7 @@
 
   let search = $state('');
 
-  // ── Tooltip ───────────────────────────────────────────────────────────────
+  // -- Tooltip ---------------------------------------------------------------
   let tooltipDef = $state<NodeDefinition | null>(null);
   let tooltipX = $state(0);
   let tooltipY = $state(0);
@@ -38,7 +38,7 @@
     tooltipDef = null;
   }
 
-  // ── Derived: filter + group ────────────────────────────────────────────────
+  // -- Derived: filter + group ------------------------------------------------
   const filtered = $derived.by(() => {
     if (!search.trim()) return definitions;
     const q = search.toLowerCase();
@@ -65,7 +65,7 @@
       }));
   });
 
-  // ── Collapsible categories ─────────────────────────────────────────────────
+  // -- Collapsible categories -------------------------------------------------
   const collapsed = new SvelteSet<string>();
 
   function toggleCategory(cat: string) {
@@ -78,15 +78,15 @@
     return !!search.trim() || !collapsed.has(cat);
   }
 
-  // ── Drag (JSON-defined nodes) ──────────────────────────────────────────────
+  // -- Drag (JSON-defined nodes) ----------------------------------------------
   function onDragStart(e: DragEvent, def: NodeDefinition) {
     if (!e.dataTransfer) return;
     e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData('application/imgplex-node-id', def.id);
-    e.dataTransfer.setData('application/imgplex-node-label', def.label);
+    e.dataTransfer.setData('application/bite-node-id', def.id);
+    e.dataTransfer.setData('application/bite-node-label', def.label);
   }
 
-  // ── Workflow nodes (always visible, not filtered by search) ───────────────
+  // -- Workflow nodes (always visible, not filtered by search) ---------------
   const WORKFLOW_NODES = [
     { type: 'inputNode', label: 'Input', desc: 'Source of images for the workflow' },
     { type: 'imageOutputNode', label: 'Image Output', desc: 'Write processed images to disk' },
@@ -97,7 +97,7 @@
   function onWorkflowDragStart(e: DragEvent, nodeType: string) {
     if (!e.dataTransfer) return;
     e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData('application/imgplex-node-type', nodeType);
+    e.dataTransfer.setData('application/bite-node-type', nodeType);
   }
 
   let workflowCollapsed = $state(false);
@@ -107,17 +107,17 @@
   <!-- Header + search -->
   <div class="library-header">Node Library</div>
   <div class="search-wrap">
-    <input class="search" type="search" placeholder="Filter nodes…" bind:value={search} aria-label="Filter nodes" />
+    <input class="search" type="search" placeholder="Filter nodes..." bind:value={search} aria-label="Filter nodes" />
   </div>
 
   <!-- Category groups -->
   <div class="categories scrollable">
-    <!-- ── Workflow section (pinned at top, not filtered by search) ── -->
+    <!-- -- Workflow section (pinned at top, not filtered by search) -- -->
     {#if !search.trim()}
       <div class="category">
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="category-label" onclick={() => (workflowCollapsed = !workflowCollapsed)}>
-          <span class="collapse-icon">{workflowCollapsed ? '+' : '−'}</span>
+          <span class="collapse-icon">{workflowCollapsed ? '+' : '-'}</span>
           Workflow
         </div>
         {#if !workflowCollapsed}
@@ -125,7 +125,7 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="node-item" draggable="true" ondragstart={(e) => onWorkflowDragStart(e, wn.type)}>
               <span class="node-label">{wn.label}</span>
-              <span class="drag-hint">⠿</span>
+              <span class="drag-hint">:::</span>
             </div>
           {/each}
         {/if}
@@ -139,7 +139,7 @@
         <div class="category">
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="category-label" onclick={() => toggleCategory(group.category)}>
-            <span class="collapse-icon">{isOpen(group.category) ? '−' : '+'}</span>
+            <span class="collapse-icon">{isOpen(group.category) ? '-' : '+'}</span>
             {group.category}
           </div>
           {#if isOpen(group.category)}
@@ -156,7 +156,7 @@
                 }}
               >
                 <span class="node-label">{def.label}</span>
-                <span class="drag-hint">⠿</span>
+                <span class="drag-hint">:::</span>
               </div>
             {/each}
           {/if}

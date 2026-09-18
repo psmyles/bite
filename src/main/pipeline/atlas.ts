@@ -1,4 +1,4 @@
-// Flipbook atlas generation — assembles source images into a fixed-grid montage
+// Flipbook atlas generation - assembles source images into a fixed-grid montage
 // via ImageMagick. Pure pipeline logic (no Electron imports) so it is usable
 // from both the IPC layer and the CLI.
 
@@ -38,7 +38,7 @@ export async function generateAtlas(imagePaths: string[], config: AtlasConfig): 
   const atlasT0 = Date.now();
   log(
     'info',
-    `[atlas] generate start: ${imagePaths.length} image(s), ${cols}×${rows} grid (${cellWidth}×${cellHeight}px) → ${outputPath}`
+    `[atlas] generate start: ${imagePaths.length} image(s), ${cols}x${rows} grid (${cellWidth}x${cellHeight}px) -> ${outputPath}`
   );
 
   if (!outputPath?.trim()) throw new Error('No output file path specified.');
@@ -76,7 +76,7 @@ export async function generateAtlas(imagePaths: string[], config: AtlasConfig): 
 
   try {
     await spawnMagick(args);
-    log('info', `[atlas] done in ${Date.now() - atlasT0}ms → ${outputPath}`);
+    log('info', `[atlas] done in ${Date.now() - atlasT0}ms -> ${outputPath}`);
   } catch (err) {
     log('error', `[atlas] failed: ${(err as Error).message}`);
     throw err;
@@ -86,7 +86,7 @@ export async function generateAtlas(imagePaths: string[], config: AtlasConfig): 
 }
 
 /**
- * Batch execution for a Flipbook Output node — the flipbookOutputNode branch of
+ * Batch execution for a Flipbook Output node - the flipbookOutputNode branch of
  * executeBatch. Reads the grid config from the node's params (including a
  * param-wired background color) and montages the source images into the atlas.
  */

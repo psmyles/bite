@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeNewName, previewRenames } from '../shared/renameUtils.js';
 import type { RenameParams } from '../shared/renameUtils.js';
 
-// ── computeNewName ────────────────────────────────────────────────────────────
+// -- computeNewName ------------------------------------------------------------
 
 describe('computeNewName', () => {
   it('returns original name when blocks is empty', () => {
@@ -106,14 +106,14 @@ describe('computeNewName', () => {
     });
 
     it('leading dot files treated as no-extension', () => {
-      // dot at index 0 → no extension split
+      // dot at index 0 -> no extension split
       const params: RenameParams = { blocks: [{ type: 'text', value: 'out' }] };
       expect(computeNewName('.gitignore', params, 0)).toBe('out');
     });
   });
 });
 
-// ── previewRenames ────────────────────────────────────────────────────────────
+// -- previewRenames ------------------------------------------------------------
 
 describe('previewRenames', () => {
   it('returns one entry per file', () => {
@@ -124,7 +124,7 @@ describe('previewRenames', () => {
 
   it('marks unchanged entries correctly', () => {
     const files = ['a.jpg', 'b.jpg'];
-    // Empty params → original name returned → not changed
+    // Empty params -> original name returned -> not changed
     const result = previewRenames(files, {});
     expect(result[0].changed).toBe(false);
     expect(result[0].original).toBe('a.jpg');

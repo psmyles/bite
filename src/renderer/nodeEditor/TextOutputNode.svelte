@@ -46,7 +46,7 @@
   }
 </script>
 
-<!-- Image input — top-left -->
+<!-- Image input - top-left -->
 <Handle
   type="target"
   position={Position.Left}
@@ -82,7 +82,7 @@
     {@const label = portLabelMap.get(portId)}
     <div class="port-row" class:ghost={isGhost}>
       <span class="port-tag" style="color: {anyColor}">
-        {isGhost ? 'New Input' : (label ?? '—')}
+        {isGhost ? 'New Input' : (label ?? '-')}
       </span>
     </div>
   {/each}

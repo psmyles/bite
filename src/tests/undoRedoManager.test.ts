@@ -11,7 +11,7 @@ function edge(id: string): Edge {
 }
 
 describe('UndoRedoManager', () => {
-  it('push stores a deep clone — mutations after push do not affect history', () => {
+  it('push stores a deep clone - mutations after push do not affect history', () => {
     const mgr = new UndoRedoManager();
     const nodes = [node('n1')];
     mgr.push(nodes, []);

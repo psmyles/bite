@@ -9,10 +9,10 @@ import { readHeaderDimensions, fileToDataUrl } from './image-header.js';
 import { spawnMagick, spawnMagickCapture } from './magick-spawn.js';
 import { timings } from './timing.js';
 
-export const TEMP_DIR = path.join(os.tmpdir(), 'imgplex-preview');
+export const TEMP_DIR = path.join(os.tmpdir(), 'bite-preview');
 fs.mkdirSync(TEMP_DIR, { recursive: true });
 
-// Thumbnail generation always pins magick to a single thread — concurrency is at
+// Thumbnail generation always pins magick to a single thread - concurrency is at
 // the JS level (many images at once), so each spawn should stay out of OpenMP.
 const THUMB_SPAWN_ENV = { ...process.env, MAGICK_THREAD_LIMIT: '1' };
 
@@ -52,7 +52,7 @@ export async function loadImageWithThumbnail(
   let width: number, height: number, format: string;
 
   if (!needsRegen && cached) {
-    // Full cache hit — zero magick calls
+    // Full cache hit - zero magick calls
     ({ width, height, format } = cached);
     const [fileStat, dataUrl] = await Promise.all([
       fs.promises.stat(imagePath).catch(() => null),
@@ -69,17 +69,17 @@ export async function loadImageWithThumbnail(
     };
   }
 
-  // Cache miss — parse header natively first to enable JPEG DCT size hint
+  // Cache miss - parse header natively first to enable JPEG DCT size hint
   await fs.promises.mkdir(TEMP_DIR, { recursive: true });
 
   const hdr = await readHeaderDimensions(imagePath);
 
   if (hdr) {
-    // Fast path: dimensions known from header — spawn magick with optional JPEG size hint
+    // Fast path: dimensions known from header - spawn magick with optional JPEG size hint
     const magickArgs: string[] = [];
     if (hdr.isJpeg) {
       // Tell libjpeg to decode at 1/8 scale; picks smallest factor >= requested size,
-      // giving up to ~64× less data to decompress for large images.
+      // giving up to ~64x less data to decompress for large images.
       magickArgs.push('-define', `jpeg:size=${size * 2}x${size * 2}`);
     }
     magickArgs.push(`${imagePath}[0]`, '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPath);
@@ -88,7 +88,7 @@ export async function loadImageWithThumbnail(
     height = hdr.height;
     format = hdr.format;
   } else {
-    // Slow path (RAW, TIFF, PSD, GIF, …): combined -print + thumbnail spawn
+    // Slow path (RAW, TIFF, PSD, GIF, ...): combined -print + thumbnail spawn
     const stdout = await spawnMagickCapture(
       [`${imagePath}[0]`, '-print', '%w %h %m\n', '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPath],
       undefined,
@@ -129,7 +129,7 @@ export async function loadImageWithThumbnailBatch(
   const hashes = imagePaths.map((p) => shortHash(p));
   const thumbPaths = hashes.map((h) => path.join(TEMP_DIR, `thumb_${h}_${size}.webp`));
 
-  // ── Phase 1: parallel cache + header checks ──────────────────────────────
+  // -- Phase 1: parallel cache + header checks ------------------------------
   const headerStartMs = Date.now();
   const [thumbStats, hdrs] = await Promise.all([
     Promise.all(thumbPaths.map((tp) => fs.promises.stat(tp).catch(() => null))),
@@ -146,22 +146,22 @@ export async function loadImageWithThumbnailBatch(
     })
   );
 
-  // ── Phase 2: classify each image ─────────────────────────────────────────
-  const fastMisses: number[] = []; // thumb regen needed, header parsed → batch spawn
-  const slowMisses: number[] = []; // thumb regen needed, no header     → individual spawn
-  const metaOnlyMisses: number[] = []; // thumb cached but _metaCache empty → identify only
+  // -- Phase 2: classify each image -----------------------------------------
+  const fastMisses: number[] = []; // thumb regen needed, header parsed -> batch spawn
+  const slowMisses: number[] = []; // thumb regen needed, no header     -> individual spawn
+  const metaOnlyMisses: number[] = []; // thumb cached but _metaCache empty -> identify only
 
   for (let i = 0; i < imagePaths.length; i++) {
     if (needsRegen[i]) {
       if (hdrs[i]) fastMisses.push(i);
       else slowMisses.push(i);
     } else if (!_metaCache.has(imagePaths[i])) {
-      // Thumb exists but app restarted — _metaCache is empty; recover metadata.
+      // Thumb exists but app restarted - _metaCache is empty; recover metadata.
       if (hdrs[i]) {
         // Fast path: header already read in Phase 1, no spawn needed.
         _metaCache.set(imagePaths[i], { width: hdrs[i]!.width, height: hdrs[i]!.height, format: hdrs[i]!.format });
       } else {
-        // Slow path (PSD, TIFF, …): need a meta-only identify call.
+        // Slow path (PSD, TIFF, ...): need a meta-only identify call.
         metaOnlyMisses.push(i);
       }
     }
@@ -172,7 +172,7 @@ export async function loadImageWithThumbnailBatch(
     `[import] ${imagePaths.length} file(s): ${fastMisses.length} fast-miss, ${slowMisses.length} slow-miss, ${cached} cached`
   );
 
-  // ── Phase 2b: meta-only identify for slow-path cached images ─────────────
+  // -- Phase 2b: meta-only identify for slow-path cached images -------------
   for (const i of metaOnlyMisses) {
     try {
       const output = await spawnMagickCapture(['identify', '-format', '%w %h %m\n', `${imagePaths[i]}[0]`], undefined, {
@@ -189,7 +189,7 @@ export async function loadImageWithThumbnailBatch(
     }
   }
 
-  // ── Phase 3: single batch spawn for all fast-path misses ─────────────────
+  // -- Phase 3: single batch spawn for all fast-path misses -----------------
   let fastThumbMs = 0;
   if (fastMisses.length > 0) {
     // Build one magick command: each image reads, thumbnails, writes, then +delete
@@ -222,8 +222,8 @@ export async function loadImageWithThumbnailBatch(
     }
   }
 
-  // ── Phase 4: individual spawns for slow-path misses ──────────────────────
-  // These are rare (PSD, TIFF, …) so sequential processing is fine.
+  // -- Phase 4: individual spawns for slow-path misses ----------------------
+  // These are rare (PSD, TIFF, ...) so sequential processing is fine.
   const slowThumbMs = new Map<number, number>();
   for (const i of slowMisses) {
     try {
@@ -254,7 +254,7 @@ export async function loadImageWithThumbnailBatch(
     }
   }
 
-  // ── Phase 5: parallel stat + thumbnail read for all images ───────────────
+  // -- Phase 5: parallel stat + thumbnail read for all images ---------------
   const fastMissSet = new Set(fastMisses);
   const slowMissSet = new Set(slowMisses);
   const avgHeaderPerImage = imagePaths.length > 0 ? Math.round(headerTotalMs / imagePaths.length) : 0;
@@ -313,7 +313,7 @@ export async function generateThumbnail(imagePath: string, size: number): Promis
 
   if (!thumbStat || (srcStat && thumbStat.mtimeMs < srcStat.mtimeMs)) {
     await fs.promises.mkdir(TEMP_DIR, { recursive: true });
-    // [0] selects only the first frame — without it, multi-frame images (e.g.
+    // [0] selects only the first frame - without it, multi-frame images (e.g.
     // JPEGs with embedded EXIF thumbnails) cause magick to write numbered
     // output files instead of the expected path.
     await spawnMagick([`${imagePath}[0]`, '-thumbnail', `${size}x${size}>`, '-quality', '85', thumbPath]);

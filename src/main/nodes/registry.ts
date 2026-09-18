@@ -80,7 +80,7 @@ export class NodeRegistry {
       const def = data as NodeDefinition;
       if (this.definitions.has(def.id)) {
         console.warn(
-          `[registry] Duplicate node id "${def.id}" in ${path.basename(filePath)} — overwriting the earlier definition.`
+          `[registry] Duplicate node id "${def.id}" in ${path.basename(filePath)} - overwriting the earlier definition.`
         );
       }
       this.definitions.set(def.id, def);
@@ -95,7 +95,7 @@ export class NodeRegistry {
   }
 }
 
-// ─── Runtime validation ───────────────────────────────────────────────────────
+// --- Runtime validation -------------------------------------------------------
 
 export function validate(data: unknown): string[] {
   if (typeof data !== 'object' || data === null) return ['Must be an object'];

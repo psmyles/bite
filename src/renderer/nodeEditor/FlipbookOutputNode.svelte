@@ -16,7 +16,7 @@
   const params = $derived((data.params as Record<string, unknown>) ?? {});
   const cols = $derived(Number(params.cols ?? 4));
   const rows = $derived(Number(params.rows ?? 4));
-  const footerLabel = $derived(`${cols} × ${rows} grid`);
+  const footerLabel = $derived(`${cols} x ${rows} grid`);
 </script>
 
 <Handle

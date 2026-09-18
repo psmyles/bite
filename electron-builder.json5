@@ -1,16 +1,17 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   $schema: 'https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json',
-  appId: 'com.imgplex.app',
+  appId: 'com.bite.app',
   asar: true,
-  productName: 'imgplex',
+  productName: 'Bite',
+  executableName: 'bite-gui',
   directories: {
     output: 'release/${version}',
   },
   files: ['dist', 'dist-electron'],
   extraResources: [
     {
-      // Bundled ImageMagick — placed at resources/magick/ inside the packaged app.
+      // Bundled ImageMagick - placed at resources/magick/ inside the packaged app.
       // At runtime getMagickBinary() resolves this via process.resourcesPath.
       from: 'resources/win/magick',
       to: 'magick',
@@ -23,10 +24,10 @@
   },
   extraFiles: [
     {
-      // Standalone CLI exe placed at the install root so $INSTDIR\imgplex-cli.exe
+      // Standalone CLI exe placed at the install root so $INSTDIR\bite.exe
       // is on PATH after the installer runs.
       from: 'dist-cli/cli-bundle.exe',
-      to: 'imgplex-cli.exe',
+      to: 'bite.exe',
     },
     {
       // Node definitions shipped as plain JSON files so users can add custom nodes.
@@ -37,9 +38,9 @@
   ],
   fileAssociations: [
     {
-      ext: 'imgplex',
-      name: 'imgplex Workflow',
-      description: 'imgplex workflow file',
+      ext: 'bite',
+      name: 'Bite Workflow',
+      description: 'Bite workflow file',
       role: 'Editor',
     },
   ],

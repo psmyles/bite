@@ -10,7 +10,7 @@ function node(id: string, params: Record<string, unknown> = {}): GraphNode {
   return { id, type: 'test', position: { x: 0, y: 0 }, data: { label: id, definitionId: id, params } };
 }
 
-// ── findOutputContributors ────────────────────────────────────────────────────
+// -- findOutputContributors ----------------------------------------------------
 
 describe('findOutputContributors', () => {
   it('includes direct predecessor of start node', () => {
@@ -41,7 +41,7 @@ describe('findOutputContributors', () => {
   });
 });
 
-// ── findDescendants ───────────────────────────────────────────────────────────
+// -- findDescendants -----------------------------------------------------------
 
 describe('findDescendants', () => {
   it('includes the start node and its direct successors', () => {
@@ -51,7 +51,7 @@ describe('findDescendants', () => {
   });
 
   it('excludes unrelated parallel branches', () => {
-    // a → b ; x → y. Changing a must not invalidate x/y.
+    // a -> b ; x -> y. Changing a must not invalidate x/y.
     const edges = [edge('a', 'b'), edge('x', 'y')];
     const result = findDescendants(edges, ['a']);
     expect(result.has('x')).toBe(false);
@@ -71,7 +71,7 @@ describe('findDescendants', () => {
   });
 });
 
-// ── applyParamWires ───────────────────────────────────────────────────────────
+// -- applyParamWires -----------------------------------------------------------
 
 describe('applyParamWires', () => {
   it('starts with node params as base', () => {
@@ -113,7 +113,7 @@ describe('applyParamWires', () => {
     expect(result.alpha).toBe(1); // unchanged
   });
 
-  it('strips __-prefixed params (RCE guard against malicious .imgplex)', () => {
+  it('strips __-prefixed params (RCE guard against malicious .bite)', () => {
     const n = node('x', { brightness: 0.5, __compute_js__: 'return process.exit(1)', __proto_evil__: 1 });
     const result = applyParamWires(n, [], new Map());
     expect(result.brightness).toBe(0.5);

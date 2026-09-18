@@ -1,4 +1,4 @@
-// ─── Node Definition (JSON schema) ───────────────────────────────────────────
+// --- Node Definition (JSON schema) -------------------------------------------
 
 export type ParamType =
   | 'int'
@@ -24,11 +24,11 @@ export interface ParamDefinition {
   max?: number;
   step?: number;
   options?: string[];
-  /** True for computed output params (e.g. math result) — display-only in Inspector, output port only */
+  /** True for computed output params (e.g. math result) - display-only in Inspector, output port only */
   readonly?: boolean;
-  /** True for derived output-only ports (e.g. color components) — shown as right-side port handles but not as rows in the node body */
+  /** True for derived output-only ports (e.g. color components) - shown as right-side port handles but not as rows in the node body */
   portOnly?: boolean;
-  /** True for params that are user-controlled only (e.g. value node pickers) — no input port handle rendered */
+  /** True for params that are user-controlled only (e.g. value node pickers) - no input port handle rendered */
   noPort?: boolean;
 }
 
@@ -69,10 +69,10 @@ export interface NodeDefinition {
   command_template?: string;
   /** For complex nodes: key referencing a TypeScript executor class */
   executor?: string;
-  /** Inline JS function body — receives `params`, must return `string[]` of IM args.
+  /** Inline JS function body - receives `params`, must return `string[]` of IM args.
    *  Alternative to command_template for conditional argument building. */
   command_js?: string;
-  /** Inline JS function body — receives `params`, must return `Record<string, unknown>` of output values.
+  /** Inline JS function body - receives `params`, must return `Record<string, unknown>` of output values.
    *  Alternative to the executor switch for pure-value nodes. */
   compute_js?: string;
   /** Set true to opt in to image metadata loading (replaces the implicit prop_ prefix heuristic). */
@@ -81,7 +81,7 @@ export interface NodeDefinition {
   params_visibility?: VisibilityRule[];
 }
 
-// ─── Node Graph ───────────────────────────────────────────────────────────────
+// --- Node Graph ---------------------------------------------------------------
 
 /** Mirrors Svelte Flow's node shape */
 export interface GraphNode {
@@ -116,7 +116,7 @@ export interface NodeGraph {
   viewport: GraphViewport;
 }
 
-// ─── Images ───────────────────────────────────────────────────────────────────
+// --- Images -------------------------------------------------------------------
 
 export interface ImageInfo {
   path: string;
@@ -128,7 +128,7 @@ export interface ImageInfo {
   thumbnailDataUrl?: string;
 }
 
-// ─── Pipeline Service (abstraction for Electron IPC / future web) ─────────────
+// --- Pipeline Service (abstraction for Electron IPC / future web) -------------
 
 export interface Progress {
   completed: number;

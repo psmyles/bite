@@ -1,11 +1,11 @@
 <script lang="ts" module>
   const OPERATOR_SYMBOLS: Record<string, string> = {
     equal: '=',
-    'not equal': '≠',
+    'not equal': '!=',
     'greater than': '>',
     'less than': '<',
-    'greater or equal': '≥',
-    'less or equal': '≤',
+    'greater or equal': '>=',
+    'less or equal': '<=',
   };
 </script>
 
@@ -25,7 +25,7 @@
 
   const operatorSymbol = $derived(OPERATOR_SYMBOLS[params.operator as string] ?? '?');
 
-  // ── Wire detection (single pass) ─────────────────────────────────────────────
+  // -- Wire detection (single pass) ---------------------------------------------
   const handleA = paramInHandle('a');
   const handleB = paramInHandle('b');
   const { aWired, bWired } = $derived.by(() => {
@@ -40,7 +40,7 @@
     return { aWired: a, bWired: b };
   });
 
-  // ── Live values (resolved by preview executor) ───────────────────────────────
+  // -- Live values (resolved by preview executor) -------------------------------
   const liveA = $derived(id ? (graphStore.propValues[id]?.a ?? params.a) : params.a);
   const liveB = $derived(id ? (graphStore.propValues[id]?.b ?? params.b) : params.b);
   const liveResult = $derived(id ? (graphStore.propValues[id]?.result ?? params.result) : params.result);
@@ -49,7 +49,7 @@
     if (v === null || v === undefined) return null;
     if (typeof v === 'boolean') return v ? 'true' : 'false';
     if (typeof v === 'number') return parseFloat(Number(v).toFixed(3)).toString();
-    if (typeof v === 'string') return v.length > 12 ? v.slice(0, 10) + '…' : v;
+    if (typeof v === 'string') return v.length > 12 ? v.slice(0, 10) + '...' : v;
     if (Array.isArray(v)) {
       return (v as number[])
         .slice(0, 4)
@@ -59,7 +59,7 @@
     return null;
   }
 
-  // Show A/B value only when not wired — the static/internal value
+  // Show A/B value only when not wired - the static/internal value
   const displayA = $derived(!aWired ? formatVal(liveA) : null);
   const displayB = $derived(!bWired ? formatVal(liveB) : null);
   const displayResult = $derived(formatVal(liveResult));
@@ -67,7 +67,7 @@
   const anyColor = portColor('any');
   const boolColor = portColor('boolean');
 
-  // Handle positions — must match ProcessNode's paramHandleTop with no image ports.
+  // Handle positions - must match ProcessNode's paramHandleTop with no image ports.
   const HEADER_H = 28,
     PARAM_PAD = 4,
     PARAM_ROW_H = 22,

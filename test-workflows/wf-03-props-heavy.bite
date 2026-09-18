@@ -23,7 +23,7 @@
           "label": "Text Output",
           "definitionId": "",
           "params": {
-            "outputPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-03\\report.txt",
+            "outputPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-03\\report.txt",
             "portIds": ["txo-0", "txo-1", "txo-2", "txo-3", "txo-4"],
             "nextPortIndex": 5,
             "separatorType": "comma",

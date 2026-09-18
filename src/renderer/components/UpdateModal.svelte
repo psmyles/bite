@@ -60,7 +60,7 @@
       {#if state.status === 'checking'}
         <div class="checking-row">
           <span class="spinner"></span>
-          <span class="checking-text">Contacting GitHub…</span>
+          <span class="checking-text">Contacting GitHub...</span>
         </div>
       {:else if state.status === 'update'}
         <p class="tagline">
@@ -78,7 +78,7 @@
         {/if}
       {:else if state.status === 'latest'}
         <p class="tagline">
-          imgplex <span class="version">{state.version}</span> is the latest version.
+          Bite <span class="version">{state.version}</span> is the latest version.
         </p>
         {#if state.body}
           <div class="release-notes">

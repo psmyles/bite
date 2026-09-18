@@ -142,7 +142,7 @@
         {Array.isArray(wv) ? (wv as number[]).map((v) => (v as number).toFixed(3)).join(', ') : wv}
       </div>
     {:else if p.readonly && definition.executor}
-      <!-- Computed output — display only regardless of widget type -->
+      <!-- Computed output - display only regardless of widget type -->
       {@const cv = getValue(p)}
       <div class="computed-value">
         {Array.isArray(cv)
@@ -225,7 +225,7 @@
 {/each}
 
 <style>
-  /* ── Param row ── */
+  /* -- Param row -- */
   .param-row {
     display: flex;
     flex-direction: column;
@@ -322,7 +322,7 @@
     opacity: 0.75;
   }
 
-  /* ── Slider ── */
+  /* -- Slider -- */
   .slider-wrap {
     display: flex;
     align-items: center;
@@ -386,7 +386,7 @@
     border-color: var(--accent);
   }
 
-  /* ── Vector input ── */
+  /* -- Vector input -- */
   .vector-wrap {
     display: flex;
     flex-direction: column;

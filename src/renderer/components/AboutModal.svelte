@@ -25,10 +25,10 @@
   });
 
   const deps = $derived([
-    { name: 'ImageMagick', version: runtime?.magick ?? '…' },
-    { name: 'Electron', version: runtime?.electron ?? '…' },
-    { name: 'Chromium', version: runtime?.chrome ?? '…' },
-    { name: 'Node.js', version: runtime?.node ?? '…' },
+    { name: 'ImageMagick', version: runtime?.magick ?? '...' },
+    { name: 'Electron', version: runtime?.electron ?? '...' },
+    { name: 'Chromium', version: runtime?.chrome ?? '...' },
+    { name: 'Node.js', version: runtime?.node ?? '...' },
     { name: 'Svelte', version: __SVELTE_VERSION__ },
     { name: 'SvelteFlow', version: __XYFLOW_VERSION__ },
   ]);
@@ -46,9 +46,9 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="backdrop" onclick={onBackdropClick}>
-  <div class="modal" role="dialog" aria-modal="true" aria-label="About imgplex">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="About Bite">
     <div class="modal-header">
-      <span class="modal-title">About imgplex</span>
+      <span class="modal-title">About Bite</span>
       <button class="close-btn" onclick={onClose} aria-label="Close">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
           ><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" /></svg

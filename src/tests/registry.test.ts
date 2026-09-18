@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { validate, NodeRegistry } from '../main/nodes/registry.js';
 
-// ── fs mock ──────────────────────────────────────────────────────────────────
+// -- fs mock ------------------------------------------------------------------
 
 const fsMockPromises = vi.hoisted(() => ({
   readdir: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),
@@ -14,7 +14,7 @@ vi.mock('node:fs', () => ({
   promises: fsMockPromises,
 }));
 
-// ── validate() ───────────────────────────────────────────────────────────────
+// -- validate() ---------------------------------------------------------------
 
 const VALID_DEF = {
   id: 'test_node',
@@ -25,7 +25,7 @@ const VALID_DEF = {
   params: [],
 };
 
-describe('validate — required fields', () => {
+describe('validate - required fields', () => {
   it('returns no errors for a valid definition with no image ports', () => {
     expect(validate(VALID_DEF)).toHaveLength(0);
   });
@@ -67,7 +67,7 @@ describe('validate — required fields', () => {
   });
 });
 
-describe('validate — command specification', () => {
+describe('validate - command specification', () => {
   const withImageInput = {
     ...VALID_DEF,
     inputs: [{ type: 'image', label: 'In' }],
@@ -100,7 +100,7 @@ describe('validate — command specification', () => {
   });
 });
 
-describe('validate — JS syntax checking', () => {
+describe('validate - JS syntax checking', () => {
   it('flags invalid command_js syntax', () => {
     const errors = validate({ ...VALID_DEF, inputs: [{ type: 'image', label: 'In' }], command_js: 'return @@invalid' });
     expect(errors.some((e) => e.includes('command_js syntax error'))).toBe(true);
@@ -121,7 +121,7 @@ describe('validate — JS syntax checking', () => {
   });
 });
 
-describe('validate — params_visibility', () => {
+describe('validate - params_visibility', () => {
   const defWithParams = {
     ...VALID_DEF,
     params: [
@@ -155,7 +155,7 @@ describe('validate — params_visibility', () => {
   });
 });
 
-// ── NodeRegistry lifecycle ────────────────────────────────────────────────────
+// -- NodeRegistry lifecycle ----------------------------------------------------
 
 describe('NodeRegistry.load', () => {
   beforeEach(() => {
@@ -203,7 +203,7 @@ describe('NodeRegistry.onChange', () => {
     const received: unknown[] = [];
     registry.onChange((defs) => received.push(defs));
     await registry.load('/fake/dir');
-    // onChange fires on watch changes, not on initial load — manually notify via second load
+    // onChange fires on watch changes, not on initial load - manually notify via second load
     await registry.load('/fake/dir');
 
     // listener registered; no automatic fire on load (fire happens on watch hotreload)
@@ -216,7 +216,7 @@ describe('NodeRegistry.onChange', () => {
     let callCount = 0;
     const unsub = registry.onChange(() => callCount++);
     unsub();
-    // Load again — since unsubscribed, callCount stays 0
+    // Load again - since unsubscribed, callCount stays 0
     fsMockPromises.readdir.mockResolvedValue([]);
     await registry.load('/fake/dir');
     expect(callCount).toBe(0);
