@@ -2,7 +2,8 @@
 #
 # Builds the signed, notarized macOS .dmg (arm64).
 #
-#   scripts/build-mac.sh [--skip-magick] [--skip-icon] [--skip-tests] [--skip-notarize]
+#   scripts/build-mac.sh [--skip-magick] [--skip-icon] [--skip-tests]
+#                        [--skip-notarize] [--verbose]
 #
 # Steps: preflight checks -> vendor ImageMagick -> compile the icon ->
 # renderer/main/CLI builds -> electron-builder (sign + notarize + staple) ->
@@ -31,6 +32,13 @@
 #
 # Pass --skip-notarize to produce a signed but un-notarized dmg for local
 # testing. Such a dmg still warns on other people's machines - never ship one.
+#
+# Progress. Signing and notarizing are the long steps and neither says much on
+# its own, so both are wrapped in a heartbeat that prints the elapsed time every
+# 30s - a build that is working looks different from one that has hung. Pass
+# --verbose for electron-builder's own debug log, which names every codesign
+# call as it is made; the notarization wait stays quiet either way, because
+# electron-builder captures notarytool's output instead of streaming it.
 
 set -euo pipefail
 
@@ -41,19 +49,39 @@ SKIP_MAGICK=0
 SKIP_ICON=0
 SKIP_TESTS=0
 SKIP_NOTARIZE=0
+VERBOSE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-magick) SKIP_MAGICK=1; shift ;;
     --skip-icon) SKIP_ICON=1; shift ;;
     --skip-tests) SKIP_TESTS=1; shift ;;
     --skip-notarize) SKIP_NOTARIZE=1; shift ;;
-    -h|--help) sed -n '2,33p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --verbose) VERBOSE=1; shift ;;
+    -h|--help) sed -n '2,41p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 
 step() { echo; echo "==> $*"; }
 fail() { echo "error: $*" >&2; exit 1; }
+
+# Runs a command that prints little or nothing for minutes, reporting the elapsed
+# time every 30s so a stalled step is distinguishable from a working one. The
+# command keeps this script's stdout, so its own output still comes through, and
+# its exit status is this function's.
+with_heartbeat() {
+  local label="$1"; shift
+  "$@" &
+  local pid=$! elapsed=0
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
+    elapsed=$((elapsed + 1))
+    if (( elapsed % 30 == 0 )) && kill -0 "$pid" 2>/dev/null; then
+      printf '    %s ... %dm%02ds elapsed\n' "$label" $((elapsed / 60)) $((elapsed % 60))
+    fi
+  done
+  wait "$pid"
+}
 
 # ---------------------------------------------------------------------------
 # Preflight - fail before a 10-minute build, not during it
@@ -172,9 +200,15 @@ npx pkg dist-cli/cli-bundle.js --target node20-macos-arm64 --output dist-cli/cli
 codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp dist-cli/cli-bundle-macos
 
 step "Packaging (sign + notarize + staple)"
+if [[ "$VERBOSE" -eq 1 ]]; then
+  # electron-builder logs every subprocess it runs - codesign included - at debug
+  # level; electron-notarize adds the milestones around the upload.
+  export DEBUG="${DEBUG:+$DEBUG,}electron-builder,electron-notarize*"
+fi
 # ${a[@]+"${a[@]}"} rather than "${a[@]}": under `set -u`, bash 3.2 - the bash
 # macOS ships - treats an empty array expansion as an unbound variable.
-npx electron-builder --mac --arm64 ${NOTARIZE_ARGS[@]+"${NOTARIZE_ARGS[@]}"}
+with_heartbeat "signing and notarizing" \
+  npx electron-builder --mac --arm64 ${NOTARIZE_ARGS[@]+"${NOTARIZE_ARGS[@]}"}
 
 # ---------------------------------------------------------------------------
 # The dmg itself
@@ -190,7 +224,8 @@ DMG="$(ls -t "release/$VERSION"/*.dmg 2>/dev/null | head -1)" || true
 if [[ "$SKIP_NOTARIZE" -eq 0 ]]; then
   step "Signing and notarizing the dmg"
   codesign --force --sign "$SIGN_IDENTITY" --timestamp "$DMG"
-  xcrun notarytool submit "$DMG" ${NOTARY_CREDS[@]+"${NOTARY_CREDS[@]}"} --wait
+  with_heartbeat "waiting on the notary service" \
+    xcrun notarytool submit "$DMG" ${NOTARY_CREDS[@]+"${NOTARY_CREDS[@]}"} --wait
   xcrun stapler staple "$DMG"
 fi
 

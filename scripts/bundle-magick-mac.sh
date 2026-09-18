@@ -258,6 +258,7 @@ sign_one() {
     if out="$(codesign "${sign_args[@]}" "$f" 2>&1)"; then
       return 0
     fi
+    [[ -t 1 ]] && echo >&2
     echo "   $(basename "$f"): ${out##*: }" >&2
     [[ $attempt -lt 3 ]] || break
     sleep $((attempt * 5))
@@ -266,9 +267,22 @@ sign_one() {
   return 1
 }
 
-for f in "$DEST"/lib/*.dylib ${MODULES[@]+"${MODULES[@]}"} "$DEST/bin/magick"; do
+# Each signature is a round trip to timestamp.apple.com, so this loop runs for
+# minutes. Count it out rather than going silent: on a terminal the line is
+# rewritten in place, in a log (CI) it prints every 25 files instead of 150 times.
+SIGN_TARGETS=("$DEST"/lib/*.dylib ${MODULES[@]+"${MODULES[@]}"} "$DEST/bin/magick")
+SIGN_TOTAL=${#SIGN_TARGETS[@]}
+signed=0
+for f in "${SIGN_TARGETS[@]}"; do
+  signed=$((signed + 1))
+  if [[ -t 1 ]]; then
+    printf '\r    [%d/%d] %-40.40s' "$signed" "$SIGN_TOTAL" "$(basename "$f")"
+  elif (( signed % 25 == 0 || signed == SIGN_TOTAL )); then
+    echo "    [$signed/$SIGN_TOTAL]"
+  fi
   sign_one "$f"
 done
+if [[ -t 1 ]]; then printf '\r    [%d/%d] done%-40s\n' "$SIGN_TOTAL" "$SIGN_TOTAL" ""; fi
 codesign --verify --strict "$DEST/bin/magick"
 
 # ---------------------------------------------------------------------------
