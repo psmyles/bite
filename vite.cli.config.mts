@@ -1,4 +1,4 @@
-// Standalone CLI build — outputs a single self-contained CJS bundle that pkg
+// Standalone CLI build - outputs a single self-contained CJS bundle that pkg
 // can compile into a native exe.  Svelte and renderer code are not included.
 import { defineConfig } from 'vite';
 import path from 'node:path';
@@ -11,7 +11,7 @@ export default defineConfig({
     },
     outDir: 'dist-cli',
     rollupOptions: {
-      // Keep all node: builtins external — pkg provides them at runtime
+      // Keep all node: builtins external - pkg provides them at runtime
       external: (id: string) => id.startsWith('node:') || id === 'electron',
     },
     minify: false,

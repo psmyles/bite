@@ -2,7 +2,7 @@
   "id": "math_multiply",
   "version": "1.0.0",
   "label": "Multiply",
-  "description": "A × B",
+  "description": "A * B",
   "category": "Math",
   "inputs": [],
   "outputs": [],

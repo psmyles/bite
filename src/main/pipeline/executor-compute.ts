@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawnMagickCapture } from './magick-spawn.js';
 import { readHeaderDimensions } from './image-header.js';
 
-// ─── Polymorphic numeric helpers ──────────────────────────────────────────────
+// --- Polymorphic numeric helpers ----------------------------------------------
 
 export type Numeric = number | number[];
 
@@ -61,7 +61,7 @@ export function numericScalar(val: unknown): number {
   return Number(val ?? 0);
 }
 
-// ─── Image metadata (for Properties nodes) ────────────────────────────────────
+// --- Image metadata (for Properties nodes) ------------------------------------
 
 export interface ImageMeta {
   path: string;
@@ -122,7 +122,7 @@ export async function loadImageMeta(imagePath: string): Promise<ImageMeta> {
   };
 }
 
-// ─── Image statistics (mean brightness / channel means) ───────────────────────
+// --- Image statistics (mean brightness / channel means) -----------------------
 
 export async function loadImageMean(imagePath: string): Promise<number> {
   const output = await spawnMagickCapture([`${imagePath}[0]`, '-format', '%[fx:mean]', 'info:']);
@@ -150,7 +150,7 @@ export async function loadMultipleChannelMeans(
   return output.split('\n').map((v) => parseFloat(v) || 0);
 }
 
-// ─── Text output helpers ──────────────────────────────────────────────────────
+// --- Text output helpers ------------------------------------------------------
 
 /** Maps a user-facing separator type to the actual separator string. */
 export function getSeparator(type: string, custom: string): string {
@@ -169,7 +169,7 @@ export function getSeparator(type: string, custom: string): string {
 }
 
 /**
- * Builds a lightweight ImageMeta using only cheap I/O — no ImageMagick spawn.
+ * Builds a lightweight ImageMeta using only cheap I/O - no ImageMagick spawn.
  * Reads sizeBytes from fs.stat and width/height from the file header.
  * Suitable for prop_name, prop_path, prop_size, prop_filetype, prop_dimensions,
  * and prop_power_of_two nodes; anything needing bitDepth/DPI/EXIF still needs loadImageMeta.
@@ -192,7 +192,7 @@ export async function buildEmptyImageMeta(imagePath: string): Promise<ImageMeta>
         height = dims.height;
       }
     } catch {
-      /* non-fatal — unsupported format stays at 0 */
+      /* non-fatal - unsupported format stays at 0 */
     }
   }
 
@@ -210,7 +210,7 @@ export async function buildEmptyImageMeta(imagePath: string): Promise<ImageMeta>
   };
 }
 
-// ─── Resize argument builder ──────────────────────────────────────────────────
+// --- Resize argument builder --------------------------------------------------
 
 /**
  * Returns the ImageMagick args for a resize node based on its current params.
@@ -249,7 +249,7 @@ export function buildResizeArgs(params: Record<string, unknown>): string[] {
   return [...densityArgs, '-filter', filter, '-resize', geometry];
 }
 
-// ─── Pure value / math / logic computation ────────────────────────────────────
+// --- Pure value / math / logic computation ------------------------------------
 
 export function computeNodeParams(
   executorKey: string | undefined,
@@ -502,7 +502,7 @@ export function computeNodeParamsUnsafe(
   // 'comment' is a UI-only node with no computation.
   if (executorKey !== undefined && executorKey !== 'comment') {
     console.warn(
-      `[executor] Unknown executor key: "${executorKey}" — params returned unchanged. Add a case to computeNodeParams.`
+      `[executor] Unknown executor key: "${executorKey}" - params returned unchanged. Add a case to computeNodeParams.`
     );
   }
   return params;

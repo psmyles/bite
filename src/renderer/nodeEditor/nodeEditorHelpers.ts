@@ -1,8 +1,8 @@
-// Pure helper functions for NodeEditor — no Svelte reactivity ($state, $derived, etc.)
+// Pure helper functions for NodeEditor - no Svelte reactivity ($state, $derived, etc.)
 import type { NodeDefinition } from '../../shared/types.js';
 import { numericWireTypes, scalarTypes } from './wireTypeUtils.js';
 
-// ─── NodeData ─────────────────────────────────────────────────────────────────
+// --- NodeData -----------------------------------------------------------------
 // The shape of data stored in every graph node. Re-exported here so components
 // outside nodeEditor don't need to cast to Record<string, unknown>.
 
@@ -146,7 +146,7 @@ export function buildNodeData(def: NodeDefinition) {
     inputLabels: inputSlice.map((p) => p.label),
     outputLabels: def.outputs.map((p) => p.label),
     params,
-    // Resize ports are mode+preserve_aspect-dependent — start with absolute+preserve defaults.
+    // Resize ports are mode+preserve_aspect-dependent - start with absolute+preserve defaults.
     // enum params are not connectable; all other typed params get ports.
     paramDefs:
       def.id === 'resize'

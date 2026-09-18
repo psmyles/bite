@@ -47,7 +47,7 @@ export async function executeSetBatch(
   onProgress({ completed: 0, total: totalSets, currentFile: '', active: [] });
 
   // Reserve each output path so two sets resolving to the same name can't clobber
-  // each other. Synchronous claim → concurrent workers never see the same free path.
+  // each other. Synchronous claim -> concurrent workers never see the same free path.
   const claimedOutPaths = new Set<string>();
   const claimOutPath = (desired: string): string => {
     let candidate = desired;
@@ -59,7 +59,7 @@ export async function executeSetBatch(
         candidate = `${stem}_${i}${ext}`;
         i++;
       } while (claimedOutPaths.has(candidate));
-      log('warn', `[batch] output name collision: ${path.basename(desired)} → ${path.basename(candidate)}`);
+      log('warn', `[batch] output name collision: ${path.basename(desired)} -> ${path.basename(candidate)}`);
     }
     claimedOutPaths.add(candidate);
     return candidate;
@@ -151,7 +151,7 @@ export async function executeSetBatch(
             imgEntry.copy(Date.now() - copyT0);
             imgEntry.done(Date.now() - imgT0);
           }
-          log('info', `[batch] done set (${Date.now() - imgT0}ms): ${middleName} → ${outPath}`);
+          log('info', `[batch] done set (${Date.now() - imgT0}ms): ${middleName} -> ${outPath}`);
           outputFiles.push(outPath);
         }
       } catch (err) {
@@ -166,7 +166,7 @@ export async function executeSetBatch(
   }
 
   const threadsPerSetProcess = Math.max(1, Math.floor(os.cpus().length / setConcurrency));
-  // Per-spawn env (via ctx) instead of mutating process.env — see batch-pipeline.ts.
+  // Per-spawn env (via ctx) instead of mutating process.env - see batch-pipeline.ts.
   ctx.spawnEnv = { ...process.env, MAGICK_THREAD_LIMIT: String(threadsPerSetProcess) };
   await Promise.all(Array.from({ length: setConcurrency }, processOneSet));
   if (timings.enabled) {

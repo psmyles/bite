@@ -16,12 +16,12 @@
 <div class="backdrop">
   <div class="modal" role="alertdialog" aria-modal="true" aria-label="Confirm">
     <div class="modal-header">
-      <span class="modal-title">imgplex</span>
+      <span class="modal-title">Bite</span>
     </div>
     <div class="modal-body">
       <p class="message">{message}</p>
       <div class="buttons">
-        <!-- Cancel is first in DOM so it receives autofocus — it is the safe default -->
+        <!-- Cancel is first in DOM so it receives autofocus - it is the safe default -->
         <button class="btn btn--neutral" onclick={onCancel}>Cancel</button>
         <button class="btn btn--danger" onclick={onConfirm}>OK</button>
       </div>

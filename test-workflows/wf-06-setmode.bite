@@ -16,19 +16,22 @@
         }
       },
       {
-        "id": "split-1",
+        "id": "set-1",
         "type": "process",
         "position": { "x": 220, "y": 200 },
         "data": {
-          "label": "Split Channels",
-          "definitionId": "channel_split",
-          "params": { "_enabled": true }
+          "label": "Process As Set",
+          "definitionId": "process_as_set",
+          "params": {
+            "prefix": "set_",
+            "suffixes": ["_diffuse", "_normal", "_rough"]
+          }
         }
       },
       {
         "id": "negate-1",
         "type": "process",
-        "position": { "x": 450, "y": 300 },
+        "position": { "x": 470, "y": 380 },
         "data": {
           "label": "Negate",
           "definitionId": "negate",
@@ -36,19 +39,9 @@
         }
       },
       {
-        "id": "float-1",
-        "type": "process",
-        "position": { "x": 450, "y": 440 },
-        "data": {
-          "label": "Float",
-          "definitionId": "value_float",
-          "params": { "value": 0.5 }
-        }
-      },
-      {
         "id": "merge-1",
         "type": "process",
-        "position": { "x": 680, "y": 200 },
+        "position": { "x": 700, "y": 200 },
         "data": {
           "label": "Merge Channels",
           "definitionId": "channel_merge",
@@ -58,53 +51,55 @@
       {
         "id": "imageOutput-1",
         "type": "imageOutputNode",
-        "position": { "x": 920, "y": 200 },
+        "position": { "x": 940, "y": 200 },
         "data": {
           "label": "Image Output",
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-04",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-06",
             "overwrite": "overwrite",
             "generateLog": false,
-            "cliName": "out"
+            "cliName": "out",
+            "setOutputPrefix": "packed_",
+            "setOutputSuffix": ""
           }
         }
       }
     ],
     "edges": [
       {
-        "id": "e-in-split",
+        "id": "e-in-set",
         "source": "input-1",
         "sourceHandle": "out-0",
-        "target": "split-1",
+        "target": "set-1",
         "targetHandle": "in-0"
       },
       {
-        "id": "e-r",
-        "source": "split-1",
+        "id": "e-diffuse-r",
+        "source": "set-1",
         "sourceHandle": "out-0",
         "target": "merge-1",
         "targetHandle": "in-0"
       },
       {
-        "id": "e-g-negate",
-        "source": "split-1",
+        "id": "e-normal-g",
+        "source": "set-1",
         "sourceHandle": "out-1",
-        "target": "negate-1",
-        "targetHandle": "in-0"
-      },
-      {
-        "id": "e-negate-g",
-        "source": "negate-1",
-        "sourceHandle": "out-0",
         "target": "merge-1",
         "targetHandle": "in-1"
       },
       {
-        "id": "e-float-b",
-        "source": "float-1",
-        "sourceHandle": "param-out-value",
+        "id": "e-rough-negate",
+        "source": "set-1",
+        "sourceHandle": "out-2",
+        "target": "negate-1",
+        "targetHandle": "in-0"
+      },
+      {
+        "id": "e-negate-b",
+        "source": "negate-1",
+        "sourceHandle": "out-0",
         "target": "merge-1",
         "targetHandle": "in-2"
       },

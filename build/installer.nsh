@@ -1,4 +1,4 @@
-; Custom NSIS macros for imgplex installer
+; Custom NSIS macros for Bite installer
 ; Appends / broadcasts PATH changes so the CLI is usable from any terminal.
 
 ; Make the installer UI crisp on HiDPI / scaled displays.
@@ -28,7 +28,7 @@ ShowInstDetails show
 
 !macro customUninstall
   ; Broadcast so the system knows env has changed.
-  ; Note: the PATH entry is not automatically removed — the user can clean it
+  ; Note: the PATH entry is not automatically removed - the user can clean it
   ; up via System > Advanced > Environment Variables if desired.
   SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 !macroend

@@ -28,7 +28,7 @@
       type="text"
       value={heading}
       oninput={onHeadingInput}
-      placeholder="Heading…"
+      placeholder="Heading..."
       spellcheck="false"
     />
   </div>
@@ -39,7 +39,7 @@
       class="field-textarea"
       value={body}
       oninput={onBodyInput}
-      placeholder="Notes…"
+      placeholder="Notes..."
       spellcheck="false"
     ></textarea>
   </div>

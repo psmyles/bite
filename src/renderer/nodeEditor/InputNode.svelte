@@ -13,7 +13,7 @@
   });
 </script>
 
-<!-- Output handle — right side, vertically centered -->
+<!-- Output handle - right side, vertically centered -->
 <Handle type="source" position={Position.Right} id="out-0" style="background: {imgColor}; border-color: {imgColor};" />
 
 <div class="node" class:selected>
@@ -46,7 +46,7 @@
     box-shadow: var(--node-selected-shadow);
   }
 
-  /* ── Header ── */
+  /* -- Header -- */
   .node-head {
     height: 28px;
     padding: 0 12px;
@@ -67,7 +67,7 @@
     white-space: nowrap;
   }
 
-  /* ── Port row ── */
+  /* -- Port row -- */
   .node-ports {
     display: flex;
     justify-content: flex-end;
@@ -87,7 +87,7 @@
     white-space: nowrap;
   }
 
-  /* ── Footer ── */
+  /* -- Footer -- */
   .node-footer {
     height: 22px;
     display: flex;

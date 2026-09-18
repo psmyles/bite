@@ -15,7 +15,7 @@
     }
     if (type === 'string') {
       const s = String(value);
-      return s.length > 0 ? (s.length > 14 ? s.slice(0, 12) + '…' : s) : null;
+      return s.length > 0 ? (s.length > 14 ? s.slice(0, 12) + '...' : s) : null;
     }
     if (type === 'bool') return value ? 'true' : 'false';
     if (Array.isArray(value)) {
@@ -70,14 +70,14 @@
   // Output slots: right-side port handles with labels, not shown as body rows
   const outputSlotDefs = $derived(paramDefs.filter((p) => p.portOnly));
 
-  // Nodes with both image in AND image out are "actionable" — they get the bypass toggle.
+  // Nodes with both image in AND image out are "actionable" - they get the bypass toggle.
   const isActionable = $derived(inputs.length > 0 && outputs.length > 0);
 
   // Local toggle state from params (true = active, missing = active)
   // Treat only explicit false/0 as disabled; undefined/null/missing defaults to enabled
   const enabled = $derived(data.params?._enabled !== false && data.params?._enabled !== 0);
 
-  // ── Bypass wire detection ─────────────────────────────────────────────────
+  // -- Bypass wire detection -------------------------------------------------
   // Check if param-in-_enabled has an incoming wire; if so, hide the manual toggle
   // and derive the effective enabled state from the source node's param value.
   const enabledEdge = $derived(
@@ -101,7 +101,7 @@
     return val !== false && val !== 0 && val !== null && val !== undefined;
   });
 
-  // Effective enabled state — wire value takes precedence over manual toggle
+  // Effective enabled state - wire value takes precedence over manual toggle
   const effectiveEnabled = $derived(hasEnabledWire ? wiredEnabledValue : enabled);
 
   function toggleEnabled(e: MouseEvent) {
@@ -109,7 +109,7 @@
     if (id) graphStore.setParam(id, '_enabled', !enabled);
   }
 
-  // ── Header tooltip ────────────────────────────────────────────────────────
+  // -- Header tooltip --------------------------------------------------------
   let tooltipVisible = $state(false);
   let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
   let tooltipX = $state(0);
@@ -144,8 +144,8 @@
     tooltipVisible = false;
   }
 
-  // ── Layout constants (px) ─────────────────────────────────────────────────
-  // Read from CSS custom properties — theme.css is the single source of truth.
+  // -- Layout constants (px) -------------------------------------------------
+  // Read from CSS custom properties - theme.css is the single source of truth.
   // If you need to change a value, update --node-layout-* in theme.css only.
   function cssLayoutNum(prop: string): number {
     return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(prop)) || 0;
@@ -245,7 +245,7 @@
   <div class="previewing-badge">Previewing</div>
 {/if}
 
-<!-- Image input handles (left side) — only when node has image ports -->
+<!-- Image input handles (left side) - only when node has image ports -->
 {#if hasImagePorts}
   {#each inputs as type, i (i)}
     <Handle
@@ -257,7 +257,7 @@
   {/each}
 {/if}
 
-<!-- Param input handles (left side) — writable body params only -->
+<!-- Param input handles (left side) - writable body params only -->
 {#each bodyParamDefs as p, i (p.name)}
   {#if !p.readonly && !p.noPort}
     <Handle
@@ -309,7 +309,7 @@
     </div>
   {/if}
 
-  <!-- Param ports section (body params only — portOnly params go in output slots) -->
+  <!-- Param ports section (body params only - portOnly params go in output slots) -->
   {#if bodyParamDefs.length > 0}
     <div class="param-ports" class:no-sep={!hasImagePorts}>
       {#each bodyParamDefs as p (p.name)}
@@ -345,7 +345,7 @@
     </div>
   {/if}
 
-  <!-- Output slots section — port-only derived outputs (e.g. color channels) -->
+  <!-- Output slots section - port-only derived outputs (e.g. color channels) -->
   {#if outputSlotDefs.length > 0}
     <div class="output-slots">
       {#each outputSlotDefs as p (p.name)}
@@ -363,7 +363,7 @@
   {/if}
 </div>
 
-<!-- Image output handles (right side) — only when node has image ports -->
+<!-- Image output handles (right side) - only when node has image ports -->
 {#if hasImagePorts}
   {#each outputs as type, i (i)}
     <Handle
@@ -375,7 +375,7 @@
   {/each}
 {/if}
 
-<!-- Param output handles (right side) — readonly body params -->
+<!-- Param output handles (right side) - readonly body params -->
 {#each bodyParamDefs as p, i (p.name)}
   {#if p.readonly}
     <Handle
@@ -386,7 +386,7 @@
     />
   {/if}
 {/each}
-<!-- Output slot handles (right side) — portOnly derived outputs -->
+<!-- Output slot handles (right side) - portOnly derived outputs -->
 {#each outputSlotDefs as p, i (p.name)}
   <Handle
     type="source"
@@ -396,7 +396,7 @@
   />
 {/each}
 
-<!-- Bypass boolean handle — rendered AFTER .node so it sits on top of the header area.
+<!-- Bypass boolean handle - rendered AFTER .node so it sits on top of the header area.
      Positioned at header vertical center (top: HEADER_H/2). -->
 {#if isActionable}
   <Handle
@@ -435,7 +435,7 @@
     opacity: 0.45;
   }
 
-  /* ── Header ── */
+  /* -- Header -- */
   .node-head {
     height: 28px; /* --node-layout-header-h */
     padding: 0 12px;
@@ -461,7 +461,7 @@
     padding-right: 34px;
   }
 
-  /* ── Bypass tick — positioned in the top-left of the header ── */
+  /* -- Bypass tick - positioned in the top-left of the header -- */
   .bypass-tick {
     position: absolute;
     left: 10px;
@@ -501,7 +501,7 @@
     border-color: var(--port-color-boolean, #22d3ee);
   }
 
-  /* ── Image port rows ── */
+  /* -- Image port rows -- */
   .node-ports {
     display: flex;
     justify-content: space-between;
@@ -532,7 +532,7 @@
     white-space: nowrap;
   }
 
-  /* ── Param ports ── */
+  /* -- Param ports -- */
   .param-ports {
     border-top: 1px solid var(--node-border); /* --node-layout-sep-h */
     padding: 4px 0; /* --node-layout-param-pad */
@@ -562,7 +562,7 @@
     margin-left: auto;
   }
 
-  /* readonly body params: value left, label right — same layout as output-slot rows */
+  /* readonly body params: value left, label right - same layout as output-slot rows */
   .param-port-row.readonly-row .param-value {
     margin-left: 0;
     padding-left: 0;
@@ -578,7 +578,7 @@
     flex-shrink: 0;
   }
 
-  /* ── Output slots (portOnly params — e.g. color channels) ── */
+  /* -- Output slots (portOnly params - e.g. color channels) -- */
   .output-slots {
     border-top: 1px solid var(--node-border);
     padding: 5px 0;
@@ -609,7 +609,7 @@
     margin-right: 6px;
   }
 
-  /* ── Header tooltip — fixed so it escapes node stacking contexts ── */
+  /* -- Header tooltip - fixed so it escapes node stacking contexts -- */
   :global(.node-tooltip-fixed) {
     position: fixed;
     transform: translateX(-50%);
@@ -630,7 +630,7 @@
     box-shadow: var(--shadow-popover);
   }
 
-  /* ── Previewing badge — floats above the node ── */
+  /* -- Previewing badge - floats above the node -- */
   .previewing-badge {
     position: absolute;
     top: -22px;

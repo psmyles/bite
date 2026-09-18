@@ -46,7 +46,7 @@ export function registerPipelineHandlers(
     });
   });
 
-  // ── Streaming import: N concurrent workers, one push per result ──────────
+  // -- Streaming import: N concurrent workers, one push per result ----------
   // Generation counter prevents a second import from interfering with the first.
   // Each stream start captures its own generation; workers bail if the counter moves.
   let _streamGeneration = 0;
@@ -80,7 +80,7 @@ export function registerPipelineHandlers(
           const results = await executor.loadImageWithThumbnailBatch(batch, size);
           for (const result of results) {
             allResults.push(result);
-            log('info', `[import] ${result.name} ${result.width}×${result.height} ${result.format}`);
+            log('info', `[import] ${result.name} ${result.width}x${result.height} ${result.format}`);
             if (!isCancelled()) win?.webContents.send(IPC.LOAD_IMAGES_STREAMING_RESULT, result, token);
           }
         } catch (err) {
@@ -153,7 +153,7 @@ export function registerPipelineHandlers(
       bash: { name: 'Shell Script', extensions: ['sh'] },
       cmd: { name: 'Batch File', extensions: ['bat'] },
     };
-    const defaultNames = { powershell: 'imgplex-batch.ps1', bash: 'imgplex-batch.sh', cmd: 'imgplex-batch.bat' };
+    const defaultNames = { powershell: 'bite-batch.ps1', bash: 'bite-batch.sh', cmd: 'bite-batch.bat' };
 
     const result = await dialog.showSaveDialog(getWin()!, {
       title: 'Export CLI Script',
@@ -164,7 +164,7 @@ export function registerPipelineHandlers(
 
     // Companion workflow file lives alongside the script with the same base name
     const scriptBase = path.basename(result.filePath, path.extname(result.filePath));
-    const workflowFile = `${scriptBase}.imgplex`;
+    const workflowFile = `${scriptBase}.bite`;
     const workflowPath = path.join(path.dirname(result.filePath), workflowFile);
 
     const scriptContent = executor.exportCLI(shellType, workflowFile, graph);
@@ -215,8 +215,8 @@ export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): vo
       let targetPath = filePath ?? null;
       if (!targetPath) {
         const result = await dialog.showSaveDialog(getWin()!, {
-          filters: [{ name: 'imgplex Workflow', extensions: ['imgplex'] }],
-          defaultPath: 'workflow.imgplex',
+          filters: [{ name: 'Bite Workflow', extensions: ['bite'] }],
+          defaultPath: 'workflow.bite',
         });
         if (result.canceled || !result.filePath) return null;
         targetPath = result.filePath;
@@ -236,7 +236,7 @@ export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): vo
     const result = await dialog.showOpenDialog(getWin()!, {
       properties: ['openFile'],
       filters: [
-        { name: 'imgplex Workflow', extensions: ['imgplex'] },
+        { name: 'Bite Workflow', extensions: ['bite'] },
         { name: 'All Files', extensions: ['*'] },
       ],
     });
@@ -254,7 +254,7 @@ export function registerWorkflowHandlers(getWin: () => BrowserWindow | null): vo
     app.quit();
   });
 
-  // Intercept the window X button — ask renderer to confirm dirty state first
+  // Intercept the window X button - ask renderer to confirm dirty state first
   const setupCloseInterception = () => {
     const win = getWin();
     if (!win) return;
@@ -310,7 +310,7 @@ export function registerShellHandlers(): void {
       const { protocol } = new URL(url);
       if (protocol !== 'http:' && protocol !== 'https:') return;
     } catch {
-      return; // Malformed URL — do nothing
+      return; // Malformed URL - do nothing
     }
     return shell.openExternal(url);
   });

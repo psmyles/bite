@@ -1,7 +1,7 @@
-# ── Dependencies ──────────────────────────────────────────────────────────────
+# -- Dependencies --------------------------------------------------------------
 node_modules/
 
-# ── Build outputs ─────────────────────────────────────────────────────────────
+# -- Build outputs -------------------------------------------------------------
 dist/
 dist-ssr/
 dist-electron/
@@ -10,16 +10,16 @@ dist-web/
 release/          # electron-builder installer output (release/<version>/)
 out/
 
-# ── Web deployment folder (separate git repo for GitHub Pages) ─────────────
+# -- Web deployment folder (separate git repo for GitHub Pages) -------------
 web/
 
-# ── TypeScript ────────────────────────────────────────────────────────────────
+# -- TypeScript ----------------------------------------------------------------
 *.tsbuildinfo
 
-# ── Test coverage ─────────────────────────────────────────────────────────────
+# -- Test coverage -------------------------------------------------------------
 coverage/
 
-# ── Logs ──────────────────────────────────────────────────────────────────────
+# -- Logs ----------------------------------------------------------------------
 logs/
 *.log
 npm-debug.log*
@@ -27,30 +27,30 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# ── Environment / secrets ─────────────────────────────────────────────────────
+# -- Environment / secrets -----------------------------------------------------
 .env
 .env.*
 !.env.example
 
-# ── Local Vite overrides ──────────────────────────────────────────────────────
+# -- Local Vite overrides ------------------------------------------------------
 *.local
 
-# ── Claude Code session data ──────────────────────────────────────────────────
+# -- Claude Code session data --------------------------------------------------
 .claude/
 
-# ── Local test data ───────────────────────────────────────────────────────────
+# -- Local test data -----------------------------------------------------------
 test_images/
 
-# ── Pipeline test suite (workflows/scripts are tracked; generated data is not) ─
+# -- Pipeline test suite (workflows/scripts are tracked; generated data is not) -
 test-workflows/fixtures/
 test-workflows/out/
 
-# ── OS files ──────────────────────────────────────────────────────────────────
+# -- OS files ------------------------------------------------------------------
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# ── Editor directories ────────────────────────────────────────────────────────
+# -- Editor directories --------------------------------------------------------
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json

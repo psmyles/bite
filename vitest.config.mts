@@ -8,7 +8,7 @@ export default defineConfig({
       reporter: ['text', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       // Tests run in a Node environment by design, so .svelte components and the
-      // Electron/browser bootstrap layers aren't exercised here — excluding them
+      // Electron/browser bootstrap layers aren't exercised here - excluding them
       // keeps the number focused on the pure logic the suite actually covers.
       include: ['src/**/*.ts'],
       exclude: [

@@ -1,4 +1,4 @@
-// Pure filename transformation logic — no I/O, usable in both main and renderer processes.
+// Pure filename transformation logic - no I/O, usable in both main and renderer processes.
 
 export type TextBlock = { type: 'text'; value: string };
 export type NumberBlock = { type: 'number'; start: number; pad: number };

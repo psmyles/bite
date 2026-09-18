@@ -12,7 +12,7 @@
     readonly?: boolean;
   } = $props();
 
-  // ── Mode definitions ──────────────────────────────────────────────────────
+  // -- Mode definitions ------------------------------------------------------
 
   type ColorMode = 'RGB01' | 'RGB255' | 'HSV' | 'LAB' | 'CMYK';
 
@@ -25,8 +25,8 @@
   }
 
   const MODE_LABELS: Record<ColorMode, string> = {
-    RGB01: 'RGB 0–1',
-    RGB255: 'RGB 0–255',
+    RGB01: 'RGB 0-1',
+    RGB255: 'RGB 0-255',
     HSV: 'HSV',
     LAB: 'LAB',
     CMYK: 'CMYK',
@@ -65,9 +65,9 @@
 
   let mode = $state<ColorMode>('RGB01');
 
-  // ── Mode conversions ──────────────────────────────────────────────────────
+  // -- Mode conversions ------------------------------------------------------
 
-  /** RGB → mode display values (color channels, no alpha). HSV uses internal state. */
+  /** RGB -> mode display values (color channels, no alpha). HSV uses internal state. */
   function rgbToMode(m: ColorMode, r: number, g: number, b: number): number[] {
     switch (m) {
       case 'RGB01':
@@ -83,7 +83,7 @@
     }
   }
 
-  /** Mode display values → RGB */
+  /** Mode display values -> RGB */
   function modeToRgb(m: ColorMode, vals: number[]): [number, number, number] {
     switch (m) {
       case 'RGB01':
@@ -99,7 +99,7 @@
     }
   }
 
-  // ── Internal HSV state ────────────────────────────────────────────────────
+  // -- Internal HSV state ----------------------------------------------------
 
   let hue = $state(0);
   let sat = $state(1);
@@ -142,7 +142,7 @@
     onchange([...hsvToRgb(hue, sat, bri), value[3] ?? 1]);
   }
 
-  // ── Gradient square ───────────────────────────────────────────────────────
+  // -- Gradient square -------------------------------------------------------
 
   function updateSquare(e: PointerEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -164,7 +164,7 @@
     sqPicking = false;
   }
 
-  // ── Hue slider ────────────────────────────────────────────────────────────
+  // -- Hue slider ------------------------------------------------------------
 
   function updateHue(e: PointerEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -185,7 +185,7 @@
     huePicking = false;
   }
 
-  // ── Channel editing ───────────────────────────────────────────────────────
+  // -- Channel editing -------------------------------------------------------
 
   function setColorChannel(chIdx: number, raw: number) {
     if (readonly) return;
@@ -210,7 +210,7 @@
     onchange([...rgb, c01(isNaN(raw) ? 0 : raw)]);
   }
 
-  // ── Channel slider gradients ──────────────────────────────────────────────
+  // -- Channel slider gradients ----------------------------------------------
 
   function chanGradient(chIdx: number): string {
     const ch = COLOR_CHANS[mode][chIdx];
@@ -236,7 +236,7 @@
     return decimals === 0 ? String(Math.round(v)) : v.toFixed(decimals);
   }
 
-  // ── Hex input ─────────────────────────────────────────────────────────────
+  // -- Hex input -------------------------------------------------------------
 
   let hexDraft = $state('');
   let hexEditing = $state(false);
@@ -261,7 +261,7 @@
 </script>
 
 <div class="cpk">
-  <!-- ── Gradient square ── -->
+  <!-- -- Gradient square -- -->
   <div
     class="sq"
     style="--hue-col:{hueCol}"
@@ -275,12 +275,12 @@
     <div class="cursor" style="left:{sat * 100}%;top:{(1 - bri) * 100}%"></div>
   </div>
 
-  <!-- ── Hue slider ── -->
+  <!-- -- Hue slider -- -->
   <div class="hue-bar" onpointerdown={hueDown} onpointermove={hueMove} onpointerup={hueUp} role="presentation">
     <div class="hue-thumb" style="left:{(hue / 360) * 100}%"></div>
   </div>
 
-  <!-- ── Mode dropdown ── -->
+  <!-- -- Mode dropdown -- -->
   <div class="mode-row">
     <Dropdown
       value={mode}
@@ -291,7 +291,7 @@
     />
   </div>
 
-  <!-- ── Color channel rows ── -->
+  <!-- -- Color channel rows -- -->
   {#each COLOR_CHANS[mode] as ch, chIdx (chIdx)}
     {@const v = modeVals[chIdx] ?? 0}
     {@const bg = chanGradient(chIdx)}
@@ -321,7 +321,7 @@
     </div>
   {/each}
 
-  <!-- ── Alpha row ── -->
+  <!-- -- Alpha row -- -->
   <div class="ch-row">
     <span class="ch-lbl">A</span>
     <input
@@ -347,7 +347,7 @@
     />
   </div>
 
-  <!-- ── Hex row ── -->
+  <!-- -- Hex row -- -->
   <div class="hex-row">
     <span class="hex-lbl">Hex</span>
     <div class="hex-sw" style="background:{hex}"></div>
@@ -381,7 +381,7 @@
     user-select: none;
   }
 
-  /* ── Gradient square ── */
+  /* -- Gradient square -- */
   .sq {
     position: relative;
     width: 100%;
@@ -417,7 +417,7 @@
     pointer-events: none;
   }
 
-  /* ── Hue slider ── */
+  /* -- Hue slider -- */
   .hue-bar {
     position: relative;
     height: 12px;
@@ -457,12 +457,12 @@
     pointer-events: none;
   }
 
-  /* ── Mode dropdown ── */
+  /* -- Mode dropdown -- */
   .mode-row {
     padding: 6px 8px 2px;
   }
 
-  /* ── Channel rows ── */
+  /* -- Channel rows -- */
   .ch-row {
     display: flex;
     align-items: center;
@@ -556,7 +556,7 @@
     border-color: var(--accent);
   }
 
-  /* ── Hex row ── */
+  /* -- Hex row -- */
   .hex-row {
     display: flex;
     align-items: center;

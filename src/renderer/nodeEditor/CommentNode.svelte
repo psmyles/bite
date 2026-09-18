@@ -85,7 +85,7 @@
   }
 
   // Stop all key events from reaching the canvas while editing
-  // (prevents Space → context menu, Delete → node delete, Ctrl+Z → undo graph, etc.)
+  // (prevents Space -> context menu, Delete -> node delete, Ctrl+Z -> undo graph, etc.)
   function onKeydown(e: KeyboardEvent) {
     e.stopPropagation();
     if (e.key === 'Escape') editing = false;
@@ -105,7 +105,7 @@
       onkeydown={onKeydown}
       onclick={(e) => e.stopPropagation()}
       ondblclick={(e) => e.stopPropagation()}
-      placeholder="Heading…"
+      placeholder="Heading..."
       spellcheck="false"
     />
     <textarea
@@ -116,7 +116,7 @@
       onkeydown={onKeydown}
       onclick={(e) => e.stopPropagation()}
       ondblclick={(e) => e.stopPropagation()}
-      placeholder="Notes…"
+      placeholder="Notes..."
       spellcheck="false"
     ></textarea>
   {:else}
@@ -136,7 +136,7 @@
 </div>
 
 <style>
-  /* ── Sticky note shell ─────────────────────────────────────────────────── */
+  /* -- Sticky note shell --------------------------------------------------- */
   .comment-node {
     background: var(--comment-bg);
     border: none;
@@ -168,7 +168,7 @@
     flex-direction: column;
   }
 
-  /* ── Heading ──────────────────────────────────────────────────────────── */
+  /* -- Heading ------------------------------------------------------------ */
   .comment-heading {
     display: block;
     width: 100%;
@@ -205,7 +205,7 @@
     letter-spacing: 0;
   }
 
-  /* ── Body ─────────────────────────────────────────────────────────────── */
+  /* -- Body --------------------------------------------------------------- */
   .comment-body {
     display: block;
     width: 100%;

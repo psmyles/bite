@@ -1,4 +1,4 @@
-// Text Output execution — resolves per-image param values across the graph and
+// Text Output execution - resolves per-image param values across the graph and
 // writes one line per image to the configured .txt file. Pure pipeline logic
 // (no Electron imports) so it is usable from both the IPC layer and the CLI.
 
@@ -80,12 +80,12 @@ async function resolveParamsForImage(
   // Track image output slots blocked by a gate whose condition is false: "nodeId:handleId"
   const blockedImageSlots = new Set<string>();
 
-  // mean_value handles its own image read via loadImageChannelMean — it does NOT use meta.
+  // mean_value handles its own image read via loadImageChannelMean - it does NOT use meta.
   // Excluded from needsMagickMeta so images blocked by a gate skip loadImageMeta entirely.
   const meta = needsMagickMeta ? await loadImageMeta(imagePath) : await buildEmptyImageMeta(imagePath);
 
   // Pre-scan all mean_value nodes and batch their channel reads into a single spawn.
-  const meanValueChannelMap = new Map<string, number>(); // nodeId → channelIdx (-1 = whole-image mean)
+  const meanValueChannelMap = new Map<string, number>(); // nodeId -> channelIdx (-1 = whole-image mean)
   const channelIndicesNeeded: number[] = [];
   for (const node of sorted) {
     const def = registry.get(node.data.definitionId);
@@ -129,7 +129,7 @@ async function resolveParamsForImage(
 
     // Gate: rawParams.condition is already resolved from param-wire edges above,
     // so this handles both wired conditions (upstream value propagated) and
-    // static defaults (node's own param value). False → block image output.
+    // static defaults (node's own param value). False -> block image output.
     if (def.executor === 'gate') {
       if (!rawParams.condition) blockedImageSlots.add(`${node.id}:out-0`);
       resolvedParams.set(node.id, rawParams);
@@ -248,7 +248,7 @@ export async function computeTextOutputLines(
 }
 
 /**
- * Batch execution for a Text Output node — the textOutputNode branch of
+ * Batch execution for a Text Output node - the textOutputNode branch of
  * executeBatch. Resolves values per image (respecting Gate nodes and the
  * optional condition port) and writes the collected lines to the node's
  * configured output file.
@@ -288,7 +288,7 @@ export async function executeTextBatch(
   const { connectedPorts, portSources, conditionSource, sep } = extractTextPortConfig(txNode, graph, outputNodeId);
   if (connectedPorts.length === 0) throw new Error('No input ports are connected.');
 
-  log('info', `[text-output] write start: ${imagePaths.length} image(s) → ${filePath}`);
+  log('info', `[text-output] write start: ${imagePaths.length} image(s) -> ${filePath}`);
   const imageInEdge = graph.edges.find((e) => e.target === outputNodeId && e.targetHandle === 'in-0');
   const ctx = buildResolveContext(graph, registry);
   const total = imagePaths.length;
@@ -343,13 +343,13 @@ export async function executeTextBatch(
 
   const lines = collectedLines.sort((a, b) => a.index - b.index).map((r) => r.line);
   if (lines.length === 0) {
-    log('info', '[text-output] no lines to write — all images were filtered out');
+    log('info', '[text-output] no lines to write - all images were filtered out');
     return { processed: 0, skipped: filtered, failed, errors, outputFiles: [] };
   }
-  if (!lines.some((l) => l.trim() !== '')) throw new Error('All values resolved to empty — file not written.');
+  if (!lines.some((l) => l.trim() !== '')) throw new Error('All values resolved to empty - file not written.');
 
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
   await fs.promises.writeFile(filePath, lines.join('\n') + '\n', 'utf-8');
-  log('info', `[text-output] written: ${lines.length} line(s) in ${Date.now() - textT0}ms → ${filePath}`);
+  log('info', `[text-output] written: ${lines.length} line(s) in ${Date.now() - textT0}ms -> ${filePath}`);
   return { processed: lines.length, skipped: filtered, failed, errors, outputFiles: [filePath] };
 }

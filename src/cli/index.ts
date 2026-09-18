@@ -16,24 +16,24 @@ type GraphNode = NodeGraph['nodes'][number];
 const IMAGE_EXTS = new Set(IMAGE_EXTENSIONS.map((e) => '.' + e));
 
 function die(msg: string): never {
-  console.error(`[imgplex] ${msg}`);
+  console.error(`[Bite] ${msg}`);
   process.exit(1);
 }
 
 function usage(): never {
   console.log(
     [
-      'imgplex-cli',
+      'bite',
       '',
       'Commands:',
-      '  imgplex-cli run <workflow.imgplex> [flags]',
+      '  bite run <workflow.bite> [flags]',
       '',
       'Flags:',
       '  --<cliName> <path>   Named input/output defined in the workflow (see script comments)',
       '  --overwrite          Overwrite existing output files (default: skip)',
       '',
       'Named flags correspond to the CLI Name set on each Input/Output node in the workflow.',
-      'Export a CLI script from imgplex (File → Export CLI Script) to see the exact flags for',
+      'Export a CLI script from Bite (File -> Export CLI Script) to see the exact flags for',
       'a given workflow.',
     ].join('\n')
   );
@@ -47,14 +47,14 @@ function nodeCliName(node: GraphNode): string {
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   if (argv.length === 0 || argv[0] === '--help' || argv[0] === '-h') usage();
-  if (argv[0] !== 'run') die(`Unknown command: "${argv[0]}". Run "imgplex-cli --help" for usage.`);
+  if (argv[0] !== 'run') die(`Unknown command: "${argv[0]}". Run "bite --help" for usage.`);
 
   const workflowArg = argv[1];
-  if (!workflowArg) die('Missing workflow file argument.\nUsage: imgplex-cli run <workflow.imgplex>');
+  if (!workflowArg) die('Missing workflow file argument.\nUsage: bite run <workflow.bite>');
 
   // Parse --flag value pairs and --overwrite boolean
   let overwrite: 'skip' | 'overwrite' = 'skip';
-  const flagValues = new Map<string, string>(); // flag name → path value
+  const flagValues = new Map<string, string>(); // flag name -> path value
 
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -70,14 +70,14 @@ async function main(): Promise<void> {
   let graph: NodeGraph;
   try {
     const raw = JSON.parse(readFileSync(workflowPath, 'utf-8')) as Record<string, unknown>;
-    // A .imgplex is untrusted — strip `__`-prefixed params / malicious param wires,
+    // A .bite is untrusted - strip `__`-prefixed params / malicious param wires,
     // matching the Electron load path (defense-in-depth over runtime stripping).
     graph = sanitizeWorkflowGraph(raw.graph ?? raw) as NodeGraph;
   } catch {
     die(`Cannot read workflow: ${workflowPath}`);
   }
 
-  // Build cliName → node map for input nodes and output nodes
+  // Build cliName -> node map for input nodes and output nodes
   const INPUT_TYPES = new Set(['inputNode']);
   const OUTPUT_TYPES = new Set(['imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
 
@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     else if (OUTPUT_TYPES.has(node.type)) outputNodeByFlag.set(name, node);
   }
 
-  // Collect all output nodes (even those without a cliName — they use their baked-in paths)
+  // Collect all output nodes (even those without a cliName - they use their baked-in paths)
   const outputNodes = graph.nodes.filter((n) => OUTPUT_TYPES.has(n.type));
   if (outputNodes.length === 0) die('Workflow has no output nodes.');
 
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
     // Find the input node that feeds this output node
     const inputNodeId = traceInputNodeId(graph.nodes, graph.edges, outNode.id);
     if (!inputNodeId) {
-      console.warn(`[imgplex] Skipping "${label}" — cannot trace back to an Input node.`);
+      console.warn(`[Bite] Skipping "${label}" - cannot trace back to an Input node.`);
       continue;
     }
 
@@ -126,7 +126,7 @@ async function main(): Promise<void> {
       die(
         `Missing required flag: --${inputCliName || 'input'}\n` +
           `  Needed to run output node "${label}".\n` +
-          `  Export a CLI script from imgplex to see all required flags.`
+          `  Export a CLI script from Bite to see all required flags.`
       );
     }
 
@@ -155,7 +155,7 @@ async function main(): Promise<void> {
           const cp = (outNode.data.params.customPath as string) ?? '';
           outputDir = cp ? resolve(cp) : null;
         }
-        // 'source' → outputDir stays null (same folder as source)
+        // 'source' -> outputDir stays null (same folder as source)
       }
     } else {
       // textOutputNode / flipbookOutputNode: output path is a file path baked into params
@@ -195,18 +195,18 @@ async function main(): Promise<void> {
 
     process.stdout.write('\n');
     if (outputDir) {
-      console.log(`Done → ${outputDir}`);
+      console.log(`Done -> ${outputDir}`);
     } else if (outNode.type === 'imageOutputNode') {
-      console.log(`Done → (same folder as source)`);
+      console.log(`Done -> (same folder as source)`);
     } else {
       const paramKey = outNode.type === 'textOutputNode' ? 'outputPath' : 'flipbookOutputPath';
       const outPath = (patchedGraph.nodes.find((n) => n.id === outNode.id)?.data.params[paramKey] as string) ?? '';
-      console.log(`Done → ${outPath || '(path not set)'}`);
+      console.log(`Done -> ${outPath || '(path not set)'}`);
     }
   }
 }
 
 main().catch((err) => {
-  console.error(`[imgplex] ${err instanceof Error ? err.message : String(err)}`);
+  console.error(`[Bite] ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 });

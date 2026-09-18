@@ -75,7 +75,7 @@ export async function executeBatch(
   onProgress: (p: Progress) => void,
   isCancelled: () => boolean
 ): Promise<{ processed: number; skipped: number; failed: number; errors: string[]; outputFiles: string[] }> {
-  // Text and flipbook output nodes have their own execution paths — the rest of
+  // Text and flipbook output nodes have their own execution paths - the rest of
   // this function writes per-image image files, which only fits imageOutputNode.
   const outputNode = graph.nodes.find((n) => n.id === outputNodeId);
   if (outputNode?.type === 'textOutputNode') {
@@ -90,7 +90,7 @@ export async function executeBatch(
     'info',
     `[batch] start: ${imagePaths.length} image(s), output: ${outputDir ?? 'same as source'}, overwrite: ${overwrite}`
   );
-  // Nothing to do — avoids concurrency=0 → os.cpus()/0 === Infinity downstream.
+  // Nothing to do - avoids concurrency=0 -> os.cpus()/0 === Infinity downstream.
   if (imagePaths.length === 0) return { processed: 0, skipped: 0, failed: 0, errors: [], outputFiles: [] };
   const outputFiles: string[] = [];
   const batchVerboseEntries: string[] = [];
@@ -99,9 +99,9 @@ export async function executeBatch(
   // Whether the workflow produces an image output (edge to outputNodeId in-0).
   const hasImageOutput = graph.edges.some((e) => e.target === outputNodeId && e.targetHandle === 'in-0');
 
-  // Nodes that actually contribute to the final output — backward BFS from
+  // Nodes that actually contribute to the final output - backward BFS from
   // outputNodeId following ALL edges (image AND param-wire).
-  // This ensures channel_split that feeds mean_value → gate (via param-wires)
+  // This ensures channel_split that feeds mean_value -> gate (via param-wires)
   // is correctly recognised as a contributor and uses the multi-stream path.
   // Nodes that are purely decorative (no path to outputNodeId of any kind)
   // are excluded so they don't force the slow path unnecessarily.
@@ -110,7 +110,7 @@ export async function executeBatch(
   // prop_ nodes depend on per-image file metadata (dimensions, name, EXIF, etc.)
   // mean_value depends on per-image pixel data but NOT on loadImageMeta.
   // Either kind requires per-image plan evaluation (no shared opArgs).
-  // Only nodes that contribute to output are relevant — disconnected nodes must not
+  // Only nodes that contribute to output are relevant - disconnected nodes must not
   // influence the shared-plan decision or trigger unnecessary metadata calls.
   const hasImageMetaNodes = sorted.some((n) => {
     if (!outputContributorIds.has(n.id)) return false;
@@ -133,7 +133,7 @@ export async function executeBatch(
   // Executors that require executeMultiStream (cannot be handled by the fast-path
   // buildOpArgsForImage): channel_split/merge produce multiple image buffers;
   // mean_value reads pixel data per-image and feeds param-wires (gate conditions etc.)
-  // — buildOpArgsForImage skips it, leaving downstream gate conditions unset.
+  // - buildOpArgsForImage skips it, leaving downstream gate conditions unset.
   const MULTI_STREAM_EXECUTORS = new Set<string>([EXECUTOR.CHANNEL_SPLIT, EXECUTOR.CHANNEL_MERGE, EXECUTOR.MEAN_VALUE]);
   const hasMultiStreamNodes = sorted.some((n) => {
     if (!outputContributorIds.has(n.id)) return false;
@@ -143,7 +143,7 @@ export async function executeBatch(
 
   interface BatchPlan {
     opArgs: string[];
-    outputFormat: string | null; // e.g. 'PNG' — non-null only when format_convert is active
+    outputFormat: string | null; // e.g. 'PNG' - non-null only when format_convert is active
   }
 
   // Returns null when a Gate node suppresses the image (don't write output).
@@ -156,7 +156,7 @@ export async function executeBatch(
         console.warn(`[executor] loadImageMeta failed for ${imagePath} (non-fatal, prop nodes use defaults):`, err);
       }
     } else if (hasImageMetaNodes && imagePath !== '') {
-      // light-meta nodes only — no ImageMagick spawn needed.
+      // light-meta nodes only - no ImageMagick spawn needed.
       meta = await buildEmptyImageMeta(imagePath);
     }
     const resolvedParams = new Map<string, Record<string, unknown>>();
@@ -171,7 +171,7 @@ export async function executeBatch(
       if (!isImageNode) continue;
       // Gate node: when active and condition is false, suppress this image entirely
       if (def.executor === EXECUTOR.GATE && params._enabled !== false && !params.condition) return null;
-      // Mean Value — analysis-only, no image output, no opArgs contribution
+      // Mean Value - analysis-only, no image output, no opArgs contribution
       if (def.executor === EXECUTOR.MEAN_VALUE) continue;
       if (params._enabled !== false) {
         if (def.executor === EXECUTOR.FORMAT_CONVERT) {
@@ -192,7 +192,7 @@ export async function executeBatch(
     return { opArgs, outputFormat };
   }
 
-  // Fast path: no Properties nodes — evaluate once, reuse for all images.
+  // Fast path: no Properties nodes - evaluate once, reuse for all images.
   // undefined = not pre-computed (will be built per-image); null = gate suppressed for all images.
   let sharedPlan: BatchPlan | null | undefined;
   if (!hasPropNodes && !hasMultiStreamNodes) {
@@ -222,7 +222,7 @@ export async function executeBatch(
     spawnEnv: process.env, // overridden below once this run's concurrency is known
   };
 
-  // ── Set batch mode ─────────────────────────────────────────────────────────
+  // -- Set batch mode ---------------------------------------------------------
   // When a setInputNode is present, group images by naming convention and
   // execute one run per set instead of one run per image.
   const setInputNode = sorted.find((n) => n.data.definitionId === EXECUTOR.PROCESS_AS_SET);
@@ -265,13 +265,13 @@ export async function executeBatch(
         candidate = `${stem}_${i}${ext}`;
         i++;
       } while (claimedOutPaths.has(candidate));
-      log('warn', `[batch] output name collision: ${path.basename(desired)} → ${path.basename(candidate)}`);
+      log('warn', `[batch] output name collision: ${path.basename(desired)} -> ${path.basename(candidate)}`);
     }
     claimedOutPaths.add(candidate);
     return candidate;
   };
 
-  // Resolve rename node params once (shared across all images — index varies per image)
+  // Resolve rename node params once (shared across all images - index varies per image)
   const renameNode = sorted.find((n) => registry.get(n.data.definitionId)?.executor === EXECUTOR.RENAME);
   const renameParams = renameNode ? (renameNode.data.params as RenameParams) : undefined;
 
@@ -303,7 +303,7 @@ export async function executeBatch(
       const renamedFileName = renameParams ? computeNewName(fileName, renameParams, imageIndex) : fileName;
       try {
         if (hasMultiStreamNodes) {
-          // Multi-stream path — runs concurrently; unique tmpId per image prevents collisions
+          // Multi-stream path - runs concurrently; unique tmpId per image prevents collisions
           const targetDir = outputDir ?? path.dirname(inputPath);
           const checkT0 = timings.enabled ? Date.now() : 0;
           await fs.promises.mkdir(targetDir, { recursive: true });
@@ -367,7 +367,7 @@ export async function executeBatch(
               imgEntry.copy(Date.now() - copyT0);
               imgEntry.done(Date.now() - imgT0);
             }
-            log('info', `[batch] done (${Date.now() - imgT0}ms): ${fileName} → ${outPath}`);
+            log('info', `[batch] done (${Date.now() - imgT0}ms): ${fileName} -> ${outPath}`);
             outputFiles.push(outPath);
             if (timings.enabled && msVerboseCapture.length > 0) {
               const verboseText = msVerboseCapture.join('').trim();
@@ -377,7 +377,7 @@ export async function executeBatch(
             void msResult.cleanup();
           }
         } else {
-          // Single-command fast path — evaluate the plan before creating the output directory
+          // Single-command fast path - evaluate the plan before creating the output directory
           // so gate-suppressed images are skipped without attempting mkdir on a non-existent path.
           const plan = sharedPlan !== undefined ? sharedPlan : await buildOpArgsForImage(inputPath);
           if (plan === null) {
@@ -456,7 +456,7 @@ export async function executeBatch(
                 imgEntry.done(Date.now() - imgT0);
               }
             }
-            log('info', `[batch] done (${Date.now() - imgT0}ms): ${fileName} → ${outPath}`);
+            log('info', `[batch] done (${Date.now() - imgT0}ms): ${fileName} -> ${outPath}`);
             outputFiles.push(outPath);
           }
         }
@@ -477,8 +477,8 @@ export async function executeBatch(
   }
 
   // Prevent magick's internal OpenMP thread pool from oversubscribing the CPU.
-  // With N concurrent pipelines each trying to use all cores, we'd get N×cores threads
-  // competing for cores threads — massive context-switching overhead.  Giving each
+  // With N concurrent pipelines each trying to use all cores, we'd get Nxcores threads
+  // competing for cores threads - massive context-switching overhead.  Giving each
   // process an equal share of the hardware threads keeps total thread count at os.cpus().
   const threadsPerProcess = Math.max(1, Math.floor(os.cpus().length / concurrency));
   // Pass the thread limit per-spawn (not via process.env) so concurrent previews,

@@ -10,7 +10,7 @@
   let isDragOver = $state(false);
 
   // Measure panel height (for thumbSize) and strip width (for visible range).
-  // We observe the outer panel for height — its size is set by the app layout and
+  // We observe the outer panel for height - its size is set by the app layout and
   // never changes in response to thumbnail sizes, avoiding a ResizeObserver loop.
   $effect(() => {
     if (!panelEl || !stripEl) return;
@@ -48,7 +48,7 @@
   const spacerLeft = $derived(visibleRange.start * itemWidth);
   const spacerRight = $derived(Math.max(0, (imageStore.images.length - 1 - visibleRange.end) * itemWidth));
 
-  // Non-passive wheel listener — redirects vertical scroll to horizontal.
+  // Non-passive wheel listener - redirects vertical scroll to horizontal.
   $effect(() => {
     if (!stripEl) return;
     function onWheel(e: WheelEvent) {
@@ -105,7 +105,7 @@
   ondragleave={onDragLeave}
   ondrop={onDrop}
 >
-  <!-- ── Thumbnail strip ── -->
+  <!-- -- Thumbnail strip -- -->
   <div
     class="thumb-strip"
     bind:this={stripEl}
@@ -116,7 +116,7 @@
     {#if imageStore.images.length === 0}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       {#if IS_ELECTRON}
-        <span class="empty-hint" onclick={() => imageStore.openDialog()}> Drop images here or click to open… </span>
+        <span class="empty-hint" onclick={() => imageStore.openDialog()}> Drop images here or click to open... </span>
       {:else}
         <span class="empty-hint no-action">Image features require the desktop app.</span>
       {/if}
@@ -151,7 +151,7 @@
     {/if}
   </div>
 
-  <!-- ── Status bar ── -->
+  <!-- -- Status bar -- -->
   <div class="status-bar">
     <span class="count">{countLabel}</span>
   </div>
@@ -173,7 +173,7 @@
     outline-offset: -3px;
   }
 
-  /* ── Thumb strip ── */
+  /* -- Thumb strip -- */
   .thumb-strip {
     flex: 1;
     min-height: 0;
@@ -231,13 +231,13 @@
     cursor: default;
   }
 
-  /* ── Virtual scroll spacers ── */
+  /* -- Virtual scroll spacers -- */
   .virt-spacer {
     flex-shrink: 0;
     align-self: stretch;
   }
 
-  /* ── Thumbnails — size set via inline style from thumbSize ── */
+  /* -- Thumbnails - size set via inline style from thumbSize -- */
   .thumb {
     display: flex;
     flex-direction: column;
@@ -286,7 +286,7 @@
     opacity: 1;
   }
 
-  /* ── Status bar ── */
+  /* -- Status bar -- */
   .status-bar {
     flex-shrink: 0;
     height: 24px;

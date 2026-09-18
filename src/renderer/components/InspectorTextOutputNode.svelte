@@ -62,7 +62,7 @@
     })
   );
 
-  // ── Param setters ──────────────────────────────────────────────────────────
+  // -- Param setters ----------------------------------------------------------
   function setOutputPath(v: string) {
     graphStore.setParam(selectedNode.id, 'outputPath', v);
   }
@@ -78,7 +78,7 @@
     if (path) setOutputPath(path);
   }
 
-  // ── Drag-to-reorder connected port blocks ──────────────────────────────────
+  // -- Drag-to-reorder connected port blocks ----------------------------------
   let dragIdx = $state<number | null>(null);
   let dragOverPos = $state<number | null>(null);
 
@@ -133,7 +133,7 @@
     dragIdx = dragOverPos = null;
   }
 
-  // ── Preview ────────────────────────────────────────────────────────────────
+  // -- Preview ----------------------------------------------------------------
   let previewLines = $state<string[] | null>(null);
   let previewLoading = $state(false);
   let previewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -194,11 +194,11 @@
   });
 
   const SEPARATOR_OPTIONS = ['space', 'comma', 'tab', 'custom'];
-  const SEPARATOR_LABELS = ['Space', 'Comma', 'Tab', 'Custom…'];
+  const SEPARATOR_LABELS = ['Space', 'Comma', 'Tab', 'Custom...'];
 </script>
 
 <div class="txo-inspector">
-  <!-- ── CLI Name ──────────────────────────────────────────────────── -->
+  <!-- -- CLI Name ---------------------------------------------------- -->
   <div class="section">
     <div class="section-title">CLI Name</div>
     <input
@@ -220,7 +220,7 @@
     </span>
   </div>
 
-  <!-- ── Output Path ─────────────────────────────────────────────────── -->
+  <!-- -- Output Path --------------------------------------------------- -->
   <div class="section">
     <div class="section-title">Output File</div>
     <div class="path-row">
@@ -236,7 +236,7 @@
     </div>
   </div>
 
-  <!-- ── Overwrite ────────────────────────────────────────────────── -->
+  <!-- -- Overwrite -------------------------------------------------- -->
   <div class="section">
     <div class="section-title">Overwrite</div>
     <Dropdown
@@ -247,7 +247,7 @@
     />
   </div>
 
-  <!-- ── Separator ──────────────────────────────────────────────────── -->
+  <!-- -- Separator ---------------------------------------------------- -->
   <div class="section">
     <div class="section-title">Separator</div>
     <Dropdown options={SEPARATOR_OPTIONS} labels={SEPARATOR_LABELS} value={separatorType} onchange={setSeparatorType} />
@@ -257,13 +257,13 @@
         type="text"
         value={customSep}
         oninput={(e) => setCustomSep((e.target as HTMLInputElement).value)}
-        placeholder="separator…"
+        placeholder="separator..."
         spellcheck="false"
       />
     {/if}
   </div>
 
-  <!-- ── Port Order ─────────────────────────────────────────────────── -->
+  <!-- -- Port Order --------------------------------------------------- -->
   <div class="section">
     <div class="section-title">Port Order</div>
 
@@ -296,7 +296,7 @@
     {/if}
   </div>
 
-  <!-- ── Output Log ─────────────────────────────────────────────────── -->
+  <!-- -- Output Log --------------------------------------------------- -->
   <div class="section">
     <div class="section-title">Output Log</div>
     <label class="log-toggle">
@@ -309,7 +309,7 @@
     </label>
   </div>
 
-  <!-- ── Processing Source ─────────────────────────────────────────── -->
+  <!-- -- Processing Source ------------------------------------------- -->
   <div class="section">
     <div class="section-title">Processing Source</div>
     <label class="log-toggle">
@@ -323,15 +323,15 @@
     </label>
   </div>
 
-  <!-- ── Preview ────────────────────────────────────────────────────── -->
+  <!-- -- Preview ------------------------------------------------------ -->
   <div class="section preview-section">
     <div class="section-title">
       {#if previewLines !== null}
-        Preview — {activeImages.length > PREVIEW_LIMIT
+        Preview - {activeImages.length > PREVIEW_LIMIT
           ? `first ${PREVIEW_LIMIT} of ${activeImages.length} files`
           : `${previewLines.length} line${previewLines.length !== 1 ? 's' : ''}`}
       {:else if previewLoading}
-        Preview…
+        Preview...
       {:else if activeImages.length === 0}
         Preview (no files loaded)
       {:else}
@@ -346,7 +346,7 @@
         {/each}
       </div>
     {:else if previewLoading}
-      <div class="preview-hint">Computing…</div>
+      <div class="preview-hint">Computing...</div>
     {:else}
       <div class="preview-hint">
         {activeImages.length === 0 ? 'Load images to see a preview.' : 'Connect at least one port to see a preview.'}
@@ -390,7 +390,7 @@
     opacity: 1;
   }
 
-  /* ── Path row ── */
+  /* -- Path row -- */
   .path-row {
     display: flex;
     gap: 6px;
@@ -402,7 +402,7 @@
     min-width: 0;
   }
 
-  /* ── Custom separator ── */
+  /* -- Custom separator -- */
   .custom-sep-input {
     background: var(--input-bg);
     border: 1px solid var(--input-border);
@@ -420,7 +420,7 @@
     border-color: var(--accent);
   }
 
-  /* ── Port list ── */
+  /* -- Port list -- */
   .empty-hint {
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
@@ -479,7 +479,7 @@
     flex: 1;
   }
 
-  /* ── Preview ── */
+  /* -- Preview -- */
   .preview-section {
     gap: 4px;
     flex: 1;
@@ -523,7 +523,7 @@
     font-style: italic;
   }
 
-  /* ── Log toggle ── */
+  /* -- Log toggle -- */
   .log-toggle {
     display: flex;
     align-items: center;

@@ -1,4 +1,4 @@
-// ─── Shared bypass / enabled-state resolution ─────────────────────────────────
+// --- Shared bypass / enabled-state resolution ---------------------------------
 //
 // Used by ProcessNode (visual), NodeEditor (connection validation), and
 // Preview (preview target selection). Keep logic here; callers just pass

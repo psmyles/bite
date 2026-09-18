@@ -18,7 +18,7 @@ function makeGraph(...nodes: GraphNode[]): NodeGraph {
 }
 
 const DATE = '2026-01-01';
-const WF = 'workflow.imgplex';
+const WF = 'workflow.bite';
 
 describe('flagToVarName', () => {
   it('converts hyphenated flag to uppercase underscore', () => {
@@ -105,9 +105,9 @@ describe('cliScriptCmd', () => {
     expect(script).not.toMatch(/[^\r]\n/);
   });
 
-  it('includes imgplex-cli run invocation', () => {
+  it('includes bite run invocation', () => {
     const script = cliScriptCmd(WF, DATE, makeGraph());
-    expect(script).toContain(`imgplex-cli run`);
+    expect(script).toContain(`bite run`);
     expect(script).toContain(WF);
   });
 
@@ -125,9 +125,9 @@ describe('cliScriptCmd', () => {
 });
 
 describe('cliScriptPS', () => {
-  it('includes # imgplex header', () => {
+  it('includes # Bite header', () => {
     const script = cliScriptPS(WF, DATE, makeGraph());
-    expect(script).toMatch(/^# imgplex/);
+    expect(script).toMatch(/^# Bite/);
   });
 
   it('uses LF line endings only', () => {
@@ -136,9 +136,9 @@ describe('cliScriptPS', () => {
     expect(script).toContain('\n');
   });
 
-  it('includes imgplex-cli run invocation with workflow file', () => {
+  it('includes bite run invocation with workflow file', () => {
     const script = cliScriptPS(WF, DATE, makeGraph());
-    expect(script).toContain('imgplex-cli run');
+    expect(script).toContain('bite run');
     expect(script).toContain(WF);
   });
 
@@ -163,9 +163,9 @@ describe('cliScriptBash', () => {
     expect(script).toContain('\n');
   });
 
-  it('includes imgplex-cli run invocation', () => {
+  it('includes bite run invocation', () => {
     const script = cliScriptBash(WF, DATE, makeGraph());
-    expect(script).toContain('imgplex-cli run');
+    expect(script).toContain('bite run');
     expect(script).toContain(WF);
   });
 

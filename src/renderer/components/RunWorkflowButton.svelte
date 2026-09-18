@@ -185,7 +185,7 @@
       const allReasons = outputNodeStatuses.flatMap((s) => s.reasons);
       const unique = [...new Set(allReasons)];
       return unique.length > 0
-        ? unique.join(' · ')
+        ? unique.join(' - ')
         : `0 of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`;
     }
     return `${validCount} of ${totalCount} output node${totalCount !== 1 ? 's' : ''} ready`;

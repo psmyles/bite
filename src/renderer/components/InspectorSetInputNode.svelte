@@ -11,7 +11,7 @@
   const prefix = $derived(String(params.prefix ?? ''));
   const suffixes = $derived(Array.isArray(params.suffixes) ? (params.suffixes as string[]) : []);
 
-  // ── Suffix editing ────────────────────────────────────────────────────────
+  // -- Suffix editing --------------------------------------------------------
 
   function setPrefix(val: string) {
     graphStore.setParam(selectedNode.id, 'prefix', val);
@@ -35,7 +35,7 @@
     setSuffixes(next);
   }
 
-  // ── Wired prefix/suffix detection ────────────────────────────────────────
+  // -- Wired prefix/suffix detection ----------------------------------------
 
   function isPrefixWired(): boolean {
     return graphStore.edges.some((e) => e.target === selectedNode.id && e.targetHandle === 'prefix-in');
@@ -64,7 +64,7 @@
     return String(srcParams[srcParamName] ?? suffixes[i] ?? '');
   }
 
-  // ── Live set preview ──────────────────────────────────────────────────────
+  // -- Live set preview ------------------------------------------------------
 
   interface SetGroup {
     middle: string;
@@ -196,7 +196,7 @@
         </div>
       {/each}
       {#if hiddenCount > 0}
-        <div class="more-hint">…and {hiddenCount} more</div>
+        <div class="more-hint">...and {hiddenCount} more</div>
       {/if}
     {/if}
   {/if}
@@ -209,7 +209,7 @@
     flex-direction: column;
   }
 
-  /* ── Prefix row ── */
+  /* -- Prefix row -- */
   .row {
     display: flex;
     align-items: center;
@@ -236,7 +236,7 @@
     margin: 4px 0;
   }
 
-  /* ── Section label ── */
+  /* -- Section label -- */
   .section-label {
     font-family: var(--font-ui);
     font-size: var(--font-size-xxs);
@@ -254,7 +254,7 @@
     color: var(--text-muted);
   }
 
-  /* ── Suffix rows ── */
+  /* -- Suffix rows -- */
   .suffix-row {
     display: flex;
     flex-direction: row;
@@ -325,19 +325,19 @@
     color: var(--color-danger-text-bright);
   }
 
-  /* ── Add row ── */
+  /* -- Add row -- */
   .add-row {
     padding: 8px 12px;
   }
 
-  /* ── Divider ── */
+  /* -- Divider -- */
   .divider {
     height: 1px;
     background: var(--ctx-separator);
     margin: 6px 0;
   }
 
-  /* ── Set preview ── */
+  /* -- Set preview -- */
   .no-match {
     padding: 4px 12px 8px;
     font-family: var(--font-ui);

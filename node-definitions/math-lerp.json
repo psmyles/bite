@@ -2,7 +2,7 @@
   "id": "math_lerp",
   "version": "1.0.0",
   "label": "Lerp",
-  "description": "Linear interpolation: A + (B − A) × T",
+  "description": "Linear interpolation: A + (B - A) * T",
   "category": "Math",
   "inputs": [],
   "outputs": [],

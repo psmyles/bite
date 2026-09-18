@@ -24,7 +24,7 @@ export function buildFormatConvertArgs(format: string, params: Record<string, un
 
   const result = new Function('params', def.args_js)(resolvedParams) as unknown;
   if (!Array.isArray(result) || result.some((x) => typeof x !== 'string')) {
-    throw new Error(`[${format}] args_js must return string[] — got: ${JSON.stringify(result)}`);
+    throw new Error(`[${format}] args_js must return string[] - got: ${JSON.stringify(result)}`);
   }
   return result as string[];
 }
@@ -44,7 +44,7 @@ export function buildCommandArgs(def: NodeDefinition, params: Record<string, unk
 
   // Split on whitespace first (preserving template token boundaries), then substitute
   // params within each word. This keeps adjacent literals+params as one token
-  // (e.g. "{{w}}x{{h}}" → "1024x768") while also keeping multi-word param values
+  // (e.g. "{{w}}x{{h}}" -> "1024x768") while also keeping multi-word param values
   // as single tokens (e.g. color="rgba(0, 0, 0, 1)" stays unsplit).
   return def.command_template
     .split(/\s+/)
@@ -67,7 +67,7 @@ export function buildCommandArgsFromJs(def: NodeDefinition, params: Record<strin
   const fn = new Function('params', def.command_js!) as (p: Record<string, unknown>) => unknown;
   const result = fn(params);
   if (!Array.isArray(result) || result.some((x) => typeof x !== 'string')) {
-    throw new Error(`[${def.id}] command_js must return string[] — got: ${JSON.stringify(result)}`);
+    throw new Error(`[${def.id}] command_js must return string[] - got: ${JSON.stringify(result)}`);
   }
   return result as string[];
 }

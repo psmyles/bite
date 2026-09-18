@@ -3,7 +3,7 @@ THIRD-PARTY LICENSES
 
 This product includes software developed by the ImageMagick Studio LLC.
 
-imgplex uses the following open source software. For MIT-licensed packages a
+Bite uses the following open source software. For MIT-licensed packages a
 link to the upstream license is provided. For bundled binaries the full license
 text is reproduced below as required by those licenses.
 
@@ -25,7 +25,7 @@ License at:
   https://imagemagick.org/script/license.php
 
 In plain terms, the ImageMagick license lets you use, copy, modify, and
-distribute ImageMagick — including commercially — provided that:
+distribute ImageMagick - including commercially - provided that:
 
   1. The above copyright notice appears in all copies.
   2. The ImageMagick name and logo are not used to endorse or promote products

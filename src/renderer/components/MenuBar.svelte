@@ -76,7 +76,7 @@
 <svelte:window onclick={onWindowClick} onkeydown={onKeydown} />
 
 <div class="menubar">
-  <span class="app-name">imgplex</span>
+  <span class="app-name">Bite</span>
 
   <!-- File menu -->
   <div class="menu-item" class:open={openMenu === 'file'}>
@@ -84,10 +84,10 @@
     {#if openMenu === 'file'}
       <ul class="dropdown">
         <li><button onclick={() => run(onNew)}> New<span class="shortcut">Ctrl+N</span></button></li>
-        <li><button onclick={() => run(onOpen)}> Open…<span class="shortcut">Ctrl+O</span></button></li>
+        <li><button onclick={() => run(onOpen)}> Open...<span class="shortcut">Ctrl+O</span></button></li>
         <li class="sep"></li>
         <li><button onclick={() => run(onSave)}> Save<span class="shortcut">Ctrl+S</span></button></li>
-        <li><button onclick={() => run(onSaveAs)}>Save As…<span class="shortcut">Ctrl+Shift+S</span></button></li>
+        <li><button onclick={() => run(onSaveAs)}>Save As...<span class="shortcut">Ctrl+Shift+S</span></button></li>
       </ul>
     {/if}
   </div>
@@ -177,7 +177,7 @@
           <button
             onclick={() => {
               openMenu = null;
-            }}>Zoom Out<span class="shortcut">Ctrl+−</span></button
+            }}>Zoom Out<span class="shortcut">Ctrl+-</span></button
           >
         </li>
         <li class="sep"></li>
@@ -248,7 +248,7 @@
     padding-right: 4px;
   }
 
-  /* ── Menu items ── */
+  /* -- Menu items -- */
   .menu-item {
     position: relative;
   }
@@ -272,7 +272,7 @@
     color: var(--text-bright);
   }
 
-  /* ── Dropdown ── */
+  /* -- Dropdown -- */
   .dropdown {
     position: absolute;
     top: calc(100% + 2px);

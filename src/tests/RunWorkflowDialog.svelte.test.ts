@@ -18,7 +18,7 @@ describe('RunWorkflowDialog', () => {
   it('summarises ready vs total and lists invalid reasons', () => {
     const { getByText } = render(RunWorkflowDialog, { statuses, onRun: vi.fn(), onCancel: vi.fn() });
     expect(getByText('1 of 2 output nodes ready to run.', { exact: false })).toBeInTheDocument();
-    expect(getByText('No input wired · No output path')).toBeInTheDocument();
+    expect(getByText('No input wired - No output path')).toBeInTheDocument();
   });
 
   it('runs only valid nodes when the run button is clicked', async () => {

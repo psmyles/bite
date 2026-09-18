@@ -42,10 +42,10 @@
 
   let { definitions }: { definitions: NodeDefinition[] } = $props();
 
-  // ── Workflow node types (guard against deletion of last instance) ──────────
+  // -- Workflow node types (guard against deletion of last instance) ----------
   const WORKFLOW_TYPES = new Set(['inputNode', 'imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
 
-  // ── Synthetic NodeDefinition objects for the context menu ─────────────────
+  // -- Synthetic NodeDefinition objects for the context menu -----------------
   // IDs are prefixed with '_workflow_' so onMenuSelect can detect and dispatch them.
   const WORKFLOW_DEFS: NodeDefinition[] = [
     {
@@ -89,7 +89,7 @@
   // Merge workflow defs at the front so "Workflow" sorts to the top
   const allDefinitions = $derived([...WORKFLOW_DEFS, ...definitions]);
 
-  // ── Custom node / edge types ───────────────────────────────────────────────
+  // -- Custom node / edge types -----------------------------------------------
   const nodeTypes = {
     process: ProcessNode,
     inputNode: InputNode,
@@ -104,7 +104,7 @@
   };
   const edgeTypes = { colored: ColoredEdge };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // -- Helpers ---------------------------------------------------------------
   const NODE_W = 150;
   const NODE_H = 58; // header (~32px) + ports row (~26px)
 
@@ -116,7 +116,7 @@
     };
   }
 
-  // ── Graph state — local, synced bidirectionally with graphStore ───────────
+  // -- Graph state - local, synced bidirectionally with graphStore -----------
   // WHY two-way sync? @xyflow/svelte owns its node/edge arrays; it cannot
   // accept a Svelte store binding. We must keep a LOCAL copy that SvelteFlow
   // mutates (drag, connect, etc.) and mirror it into graphStore for the
@@ -124,10 +124,10 @@
   // (new array reference) and must be pulled back into the local binding.
   //
   // WHY `untrack`? Without it, the push-effect reads graphStore inside a
-  // reactive context, which makes it re-fire when graphStore changes — and the
+  // reactive context, which makes it re-fire when graphStore changes - and the
   // pull-effect does the mirror image. The result is an infinite loop:
-  //   SvelteFlow → nodes change → push-effect → graphStore.nodes = n
-  //   → pull-effect fires → nodes = n (same ref, no-op, but still fires…)
+  //   SvelteFlow -> nodes change -> push-effect -> graphStore.nodes = n
+  //   -> pull-effect fires -> nodes = n (same ref, no-op, but still fires...)
   // `untrack` breaks the cycle: each effect only tracks ONE side and writes
   // the other side without establishing a dependency on it.
   //
@@ -135,7 +135,7 @@
   let nodes: Node[] = $state.raw(graphStore.nodes);
   let edges: Edge[] = $state.raw(graphStore.edges);
 
-  // Push local → store (SvelteFlow mutations: drag, delete, etc.)
+  // Push local -> store (SvelteFlow mutations: drag, delete, etc.)
   $effect(() => {
     const n = nodes;
     untrack(() => {
@@ -150,7 +150,7 @@
     });
   });
 
-  // Pull store → local (Inspector param changes create a new array)
+  // Pull store -> local (Inspector param changes create a new array)
   $effect(() => {
     const n = graphStore.nodes;
     untrack(() => {
@@ -164,11 +164,11 @@
     });
   });
 
-  // ── Text output node: keep portIds in sync with actual edge connections ──────
+  // -- Text output node: keep portIds in sync with actual edge connections ------
   // Runs whenever edges change. Removes middle unconnected ports and ensures
   // exactly one unconnected ghost port exists at the bottom of each textOutputNode.
   $effect(() => {
-    const currentEdges = edges; // reactive dep — re-runs on any edge change
+    const currentEdges = edges; // reactive dep - re-runs on any edge change
     untrack(() => {
       const txNodes = nodes.filter((n) => n.type === 'textOutputNode');
       if (txNodes.length === 0) return;
@@ -210,7 +210,7 @@
     graphStore.selectedNodeId = sel[0]?.id ?? null;
   }
 
-  // ── Undo / Redo ───────────────────────────────────────────────────────────
+  // -- Undo / Redo -----------------------------------------------------------
   const undoRedo = new UndoRedoManager();
 
   function pushHistory() {
@@ -239,7 +239,7 @@
   // Capture initial empty-canvas state so the first undo returns to blank.
   pushHistory();
 
-  // ── Node grouping ──────────────────────────────────────────────────────────
+  // -- Node grouping ----------------------------------------------------------
   const GROUP_PADDING = 40;
 
   const groupable = $derived(nodes.some((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '') && n.type !== 'group'));
@@ -326,7 +326,7 @@
     pushHistory();
   }
 
-  // ── Editor element ref + last-mouse tracking (for keyboard invocation) ──────
+  // -- Editor element ref + last-mouse tracking (for keyboard invocation) ------
   let editorEl = $state<HTMLElement | undefined>(undefined);
   let lastMouseX = 0;
   let lastMouseY = 0;
@@ -335,7 +335,7 @@
     lastMouseY = e.clientY;
   }
 
-  // ── Context menu ──────────────────────────────────────────────────────────
+  // -- Context menu ----------------------------------------------------------
   interface WireLine {
     x1: number;
     y1: number;
@@ -355,7 +355,7 @@
   function openMenu(screenX: number, screenY: number, filterType: string | null = null) {
     if (!screenToCanvas) return;
 
-    // Compute wire preview line endpoints (source handle → menu position).
+    // Compute wire preview line endpoints (source handle -> menu position).
     // Query the actual rendered handle element so the start point is exact regardless
     // of node height, which port was dragged, zoom level, or viewport offset.
     let wireLine: WireLine | null = null;
@@ -421,7 +421,7 @@
     // is right where the wire ended. Otherwise center the node on the spawn point.
     const position = wireSource ? { x: pos.x, y: pos.y } : { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 };
 
-    // ── Workflow node (synthetic def with _workflow_ prefix) ──────────────────
+    // -- Workflow node (synthetic def with _workflow_ prefix) ------------------
     if (def.id.startsWith('_workflow_')) {
       const workflowType = def.id.slice('_workflow_'.length);
       const defaults = WORKFLOW_NODE_DEFAULTS[workflowType];
@@ -458,7 +458,7 @@
       return;
     }
 
-    // ── Regular (JSON-defined) node ───────────────────────────────────────────
+    // -- Regular (JSON-defined) node -------------------------------------------
     const newId = `${def.id}-${Date.now()}`;
     const isComment = def.id === 'comment';
     nodes = [
@@ -490,7 +490,7 @@
     pushHistory();
   }
 
-  // ── Connections ───────────────────────────────────────────────────────────
+  // -- Connections -----------------------------------------------------------
   function onConnect(connection: Connection) {
     wireMade = true;
 
@@ -523,7 +523,7 @@
     pushHistory();
   }
 
-  // ── Wire-drop → context menu (filtered by port type) ──────────────────────
+  // -- Wire-drop -> context menu (filtered by port type) ----------------------
   let wireSource: { nodeId: string; handleId: string | null; handleType: string | null } | null = null;
   let wireType: string | null = null;
   let wireMade = false;
@@ -558,7 +558,7 @@
     wireMade = false;
   }
 
-  // ── Background pattern (read from theme.css CSS vars) ─────────────────────
+  // -- Background pattern (read from theme.css CSS vars) ---------------------
   function cssProp(name: string): string {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
@@ -569,25 +569,25 @@
     cross: BackgroundVariant.Cross,
   };
 
-  // Strip surrounding quotes that CSS string values include e.g. `"dots"` → `dots`
+  // Strip surrounding quotes that CSS string values include e.g. `"dots"` -> `dots`
   const bgVariant = bgVariantMap[cssProp('--graph-bg-variant').replace(/['"]/g, '')] ?? BackgroundVariant.Dots;
   const bgGap = parseFloat(cssProp('--graph-bg-gap')) || 20;
   const bgLineWidth = parseFloat(cssProp('--graph-bg-line-width')) || 1;
   const bgColor = cssProp('--graph-bg-color');
   const bgBaseColor = cssProp('--graph-bg-base-color');
 
-  // Connection line style — changes color while dragging a wire
+  // Connection line style - changes color while dragging a wire
   const connectionLineStyle = $derived(
     wireType
       ? `stroke: ${portColor(wireType)}; stroke-width: 2; stroke-dasharray: 6 4;`
       : `stroke: var(--edge-stroke); stroke-width: 2; stroke-dasharray: 6 4;`
   );
 
-  // ── Viewport (zoom level) ──────────────────────────────────────────────────
+  // -- Viewport (zoom level) --------------------------------------------------
   let viewport: Viewport = $state({ x: 0, y: 0, zoom: 1 });
   const zoomPct = $derived(Math.round(viewport.zoom * 100) + '%');
 
-  // ── screenToFlowPosition + setViewport + updateNodeInternals (from DropHelper) ─
+  // -- screenToFlowPosition + setViewport + updateNodeInternals (from DropHelper) -
   let screenToCanvas: ((pos: { x: number; y: number }) => { x: number; y: number }) | null = $state(null);
   let setViewport: ((v: Viewport) => void) | null = $state(null);
   let updateNodeInternals: ((ids: string | string[]) => void) | null = $state(null);
@@ -595,7 +595,7 @@
   // Re-measure handle positions whenever a textOutputNode's port order changes.
   // @xyflow only remeasures handles on node resize; CSS top changes need an explicit nudge.
   // IMPORTANT: use graphStore.nodes (not local `nodes`) so that only Inspector-driven portIds
-  // changes trigger this effect — NOT SvelteFlow's dimension updates, which flow through the
+  // changes trigger this effect - NOT SvelteFlow's dimension updates, which flow through the
   // local `nodes` binding and would cause an infinite loop.
   const _textOutputPortIdSig = $derived(
     graphStore.nodes
@@ -629,7 +629,7 @@
     return isNodeEffectivelyEnabled(nodeId, nodes, edges);
   }
 
-  // ── Double-click: on node → set preview target; on canvas → reset zoom ──────
+  // -- Double-click: on node -> set preview target; on canvas -> reset zoom ------
   function onDblClick(e: MouseEvent) {
     const nodeEl = (e.target as Element).closest('.svelte-flow__node');
     if (nodeEl) {
@@ -644,7 +644,7 @@
     setViewport?.({ x: viewport.x, y: viewport.y, zoom: 1 });
   }
 
-  // ── Right-click on canvas → open context menu ─────────────────────────────
+  // -- Right-click on canvas -> open context menu -----------------------------
   function onContextMenu(e: MouseEvent) {
     e.preventDefault();
     const nodeEl = (e.target as Element).closest('.svelte-flow__node');
@@ -657,7 +657,7 @@
     openMenu(e.clientX, e.clientY);
   }
 
-  // ── Delete / drag-end — push history after xyflow mutates nodes/edges ──────
+  // -- Delete / drag-end - push history after xyflow mutates nodes/edges ------
   function onNodeDragStop(_e: MouseEvent | TouchEvent, node: Node | undefined) {
     // Snap child nodes back below the header band if the user drags them into it
     if (node?.parentId) {
@@ -669,7 +669,7 @@
     scheduleHistoryPush();
   }
 
-  // ── Custom delete handler — xyflow's deleteKey is disabled so we own this ────
+  // -- Custom delete handler - xyflow's deleteKey is disabled so we own this ----
   // Deleting a group ungroupes its children (converts to absolute) rather than
   // removing them. We handle both nodes and edges here.
   function deleteSelected() {
@@ -692,7 +692,7 @@
     pushHistory();
   }
 
-  // ── Space / Tab key while canvas is focused → open context menu ───────────
+  // -- Space / Tab key while canvas is focused -> open context menu -----------
   function onKeydown(e: KeyboardEvent) {
     // Undo / Redo
     if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey)) {
@@ -710,7 +710,7 @@
       return;
     }
 
-    // Ctrl+G — group selected nodes; Ctrl+Shift+G — ungroup
+    // Ctrl+G - group selected nodes; Ctrl+Shift+G - ungroup
     if ((e.key === 'g' || e.key === 'G') && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       if (e.shiftKey) {
@@ -734,13 +734,13 @@
       }
     }
 
-    // Delete / Backspace — custom handler so group deletion ungroupes children
+    // Delete / Backspace - custom handler so group deletion ungroupes children
     if (e.key === 'Delete' || e.key === 'Backspace') {
       deleteSelected();
       return;
     }
 
-    // Ctrl/Cmd+D — duplicate selected nodes (never duplicates workflow nodes)
+    // Ctrl/Cmd+D - duplicate selected nodes (never duplicates workflow nodes)
     if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       duplicateNodes(nodes.filter((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? '')));
@@ -754,7 +754,7 @@
     pushHistory();
   }
 
-  // ── Drag-and-drop ─────────────────────────────────────────────────────────
+  // -- Drag-and-drop ---------------------------------------------------------
   function onDragOver(e: DragEvent) {
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
@@ -809,7 +809,7 @@
     if (!screenToCanvas) return;
 
     // Workflow node dropped from the "Workflow" section of the library
-    const workflowType = e.dataTransfer?.getData('application/imgplex-node-type');
+    const workflowType = e.dataTransfer?.getData('application/bite-node-type');
     if (workflowType && WORKFLOW_NODE_DEFAULTS[workflowType]) {
       const canvasPos = screenToCanvas({ x: e.clientX, y: e.clientY });
       const position = { x: canvasPos.x - NODE_W / 2, y: canvasPos.y - NODE_H / 2 };
@@ -826,8 +826,8 @@
       return;
     }
 
-    const definitionId = e.dataTransfer?.getData('application/imgplex-node-id');
-    const label = e.dataTransfer?.getData('application/imgplex-node-label');
+    const definitionId = e.dataTransfer?.getData('application/bite-node-id');
+    const label = e.dataTransfer?.getData('application/bite-node-label');
     if (!definitionId) return;
 
     const canvasPos = screenToCanvas({ x: e.clientX, y: e.clientY });
@@ -852,7 +852,7 @@
     pushHistory();
   }
 
-  // ── Sync viewport to store (for saving) ───────────────────────────────────
+  // -- Sync viewport to store (for saving) -----------------------------------
   $effect(() => {
     const v = viewport;
     untrack(() => {
@@ -860,7 +860,7 @@
     });
   });
 
-  // ── Restore viewport when requested by store (after load/new) ─────────────
+  // -- Restore viewport when requested by store (after load/new) -------------
   $effect(() => {
     const pv = graphStore.pendingViewport;
     const sv = setViewport;
@@ -872,7 +872,7 @@
     }
   });
 
-  // ── Menu IPC: duplicate / delete ───────────────────────────────────────────
+  // -- Menu IPC: duplicate / delete -------------------------------------------
   $effect(() => {
     function onDuplicate() {
       const selected = nodes.filter((n) => n.selected && !WORKFLOW_TYPES.has(n.type ?? ''));
@@ -991,7 +991,7 @@
     outline: none;
   }
 
-  /* xyflow dark mode adds a border and its own background to .svelte-flow — strip both */
+  /* xyflow dark mode adds a border and its own background to .svelte-flow - strip both */
   :global(.svelte-flow) {
     border: none !important;
     border-radius: 0 !important;

@@ -1,4 +1,4 @@
-/** Visual color for each port data type — used on handles and edges.
+/** Visual color for each port data type - used on handles and edges.
  *  Values are read from CSS custom properties defined in theme.css.
  *  Lazy-initialized on first call so the stylesheet is guaranteed to
  *  have been applied before the map is built.                       */

@@ -2,7 +2,7 @@
   "id": "vec_math_dot",
   "version": "1.0.0",
   "label": "Dot Product",
-  "description": "A · B (scalar result)",
+  "description": "A dot B (scalar result)",
   "category": "Math",
   "inputs": [],
   "outputs": [],

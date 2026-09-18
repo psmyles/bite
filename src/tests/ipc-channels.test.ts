@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 //
 // The preload allowlist (electron/preload.ts) is built from Object.values(IPC).
 // Any channel passed to ipcRenderer.on/off/send/invoke or webContents.send that
-// is NOT a literal IPC.* value is rejected at runtime — which silently aborts
+// is NOT a literal IPC.* value is rejected at runtime - which silently aborts
 // the renderer mount. The original break was an inline `${IPC.EXECUTE_BATCH}:progress`
 // channel that, being derived, never appeared in the allowlist.
 //
@@ -35,7 +35,7 @@ function collectSourceFiles(dir: string): string[] {
 
 describe('IPC channel hygiene', () => {
   it('never constructs a channel by interpolating an IPC.* value', () => {
-    // Matches `${IPC.SOMETHING}` inside a template literal — a derived channel
+    // Matches `${IPC.SOMETHING}` inside a template literal - a derived channel
     // name that bypasses the preload allowlist.
     const dynamicChannel = /\$\{\s*IPC\./;
     const offenders: string[] = [];

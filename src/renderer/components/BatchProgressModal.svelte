@@ -45,7 +45,7 @@
 <div class="backdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-label={batchError ? 'Workflow Error' : 'Running Workflow'}>
     <div class="modal-header">
-      <span class="modal-title">{batchError ? 'Workflow Error' : 'Running Workflow…'}</span>
+      <span class="modal-title">{batchError ? 'Workflow Error' : 'Running Workflow...'}</span>
     </div>
 
     {#if batchError}
@@ -64,9 +64,9 @@
           <div class="progress-track">
             <div class="progress-fill" style="width: {pct}%"></div>
           </div>
-          <div class="pct-label">{pct}% &nbsp;·&nbsp; {fmtTime(elapsed)}</div>
+          <div class="pct-label">{pct}% &nbsp;-&nbsp; {fmtTime(elapsed)}</div>
         {:else}
-          <div class="starting-label">Starting… {fmtTime(elapsed)}</div>
+          <div class="starting-label">Starting... {fmtTime(elapsed)}</div>
         {/if}
       </div>
     {/if}

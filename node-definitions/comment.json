@@ -2,7 +2,7 @@
   "id": "comment",
   "label": "Comment",
   "category": "Utility",
-  "description": "Annotation node — no pipeline effect.",
+  "description": "Annotation node - no pipeline effect.",
   "executor": "comment",
   "inputs": [],
   "outputs": [],
