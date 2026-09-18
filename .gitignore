@@ -38,6 +38,9 @@ pnpm-debug.log*
 # -- Claude Code session data --------------------------------------------------
 .claude/
 
+# -- Vendored macOS ImageMagick (regenerate with scripts/bundle-magick-mac.sh) --
+resources/mac/
+
 # -- Local test data -----------------------------------------------------------
 test_images/
 

@@ -36,7 +36,7 @@ A functional web version of the application is available at [psmyles.github.io/b
 ### Requirements
 
 - [Node.js](https://nodejs.org) 20+
-- [ImageMagick](https://imagemagick.org) 7+ - Windows bundles a binary; macOS/Linux require `magick` on your PATH
+- [ImageMagick](https://imagemagick.org) 7+ - the Windows installer and the macOS (Apple Silicon) app bundle their own binary; everywhere else `magick` must be on your PATH
 
 ### Development
 
@@ -49,8 +49,38 @@ npm test           # Run the unit test suite (Vitest)
 ### Build
 
 ```bash
-npm run build      # Production build + electron-builder packaging
+npm run build      # Windows: production build + NSIS installer
+npm run build:mac  # macOS (Apple Silicon): signed, notarized .dmg
 npm run build:web  # Renderer-only build (browser testing)
 ```
+
+#### macOS .dmg
+
+`npm run build:mac` vendors ImageMagick into the app, packages it, signs it, and
+notarizes it. It needs an Apple Silicon Mac with Homebrew ImageMagick
+(`brew install imagemagick`) and a Developer ID Application certificate in the
+keychain - the certificate is detected automatically, as is the team id.
+
+Notarization credentials are set up once:
+
+```bash
+xcrun notarytool store-credentials bite --apple-id <apple-id> \
+    --team-id <TEAMID> --password <app-specific-password>
+echo 'APPLE_KEYCHAIN_PROFILE=bite' >> .env.mac   # gitignored, read by the build
+```
+
+(App-specific passwords come from appleid.apple.com -> Sign-In and Security.)
+`APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD`, or the `APPLE_API_KEY` /
+`APPLE_API_KEY_ID` / `APPLE_API_ISSUER` trio, work instead if you prefer them in
+the environment. `--skip-notarize` builds a signed but un-notarized dmg for local
+testing; it still warns on anyone else's machine.
+
+The dmg lands in `release/<version>/`, signed, notarized and stapled - both the
+app and the disk image around it, so it opens without a network round trip. `scripts/bundle-magick-mac.sh` can be run
+on its own (`npm run bundle:magick:mac`) to refresh `resources/mac/magick/`; pass
+`--identity -` for an unsigned local bundle. Upstream publishes no relocatable
+macOS ImageMagick, so that script builds one: it copies `magick` plus its dylibs
+and coder modules out of Homebrew, rewrites their install names, and re-signs
+them.
 
 ---
