@@ -63,6 +63,12 @@ compiled with `actool`, which the Command Line Tools do not ship), and a
 Developer ID Application certificate in the keychain - the certificate is
 detected automatically, as is the team id.
 
+Signing and notarizing take most of the build's wall time. The ImageMagick
+bundle counts its ~150 signatures as they go, and the electron-builder and
+notary-service waits print the elapsed time every 30s, so a working build is
+distinguishable from a hung one; add `--verbose` (e.g.
+`scripts/build-mac.sh --verbose`) to also see every `codesign` call.
+
 The app icon is built from `public/bite.icon` (Icon Composer) by
 `npm run build:icon:mac`, which `build:mac` runs for you. It writes the compiled
 catalogue that macOS 26+ renders as a Liquid Glass icon plus a flattened
