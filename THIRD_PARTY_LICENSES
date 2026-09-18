@@ -12,7 +12,7 @@ text is reproduced below as required by those licenses.
 BUNDLED BINARIES
 --------------------------------------------------------------------------------
 
-ImageMagick  (resources/win/magick/)
+ImageMagick  (resources/win/magick/ on Windows, resources/mac/magick/ on macOS)
 https://imagemagick.org
 
 Copyright 1999 ImageMagick Studio LLC, a non-profit organization dedicated to
@@ -40,6 +40,28 @@ implied. ImageMagick Studio LLC shall not be liable for any damages arising
 from the use of this software.
 
 Full license text: https://imagemagick.org/script/license.php
+
+
+--------------------------------------------------------------------------------
+LIBRARIES BUNDLED WITH THE macOS BUILD
+--------------------------------------------------------------------------------
+
+The macOS app ships ImageMagick's delegate libraries alongside it (they are
+copied out of Homebrew by scripts/bundle-magick-mac.sh). Their licenses:
+
+  libpng, libjpeg-turbo, libtiff, libwebp, libsharpyuv, libzstd, liblzma,
+  libaom, libvmaf, little-cms2   - permissive (BSD/MIT-style)
+  freetype                       - FTL or GPLv2
+  libltdl (GNU Libtool)          - LGPLv2.1+
+  libde265                       - LGPLv3+
+  libx265                        - GPLv2+
+
+libde265 and libx265 are pulled in only by the HEIC/AVIF coder. Building the
+bundle with `scripts/bundle-magick-mac.sh --no-heic` drops that coder and leaves
+no copyleft-licensed library in the app. Each library is bundled as a separate
+dynamic library and is not modified beyond having its install names rewritten
+for relocation; the corresponding sources are available from the upstream
+projects and via Homebrew.
 
 
 --------------------------------------------------------------------------------
