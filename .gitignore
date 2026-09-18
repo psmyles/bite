@@ -41,6 +41,9 @@ pnpm-debug.log*
 # -- Vendored macOS ImageMagick (regenerate with scripts/bundle-magick-mac.sh) --
 resources/mac/
 
+# -- Compiled macOS icon (regenerate with scripts/build-icon-mac.sh) --
+build/icons/mac/
+
 # -- Local test data -----------------------------------------------------------
 test_images/
 

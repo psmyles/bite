@@ -2,10 +2,11 @@
 #
 # Builds the signed, notarized macOS .dmg (arm64).
 #
-#   scripts/build-mac.sh [--skip-magick] [--skip-tests] [--skip-notarize]
+#   scripts/build-mac.sh [--skip-magick] [--skip-icon] [--skip-tests] [--skip-notarize]
 #
-# Steps: preflight checks -> vendor ImageMagick -> renderer/main/CLI builds ->
-# electron-builder (sign + notarize + staple) -> verify the result.
+# Steps: preflight checks -> vendor ImageMagick -> compile the icon ->
+# renderer/main/CLI builds -> electron-builder (sign + notarize + staple) ->
+# verify the result.
 #
 # Credentials. The signing identity is picked up from the keychain automatically
 # when exactly one "Developer ID Application" certificate is installed; set
@@ -37,14 +38,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 SKIP_MAGICK=0
+SKIP_ICON=0
 SKIP_TESTS=0
 SKIP_NOTARIZE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-magick) SKIP_MAGICK=1; shift ;;
+    --skip-icon) SKIP_ICON=1; shift ;;
     --skip-tests) SKIP_TESTS=1; shift ;;
     --skip-notarize) SKIP_NOTARIZE=1; shift ;;
-    -h|--help) sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,33p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -140,6 +143,14 @@ if [[ "$SKIP_MAGICK" -eq 1 ]]; then
 else
   step "Vendoring ImageMagick"
   "$ROOT/scripts/bundle-magick-mac.sh" --identity "$SIGN_IDENTITY"
+fi
+
+if [[ "$SKIP_ICON" -eq 1 ]]; then
+  [[ -f "$ROOT/build/icons/mac/icon.icns" && -f "$ROOT/build/icons/mac/Assets.car" ]] \
+    || fail "--skip-icon, but build/icons/mac is not built."
+  step "Skipping icon compile (--skip-icon)"
+else
+  "$ROOT/scripts/build-icon-mac.sh"
 fi
 
 if [[ "$SKIP_TESTS" -eq 0 ]]; then

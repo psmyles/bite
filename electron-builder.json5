@@ -8,7 +8,10 @@
     output: 'release/${version}',
     buildResources: 'build',
   },
-  files: ['dist', 'dist-electron'],
+  // Vite copies public/ into dist/ wholesale, which drags the Icon Composer
+  // source in with it. It is only a build input - the packaged app gets the
+  // compiled icon instead - so keep ~1 MB of layer art out of the asar.
+  files: ['dist', 'dist-electron', '!dist/bite.icon'],
   fileAssociations: [
     {
       ext: 'bite',
@@ -72,7 +75,17 @@
     ],
     artifactName: '${productName}-Mac-${version}-arm64.${ext}',
     category: 'public.app-category.graphics-design',
-    icon: 'build/icons/icon.icns',
+    // Both built from public/bite.icon by scripts/build-icon-mac.sh.
+    // icon.icns is the flattened fallback that electron-builder copies to
+    // Contents/Resources/icon.icns and points CFBundleIconFile at; macOS 26+
+    // ignores it in favour of the Assets.car below.
+    icon: 'build/icons/mac/icon.icns',
+    extendInfo: {
+      // Names the icon inside Assets.car. Without it the catalogue is dead
+      // weight and macOS falls back to the flattened icns, losing the layered
+      // Liquid Glass rendering (tinted, dark and clear appearances included).
+      CFBundleIconName: 'bite',
+    },
     hardenedRuntime: true,
     // Credentials come from APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID.
     notarize: true,
@@ -87,6 +100,12 @@
     // and fails the build with "A timestamp was expected but was not found".
     signIgnore: ['Contents/Resources/magick/'],
     extraResources: [
+      {
+        // Compiled icon catalogue. It has to sit at Contents/Resources/
+        // Assets.car - that is the only place the icon services look for it.
+        from: 'build/icons/mac/Assets.car',
+        to: 'Assets.car',
+      },
       {
         // Bundled ImageMagick (binary + dylibs + coder modules + config).
         // Resolved at runtime through process.resourcesPath, same as Windows.

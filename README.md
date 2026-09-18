@@ -56,10 +56,17 @@ npm run build:web  # Renderer-only build (browser testing)
 
 #### macOS .dmg
 
-`npm run build:mac` vendors ImageMagick into the app, packages it, signs it, and
-notarizes it. It needs an Apple Silicon Mac with Homebrew ImageMagick
-(`brew install imagemagick`) and a Developer ID Application certificate in the
-keychain - the certificate is detected automatically, as is the team id.
+`npm run build:mac` vendors ImageMagick into the app, compiles the app icon,
+packages it, signs it, and notarizes it. It needs an Apple Silicon Mac with
+Homebrew ImageMagick (`brew install imagemagick`), full Xcode (the icon is
+compiled with `actool`, which the Command Line Tools do not ship), and a
+Developer ID Application certificate in the keychain - the certificate is
+detected automatically, as is the team id.
+
+The app icon is built from `public/bite.icon` (Icon Composer) by
+`npm run build:icon:mac`, which `build:mac` runs for you. It writes the compiled
+catalogue that macOS 26+ renders as a Liquid Glass icon plus a flattened
+`.icns` fallback to `build/icons/mac/` (gitignored).
 
 Notarization credentials are set up once:
 
