@@ -75,7 +75,7 @@ export function resolveEffectiveWireType(
   return 'any';
 }
 
-/** channel_merge special case: scalar numeric wires can drive image inputs as gray fill 0–1. */
+/** channel_merge special case: scalar numeric wires can drive image inputs as gray fill 0-1. */
 function isChannelMergeScalarInput(conn: Connection, srcType: string, tgtType: string, nodes: Node[]): boolean {
   return (
     tgtType === 'image' &&
@@ -105,7 +105,7 @@ function siblingAnyInputsCompatible(conn: Connection, srcType: string, nodes: No
 /**
  * When an 'any' input gets a concrete type, the node's 'any' outputs are constrained.
  * Verify all existing edges from those outputs remain compatible with resolvedSrc.
- * Example: Branch Result→folder already wired; connecting image→If True must be rejected.
+ * Example: Branch Result->folder already wired; connecting image->If True must be rejected.
  */
 function downstreamAnyOutputsCompatible(conn: Connection, resolvedSrc: string, nodes: Node[], edges: Edge[]): boolean {
   if (resolvedSrc === 'any') return true;

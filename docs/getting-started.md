@@ -1,21 +1,21 @@
-# Getting Started with imgplex
+# Getting Started with Bite
 
-imgplex is a node-based image processing tool. You build a **workflow** by connecting processing steps (nodes) together visually, then run that workflow across a batch of images. No scripting required - but if you understand it well, it's incredibly fast.
+Bite is a node-based image processing tool. You build a **workflow** by connecting processing steps (nodes) together visually, then run that workflow across a batch of images. No scripting required - but if you understand it well, it's incredibly fast.
 
 ---
 
 ## The Interface
 
 ```
-┌──────────────┬─────────────────────────────┬──────────────┐
-│              │                             │  Inspector   │
-│    Node      │         Canvas              │  (settings)  │
-│   Library    │      (node graph)           ├──────────────┤
-│              │                             │   Preview    │
-│              │                             │  (live view) │
-├──────────────┴─────────────────────────────┴──────────────┤
-│                   Filmstrip (your images)                 │
-└───────────────────────────────────────────────────────────┘
++--------------+-----------------------------+--------------+
+|              |                             |  Inspector   |
+|    Node      |         Canvas              |  (settings)  |
+|   Library    |      (node graph)           +--------------+
+|              |                             |   Preview    |
+|              |                             |  (live view) |
++--------------+-----------------------------+--------------+
+|                   Filmstrip (your images)                 |
++-----------------------------------------------------------+
 ```
 
 ### Left - Node Library
@@ -31,7 +31,7 @@ The main workspace. You connect nodes here using wires to define how your image 
 
 These nodes cannot be deleted (at minimum one Input and one output node of any type must remain). Everything you build lives between them.
 
-The names in parentheses are **CLI Names** — identifiers used when exporting a CLI script. You can change them in the Inspector.
+The names in parentheses are **CLI Names** - identifiers used when exporting a CLI script. You can change them in the Inspector.
 
 ### Right - Inspector + Preview
 
@@ -53,7 +53,7 @@ Your loaded images. Click any image to make it the active source (the Input node
 
 **Wire** - A connection between an output port and an input port. Wires carry data between nodes. The color of a wire tells you what type of data it carries (see [Port Types](#port-types) below).
 
-**Workflow** - The complete set of nodes and wires, from Input through to Output. Workflows are saved as `.imgplex` files.
+**Workflow** - The complete set of nodes and wires, from Input through to Output. Workflows are saved as `.bite` files.
 
 **Batch run** - Processing every image in the Filmstrip through the workflow and saving the results. Configured via the Output node.
 
@@ -63,13 +63,13 @@ Your loaded images. Click any image to make it the active source (the Input node
 
 Here's the simplest possible workflow: load an image, resize it, save it.
 
-1. **Load an image** - drag an image file onto the Filmstrip, or use File → Open Images.
+1. **Load an image** - drag an image file onto the Filmstrip, or use File -> Open Images.
 
 2. **Select the image** - click it in the Filmstrip. The Input node now represents that image.
 
 3. **Add a Resize node** - find "Resize" in the Node Library and drag it onto the canvas.
 
-4. **Wire it up** - drag from the output port (right side) of the Input node to the input port (left side) of Resize. Then drag from Resize's output to the Output node's input. You should see: `Input → Resize → Output`.
+4. **Wire it up** - drag from the output port (right side) of the Input node to the input port (left side) of Resize. Then drag from Resize's output to the Output node's input. You should see: `Input -> Resize -> Output`.
 
 5. **Adjust settings** - click the Resize node to select it. The Inspector shows its parameters. Change the width or mode as desired.
 
@@ -77,7 +77,7 @@ Here's the simplest possible workflow: load an image, resize it, save it.
 
 7. **Configure the Image Output node** - click the Image Output node to select it. The Inspector shows the output folder and filename settings.
 
-8. **Run the batch** - click the **Run Workflow** button at the bottom of the Inspector panel (or use the menu). imgplex will process every image in the Filmstrip and save the results.
+8. **Run the batch** - click the **Run Workflow** button at the bottom of the Inspector panel (or use the menu). Bite will process every image in the Filmstrip and save the results.
 
 ---
 
@@ -107,14 +107,14 @@ Here's the simplest possible workflow: load an image, resize it, save it.
 
 ### Other Operations
 
-| Action             | How                                          |
-| ------------------ | -------------------------------------------- |
-| Delete             | Select node(s) → **Delete** or **Backspace** |
-| Duplicate          | **Ctrl+D**                                   |
-| Undo               | **Ctrl+Z** (100 levels)                      |
-| Redo               | **Ctrl+Y**                                   |
-| Reset zoom         | **Double-click** the canvas background       |
-| Set preview target | **Double-click** a node                      |
+| Action             | How                                           |
+| ------------------ | --------------------------------------------- |
+| Delete             | Select node(s) -> **Delete** or **Backspace** |
+| Duplicate          | **Ctrl+D**                                    |
+| Undo               | **Ctrl+Z** (100 levels)                       |
+| Redo               | **Ctrl+Y**                                    |
+| Reset zoom         | **Double-click** the canvas background        |
+| Set preview target | **Double-click** a node                       |
 
 ---
 
@@ -126,7 +126,7 @@ Some parameters have a small port icon, meaning they can be **driven by a wire**
 
 **Format-specific settings.** The **Convert Format** node's inspector adapts to the selected output format: JPEG exposes Quality, Chroma Subsampling, and Progressive scan; WebP exposes a Lossless toggle, Quality, and Method; PNG exposes Compression Level and Bit Depth; AVIF exposes Quality and Effort; TIFF exposes the Compression type. BMP and TGA are lossless with no options. Switching the format dropdown updates the controls instantly.
 
-**Thumbnail size.** The Input node's inspector has a thumbnail-size setting (128–2048 px, default 256). It controls the filmstrip thumbnail resolution **and** the resolution the live Preview runs at - lower it for faster imports and snappier previews, raise it for more detail. Batch runs always process at full resolution regardless of this setting.
+**Thumbnail size.** The Input node's inspector has a thumbnail-size setting (128-2048 px, default 256). It controls the filmstrip thumbnail resolution **and** the resolution the live Preview runs at - lower it for faster imports and snappier previews, raise it for more detail. Batch runs always process at full resolution regardless of this setting.
 
 ---
 
@@ -160,7 +160,7 @@ You can also wire a **Boolean value node** to a node's enable port to control by
 
 ## Port Types
 
-Wire colors indicate what type of data flows through a connection. imgplex will reject connections between incompatible types.
+Wire colors indicate what type of data flows through a connection. Bite will reject connections between incompatible types.
 
 | Color       | Type      | What it carries                       |
 | ----------- | --------- | ------------------------------------- |
@@ -183,9 +183,9 @@ If you try to connect mismatched types, the wire snaps back. Check the colors on
 
 ## Saving and Loading Workflows
 
-- **Save** - File → Save Workflow (or Ctrl+S). Saves as a `.imgplex` file.
-- **Open** - File → Open Workflow. Loads a `.imgplex` file and restores the full graph.
-- An unsaved change is indicated by a dot (`•`) in the title bar.
+- **Save** - File -> Save Workflow (or Ctrl+S). Saves as a `.bite` file.
+- **Open** - File -> Open Workflow. Loads a `.bite` file and restores the full graph.
+- An unsaved change is indicated by an asterisk (`*`) in the title bar.
 
 Workflow files are plain JSON. You can version-control them.
 
@@ -193,10 +193,10 @@ Workflow files are plain JSON. You can version-control them.
 
 ## Exporting as a CLI Script
 
-imgplex can export your workflow as a shell script so you can run it from the command line — no UI needed. Use **File → Export CLI Script** and choose PowerShell, Bash, or CMD. Two files are saved side-by-side:
+Bite can export your workflow as a shell script so you can run it from the command line - no UI needed. Use **File -> Export CLI Script** and choose PowerShell, Bash, or CMD. Two files are saved side-by-side:
 
-- **The script** — contains the shell code and usage comments
-- **A companion `.imgplex` file** — the workflow the script will run
+- **The script** - contains the shell code and usage comments
+- **A companion `.bite` file** - the workflow the script will run
 
 ### Named flags
 
@@ -204,37 +204,37 @@ Each Input and output node in your workflow has a **CLI Name** (visible and edit
 
 ```
 # Example: workflow with two inputs and one image output
-imgplex-cli run workflow.imgplex \
+bite run workflow.bite \
   --background ./photos \
   --overlay ./overlays \
   --output-image-1 ./out
 ```
 
-- Input node flags are **required** — the CLI will error if they're missing.
-- Output node flags are **optional** — they override the path set in the workflow; omitting them uses the baked-in path.
+- Input node flags are **required** - the CLI will error if they're missing.
+- Output node flags are **optional** - they override the path set in the workflow; omitting them uses the baked-in path.
 
 The exported script documents every flag with its default value and a description. Open the script in any text editor to see the full usage block.
 
 ### Changing CLI Names
 
-Select any Input or output node on the canvas. In the Inspector you'll see a **CLI Name** field at the top. Names are auto-assigned at creation (`input-1`, `output-image-1`, etc.). You can rename them to anything using only lowercase letters, digits, and hyphens — the Inspector shows a preview of the resulting flag and warns you if two nodes share the same name.
+Select any Input or output node on the canvas. In the Inspector you'll see a **CLI Name** field at the top. Names are auto-assigned at creation (`input-1`, `output-image-1`, etc.). You can rename them to anything using only lowercase letters, digits, and hyphens - the Inspector shows a preview of the resulting flag and warns you if two nodes share the same name.
 
 ### Running the script
 
-`imgplex-cli` is installed alongside imgplex and added to your PATH automatically. The Bash and CMD scripts take **positional** values (in the order documented in the script's usage comments); the PowerShell script takes named parameters:
+`bite` is installed alongside Bite and added to your PATH automatically. The Bash and CMD scripts take **positional** values (in the order documented in the script's usage comments); the PowerShell script takes named parameters:
 
 ```bash
-bash imgplex-batch.sh ./my-photos ./output
+bash bite-batch.sh ./my-photos ./output
 ```
 
 ```powershell
-.\imgplex-batch.ps1 -Background .\photos -Overlay .\overlays
+.\bite-batch.ps1 -Background .\photos -Overlay .\overlays
 ```
 
 You can also skip the wrapper script and call the CLI directly with named flags:
 
 ```bash
-imgplex-cli run workflow.imgplex --background ./photos --overlay ./overlays
+bite run workflow.bite --background ./photos --overlay ./overlays
 ```
 
 See the comments inside the exported script for the exact syntax for your chosen shell.
@@ -265,7 +265,7 @@ See the comments inside the exported script for the exact syntax for your chosen
 
 **Each input port only accepts one wire.** If you need the same value in multiple places, wire the _source_ output to each destination separately - fan out from the source, not into the destination.
 
-**Loops are blocked.** imgplex processes nodes in order, so circular wiring is not allowed. The editor will reject a wire that would create a cycle.
+**Loops are blocked.** Bite processes nodes in order, so circular wiring is not allowed. The editor will reject a wire that would create a cycle.
 
 **The Preview runs at thumbnail resolution, not full resolution.** The live preview reuses the Input node's thumbnail (configurable size, default 256 px) as its source, so effects that depend on absolute pixel dimensions can look slightly different from the final batch output, which always runs at full resolution.
 
@@ -275,7 +275,7 @@ See the comments inside the exported script for the exact syntax for your chosen
 
 **Wire a value node vs. type a number - they don't mix.** If a parameter has a wire connected to it, the typed value in the Inspector is ignored. Disconnect the wire first if you want to go back to manual entry.
 
-**`.imgplex` files must keep their extension.** Don't rename them to `.json` or anything else - imgplex uses the extension to identify workflow files.
+**`.bite` files must keep their extension.** Don't rename them to `.json` or anything else - Bite uses the extension to identify workflow files.
 
 ---
 

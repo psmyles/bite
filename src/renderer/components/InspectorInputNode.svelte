@@ -40,7 +40,7 @@
       .replace(/[^a-z0-9-]/g, '');
   }
 
-  // ── Format groups ─────────────────────────────────────────────────────────
+  // -- Format groups ---------------------------------------------------------
   const FORMAT_GROUPS = [
     { label: 'PNG', exts: ['png'] },
     { label: 'JPEG', exts: ['jpg', 'jpeg'] },
@@ -54,7 +54,7 @@
     { label: 'RAW', exts: ['cr2', 'cr3', 'nef', 'nrw', 'arw', 'dng', 'orf', 'raf', 'rw2', 'pef', 'srw'] },
   ] as const;
 
-  // ── Folder import state ───────────────────────────────────────────────────
+  // -- Folder import state ---------------------------------------------------
   let recursive = $state(false);
   let activeFormats = $state(new Set(['PNG', 'JPEG', 'WEBP', 'TIFF']));
   let folderPath = $state<string | null>(null);
@@ -120,7 +120,7 @@
 </script>
 
 <div class="input-inspector">
-  <!-- ── CLI Name ──────────────────────────────────────────────────────── -->
+  <!-- -- CLI Name -------------------------------------------------------- -->
   <div class="section">
     <div class="section-title">CLI Name</div>
     <input
@@ -141,7 +141,7 @@
     </span>
   </div>
 
-  <!-- ── Thumbnail Size ─────────────────────────────────────────────────── -->
+  <!-- -- Thumbnail Size --------------------------------------------------- -->
   <div class="section">
     <div class="section-title">Thumbnail Size</div>
     <Dropdown
@@ -153,13 +153,13 @@
   </div>
 
   {#if imageStore.getImages(nodeId).length === 0}
-    <!-- ── Folder picker (shown when filmstrip is empty) ─────────────────── -->
+    <!-- -- Folder picker (shown when filmstrip is empty) ------------------- -->
 
     <!-- Folder section -->
     <div class="section">
       <div class="section-title">Folder</div>
       <button class="btn btn--neutral btn--full" onclick={chooseFolder} disabled={selecting}>
-        {selecting ? 'Choosing…' : folderPath ? 'Change Folder…' : 'Select Input Folder…'}
+        {selecting ? 'Choosing...' : folderPath ? 'Change Folder...' : 'Select Input Folder...'}
       </button>
 
       {#if folderPath}
@@ -185,7 +185,7 @@
 
         <div class="match-count" class:counting>
           {#if counting}
-            <span>Scanning…</span>
+            <span>Scanning...</span>
           {:else}
             <span>{matchingPaths.length} {matchingPaths.length === 1 ? 'file' : 'files'} found</span>
           {/if}
@@ -197,7 +197,7 @@
           disabled={importing || counting || matchingPaths.length === 0}
         >
           {importing
-            ? 'Importing…'
+            ? 'Importing...'
             : `Import ${matchingPaths.length} ${matchingPaths.length === 1 ? 'Image' : 'Images'}`}
         </button>
       {/if}
@@ -207,15 +207,15 @@
     <div class="section">
       <div class="section-title">Individual Images</div>
       <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}>
-        Add Individual Images…
+        Add Individual Images...
       </button>
     </div>
 
     <span class="empty-hint">or drop images onto the filmstrip</span>
   {:else}
-    <!-- ── Loaded image list ──────────────────────────────────────────────── -->
+    <!-- -- Loaded image list ------------------------------------------------ -->
     <div class="input-top">
-      <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}>Add Images…</button>
+      <button class="btn btn--neutral btn--full" onclick={() => imageStore.openDialog(nodeId)}>Add Images...</button>
       <button class="btn btn--danger btn--full" onclick={() => imageStore.clear(nodeId)}>Clear All</button>
     </div>
     <div class="file-list-wrap">
@@ -246,7 +246,7 @@
     min-height: 0;
   }
 
-  /* ── Section layout ─────────────────────────────────────────────────────── */
+  /* -- Section layout ------------------------------------------------------- */
   .section {
     padding: 10px 12px;
     border-bottom: 1px solid var(--node-border);
@@ -384,7 +384,7 @@
     padding: 2px 0 4px;
   }
 
-  /* ── Loaded list ────────────────────────────────────────────────────────── */
+  /* -- Loaded list ---------------------------------------------------------- */
   .input-top {
     display: flex;
     flex-direction: column;

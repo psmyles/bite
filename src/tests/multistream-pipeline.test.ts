@@ -9,7 +9,7 @@ vi.mock('../main/pipeline/magick-spawn.js', () => ({
 }));
 
 vi.mock('../main/pipeline/thumbnail-service.js', () => ({
-  TEMP_DIR: '/tmp/imgplex-test',
+  TEMP_DIR: '/tmp/bite-test',
   shortHash: (_s: string) => 'testhash',
 }));
 
@@ -98,7 +98,7 @@ describe('executeMultiStream', () => {
     spawnMagick = vi.mocked(mod.spawnMagick);
   });
 
-  it('no output edge → returns inputPath without spawning magick', async () => {
+  it('no output edge -> returns inputPath without spawning magick', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     const graph = makeGraph([makeNode(INPUT_ID, INPUT_ID), makeNode(OUTPUT_ID, OUTPUT_ID)], []);
     const ctx = makeCtx([], graph, makeRegistry({}));
@@ -108,7 +108,7 @@ describe('executeMultiStream', () => {
     expect(spawnMagick).not.toHaveBeenCalled();
   });
 
-  it('single standard node → lazy chain materialised in one spawnMagick call', async () => {
+  it('single standard node -> lazy chain materialised in one spawnMagick call', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     const proc = makeNode('proc', 'negate');
     const edges = [makeEdge(INPUT_ID, 'proc'), makeEdge('proc', OUTPUT_ID)];
@@ -125,7 +125,7 @@ describe('executeMultiStream', () => {
     expect(callArgs.slice(1, -1)).toEqual(['-negate']);
   });
 
-  it('two consecutive nodes → command fusion into single spawnMagick call', async () => {
+  it('two consecutive nodes -> command fusion into single spawnMagick call', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     const n1 = makeNode('n1', 'negate');
     const n2 = makeNode('n2', 'flip');
@@ -139,14 +139,14 @@ describe('executeMultiStream', () => {
 
     const result = await executeMultiStream(INPUT_PATH, 0, ctx);
     expect(result).not.toBeNull();
-    // Both ops fused → exactly ONE spawnMagick call with combined args
+    // Both ops fused -> exactly ONE spawnMagick call with combined args
     expect(spawnMagick).toHaveBeenCalledOnce();
     const callArgs = spawnMagick.mock.calls[0][0] as string[];
     expect(callArgs[0]).toBe(INPUT_PATH);
     expect(callArgs.slice(1, -1)).toEqual(['-negate', '-flip']);
   });
 
-  it('bypassed node (_enabled: false) → passes source through, no spawn', async () => {
+  it('bypassed node (_enabled: false) -> passes source through, no spawn', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     const proc = makeNode('proc', 'negate', { _enabled: false });
     const edges = [makeEdge(INPUT_ID, 'proc'), makeEdge('proc', OUTPUT_ID)];
@@ -156,12 +156,12 @@ describe('executeMultiStream', () => {
 
     const result = await executeMultiStream(INPUT_PATH, 0, ctx);
     expect(result).not.toBeNull();
-    // Bypassed node inherits source → final val is inputPath string → no spawn needed
+    // Bypassed node inherits source -> final val is inputPath string -> no spawn needed
     expect(result!.resultPath).toBe(INPUT_PATH);
     expect(spawnMagick).not.toHaveBeenCalled();
   });
 
-  it('gate with condition=false → returns null', async () => {
+  it('gate with condition=false -> returns null', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     const gate = makeNode('gate', 'gate-def', { condition: false });
     const edges = [makeEdge(INPUT_ID, 'gate'), makeEdge('gate', OUTPUT_ID)];
@@ -175,7 +175,7 @@ describe('executeMultiStream', () => {
     expect(result).toBeNull();
   });
 
-  it('format_convert → spawns once and changes outputExt to .png', async () => {
+  it('format_convert -> spawns once and changes outputExt to .png', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     const conv = makeNode('conv', 'fmt-def', { format: 'PNG', quality: 90 });
     const edges = [makeEdge(INPUT_ID, 'conv'), makeEdge('conv', OUTPUT_ID)];
@@ -195,10 +195,10 @@ describe('executeMultiStream', () => {
     expect(callArgs).toContain('png:compression-level=6');
   });
 
-  it('shared source (imgConsumers > 1) → both branches get the source, each produces its own chain', async () => {
+  it('shared source (imgConsumers > 1) -> both branches get the source, each produces its own chain', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
-    // inp → n1 (negate) → out
-    //     ↘ n2 (flip)      (n2 is in sorted but NOT wired to output)
+    // inp -> n1 (negate) -> out
+    //     -> n2 (flip)      (n2 is in sorted but NOT wired to output)
     // inp:out-0 has 2 consumers: n1 and n2
     const n1 = makeNode('n1', 'negate');
     const n2 = makeNode('n2', 'flip');
@@ -219,7 +219,7 @@ describe('executeMultiStream', () => {
     expect(callArgs.slice(1, -1)).toEqual(['-negate']);
   });
 
-  it('no-op node (empty args) → inherits source slot without spawning', async () => {
+  it('no-op node (empty args) -> inherits source slot without spawning', async () => {
     const { executeMultiStream } = await import('../main/pipeline/multistream-pipeline.js');
     // A node with a command_js that returns [] (pass-through)
     const proc = makeNode('proc', 'passthrough');

@@ -33,7 +33,7 @@
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-01",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-01",
             "overwrite": "overwrite",
             "generateLog": false,
             "cliName": "out"

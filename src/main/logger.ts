@@ -18,7 +18,7 @@ let logWin: LogWindow | null = null;
 
 export function initLogger(logDir: string): void {
   fs.mkdirSync(logDir, { recursive: true });
-  logStream = fs.createWriteStream(path.join(logDir, 'imgplex.log'), { flags: 'a' });
+  logStream = fs.createWriteStream(path.join(logDir, 'bite.log'), { flags: 'a' });
   logStream.write(`\n--- Session ${new Date().toISOString()} ---\n`);
 }
 

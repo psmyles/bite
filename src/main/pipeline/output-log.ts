@@ -27,7 +27,7 @@ export async function writeOutputLog(opts: {
 
   const content =
     [
-      'imgplex Output Log',
+      'Bite Output Log',
       `Generated: ${now.getFullYear()}-${mm}-${dd} ${hh}:${mn}`,
       '',
       `Duration:         ${durationStr}`,
@@ -44,6 +44,6 @@ export async function writeOutputLog(opts: {
   await fs.promises.writeFile(path.join(logDir, logName), content, 'utf-8');
   log(
     'info',
-    `[output-log] wrote ${opts.outputFiles.length} file(s) in ${durationStr} → ${path.join(logDir, logName)}`
+    `[output-log] wrote ${opts.outputFiles.length} file(s) in ${durationStr} -> ${path.join(logDir, logName)}`
   );
 }

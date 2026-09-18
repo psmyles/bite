@@ -34,7 +34,7 @@
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\png",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-08\\png",
             "overwrite": "overwrite",
             "generateLog": false,
             "cliName": "out-png"
@@ -66,7 +66,7 @@
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\jpeg",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-08\\jpeg",
             "overwrite": "overwrite",
             "generateLog": false,
             "cliName": "out-jpeg"
@@ -92,7 +92,7 @@
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\webp",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-08\\webp",
             "overwrite": "overwrite",
             "generateLog": false,
             "cliName": "out-webp"
@@ -118,7 +118,7 @@
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\avif",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-08\\avif",
             "overwrite": "overwrite",
             "generateLog": false,
             "cliName": "out-avif"
@@ -144,7 +144,7 @@
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\tiff",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-08\\tiff",
             "overwrite": "overwrite",
             "generateLog": false,
             "cliName": "out-tiff"
@@ -170,7 +170,7 @@
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\bmp",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-08\\bmp",
             "overwrite": "overwrite",
             "generateLog": false,
             "cliName": "out-bmp"
@@ -196,7 +196,7 @@
           "definitionId": "",
           "params": {
             "outputPath": "custom",
-            "customPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-08\\tga",
+            "customPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-08\\tga",
             "overwrite": "overwrite",
             "generateLog": false,
             "cliName": "out-tga"

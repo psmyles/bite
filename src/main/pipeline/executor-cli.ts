@@ -1,6 +1,6 @@
-// CLI script export — generates shell scripts based on the workflow graph.
+// CLI script export - generates shell scripts based on the workflow graph.
 // Each inputNode and output node with a cliName becomes a named flag in the script.
-// The companion .imgplex workflow file is saved alongside the script by the export handler.
+// The companion .bite workflow file is saved alongside the script by the export handler.
 
 import type { NodeGraph } from '../../shared/types.js';
 
@@ -102,7 +102,7 @@ export function cliScriptCmd(workflowFileName: string, date: string, graph: Node
   const { inputs, outputs } = buildParamSpecs(graph);
   const allParams = [...inputs, ...outputs];
 
-  const lines: string[] = ['@echo off', ':: imgplex — Generated Batch Script', `:: Generated: ${date}`, '::'];
+  const lines: string[] = ['@echo off', ':: Bite - Generated Batch Script', `:: Generated: ${date}`, '::'];
 
   if (allParams.length > 0) {
     lines.push(':: Usage: script.bat [flags]');
@@ -116,7 +116,7 @@ export function cliScriptCmd(workflowFileName: string, date: string, graph: Node
     lines.push(':: Usage: script.bat');
   }
 
-  lines.push('::', ':: Requires imgplex to be installed. imgplex-cli is added to PATH automatically.', '');
+  lines.push('::', ':: Requires Bite to be installed. bite is added to PATH automatically.', '');
 
   allParams.forEach((p, i) => {
     lines.push(`set "${p.varName}=%~${i + 1}"`);
@@ -126,7 +126,7 @@ export function cliScriptCmd(workflowFileName: string, date: string, graph: Node
   if (allParams.length > 0) lines.push('');
 
   const flagArgs = allParams.map((p) => `--${p.flag} "%${p.varName}%"`).join(' ');
-  lines.push(`imgplex-cli run "%~dp0${escapeCmd(workflowFileName)}"${flagArgs ? ' ' + flagArgs : ''}`);
+  lines.push(`bite run "%~dp0${escapeCmd(workflowFileName)}"${flagArgs ? ' ' + flagArgs : ''}`);
 
   return lines.join('\r\n') + '\r\n'; // CRLF for Windows
 }
@@ -135,10 +135,10 @@ export function cliScriptPS(workflowFileName: string, date: string, graph: NodeG
   const { inputs, outputs } = buildParamSpecs(graph);
   const allParams = [...inputs, ...outputs];
 
-  const lines: string[] = ['# imgplex — Generated PowerShell Script', `# Generated: ${date}`, '#'];
+  const lines: string[] = ['# Bite - Generated PowerShell Script', `# Generated: ${date}`, '#'];
 
   if (allParams.length > 0) {
-    lines.push('# Usage: .\\script.ps1 [-FlagName "value"] …');
+    lines.push('# Usage: .\\script.ps1 [-FlagName "value"] ...');
     lines.push('#');
     allParams.forEach((p) => {
       const req = p.required ? 'required' : `default: ${p.defaultValue}`;
@@ -148,7 +148,7 @@ export function cliScriptPS(workflowFileName: string, date: string, graph: NodeG
     lines.push('# Usage: .\\script.ps1');
   }
 
-  lines.push('#', '# Requires imgplex to be installed. imgplex-cli is added to PATH automatically.', '');
+  lines.push('#', '# Requires Bite to be installed. bite is added to PATH automatically.', '');
 
   if (allParams.length > 0) {
     lines.push('param (');
@@ -162,7 +162,7 @@ export function cliScriptPS(workflowFileName: string, date: string, graph: NodeG
   lines.push(`$WorkflowFile = Join-Path $PSScriptRoot '${escapePs(workflowFileName)}'`);
 
   const flagArgs = allParams.map((p) => `--${p.flag} $${p.psName}`).join(' ');
-  lines.push(`imgplex-cli run $WorkflowFile${flagArgs ? ' ' + flagArgs : ''}`);
+  lines.push(`bite run $WorkflowFile${flagArgs ? ' ' + flagArgs : ''}`);
 
   return lines.join('\n') + '\n';
 }
@@ -171,7 +171,7 @@ export function cliScriptBash(workflowFileName: string, date: string, graph: Nod
   const { inputs, outputs } = buildParamSpecs(graph);
   const allParams = [...inputs, ...outputs];
 
-  const lines: string[] = ['#!/usr/bin/env bash', '# imgplex — Generated Shell Script', `# Generated: ${date}`, '#'];
+  const lines: string[] = ['#!/usr/bin/env bash', '# Bite - Generated Shell Script', `# Generated: ${date}`, '#'];
 
   if (allParams.length > 0) {
     lines.push('# Usage: bash script.sh [positional values]');
@@ -184,7 +184,7 @@ export function cliScriptBash(workflowFileName: string, date: string, graph: Nod
     lines.push('# Usage: bash script.sh');
   }
 
-  lines.push('#', '# Requires imgplex to be installed. imgplex-cli must be available in PATH.', '');
+  lines.push('#', '# Requires Bite to be installed. bite must be available in PATH.', '');
 
   lines.push('SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"');
 
@@ -196,10 +196,10 @@ export function cliScriptBash(workflowFileName: string, date: string, graph: Nod
 
   const flagArgs = allParams.map((p) => `--${p.flag} "\${${p.varName}}"`).join(' \\\n  ');
   if (flagArgs) {
-    lines.push(`imgplex-cli run "\${SCRIPT_DIR}/${escapeBashDq(workflowFileName)}" \\`);
+    lines.push(`bite run "\${SCRIPT_DIR}/${escapeBashDq(workflowFileName)}" \\`);
     lines.push(`  ${flagArgs}`);
   } else {
-    lines.push(`imgplex-cli run "\${SCRIPT_DIR}/${escapeBashDq(workflowFileName)}"`);
+    lines.push(`bite run "\${SCRIPT_DIR}/${escapeBashDq(workflowFileName)}"`);
   }
 
   return lines.join('\n') + '\n';

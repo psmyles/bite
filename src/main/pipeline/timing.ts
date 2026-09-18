@@ -144,7 +144,7 @@ export class TimingCollector {
     if (this.batchHistory.length > 10) this.batchHistory.shift();
 
     const block = [
-      `[timings] Batch run — ${b.startedAt} — ${b.imageCount} images`,
+      `[timings] Batch run - ${b.startedAt} - ${b.imageCount} images`,
       `  Total:    ${totalMs}ms`,
       `  Setup:    ${b.setupMs}ms  |  Startup (IPC -> first image): ${b.startupMs}ms`,
       imgs.length > 0
@@ -201,7 +201,7 @@ export class TimingCollector {
     if (this.importHistory.length > 10) this.importHistory.shift();
 
     const block = [
-      `[timings] Import run — ${b.startedAt} — ${b.imageCount} images`,
+      `[timings] Import run - ${b.startedAt} - ${b.imageCount} images`,
       `  Total:    ${totalMs}ms`,
       `  Per-image avg: ${avgPerImage}ms  (header: ${avgHeader}ms  identify: ${avgIdentify}ms  thumb: ${avgThumb}ms)`,
       `  Fast-path: ${fastImgs.length}  Slow-path: ${slowImgs.length}  Cached: ${cachedImgs.length}`,

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { topoSort } from '../main/pipeline/graph-utils.js';
 import type { GraphNode, GraphEdge } from '../shared/types.js';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// -- Helpers -------------------------------------------------------------------
 
 function node(id: string): GraphNode {
   return {
@@ -17,7 +17,7 @@ function edge(source: string, target: string): GraphEdge {
   return { id: `${source}->${target}`, source, target };
 }
 
-// ── topoSort ─────────────────────────────────────────────────────────────────
+// -- topoSort -----------------------------------------------------------------
 
 describe('topoSort', () => {
   it('single node with no edges', () => {
@@ -32,7 +32,7 @@ describe('topoSort', () => {
     expect(result.map((n) => n.id)).toContain('b');
   });
 
-  it('linear chain a → b → c', () => {
+  it('linear chain a -> b -> c', () => {
     const nodes = [node('a'), node('b'), node('c')];
     const edges = [edge('a', 'b'), edge('b', 'c')];
     const result = topoSort(nodes, edges);
@@ -41,7 +41,7 @@ describe('topoSort', () => {
     expect(ids.indexOf('b')).toBeLessThan(ids.indexOf('c'));
   });
 
-  it('diamond: a → b, a → c, b → d, c → d', () => {
+  it('diamond: a -> b, a -> c, b -> d, c -> d', () => {
     const nodes = [node('a'), node('b'), node('c'), node('d')];
     const edges = [edge('a', 'b'), edge('a', 'c'), edge('b', 'd'), edge('c', 'd')];
     const result = topoSort(nodes, edges);
@@ -84,7 +84,7 @@ describe('topoSort', () => {
     expect(topoSort([], [])).toEqual([]);
   });
 
-  it('typical pipeline: input → resize → output', () => {
+  it('typical pipeline: input -> resize -> output', () => {
     const nodes = [node('input'), node('resize'), node('output')];
     const edges = [edge('input', 'resize'), edge('resize', 'output')];
     const result = topoSort(nodes, edges);

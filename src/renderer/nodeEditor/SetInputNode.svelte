@@ -85,7 +85,7 @@
   const sufTop = (i: number) => 93 + 26 * i;
 </script>
 
-<!-- Image input — fixed below header in the Images row -->
+<!-- Image input - fixed below header in the Images row -->
 <Handle
   type="target"
   position={Position.Left}
@@ -122,12 +122,12 @@
     <span class="head-label">Process As Set</span>
   </header>
 
-  <!-- Images input row — always visible -->
+  <!-- Images input row - always visible -->
   <div class="img-row">
     <span class="port-tag" style="color: {imgColor}">Image</span>
   </div>
 
-  <!-- Prefix string input row — always visible -->
+  <!-- Prefix string input row - always visible -->
   <div class="img-row">
     <span class="port-tag" style="color: {strColor}">Prefix</span>
   </div>

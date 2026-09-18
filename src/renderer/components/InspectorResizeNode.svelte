@@ -31,7 +31,7 @@
       : Math.max(1, Math.round(Number(params.height ?? 1024)))
   );
 
-  // Resize preview — mirrors ImageMagick's actual resize behaviour:
+  // Resize preview - mirrors ImageMagick's actual resize behaviour:
   //   relative: scale by percent; preserve uses widthVal uniformly
   //   absolute+preserve+anchor=width: resize to width, height scales proportionally
   //   absolute+preserve+anchor=height: resize to height, width scales proportionally
@@ -209,11 +209,11 @@
     <div class="section-title">Resize Preview</div>
     <div class="preview-row">
       <span class="preview-label">Original</span>
-      <span class="preview-val">{srcW} × {srcH}</span>
+      <span class="preview-val">{srcW} x {srcH}</span>
     </div>
     <div class="preview-row">
       <span class="preview-label">Resized</span>
-      <span class="preview-val">{previewW} × {previewH}</span>
+      <span class="preview-val">{previewW} x {previewH}</span>
     </div>
   </div>
 {/if}
@@ -274,7 +274,7 @@
     flex-shrink: 0;
   }
 
-  /* ── Resize Preview ── */
+  /* -- Resize Preview -- */
   .section {
     padding: 10px 12px;
     border-bottom: 1px solid var(--node-border);

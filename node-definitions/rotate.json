@@ -21,7 +21,7 @@
   "params": [
     {
       "name": "angle",
-      "label": "Angle (°)",
+      "label": "Angle (deg)",
       "type": "float",
       "widget": "slider",
       "default": 0,

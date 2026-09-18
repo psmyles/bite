@@ -21,7 +21,7 @@
   import { imageStore } from './stores/images.svelte.js';
   import { isCompatible } from '../shared/compatUtils.js';
 
-  // ── Node definitions — loaded once here, passed to NodeLibrary + NodeEditor ──
+  // -- Node definitions - loaded once here, passed to NodeLibrary + NodeEditor --
   let definitions: NodeDefinition[] = $state([]);
   $effect(() => {
     window.ipcRenderer
@@ -39,7 +39,7 @@
     return () => window.ipcRenderer.off(IPC.REGISTRY_UPDATED, onUpdated);
   });
 
-  // ── Batch progress listener — registered here so it persists across Inspector remounts ──
+  // -- Batch progress listener - registered here so it persists across Inspector remounts --
   $effect(() => {
     const onProgress = (_e: unknown, p: Progress) => {
       graphStore.batchProgress = p;
@@ -48,7 +48,7 @@
     return () => window.ipcRenderer.off(IPC.EXECUTE_BATCH_PROGRESS, onProgress);
   });
 
-  // ── Active input node tracking ────────────────────────────────────────────
+  // -- Active input node tracking --------------------------------------------
   // When the user selects an input node, make its images the active filmstrip.
   $effect(() => {
     const nodeId = graphStore.selectedNodeId;
@@ -67,7 +67,7 @@
     }
   });
 
-  // ── Workflow helpers ───────────────────────────────────────────────────────
+  // -- Workflow helpers -------------------------------------------------------
 
   const WORKFLOW_TYPES_APP = new Set(['inputNode', 'imageOutputNode', 'textOutputNode', 'flipbookOutputNode']);
 
@@ -259,7 +259,7 @@
   }
 
   async function handleSaveWorkflow() {
-    // JSON round-trip strips Svelte 5 reactive proxies — IPC structured clone
+    // JSON round-trip strips Svelte 5 reactive proxies - IPC structured clone
     // cannot serialize Proxy objects and throws a silent unhandled rejection.
     const graph = JSON.parse(JSON.stringify(buildNodeGraph())) as NodeGraph;
     let result: { filePath: string; createdAt: string } | null;
@@ -335,13 +335,13 @@
   }
 
   function handleDocumentation() {
-    const url = 'https://github.com/psmyles/imgplex/wiki';
+    const url = 'https://github.com/psmyles/bite/wiki';
     if (IS_ELECTRON) window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url);
     else window.open(url, '_blank');
   }
 
   function handleBug() {
-    const url = 'https://github.com/psmyles/imgplex/issues/new';
+    const url = 'https://github.com/psmyles/bite/issues/new';
     if (IS_ELECTRON) window.ipcRenderer.invoke(IPC.SHELL_OPEN_EXTERNAL, url);
     else window.open(url, '_blank');
   }
@@ -364,7 +364,7 @@
     }
   }
 
-  // ── Menu IPC listeners ─────────────────────────────────────────────────────
+  // -- Menu IPC listeners -----------------------------------------------------
   $effect(() => {
     const onNew = () => handleNew();
     const onOpen = () => handleOpenWorkflow();
@@ -405,7 +405,7 @@
     };
   });
 
-  // ── Window title: "[*][filename —] imgplex" ────────────────────────────────
+  // -- Window title: "[*][filename -] Bite" --------------------------------
   $effect(() => {
     const filePath = graphStore.currentFilePath;
     const dirty = graphStore.isDirty;
@@ -416,7 +416,7 @@
           .replace(/\.[^.]+$/, '')
       : 'Untitled';
     const prefix = dirty ? '*' : '';
-    document.title = `${prefix}${fileName} - imgplex`;
+    document.title = `${prefix}${fileName} - Bite`;
   });
 
   // Read unitless panel size tokens from theme.css
@@ -424,12 +424,12 @@
     return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(prop));
   }
 
-  // Panel dimensions (px) — defaults and constraints come from theme.css
+  // Panel dimensions (px) - defaults and constraints come from theme.css
   let leftWidth = $state(cssNum('--left-panel-default'));
   let rightWidth = $state(cssNum('--right-panel-default'));
   let filmstripHeight = $state(cssNum('--filmstrip-default'));
 
-  // Inspector/preview split — stored as a fraction (0–1) of the right column's usable height
+  // Inspector/preview split - stored as a fraction (0-1) of the right column's usable height
   // so it scales correctly when the window is resized.
   const shellPadding = cssNum('--shell-padding');
   const handleSize = cssNum('--panel-gap');
@@ -497,7 +497,7 @@
   {/if}
 
   <div class="shell" bind:clientHeight={shellHeight}>
-    <!-- ── Main area: (library | canvas) over filmstrip ── -->
+    <!-- -- Main area: (library | canvas) over filmstrip -- -->
     <div class="main-area">
       <div class="top-row">
         <!-- Left: Node Library -->
@@ -544,7 +544,7 @@
       onmousedown={(e) => startDrag('right', e)}
     ></div>
 
-    <!-- Right column: full height — Inspector (top) + Preview (bottom) -->
+    <!-- Right column: full height - Inspector (top) + Preview (bottom) -->
     <div class="right-col" style="width: {rightWidth}px">
       <div class="inspector-pane" style="height: {inspectorHeight}px">
         <Inspector {definitions} />
@@ -633,7 +633,7 @@
     box-sizing: border-box;
   }
 
-  /* ── Main area: column of (top-row + filmstrip) ── */
+  /* -- Main area: column of (top-row + filmstrip) -- */
   .main-area {
     flex: 1;
     min-width: 0;
@@ -648,7 +648,7 @@
     flex-direction: row;
   }
 
-  /* ── Panel cards — rounded, clipped, no borders ── */
+  /* -- Panel cards - rounded, clipped, no borders -- */
   .left-col {
     flex-shrink: 0;
     min-width: 0;
@@ -663,10 +663,10 @@
     overflow: hidden;
     border-radius: var(--panel-radius);
     background: var(--graph-bg-base-color);
-    transform: translateZ(0); /* force GPU compositing layer — fixes subpixel border-radius artifact */
+    transform: translateZ(0); /* force GPU compositing layer - fixes subpixel border-radius artifact */
   }
 
-  /* ── Filmstrip row ── */
+  /* -- Filmstrip row -- */
   .filmstrip-row {
     flex-shrink: 0;
     overflow: hidden;
@@ -674,7 +674,7 @@
     background: var(--panel-bg);
   }
 
-  /* ── Right column — full window height ── */
+  /* -- Right column - full window height -- */
   .right-col {
     flex-shrink: 0;
     display: flex;
@@ -696,7 +696,7 @@
     background: var(--preview-bg);
   }
 
-  /* ── Drag handles — transparent gap zones ── */
+  /* -- Drag handles - transparent gap zones -- */
   .handle {
     flex-shrink: 0;
     background: transparent;

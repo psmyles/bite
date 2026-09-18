@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compareSemver, extractImgplexPath } from '../../electron/update-utils.js';
+import { compareSemver, extractWorkflowPath } from '../../electron/update-utils.js';
 
 describe('compareSemver', () => {
   it('orders by major, then minor, then patch', () => {
@@ -24,27 +24,27 @@ describe('compareSemver', () => {
   });
 });
 
-describe('extractImgplexPath', () => {
-  it('finds a .imgplex arg in dev mode (start index 2)', () => {
-    const argv = ['electron', 'main.js', 'C:\\work\\flow.imgplex'];
-    expect(extractImgplexPath(argv, false)).toBe('C:\\work\\flow.imgplex');
+describe('extractWorkflowPath', () => {
+  it('finds a .bite arg in dev mode (start index 2)', () => {
+    const argv = ['electron', 'main.js', 'C:\\work\\flow.bite'];
+    expect(extractWorkflowPath(argv, false)).toBe('C:\\work\\flow.bite');
   });
 
-  it('finds a .imgplex arg in packaged mode (start index 1)', () => {
-    const argv = ['imgplex.exe', 'C:\\work\\flow.imgplex'];
-    expect(extractImgplexPath(argv, true)).toBe('C:\\work\\flow.imgplex');
+  it('finds a .bite arg in packaged mode (start index 1)', () => {
+    const argv = ['bite-gui.exe', 'C:\\work\\flow.bite'];
+    expect(extractWorkflowPath(argv, true)).toBe('C:\\work\\flow.bite');
   });
 
   it('skips flags', () => {
-    const argv = ['imgplex.exe', '--some-flag', 'flow.imgplex'];
-    expect(extractImgplexPath(argv, true)).toBe('flow.imgplex');
+    const argv = ['bite-gui.exe', '--some-flag', 'flow.bite'];
+    expect(extractWorkflowPath(argv, true)).toBe('flow.bite');
   });
 
-  it('returns null when no .imgplex arg is present', () => {
-    expect(extractImgplexPath(['imgplex.exe', 'image.png'], true)).toBeNull();
+  it('returns null when no .bite arg is present', () => {
+    expect(extractWorkflowPath(['bite-gui.exe', 'image.png'], true)).toBeNull();
   });
 
   it('does not treat the exe name as a path (packaged starts at 1)', () => {
-    expect(extractImgplexPath(['weird.imgplex'], true)).toBeNull();
+    expect(extractWorkflowPath(['weird.bite'], true)).toBeNull();
   });
 });

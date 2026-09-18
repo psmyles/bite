@@ -9,7 +9,7 @@ import type { NodeDefinition } from '../shared/types.js';
 import { IPC } from '../shared/constants.js';
 
 // Bundle every node-definition JSON at build time (Vite static glob import).
-// The path is relative to this file: src/renderer/ → ../../node-definitions/
+// The path is relative to this file: src/renderer/ -> ../../node-definitions/
 const NODE_DEFS: NodeDefinition[] = Object.values(
   import.meta.glob('../../node-definitions/*.json', { eager: true })
 ) as NodeDefinition[];
@@ -17,7 +17,7 @@ const NODE_DEFS: NodeDefinition[] = Object.values(
 type Listener = (...args: unknown[]) => void;
 
 export function installBrowserIpc(): void {
-  // Simple listener registry — on/off are no-ops for OS-menu events that
+  // Simple listener registry - on/off are no-ops for OS-menu events that
   // don't exist in a browser, but we keep a real map so components that
   // call on() + off() symmetrically don't throw.
   const listenerMap = new Map<string, Set<Listener>>();
@@ -25,14 +25,14 @@ export function installBrowserIpc(): void {
   const ipc = {
     async invoke(channel: string, ...args: unknown[]): Promise<unknown> {
       switch (channel) {
-        // ── Node definitions ────────────────────────────────────────────────
+        // -- Node definitions ------------------------------------------------
         case IPC.REGISTRY_GET_ALL:
           return NODE_DEFS;
 
-        // ── Workflow save — triggers a browser file download ─────────────────
+        // -- Workflow save - triggers a browser file download -----------------
         case IPC.WORKFLOW_SAVE: {
           const [graph, filePath, existingCreatedAt] = args as [unknown, string | null, string | null | undefined];
-          const fileName = filePath ? (filePath.split(/[\\/]/).pop() ?? 'workflow.imgplex') : 'workflow.imgplex';
+          const fileName = filePath ? (filePath.split(/[\\/]/).pop() ?? 'workflow.bite') : 'workflow.bite';
           const now = new Date().toISOString();
           const createdAt = existingCreatedAt ?? now;
           const content = JSON.stringify(
@@ -52,12 +52,12 @@ export function installBrowserIpc(): void {
           return { filePath: fileName, createdAt };
         }
 
-        // ── Workflow load — opens a file picker ──────────────────────────────
+        // -- Workflow load - opens a file picker ------------------------------
         case IPC.WORKFLOW_LOAD:
           return new Promise<unknown>((resolve) => {
             const input = document.createElement('input');
             input.type = 'file';
-            input.accept = '.imgplex,application/json';
+            input.accept = '.bite,application/json';
             input.addEventListener('change', async () => {
               const file = input.files?.[0];
               if (!file) {
@@ -88,7 +88,7 @@ export function installBrowserIpc(): void {
             input.click();
           });
 
-        // ── Image / processing channels — return safe empty values ───────────
+        // -- Image / processing channels - return safe empty values -----------
         // These are only called when IS_ELECTRON guards are absent; they return
         // values that cause the calling code to short-circuit gracefully.
         case IPC.OPEN_IMAGES_DIALOG:
@@ -102,7 +102,7 @@ export function installBrowserIpc(): void {
         case IPC.OPEN_FOLDER_DIALOG:
           return null;
 
-        // ── App lifecycle ────────────────────────────────────────────────────
+        // -- App lifecycle ----------------------------------------------------
         case IPC.APP_QUIT:
           // Can't close a browser tab programmatically; just no-op.
           return undefined;
@@ -123,7 +123,7 @@ export function installBrowserIpc(): void {
 
     send(channel: string, ...args: unknown[]): void {
       // In browser there is no main process, so deliver directly to any
-      // renderer-side listeners registered via on() — mirrors how Electron
+      // renderer-side listeners registered via on() - mirrors how Electron
       // forwards native-menu clicks to the renderer via webContents.send().
       listenerMap.get(channel)?.forEach((listener) => listener({} as Event, ...args));
     },

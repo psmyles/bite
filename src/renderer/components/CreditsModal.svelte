@@ -149,7 +149,7 @@
     font-family: var(--font-ui);
     font-size: var(--font-size-xs);
     font-weight: 700;
-    color: #6fb8cc; /* muted teal — 7.6:1 on --ctx-bg (#1c1c1c) */
+    color: #6fb8cc; /* muted teal - 7.6:1 on --ctx-bg (#1c1c1c) */
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }

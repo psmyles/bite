@@ -31,7 +31,7 @@ export async function executePreview(
 ): Promise<{ dataUrl: string; propParams: Record<string, Record<string, unknown>> }> {
   await fs.promises.mkdir(TEMP_DIR, { recursive: true });
 
-  // No image — evaluate pure value/logic nodes only and return empty dataUrl.
+  // No image - evaluate pure value/logic nodes only and return empty dataUrl.
   if (imagePath === '') {
     const sorted = topoSort(graph.nodes, graph.edges);
     const resolvedParams = new Map<string, Record<string, unknown>>();
@@ -56,7 +56,7 @@ export async function executePreview(
   const resolvedInputNodeId = inputNodeId ?? graph.nodes.find((n) => n.type === 'inputNode')?.id ?? 'workflow-input';
   const inputNode = graph.nodes.find((n) => n.id === resolvedInputNodeId);
   const thumbnailSize = Number((inputNode?.data.params as Record<string, unknown> | undefined)?.thumbnailSize ?? 256);
-  // Reuse the import thumbnail WebP as the preview input — avoids a second magick
+  // Reuse the import thumbnail WebP as the preview input - avoids a second magick
   // spawn when the image was already imported. Falls back to generating it if missing
   // (e.g. preview triggered before import, or thumbnail size changed).
   const inputHash = shortHash(imagePath);
@@ -86,7 +86,7 @@ export async function executePreview(
     `[preview] start: ${path.basename(imagePath)} | ${graph.nodes.length} node(s) | thumb ${thumbStatus}: ${path.basename(downscaledPath)}${fromNodeId ? ` (from ${fromNodeId})` : ''}`
   );
 
-  // No nodes — return the proportionally-downscaled source directly.
+  // No nodes - return the proportionally-downscaled source directly.
   if (graph.nodes.length === 0) {
     log('info', `[preview] done: ${path.basename(imagePath)} (no nodes)`);
     return { dataUrl: await fileToDataUrl(downscaledPath), propParams: {} };
@@ -94,7 +94,7 @@ export async function executePreview(
 
   const sorted = topoSort(graph.nodes, graph.edges);
 
-  // Invalidate stale cache entries when a specific node changed — only the changed
+  // Invalidate stale cache entries when a specific node changed - only the changed
   // node and its actual descendants, not unrelated parallel branches that merely
   // sort after it in topological order.
   if (fromNodeId) {
@@ -103,7 +103,7 @@ export async function executePreview(
     }
   }
 
-  // Multi-stream image buffer: keyed "nodeId:out-N" → temp file path.
+  // Multi-stream image buffer: keyed "nodeId:out-N" -> temp file path.
   // This allows fan-out (channel_split) and fan-in (channel_merge) topologies.
   const imageBuffers = new Map<string, string>();
   imageBuffers.set(`${resolvedInputNodeId}:out-0`, downscaledPath);
@@ -164,7 +164,7 @@ export async function executePreview(
   // Tracks resolved params per node so downstream param-wire consumers can read them.
   const resolvedParams = new Map<string, Record<string, unknown>>();
 
-  // Load image metadata lazily — only when at least one Properties node is present.
+  // Load image metadata lazily - only when at least one Properties node is present.
   const needsMeta = sorted.some((n) => {
     const def = registry.get(n.data.definitionId);
     return def?.needs_image_meta === true || def?.executor === EXECUTOR.MEAN_VALUE;
@@ -172,7 +172,7 @@ export async function executePreview(
   const meta = needsMeta ? await loadImageMeta(imagePath) : undefined;
 
   for (const node of sorted) {
-    // process_as_set is a source node — buffers are pre-seeded above; skip processing.
+    // process_as_set is a source node - buffers are pre-seeded above; skip processing.
     if (node.data.definitionId === EXECUTOR.PROCESS_AS_SET) continue;
     const def = registry.get(node.data.definitionId);
     if (!def) {
@@ -187,7 +187,7 @@ export async function executePreview(
     // Pure value/math/logic nodes don't touch the image pipeline
     if (!isImageNode) continue;
 
-    // ── Channel Split ──────────────────────────────────────────────────────
+    // -- Channel Split ------------------------------------------------------
     if (def.executor === EXECUTOR.CHANNEL_SPLIT) {
       const inputPath = getImgBuf(node.id, 0);
       const nodeHash = shortHash(inputPath + JSON.stringify(params));
@@ -214,7 +214,7 @@ export async function executePreview(
       continue;
     }
 
-    // ── Channel Merge ──────────────────────────────────────────────────────
+    // -- Channel Merge ------------------------------------------------------
     if (def.executor === EXECUTOR.CHANNEL_MERGE) {
       const refPath = imageBuffers.get(`${resolvedInputNodeId}:out-0`) ?? downscaledPath;
 
@@ -222,7 +222,7 @@ export async function executePreview(
       const resolveChannel = async (inputIdx: number): Promise<string> => {
         const imgEdge = graph.edges.find((e) => e.target === node.id && e.targetHandle === `in-${inputIdx}`);
         if (imgEdge) {
-          // Float value wire (param-out-*) — convert to a solid gray image at 0–1 brightness
+          // Float value wire (param-out-*) - convert to a solid gray image at 0-1 brightness
           if (imgEdge.sourceHandle?.startsWith('param-out-')) {
             const paramKey = imgEdge.sourceHandle.slice('param-out-'.length);
             const srcParams = resolvedParams.get(imgEdge.source);
@@ -239,7 +239,7 @@ export async function executePreview(
           }
           return imageBuffers.get(`${imgEdge.source}:${imgEdge.sourceHandle ?? 'out-0'}`) ?? refPath;
         }
-        // Unconnected — solid black placeholder sized to match the workflow input
+        // Unconnected - solid black placeholder sized to match the workflow input
         const solidKey = `${node.id}__solid_${inputIdx}`;
         const solidHash = shortHash(refPath);
         const cachedSolid = previewCache.get(solidKey, solidHash);
@@ -276,7 +276,7 @@ export async function executePreview(
       continue;
     }
 
-    // ── Mean Value — reads channel mean, no image output ──────────────────
+    // -- Mean Value - reads channel mean, no image output ------------------
     if (def.executor === EXECUTOR.MEAN_VALUE) {
       const inputPath = getImgBuf(node.id, 0);
       try {
@@ -288,7 +288,7 @@ export async function executePreview(
       continue;
     }
 
-    // ── Standard single-in / single-out node ──────────────────────────────
+    // -- Standard single-in / single-out node ------------------------------
     const inputPath = getImgBuf(node.id, 0);
     // Hash the *actual input* (previous node's output) so that any change to the
     // upstream chain automatically invalidates this node's cached result.
@@ -324,7 +324,7 @@ export async function executePreview(
       if (opArgs.length > 0) {
         await spawnMagick([inputPath, ...opArgs, outputPath]);
       } else {
-        // executor-type node or empty template — pass through unchanged
+        // executor-type node or empty template - pass through unchanged
         await fs.promises.copyFile(inputPath, outputPath);
       }
     }

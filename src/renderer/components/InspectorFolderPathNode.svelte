@@ -23,11 +23,11 @@
       type="text"
       class="text-input path-input"
       value={folderPath}
-      placeholder="Enter folder path…"
+      placeholder="Enter folder path..."
       oninput={(e) => graphStore.setParam(selectedNode.id, 'folderPath', (e.target as HTMLInputElement).value)}
     />
     {#if IS_ELECTRON}
-      <button class="btn btn--neutral" onclick={browseFolder} title="Browse…">…</button>
+      <button class="btn btn--neutral" onclick={browseFolder} title="Browse...">...</button>
     {/if}
   </div>
 </div>

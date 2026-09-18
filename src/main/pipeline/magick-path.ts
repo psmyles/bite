@@ -36,7 +36,7 @@ function _resolve(): string {
     if (fs.existsSync(candidate)) return candidate;
   }
 
-  // Dev mode — prefer the bundled binary in resources/ if it exists.
+  // Dev mode - prefer the bundled binary in resources/ if it exists.
   // Falls back to system magick for platforms where no binary is bundled (macOS, Linux).
   if (process.env.APP_ROOT) {
     const candidate = path.join(process.env.APP_ROOT, 'resources', 'win', 'magick', exe);

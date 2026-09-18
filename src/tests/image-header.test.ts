@@ -7,7 +7,7 @@ import { readHeaderDimensions } from '../main/pipeline/image-header.js';
 let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), 'imgplex-header-test-'));
+  tmpDir = mkdtempSync(join(tmpdir(), 'bite-header-test-'));
 });
 
 afterEach(() => {
@@ -156,7 +156,7 @@ function tgaBuf(width: number, height: number): Buffer {
   return b;
 }
 
-// ── PNG ───────────────────────────────────────────────────────────────────────
+// -- PNG -----------------------------------------------------------------------
 
 describe('PNG', () => {
   it('reads width and height from PNG header', async () => {
@@ -166,7 +166,7 @@ describe('PNG', () => {
   });
 });
 
-// ── BMP ───────────────────────────────────────────────────────────────────────
+// -- BMP -----------------------------------------------------------------------
 
 describe('BMP', () => {
   it('reads width and height from BMP header', async () => {
@@ -187,7 +187,7 @@ describe('BMP', () => {
   });
 });
 
-// ── WebP ──────────────────────────────────────────────────────────────────────
+// -- WebP ----------------------------------------------------------------------
 
 describe('WebP VP8 (lossy)', () => {
   it('reads width and height', async () => {
@@ -213,7 +213,7 @@ describe('WebP VP8X (extended)', () => {
   });
 });
 
-// ── JPEG ──────────────────────────────────────────────────────────────────────
+// -- JPEG ----------------------------------------------------------------------
 
 describe('JPEG', () => {
   it('reads width and height from SOF0', async () => {
@@ -223,7 +223,7 @@ describe('JPEG', () => {
   });
 });
 
-// ── TGA ───────────────────────────────────────────────────────────────────────
+// -- TGA -----------------------------------------------------------------------
 
 describe('TGA', () => {
   it('reads width and height from .tga file', async () => {
@@ -240,7 +240,7 @@ describe('TGA', () => {
   });
 });
 
-// ── Edge cases ────────────────────────────────────────────────────────────────
+// -- Edge cases ----------------------------------------------------------------
 
 describe('edge cases', () => {
   it('returns null for unknown format', async () => {

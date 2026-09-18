@@ -10,7 +10,7 @@ import {
 } from '../renderer/nodeEditor/nodeEditorHelpers.js';
 import type { NodeDefinition } from '../shared/types.js';
 
-// ── Minimal NodeDefinition factory ───────────────────────────────────────────
+// -- Minimal NodeDefinition factory -------------------------------------------
 
 function makeDef(overrides: Partial<NodeDefinition> = {}): NodeDefinition {
   return {
@@ -26,7 +26,7 @@ function makeDef(overrides: Partial<NodeDefinition> = {}): NodeDefinition {
   };
 }
 
-// ── getNodeParams ─────────────────────────────────────────────────────────────
+// -- getNodeParams -------------------------------------------------------------
 
 describe('getNodeParams', () => {
   it('returns params from a valid node data object', () => {
@@ -60,7 +60,7 @@ describe('getNodeParams', () => {
   });
 });
 
-// ── nodeTypeForDef ─────────────────────────────────────────────────────────────
+// -- nodeTypeForDef -------------------------------------------------------------
 
 describe('nodeTypeForDef', () => {
   it('returns commentNode for id "comment"', () => {
@@ -78,7 +78,7 @@ describe('nodeTypeForDef', () => {
   });
 });
 
-// ── buildNodeData ─────────────────────────────────────────────────────────────
+// -- buildNodeData -------------------------------------------------------------
 
 describe('buildNodeData', () => {
   it('sets label and definitionId from def', () => {
@@ -185,7 +185,7 @@ describe('buildNodeData', () => {
     });
     const data = buildNodeData(def);
     const names = data.paramDefs.map((p) => p.name);
-    // preserve=true absolute → only width (no height), plus preserve_aspect
+    // preserve=true absolute -> only width (no height), plus preserve_aspect
     expect(names).toContain('preserve_aspect');
     expect(names).toContain('width');
     expect(names).not.toContain('height');
@@ -193,7 +193,7 @@ describe('buildNodeData', () => {
   });
 });
 
-// ── sortNodesGroupFirst ────────────────────────────────────────────────────────
+// -- sortNodesGroupFirst --------------------------------------------------------
 
 describe('sortNodesGroupFirst', () => {
   it('moves group nodes to the front', () => {
@@ -243,7 +243,7 @@ describe('sortNodesGroupFirst', () => {
   });
 });
 
-// ── buildResizeParamDefs ──────────────────────────────────────────────────────
+// -- buildResizeParamDefs ------------------------------------------------------
 
 describe('buildResizeParamDefs', () => {
   it('absolute + preserve + anchor=width (default): expose preserve_aspect and width only', () => {
@@ -310,7 +310,7 @@ describe('buildResizeParamDefs', () => {
   });
 });
 
-// ── expandNodeData ─────────────────────────────────────────────────────────────
+// -- expandNodeData -------------------------------------------------------------
 
 describe('expandNodeData', () => {
   it('merges saved params over definition defaults', () => {
@@ -375,7 +375,7 @@ describe('expandNodeData', () => {
   });
 });
 
-// ── firstMatchingHandle ───────────────────────────────────────────────────────
+// -- firstMatchingHandle -------------------------------------------------------
 
 describe('firstMatchingHandle', () => {
   const imgDef = makeDef({

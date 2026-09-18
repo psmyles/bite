@@ -52,7 +52,7 @@
     updateBlock(i, { [field]: isNaN(n) ? min : Math.max(min, n) } as Partial<NameBlock>);
   }
 
-  // ── Drag-to-reorder ────────────────────────────────────────────────────────
+  // -- Drag-to-reorder --------------------------------------------------------
   let dragIdx = $state<number | null>(null);
   let dragOverPos = $state<number | null>(null);
 
@@ -73,7 +73,7 @@
     }
   }
 
-  // Dragover on the container: use Y geometry to find target slot — no per-item handlers
+  // Dragover on the container: use Y geometry to find target slot - no per-item handlers
   function onListDragOver(e: DragEvent) {
     e.preventDefault();
     if (dragIdx === null) return;
@@ -108,7 +108,7 @@
 </script>
 
 <div class="rename-inspector">
-  <!-- ── Block builder ─────────────────────────────────────── -->
+  <!-- -- Block builder --------------------------------------- -->
   <div class="section">
     <div class="section-title">Name Blocks</div>
 
@@ -142,7 +142,7 @@
                 type="text"
                 value={block.value}
                 oninput={(e) => onStr(origIdx, 'value', e)}
-                placeholder="text…"
+                placeholder="text..."
                 spellcheck="false"
               />
             {:else if block.type === 'number'}
@@ -176,24 +176,24 @@
                   type="text"
                   value={block.find}
                   oninput={(e) => onStr(origIdx, 'find', e)}
-                  placeholder="find…"
+                  placeholder="find..."
                   spellcheck="false"
                 />
                 {#if block.find}
-                  <span class="orig-arrow">→</span>
+                  <span class="orig-arrow">-></span>
                   <input
                     class="field-input orig-input"
                     type="text"
                     value={block.replace_with}
                     oninput={(e) => onStr(origIdx, 'replace_with', e)}
-                    placeholder="replace…"
+                    placeholder="replace..."
                     spellcheck="false"
                   />
                 {/if}
               </div>
             {/if}
 
-            <button class="block-delete" onclick={() => deleteBlock(origIdx)} title="Remove block">×</button>
+            <button class="block-delete" onclick={() => deleteBlock(origIdx)} title="Remove block">x</button>
           </div>
         {/each}
       </div>
@@ -206,13 +206,13 @@
     </div>
   </div>
 
-  <!-- ── Preview table ─────────────────────────────────────── -->
+  <!-- -- Preview table --------------------------------------- -->
   <div class="section preview-section">
     <div class="section-title">
       {totalImages > 0
         ? totalImages > PREVIEW_LIMIT
-          ? `Preview — first ${PREVIEW_LIMIT} of ${totalImages} files`
-          : `Preview — ${totalImages} file${totalImages > 1 ? 's' : ''}`
+          ? `Preview - first ${PREVIEW_LIMIT} of ${totalImages} files`
+          : `Preview - ${totalImages} file${totalImages > 1 ? 's' : ''}`
         : 'Preview (no files loaded)'}
     </div>
     <div class="preview-table">
@@ -223,7 +223,7 @@
       {#each imageNames.length > 0 ? rows : exampleRows as row, i (i)}
         <div class="preview-row">
           <span class="preview-name preview-name--old">{row.original}</span>
-          <span class="preview-arrow">→</span>
+          <span class="preview-arrow">-></span>
           <span class="preview-name preview-name--new" class:unchanged={!row.changed}>{row.newName}</span>
         </div>
       {/each}
@@ -240,7 +240,7 @@
     flex-direction: column;
   }
 
-  /* ── Sections ── */
+  /* -- Sections -- */
   .section {
     padding: 10px 12px 10px;
     border-bottom: 1px solid var(--node-border);
@@ -257,7 +257,7 @@
     margin-bottom: 2px;
   }
 
-  /* ── Inputs ── */
+  /* -- Inputs -- */
   .field-input {
     background: var(--input-bg);
     border: 1px solid var(--input-border);
@@ -278,7 +278,7 @@
     padding: 4px 5px;
   }
 
-  /* ── Block list ── */
+  /* -- Block list -- */
   .empty-blocks {
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
@@ -326,7 +326,7 @@
     opacity: 0.7;
   }
 
-  /* ── Badges ── */
+  /* -- Badges -- */
   .block-badge {
     font-family: var(--font-mono);
     font-size: var(--font-size-xs);
@@ -349,12 +349,12 @@
     color: var(--color-rename-orig);
   }
 
-  /* ── Text block ── */
+  /* -- Text block -- */
   .block-input {
     flex: 1;
   }
 
-  /* ── Number block ── */
+  /* -- Number block -- */
   .num-fields {
     flex: 1;
     display: flex;
@@ -378,7 +378,7 @@
     flex-shrink: 0;
   }
 
-  /* ── Old Name block ── */
+  /* -- Old Name block -- */
   .orig-fields {
     flex: 1;
     display: flex;
@@ -397,7 +397,7 @@
     flex-shrink: 0;
   }
 
-  /* ── Delete button ── */
+  /* -- Delete button -- */
   .block-delete {
     background: none;
     border: none;
@@ -417,7 +417,7 @@
     color: var(--color-error);
   }
 
-  /* ── Add bar ── */
+  /* -- Add bar -- */
   .add-bar {
     display: flex;
     gap: 5px;
@@ -452,7 +452,7 @@
     border-color: var(--color-rename-orig);
   }
 
-  /* ── Preview ── */
+  /* -- Preview -- */
   .preview-section {
     gap: 4px;
   }

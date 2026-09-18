@@ -25,7 +25,7 @@ vi.mock('node:fs', () => ({
 }));
 
 vi.mock('../main/pipeline/thumbnail-service.js', () => ({
-  TEMP_DIR: '/tmp/imgplex-test',
+  TEMP_DIR: '/tmp/bite-test',
   shortHash: (s: string) => s.slice(-8).replace(/[^a-z0-9]/gi, 'x'),
 }));
 
@@ -85,7 +85,7 @@ async function run(
   );
 }
 
-describe('executeBatch — fast path depth', () => {
+describe('executeBatch - fast path depth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     spawnMagickMock.mockResolvedValue(undefined);

@@ -1,16 +1,16 @@
-// ImgplexBatchTool.cs
+// BiteBatchTool.cs
 // Drop into Assets/Editor/ in your Unity project.
 //
 // Setup:
-//   1. Install imgplex from the Windows installer (imgplex-Windows-x.x.x-Setup.exe).
-//      The installer places imgplex-cli.exe in %LOCALAPPDATA%\Programs\imgplex\ and
+//   1. Install Bite from the Windows installer (Bite-Windows-x.x.x-Setup.exe).
+//      The installer places bite.exe in %LOCALAPPDATA%\Programs\bite\ and
 //      adds that folder to your PATH automatically.
-//   2. Save a workflow from imgplex: File > Save Workflow  →  produces a .imgplex file
-//   3. Right-click any asset > Imgplex > Settings...
-//        • imgplex CLI  →  auto-detected; override only if you chose a custom install path
-//        • Workflows Folder  →  folder containing your .imgplex files
-//   4. Select image assets, right-click > Imgplex > Run Script...
-//      A small window lists every workflow — click one to process the selected images.
+//   2. Save a workflow from Bite: File > Save Workflow  ->  produces a .bite file
+//   3. Right-click any asset > Bite > Settings...
+//        - Bite CLI  ->  auto-detected; override only if you chose a custom install path
+//        - Workflows Folder  ->  folder containing your .bite files
+//   4. Select image assets, right-click > Bite > Run Script...
+//      A small window lists every workflow - click one to process the selected images.
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -18,11 +18,11 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-public static class ImgplexBatchTool
+public static class BiteBatchTool
 {
-    // ── Persisted settings ────────────────────────────────────────────────────
-    private const string KeyWorkflowsFolder = "ImgplexBatch_WorkflowsFolder";
-    private const string KeyCliExe          = "ImgplexBatch_CliExe";
+    // -- Persisted settings ----------------------------------------------------
+    private const string KeyWorkflowsFolder = "BiteBatch_WorkflowsFolder";
+    private const string KeyCliExe          = "BiteBatch_CliExe";
 
     private static string WorkflowsFolder
     {
@@ -31,7 +31,7 @@ public static class ImgplexBatchTool
     }
 
     /// <summary>
-    /// Optional override path to imgplex-cli.exe. When empty, auto-detection is used.
+    /// Optional override path to bite.exe. When empty, auto-detection is used.
     /// </summary>
     private static string CliExe
     {
@@ -39,21 +39,21 @@ public static class ImgplexBatchTool
         set => EditorPrefs.SetString(KeyCliExe, value);
     }
 
-    // ── CLI resolution ────────────────────────────────────────────────────────
+    // -- CLI resolution --------------------------------------------------------
     /// <summary>
-    /// Returns the full path to imgplex-cli.exe, or null if not found.
+    /// Returns the full path to bite.exe, or null if not found.
     /// Priority: (1) user override, (2) default installer location.
     /// </summary>
     private static string ResolveCliExe()
     {
-        // User has set an explicit path — use it if valid.
+        // User has set an explicit path - use it if valid.
         if (!string.IsNullOrEmpty(CliExe) && File.Exists(CliExe))
             return CliExe;
 
         // Default per-user install location used by the NSIS installer.
         string defaultPath = Path.Combine(
             System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
-            "Programs", "imgplex", "imgplex-cli.exe");
+            "Programs", "Bite", "bite.exe");
 
         if (File.Exists(defaultPath))
             return defaultPath;
@@ -61,33 +61,33 @@ public static class ImgplexBatchTool
         return null;
     }
 
-    // ── Context menu: run a workflow ──────────────────────────────────────────
-    [MenuItem("Assets/Imgplex/Run Script \u2026", false, 1200)]
+    // -- Context menu: run a workflow ------------------------------------------
+    [MenuItem("Assets/Bite/Run Script \u2026", false, 1200)]
     private static void ShowScriptMenu()
     {
         if (!EnsureSettings()) return;
 
         var      imagePaths = GetSelectedImagePaths();   // capture before window opens
-        string[] workflows  = Directory.GetFiles(WorkflowsFolder, "*.imgplex");
+        string[] workflows  = Directory.GetFiles(WorkflowsFolder, "*.bite");
 
         if (workflows.Length == 0)
         {
-            EditorUtility.DisplayDialog("Imgplex",
-                $"No .imgplex files found in:\n{WorkflowsFolder}", "OK");
+            EditorUtility.DisplayDialog("Bite",
+                $"No .bite files found in:\n{WorkflowsFolder}", "OK");
             return;
         }
 
         WorkflowPickerWindow.Open(workflows, imagePaths);
     }
 
-    [MenuItem("Assets/Imgplex/Run Script \u2026", true)]
+    [MenuItem("Assets/Bite/Run Script \u2026", true)]
     private static bool ValidateShowScriptMenu() => GetSelectedImagePaths().Count > 0;
 
-    // ── Context menu: settings ────────────────────────────────────────────────
-    [MenuItem("Assets/Imgplex/Settings\u2026", false, 1210)]
+    // -- Context menu: settings ------------------------------------------------
+    [MenuItem("Assets/Bite/Settings\u2026", false, 1210)]
     private static void OpenSettings() => SettingsWindow.Open();
 
-    // ── Ensure CLI + workflow folder are configured ───────────────────────────
+    // -- Ensure CLI + workflow folder are configured ---------------------------
     private static bool EnsureSettings()
     {
         bool cliOk    = ResolveCliExe() != null;
@@ -95,12 +95,12 @@ public static class ImgplexBatchTool
 
         if (!cliOk || !folderOk)
         {
-            EditorUtility.DisplayDialog("Imgplex — Setup Required",
+            EditorUtility.DisplayDialog("Bite - Setup Required",
                 "Before running workflows, configure:\n\n" +
-                (cliOk    ? "" : "  • imgplex is not installed or the CLI path is wrong.\n" +
-                                 "    Install from imgplex-Windows-x.x.x-Setup.exe or set the\n" +
-                                 "    path manually via Assets > Imgplex > Settings...\n") +
-                (folderOk ? "" : "  • Workflows Folder\n"),
+                (cliOk    ? "" : "  - Bite is not installed or the CLI path is wrong.\n" +
+                                 "    Install from Bite-Windows-x.x.x-Setup.exe or set the\n" +
+                                 "    path manually via Assets > Bite > Settings...\n") +
+                (folderOk ? "" : "  - Workflows Folder\n"),
                 "OK");
             if (!folderOk) SettingsWindow.Open();
             return false;
@@ -108,21 +108,21 @@ public static class ImgplexBatchTool
         return true;
     }
 
-    // ── Workflow execution ────────────────────────────────────────────────────
+    // -- Workflow execution ----------------------------------------------------
     internal static void RunWorkflow(string workflowPath, List<string> imagePaths)
     {
         if (imagePaths.Count == 0)
         {
-            EditorUtility.DisplayDialog("Imgplex", "No image assets were selected.", "OK");
+            EditorUtility.DisplayDialog("Bite", "No image assets were selected.", "OK");
             return;
         }
 
         string resolvedCli = ResolveCliExe();
         if (resolvedCli == null)
         {
-            EditorUtility.DisplayDialog("Imgplex",
-                "imgplex-cli.exe not found.\n\nInstall imgplex from the Windows installer, " +
-                "or set the path manually via Assets > Imgplex > Settings...", "OK");
+            EditorUtility.DisplayDialog("Bite",
+                "bite.exe not found.\n\nInstall Bite from the Windows installer, " +
+                "or set the path manually via Assets > Bite > Settings...", "OK");
             return;
         }
 
@@ -142,7 +142,7 @@ public static class ImgplexBatchTool
         {
             string outputDir = kvp.Key;
             string tempDir   = Path.Combine(
-                Path.GetTempPath(), $"imgplex_{System.Guid.NewGuid():N}");
+                Path.GetTempPath(), $"bite_{System.Guid.NewGuid():N}");
             Directory.CreateDirectory(tempDir);
 
             try
@@ -189,13 +189,13 @@ public static class ImgplexBatchTool
 
         if (errors.Count > 0)
             UnityEngine.Debug.LogError(
-                $"[Imgplex] '{wfName}' errors:\n{string.Join("\n", errors)}");
+                $"[Bite] '{wfName}' errors:\n{string.Join("\n", errors)}");
         else
             UnityEngine.Debug.Log(
-                $"[Imgplex] '{wfName}' processed {processed} image(s).");
+                $"[Bite] '{wfName}' processed {processed} image(s).");
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // -- Helpers ---------------------------------------------------------------
     private static List<string> GetSelectedImagePaths()
     {
         var result = new List<string>();
@@ -209,12 +209,12 @@ public static class ImgplexBatchTool
         return result;
     }
 
-    // ── Settings window ───────────────────────────────────────────────────────
+    // -- Settings window -------------------------------------------------------
     private sealed class SettingsWindow : EditorWindow
     {
         internal static void Open()
         {
-            var win          = GetWindow<SettingsWindow>(true, "Imgplex Settings");
+            var win          = GetWindow<SettingsWindow>(true, "Bite Settings");
             win.minSize      = new Vector2(480f, 150f);
             win.maxSize      = new Vector2(760f, 150f);
         }
@@ -226,14 +226,14 @@ public static class ImgplexBatchTool
             // CLI executable row
             string detected = ResolveCliExe();
             string label    = detected != null
-                ? $"imgplex CLI  (auto-detected: {detected})"
-                : "imgplex CLI  (not found — set path manually)";
+                ? $"Bite CLI  (auto-detected: {detected})"
+                : "Bite CLI  (not found - set path manually)";
             EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
             EditorGUILayout.BeginHorizontal();
             CliExe = EditorGUILayout.TextField(CliExe, GUILayout.ExpandWidth(true));
             if (GUILayout.Button("\u2026", GUILayout.Width(28)))
             {
-                string p = EditorUtility.OpenFilePanel("Locate imgplex-cli.exe",
+                string p = EditorUtility.OpenFilePanel("Locate bite.exe",
                     string.IsNullOrEmpty(CliExe) ? detected ?? "" : CliExe, "exe");
                 if (!string.IsNullOrEmpty(p)) CliExe = p;
             }
@@ -242,7 +242,7 @@ public static class ImgplexBatchTool
             EditorGUILayout.Space(6);
 
             // Workflows folder row
-            EditorGUILayout.LabelField("Workflows Folder  (.imgplex files)", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField("Workflows Folder  (.bite files)", EditorStyles.miniBoldLabel);
             EditorGUILayout.BeginHorizontal();
             WorkflowsFolder = EditorGUILayout.TextField(WorkflowsFolder);
             if (GUILayout.Button("\u2026", GUILayout.Width(28)))
@@ -257,7 +257,7 @@ public static class ImgplexBatchTool
         }
     }
 
-    // ── Workflow picker window ────────────────────────────────────────────────
+    // -- Workflow picker window ------------------------------------------------
     private sealed class WorkflowPickerWindow : EditorWindow
     {
         private string[]     _workflows;
@@ -267,7 +267,7 @@ public static class ImgplexBatchTool
         internal static void Open(string[] workflows, List<string> imagePaths)
         {
             var win          = CreateInstance<WorkflowPickerWindow>();
-            win.titleContent = new GUIContent("Imgplex \u2014 Select Workflow");
+            win.titleContent = new GUIContent("Bite \u2014 Select Workflow");
             win._workflows   = workflows;
             win._imagePaths  = imagePaths;
             float h          = Mathf.Clamp(workflows.Length * 28f + 16f, 60f, 360f);

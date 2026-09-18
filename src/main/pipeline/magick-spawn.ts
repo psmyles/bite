@@ -15,7 +15,7 @@ export function spawnMagick(
   opts?: SpawnMagickOptions
 ): Promise<void> {
   const t0 = Date.now();
-  const label = `${args[0] ?? ''}${args.length > 1 ? ` → ${args[args.length - 1]}` : ''} (${args.length} args)`;
+  const label = `${args[0] ?? ''}${args.length > 1 ? ` -> ${args[args.length - 1]}` : ''} (${args.length} args)`;
   log('info', `[magick] spawn: ${label}`);
   return new Promise((resolve, reject) => {
     const proc = spawn(getMagickBinary(), args, { env: opts?.env, stdio: opts?.stdio });
@@ -23,7 +23,7 @@ export function spawnMagick(
     const stdout: string[] = [];
 
     // Guard against the timing bucket being added twice: on timeout we kill the
-    // process, which then fires 'close' — both paths would otherwise record time.
+    // process, which then fires 'close' - both paths would otherwise record time.
     let settled = false;
     const settle = () => {
       if (settled) return false;
@@ -72,7 +72,7 @@ export function spawnMagick(
 
 export function spawnMagickCapture(args: string[], timeoutMs?: number, opts?: SpawnMagickOptions): Promise<string> {
   const t0 = Date.now();
-  const label = `${args[0] ?? ''}${args.length > 1 ? ` → ${args[args.length - 1]}` : ''} (${args.length} args)`;
+  const label = `${args[0] ?? ''}${args.length > 1 ? ` -> ${args[args.length - 1]}` : ''} (${args.length} args)`;
   log('info', `[magick] spawn (capture): ${label}`);
   return new Promise((resolve, reject) => {
     const proc = spawn(getMagickBinary(), args, { env: opts?.env, stdio: opts?.stdio });

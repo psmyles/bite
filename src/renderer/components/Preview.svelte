@@ -62,7 +62,7 @@
    * Bypassed nodes are skipped when auto-detecting the default preview node.
    */
   function buildPreviewGraph(sfNodes: Node[], sfEdges: Edge[], userPreviewId: string | null): PreviewGraphResult {
-    // BFS forward from all Input nodes — find all reachable nodes
+    // BFS forward from all Input nodes - find all reachable nodes
     const reachable = new SvelteSet<string>();
     const inputNodeIds = sfNodes.filter((n) => n.type === 'inputNode').map((n) => n.id);
     const q: string[] = [...inputNodeIds];
@@ -118,9 +118,9 @@
     }
 
     // Effective preview node:
-    // - If user's choice is reachable and non-bypassed → use it.
-    // - If user's choice is bypassed → fall back to nearest non-bypassed predecessor.
-    // - Otherwise → use auto-detected default.
+    // - If user's choice is reachable and non-bypassed -> use it.
+    // - If user's choice is bypassed -> fall back to nearest non-bypassed predecessor.
+    // - Otherwise -> use auto-detected default.
     let effectivePreviewId: string | null;
     const userPreviewNodeType = sfNodes.find((n) => n.id === userPreviewId)?.type ?? '';
     if (
@@ -182,7 +182,7 @@
     // Include all nodes NOT in the ancestor set that:
     //  1. Produce no image outputs (so they don't extend the image pipeline), AND
     //  2. All their image inputs come from nodes already in the ancestor set
-    //     (so imageBuffers has the data they need — covers mean_value-like nodes),
+    //     (so imageBuffers has the data they need - covers mean_value-like nodes),
     //     OR they have no image inputs at all (pure value/logic/property nodes).
     const extraNodes = sfNodes.filter((n) => {
       if (nodeSet.has(n.id) || n.type === 'inputNode' || OUTPUT_TYPES.has(n.type ?? '')) return false;
@@ -207,7 +207,7 @@
   let previewSrc = $state<string | null>(null);
   let showInfo = $state(true);
 
-  // ── Persistent debouncer ────────────────────────────────────────────────────
+  // -- Persistent debouncer ----------------------------------------------------
   let _timer: ReturnType<typeof setTimeout> | null = null;
   let _seq = 0;
 
@@ -233,7 +233,7 @@
     }, delayMs);
   }
 
-  // Pipeline-relevant content key — excludes position/selection/measured-height.
+  // Pipeline-relevant content key - excludes position/selection/measured-height.
   // Includes previewNodeId so the effect re-runs when the user changes preview target.
   const graphKey = $derived(
     graphStore.nodes
@@ -302,7 +302,7 @@
       ? {
           name: imageStore.selected.name,
           format: imageStore.selected.format,
-          dims: `${imageStore.selected.width} × ${imageStore.selected.height}`,
+          dims: `${imageStore.selected.width} x ${imageStore.selected.height}`,
           size: formatSize(imageStore.selected.sizeBytes),
         }
       : null
@@ -345,7 +345,7 @@
     background: var(--preview-bg);
   }
 
-  /* ── Header ── */
+  /* -- Header -- */
   .panel-header {
     display: flex;
     align-items: center;
@@ -390,7 +390,7 @@
     color: var(--color-success-muted);
   }
 
-  /* ── Preview area ── */
+  /* -- Preview area -- */
   .preview-area {
     flex: 1;
     position: relative;
@@ -408,7 +408,7 @@
     object-fit: contain;
   }
 
-  /* ── Info overlay — frosted strip at the bottom of the preview area ── */
+  /* -- Info overlay - frosted strip at the bottom of the preview area -- */
   .info-overlay {
     position: absolute;
     bottom: 0;

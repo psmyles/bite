@@ -44,7 +44,7 @@ export function applyParamWires(
   const rawParams: Record<string, unknown> = { ...node.data.params };
   // Security: never let `__`-prefixed keys survive from workflow data. The only
   // legitimate one (`__compute_js__`) is injected at runtime from the trusted node
-  // definition (resolve-params.ts). A malicious .imgplex could otherwise set it on
+  // definition (resolve-params.ts). A malicious .bite could otherwise set it on
   // any node's params and achieve arbitrary code execution in the main process.
   for (const key of Object.keys(rawParams)) {
     if (key.startsWith('__')) delete rawParams[key];
@@ -60,7 +60,7 @@ export function applyParamWires(
         if (th.startsWith('param-in-')) {
           const destKey = th.slice('param-in-'.length);
           // Security: a wire target handle is attacker-controlled data from the
-          // .imgplex file. Never let it write a `__`-prefixed key (e.g.
+          // .bite file. Never let it write a `__`-prefixed key (e.g.
           // `param-in-__compute_js__`), which would inject executable JS back in
           // after the strip above.
           if (destKey.startsWith('__')) continue;
@@ -103,7 +103,7 @@ export function topoSort(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[] {
   }
 
   // Kahn's algorithm leaves cycle members out of `sorted`. A cycle shouldn't be
-  // reachable via the UI, but a hand-edited/corrupt .imgplex can introduce one —
+  // reachable via the UI, but a hand-edited/corrupt .bite can introduce one -
   // warn rather than silently dropping nodes from execution.
   if (sorted.length !== nodes.length) {
     log('warn', `[topoSort] graph contains a cycle: ${nodes.length - sorted.length} node(s) dropped from execution`);

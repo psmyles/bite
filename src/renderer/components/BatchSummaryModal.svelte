@@ -141,7 +141,7 @@
     gap: 14px;
   }
 
-  /* ── Stat row ── */
+  /* -- Stat row -- */
   .stats {
     display: flex;
     align-items: center;
@@ -189,7 +189,7 @@
     letter-spacing: 0.06em;
   }
 
-  /* ── Time row ── */
+  /* -- Time row -- */
   .time-row {
     display: flex;
     justify-content: space-between;
@@ -237,7 +237,7 @@
     word-break: break-all;
   }
 
-  /* ── Footer ── */
+  /* -- Footer -- */
   .modal-footer {
     display: flex;
     gap: 8px;

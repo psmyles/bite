@@ -43,9 +43,9 @@ export interface BatchContext {
 }
 
 // Multi-stream execution for a single image with two speed optimisations:
-//   1. Command fusion — consecutive standard nodes are chained into a single magick
+//   1. Command fusion - consecutive standard nodes are chained into a single magick
 //      invocation instead of one process per node (lazy-buffer approach).
-//   2. Channel split — all 4 channels are extracted in one magick call via -write.
+//   2. Channel split - all 4 channels are extracted in one magick call via -write.
 // Returns the final output path and extension, or null if the image should be suppressed.
 export async function executeMultiStream(
   inputPath: string,
@@ -121,7 +121,7 @@ export async function executeMultiStream(
   // Pre-detect channel_split nodes whose outputs are consumed ONLY by mean_value.
   // For these we skip writing the 4 channel PNG files and instead compute the
   // per-channel mean directly from the source image (no temp-file I/O at all).
-  // Map: "splitNodeId:out-N" → { srcKey of split's image input, channelIdx }
+  // Map: "splitNodeId:out-N" -> { srcKey of split's image input, channelIdx }
   const channelMeanSources = new Map<string, { srcKey: string; channelIdx: number }>();
   const analysisOnlySplitNodes = new Set<string>();
   for (const n of sorted) {
@@ -153,7 +153,7 @@ export async function executeMultiStream(
       console.warn(`[executor] loadImageMeta failed for ${inputPath} (non-fatal):`, err);
     }
   } else if (hasImageMetaNodes) {
-    // light-meta nodes only — no ImageMagick spawn needed.
+    // light-meta nodes only - no ImageMagick spawn needed.
     meta = await buildEmptyImageMeta(inputPath);
   }
 
@@ -192,7 +192,7 @@ export async function executeMultiStream(
   try {
     for (const node of sorted) {
       if (!outputContributorIds.has(node.id)) continue;
-      // process_as_set is a source node — buffers are pre-seeded externally; skip processing.
+      // process_as_set is a source node - buffers are pre-seeded externally; skip processing.
       if (node.data.definitionId === EXECUTOR.PROCESS_AS_SET) continue;
       const def = registry.get(node.data.definitionId);
       if (!def) continue;
@@ -207,7 +207,7 @@ export async function executeMultiStream(
 
       if (def.executor === EXECUTOR.CHANNEL_SPLIT) {
         if (analysisOnlySplitNodes.has(node.id)) {
-          // All consumers are mean_value — skip writing channel files entirely.
+          // All consumers are mean_value - skip writing channel files entirely.
           // channelMeanSources already maps each out-N to the source image key;
           // mean_value will call loadImageChannelMean directly.
         } else {
@@ -215,13 +215,13 @@ export async function executeMultiStream(
           const usedIdxs = [0, 1, 2, 3].filter((i) => (imgConsumers.get(`${node.id}:out-${i}`) ?? 0) > 0);
 
           if (usedIdxs.length === 1) {
-            // Single channel consumed — defer as a lazy chain so the downstream op
+            // Single channel consumed - defer as a lazy chain so the downstream op
             // (e.g. negate) can fuse onto it, avoiding an intermediate temp file.
             const src = await getImg(node.id, 0);
             const i = usedIdxs[0];
             buffers.set(`${node.id}:out-${i}`, { base: src, args: ['-channel', CHAN[i], '-separate'] });
           } else if (usedIdxs.length > 1) {
-            // Multiple channels — extract only those actually used in one spawn.
+            // Multiple channels - extract only those actually used in one spawn.
             const src = await getImg(node.id, 0);
             const outs = usedIdxs.map(() => newTmp());
             const lastK = usedIdxs.length - 1;
@@ -264,7 +264,7 @@ export async function executeMultiStream(
         const channelCount = Number(params.channels ?? 3);
         const aImgEdge = graph.edges.find((e) => e.target === node.id && e.targetHandle === 'in-3');
         const hasAlpha = channelCount >= 4 && !!aImgEdge;
-        // Resolve all channels concurrently — their materialisations are independent.
+        // Resolve all channels concurrently - their materialisations are independent.
         const idxs = hasAlpha ? [0, 1, 2, 3] : [0, 1, 2];
         const resolved = await Promise.all(idxs.map((i) => resolveChannel(i)));
         const [r, g, b] = resolved;
@@ -315,7 +315,7 @@ export async function executeMultiStream(
         });
         buffers.set(`${node.id}:out-0`, out);
       } else if (params._enabled !== false) {
-        // Standard image op — fuse into a lazy chain when safe to do so.
+        // Standard image op - fuse into a lazy chain when safe to do so.
         const imgInEdge = graph.edges.find((e) => e.target === node.id && e.targetHandle === 'in-0');
         const srcKey = imgInEdge ? `${imgInEdge.source}:${imgInEdge.sourceHandle ?? 'out-0'}` : `${inputNodeId}:out-0`;
         const outKey = `${node.id}:out-0`;
@@ -327,10 +327,10 @@ export async function executeMultiStream(
             : buildCommandArgs(def, params);
 
         if (opArgs.length === 0) {
-          // No-op — inherit source slot unchanged.
+          // No-op - inherit source slot unchanged.
           buffers.set(outKey, buffers.get(srcKey) ?? inputPath);
         } else if ((imgConsumers.get(srcKey) ?? 0) <= 1) {
-          // Sole consumer of source — extend (or start) the lazy chain.
+          // Sole consumer of source - extend (or start) the lazy chain.
           const srcVal = buffers.get(srcKey) ?? inputPath;
           if (typeof srcVal === 'string') {
             buffers.set(outKey, { base: srcVal, args: opArgs });
@@ -338,12 +338,12 @@ export async function executeMultiStream(
             buffers.set(outKey, { base: srcVal.base, args: [...srcVal.args, ...opArgs] });
           }
         } else {
-          // Multiple consumers — materialise first so we don't double-apply ops.
+          // Multiple consumers - materialise first so we don't double-apply ops.
           const src = await mat(srcKey);
           buffers.set(outKey, { base: src, args: opArgs });
         }
       } else {
-        // Bypassed — pass source slot through unchanged (preserves any lazy chain).
+        // Bypassed - pass source slot through unchanged (preserves any lazy chain).
         const imgInEdge = graph.edges.find((e) => e.target === node.id && e.targetHandle === 'in-0');
         const srcKey = imgInEdge ? `${imgInEdge.source}:${imgInEdge.sourceHandle ?? 'out-0'}` : `${inputNodeId}:out-0`;
         buffers.set(`${node.id}:out-0`, buffers.get(srcKey) ?? inputPath);

@@ -32,7 +32,7 @@ export default tseslint.config(
     },
   },
   {
-    // .svelte.ts files are plain TypeScript — override the Svelte parser that
+    // .svelte.ts files are plain TypeScript - override the Svelte parser that
     // would otherwise be applied because the filename contains ".svelte"
     files: ['**/*.svelte.ts'],
     languageOptions: {
@@ -44,7 +44,7 @@ export default tseslint.config(
     },
   },
   {
-    // CommonJS build scripts legitimately use require() — they run under plain Node,
+    // CommonJS build scripts legitimately use require() - they run under plain Node,
     // not the bundler, so the TS-eslint ESM rule does not apply to them.
     files: ['**/*.cjs'],
     rules: {

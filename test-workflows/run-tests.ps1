@@ -1,5 +1,5 @@
-# imgplex pipeline test suite runner.
-# Generates deterministic fixture images, runs each wf-*.imgplex through imgplex-cli,
+# Bite pipeline test suite runner.
+# Generates deterministic fixture images, runs each wf-*.bite through bite,
 # and asserts the outputs. See README.md in this folder for the workflow specs.
 #
 # Usage:
@@ -18,7 +18,7 @@ $RepoRoot = Split-Path $Root -Parent
 $FixturesDir = Join-Path $Root 'fixtures'
 $OutDir = Join-Path $Root 'out'
 
-# ─── Tooling ──────────────────────────────────────────────────────────────────
+# --- Tooling ------------------------------------------------------------------
 
 $magick = (Get-Command magick -ErrorAction SilentlyContinue)?.Source
 if (-not $magick) { Write-Host 'ERROR: magick not found on PATH.' -ForegroundColor Red; exit 2 }
@@ -33,7 +33,7 @@ if ($node -and (Test-Path $cliJs)) {
   # NOTE: the pkg exe looks for node-definitions next to itself (dist-cli\node-definitions).
   $CliInvoker = { param([string[]]$CliArgs) & $cliExe @CliArgs 2>&1 }
   if (-not (Test-Path (Join-Path $RepoRoot 'dist-cli\node-definitions'))) {
-    Write-Host 'WARNING: using cli-bundle.exe but dist-cli\node-definitions does not exist — the exe may fail to load node definitions.' -ForegroundColor Yellow
+    Write-Host 'WARNING: using cli-bundle.exe but dist-cli\node-definitions does not exist - the exe may fail to load node definitions.' -ForegroundColor Yellow
   }
 }
 if (-not $CliInvoker -and -not $AssertOnly) {
@@ -46,7 +46,7 @@ function Invoke-Cli([string[]]$CliArgs) {
   return @{ ExitCode = $LASTEXITCODE; Output = $output }
 }
 
-# ─── Assertion framework ──────────────────────────────────────────────────────
+# --- Assertion framework ------------------------------------------------------
 
 $Results = [ordered]@{}
 
@@ -79,7 +79,7 @@ function Get-Means([string]$File) {
 }
 
 function Test-Means([string]$Wf, [string]$File, [double[]]$Expected, [double]$Tol = 0.02) {
-  # $File may carry an inline magick crop suffix ("atlas.png[64x64+0+0]") — strip it for the
+  # $File may carry an inline magick crop suffix ("atlas.png[64x64+0+0]") - strip it for the
   # existence check, and use -LiteralPath so [] is not treated as a wildcard.
   $baseFile = $File -replace '\[[^\[\]]*\]$', ''
   if (-not (Test-Path -LiteralPath $baseFile)) { Assert $Wf $false "missing file for mean check: $File"; return }
@@ -89,7 +89,7 @@ function Test-Means([string]$Wf, [string]$File, [double[]]$Expected, [double]$To
         ([math]::Abs($m[2] - $Expected[2]) -le $Tol)
   $mStr = ($m | ForEach-Object { $_.ToString('0.###', $Inv) }) -join ','
   $eStr = ($Expected | ForEach-Object { $_.ToString('0.###', $Inv) }) -join ','
-  Assert $Wf $ok "$(Split-Path $File -Leaf) means ($mStr) ≈ ($eStr)"
+  Assert $Wf $ok "$(Split-Path $File -Leaf) means ($mStr) ~= ($eStr)"
 }
 
 function Get-Dims([string]$File) {
@@ -101,7 +101,7 @@ function Get-Codec([string]$File) {
   return (& $magick identify -format '%m' "$File" 2>$null | Out-String).Trim()
 }
 
-# ─── Fixtures ─────────────────────────────────────────────────────────────────
+# --- Fixtures -----------------------------------------------------------------
 
 function New-Fixtures {
   Write-Host 'Generating fixtures...' -ForegroundColor Cyan
@@ -115,10 +115,10 @@ function New-Fixtures {
   & $magick -size 256x256 'xc:srgb(255,0,0)' (Join-Path $main 'red_256.png')
   & $magick -size 256x256 'xc:srgb(0,255,0)' (Join-Path $main 'green_256.png')
   & $magick -size 256x256 'xc:srgb(0,0,255)' (Join-Path $main 'blue_256.png')
-  # PNG24:/PNG32: force RGB(A) storage — plain gray content would otherwise be written as
+  # PNG24:/PNG32: force RGB(A) storage - plain gray content would otherwise be written as
   # single-channel grayscale PNGs, changing per-channel split/mean behavior.
   & $magick -size 256x256 'xc:gray(128)' ('PNG24:' + (Join-Path $main 'gray50_256.png'))
-  # 10px black/white checker tiled to 100x80 (5x4 tiles of 20px) → mean exactly 0.5
+  # 10px black/white checker tiled to 100x80 (5x4 tiles of 20px) -> mean exactly 0.5
   & $magick -size 10x10 xc:black xc:white +append '(' +clone -flop ')' -append `
     -write mpr:tile +delete -size 100x80 tile:mpr:tile ('PNG24:' + (Join-Path $main 'checker_100x80.png'))
   # solid white with a linear alpha gradient
@@ -146,7 +146,7 @@ function New-Fixtures {
 
 $MainNames = @('alpha_grad_128.png', 'blue_256.png', 'checker_100x80.png', 'gray50_256.png', 'green_256.png', 'red_256.png')
 
-# ─── Workflow execution helper ────────────────────────────────────────────────
+# --- Workflow execution helper ------------------------------------------------
 
 function Invoke-WorkflowRun([string]$Wf, [string]$File, [string[]]$Flags) {
   # Returns $true when the workflow was executed (or AssertOnly), $false on SKIP.
@@ -170,11 +170,11 @@ function Get-ReportLines([string]$ReportPath) {
   return @(Get-Content $ReportPath | Where-Object { $_ -ne '' })
 }
 
-# ─── Per-workflow definitions ─────────────────────────────────────────────────
+# --- Per-workflow definitions -------------------------------------------------
 
 $Suite = @(
   @{
-    Name = 'wf-01'; File = 'wf-01-fastpath.imgplex'
+    Name = 'wf-01'; File = 'wf-01-fastpath.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'main'), '--out', $O) }
     Assert = {
       param($Wf, $O)
@@ -188,7 +188,7 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-02'; File = 'wf-02-props-light.imgplex'
+    Name = 'wf-02'; File = 'wf-02-props-light.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'main'), '--report', (Join-Path $O 'report.txt')) }
     Assert = {
       param($Wf, $O)
@@ -210,7 +210,7 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-03'; File = 'wf-03-props-heavy.imgplex'
+    Name = 'wf-03'; File = 'wf-03-props-heavy.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'meta'), '--report', (Join-Path $O 'report.txt')) }
     Assert = {
       param($Wf, $O)
@@ -225,7 +225,7 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-04'; File = 'wf-04-channels.imgplex'
+    Name = 'wf-04'; File = 'wf-04-channels.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'main'), '--out', $O) }
     Assert = {
       param($Wf, $O)
@@ -237,7 +237,7 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-05'; File = 'wf-05-meanlogic.imgplex'
+    Name = 'wf-05'; File = 'wf-05-meanlogic.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'main'), '--out', (Join-Path $O 'images'), '--report', (Join-Path $O 'report.txt')) }
     Assert = {
       param($Wf, $O)
@@ -262,19 +262,19 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-06'; File = 'wf-06-setmode.imgplex'
+    Name = 'wf-06'; File = 'wf-06-setmode.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'sets'), '--out', $O) }
     Assert = {
       param($Wf, $O)
       $files = @(Get-ChildItem $O -File -ErrorAction SilentlyContinue | Sort-Object Name)
       Assert $Wf (@(Compare-Object $files.Name @('packed_alpha.png', 'packed_beta.png')).Count -eq 0) "outputs are packed_alpha.png + packed_beta.png (got: $($files.Name -join ', '))"
-      # R=diffuse, G=normal, B=negate(rough); gray(n) → n/255
+      # R=diffuse, G=normal, B=negate(rough); gray(n) -> n/255
       Test-Means $Wf (Join-Path $O 'packed_alpha.png') @((200 / 255), (100 / 255), ((255 - 50) / 255))
       Test-Means $Wf (Join-Path $O 'packed_beta.png')  @((30 / 255), (60 / 255), ((255 - 90) / 255))
     }
   }
   @{
-    Name = 'wf-07'; File = 'wf-07-gate.imgplex'
+    Name = 'wf-07'; File = 'wf-07-gate.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'main'), '--out', $O) }
     Assert = {
       param($Wf, $O)
@@ -283,7 +283,7 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-08'; File = 'wf-08-formats.imgplex'
+    Name = 'wf-08'; File = 'wf-08-formats.bite'
     Flags = {
       param($O)
       $f = @('--in', (Join-Path $FixturesDir 'main'))
@@ -317,14 +317,14 @@ $Suite = @(
         }
       }
       # png_depth=16 cannot be hard-asserted: ImageMagick's PNG encoder reduces the IHDR
-      # bit depth for losslessly-representable content (solid red → 1-bit) despite -depth 16.
+      # bit depth for losslessly-representable content (solid red -> 1-bit) despite -depth 16.
       # Forcing it would need "-define png:bit-depth=16" in format-definitions/png.json.
       $png16 = Join-Path $O 'png\red_256.png'
       if (Test-Path $png16) {
         $depth = (& $magick identify -format '%z' "$png16" | Out-String).Trim()
-        Soft-Note $Wf ($depth -eq '16') "png_depth=16 not honored for flat content (IHDR depth: $depth) — known format-definition quirk"
+        Soft-Note $Wf ($depth -eq '16') "png_depth=16 not honored for flat content (IHDR depth: $depth) - known format-definition quirk"
       }
-      # WEBP is lossless → zero pixel difference vs the source ("0 (0)" output → first token)
+      # WEBP is lossless -> zero pixel difference vs the source ("0 (0)" output -> first token)
       $webp = Join-Path $O 'webp\red_256.webp'
       if (Test-Path $webp) {
         $ae = (& $magick compare -metric AE (Join-Path $FixturesDir 'main\red_256.png') "$webp" null: 2>&1 | Out-String).Trim()
@@ -333,7 +333,7 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-09'; File = 'wf-09-rename.imgplex'
+    Name = 'wf-09'; File = 'wf-09-rename.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'main'), '--out', $O) }
     Assert = {
       param($Wf, $O)
@@ -346,7 +346,7 @@ $Suite = @(
       if ($AssertOnly -or $files.Count -eq 0) { return }
       # Overwrite semantics via a content sentinel (mtimes are useless here: Windows CopyFile
       # preserves the source file's timestamp, so every copy run yields identical mtimes).
-      $wfPath = Join-Path $Root 'wf-09-rename.imgplex'
+      $wfPath = Join-Path $Root 'wf-09-rename.bite'
       $probe = Join-Path $O 'test_006_red_256.png'
       Set-Content -LiteralPath $probe -Value 'SENTINEL' -NoNewline
       $r2 = Invoke-Cli @('run', $wfPath, '--in', (Join-Path $FixturesDir 'main'), '--out', $O)
@@ -361,7 +361,7 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-10'; File = 'wf-10-flipbook.imgplex'
+    Name = 'wf-10'; File = 'wf-10-flipbook.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'flip'), '--atlas', (Join-Path $O 'atlas.png')) }
     Assert = {
       param($Wf, $O)
@@ -377,7 +377,7 @@ $Suite = @(
     }
   }
   @{
-    Name = 'wf-11'; File = 'wf-11-compute.imgplex'
+    Name = 'wf-11'; File = 'wf-11-compute.bite'
     Flags = { param($O) @('--in', (Join-Path $FixturesDir 'main'), '--out', (Join-Path $O 'images'), '--report', (Join-Path $O 'report.txt')) }
     Assert = {
       param($Wf, $O)
@@ -393,7 +393,7 @@ $Suite = @(
   }
 )
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+# --- Main ---------------------------------------------------------------------
 
 if (-not $AssertOnly) { New-Fixtures }
 if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
@@ -402,7 +402,7 @@ $selected = if ($Only) { @($Suite | Where-Object { $_.Name -like "*$Only*" }) } 
 if ($selected.Count -eq 0) { Write-Host "No workflow matches -Only '$Only'." -ForegroundColor Red; exit 2 }
 
 foreach ($wf in $selected) {
-  Write-Host "`n=== $($wf.Name) — $($wf.File) ===" -ForegroundColor Cyan
+  Write-Host "`n=== $($wf.Name) - $($wf.File) ===" -ForegroundColor Cyan
   Init-Result $wf.Name
   $wfOut = Join-Path $OutDir $wf.Name
   $ran = Invoke-WorkflowRun $wf.Name $wf.File (& $wf.Flags $wfOut)
@@ -411,9 +411,9 @@ foreach ($wf in $selected) {
 
 # CLI behavior: a missing input flag must be a hard error (uses wf-01 if present).
 if (-not $AssertOnly -and (-not $Only -or 'wf-01' -like "*$Only*")) {
-  $wf01 = Join-Path $Root 'wf-01-fastpath.imgplex'
+  $wf01 = Join-Path $Root 'wf-01-fastpath.bite'
   if (Test-Path $wf01) {
-    Write-Host "`n=== cli — missing input flag ===" -ForegroundColor Cyan
+    Write-Host "`n=== cli - missing input flag ===" -ForegroundColor Cyan
     Init-Result 'cli'
     $r = Invoke-Cli @('run', $wf01)
     Assert 'cli' ($r.ExitCode -ne 0) "missing --in exits non-zero (got $($r.ExitCode))"
@@ -421,9 +421,9 @@ if (-not $AssertOnly -and (-not $Only -or 'wf-01' -like "*$Only*")) {
   }
 }
 
-# ─── Summary ──────────────────────────────────────────────────────────────────
+# --- Summary ------------------------------------------------------------------
 
-Write-Host "`n──────── Summary ────────" -ForegroundColor Cyan
+Write-Host "`n-------- Summary --------" -ForegroundColor Cyan
 $anyFail = $false
 foreach ($k in $Results.Keys) {
   $r = $Results[$k]

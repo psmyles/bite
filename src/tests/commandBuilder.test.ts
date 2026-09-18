@@ -13,7 +13,7 @@ function def(overrides: Partial<NodeDefinition> & { id: string }): NodeDefinitio
   };
 }
 
-// ── buildCommandArgs ──────────────────────────────────────────────────────────
+// -- buildCommandArgs ----------------------------------------------------------
 
 describe('buildCommandArgs', () => {
   it('returns [] when no command_template', () => {
@@ -49,7 +49,7 @@ describe('buildCommandArgs', () => {
 
   it('replaces missing key with empty string when no default', () => {
     const d = def({ id: 'x', command_template: '-format {{fmt}}', params: [] });
-    // No param named 'fmt', no default — becomes empty string, then filtered out
+    // No param named 'fmt', no default - becomes empty string, then filtered out
     expect(buildCommandArgs(d, {})).toEqual(['-format']);
   });
 
@@ -110,7 +110,7 @@ describe('buildCommandArgs', () => {
   });
 });
 
-// ── buildCommandArgsFromJs ────────────────────────────────────────────────────
+// -- buildCommandArgsFromJs ----------------------------------------------------
 
 describe('buildCommandArgsFromJs', () => {
   it('executes command_js and returns result', () => {

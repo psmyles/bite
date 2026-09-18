@@ -59,21 +59,21 @@ function makeSeedNodes(): Node[] {
 }
 
 class GraphStore {
-  // ── Graph data ────────────────────────────────────────────────────────────
+  // -- Graph data ------------------------------------------------------------
   nodes = $state<Node[]>(makeSeedNodes());
   edges = $state<Edge[]>([]);
 
-  // ── Selection & preview ───────────────────────────────────────────────────
+  // -- Selection & preview ---------------------------------------------------
   selectedNodeId = $state<string | null>(null);
   /** User's explicit preview node selection (null = auto-detect last node in chain) */
   previewNodeId = $state<string | null>(null);
-  /** Actual node currently being previewed — set by Preview.svelte */
+  /** Actual node currently being previewed - set by Preview.svelte */
   activePreviewNodeId = $state<string | null>(null);
-  /** Live computed output values for Properties nodes — keyed nodeId → { paramName: value }.
+  /** Live computed output values for Properties nodes - keyed nodeId -> { paramName: value }.
    *  Stored separately so updates don't affect graphKey and cause preview re-runs. */
   propValues = $state<Record<string, Record<string, unknown>>>({});
 
-  // ── Batch execution ───────────────────────────────────────────────────────
+  // -- Batch execution -------------------------------------------------------
   batchRunning = $state(false);
   /** Output node currently being executed by the Run Workflow loop */
   batchRunningNodeId = $state<string | null>(null);
@@ -91,19 +91,19 @@ class GraphStore {
   } | null>(null);
   batchSummaryOpen = $state(false);
 
-  // ── Persistence ───────────────────────────────────────────────────────────
+  // -- Persistence -----------------------------------------------------------
   /** Current open file path (null = unsaved) */
   currentFilePath = $state<string | null>(null);
   /** ISO timestamp of when this workflow was first saved (null = unsaved new workflow) */
   workflowCreatedAt = $state<string | null>(null);
 
-  // ── Viewport ──────────────────────────────────────────────────────────────
+  // -- Viewport --------------------------------------------------------------
   /** Viewport synced from NodeEditor for saving; set pendingViewport to restore on load */
   viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
   /** Set to a Viewport to trigger NodeEditor to call setViewport() */
   pendingViewport = $state<Viewport | null>(null);
 
-  // ── Dirty tracking ────────────────────────────────────────────────────────
+  // -- Dirty tracking --------------------------------------------------------
   /** Fingerprint of last saved/loaded state for dirty detection */
   _savedJson = $state<string | null>(null);
   _cleanInitialized = $state(false);
@@ -167,7 +167,7 @@ class GraphStore {
         const count = Math.min(4, Math.max(2, Number(value) || 3));
         extraData.inputs = ['image', 'image', 'image', 'image'].slice(0, count);
         extraData.inputLabels = ['R', 'G', 'B', 'A'].slice(0, count);
-        // Drop edges to image input ports that no longer exist (in-2, in-3, …).
+        // Drop edges to image input ports that no longer exist (in-2, in-3, ...).
         this.edges = this.edges.filter((e) => {
           if (e.target !== nodeId) return true;
           const m = /^in-(\d+)$/.exec(e.targetHandle ?? '');

@@ -7,7 +7,7 @@ beforeEach(() => {
   t = new TimingCollector();
 });
 
-// ── enabled flag ──────────────────────────────────────────────────────────────
+// -- enabled flag --------------------------------------------------------------
 
 describe('TimingCollector.enabled', () => {
   it('starts disabled', () => {
@@ -22,7 +22,7 @@ describe('TimingCollector.enabled', () => {
   });
 });
 
-// ── batch lifecycle ───────────────────────────────────────────────────────────
+// -- batch lifecycle -----------------------------------------------------------
 
 describe('batch recording', () => {
   it('endBatch with no startBatch is a no-op', () => {
@@ -94,7 +94,7 @@ describe('batch recording', () => {
     }
     t.endBatch(null);
     const run = t.batchHistory[0];
-    // 4 items sorted: [10, 20, 30, 400]; ceil(4*0.95)=4, index 3 → 400
+    // 4 items sorted: [10, 20, 30, 400]; ceil(4*0.95)=4, index 3 -> 400
     expect(run.p95Ms).toBe(400);
   });
 
@@ -144,7 +144,7 @@ describe('batch recording', () => {
   });
 });
 
-// ── import lifecycle ──────────────────────────────────────────────────────────
+// -- import lifecycle ----------------------------------------------------------
 
 describe('import recording', () => {
   it('endImport with no startImport is a no-op', () => {
