@@ -79,6 +79,13 @@
     gatekeeperAssess: false,
     entitlements: 'build/entitlements.mac.plist',
     entitlementsInherit: 'build/entitlements.mac.plist',
+    // bundle-magick-mac.sh already signs all ~148 Mach-O files under magick/
+    // with this same identity, the hardened runtime and secure timestamps - it
+    // has to, because install_name_tool invalidates their signatures. Letting
+    // electron-builder re-sign them duplicates that work and, more to the
+    // point, fires ~148 extra requests at timestamp.apple.com, which throttles
+    // and fails the build with "A timestamp was expected but was not found".
+    signIgnore: ['Contents/Resources/magick/'],
     extraResources: [
       {
         // Bundled ImageMagick (binary + dylibs + coder modules + config).

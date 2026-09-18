@@ -75,7 +75,8 @@ echo 'APPLE_KEYCHAIN_PROFILE=bite' >> .env.mac   # gitignored, read by the build
 the environment. `--skip-notarize` builds a signed but un-notarized dmg for local
 testing; it still warns on anyone else's machine.
 
-The dmg lands in `release/<version>/`. `scripts/bundle-magick-mac.sh` can be run
+The dmg lands in `release/<version>/`, signed, notarized and stapled - both the
+app and the disk image around it, so it opens without a network round trip. `scripts/bundle-magick-mac.sh` can be run
 on its own (`npm run bundle:magick:mac`) to refresh `resources/mac/magick/`; pass
 `--identity -` for an unsigned local bundle. Upstream publishes no relocatable
 macOS ImageMagick, so that script builds one: it copies `magick` plus its dylibs
