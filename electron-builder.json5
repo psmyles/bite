@@ -4,38 +4,11 @@
   appId: 'com.bite.app',
   asar: true,
   productName: 'Bite',
-  executableName: 'bite-gui',
   directories: {
     output: 'release/${version}',
+    buildResources: 'build',
   },
   files: ['dist', 'dist-electron'],
-  extraResources: [
-    {
-      // Bundled ImageMagick - placed at resources/magick/ inside the packaged app.
-      // At runtime getMagickBinary() resolves this via process.resourcesPath.
-      from: 'resources/win/magick',
-      to: 'magick',
-      filter: ['**/*'],
-    },
-  ],
-  mac: {
-    target: ['dmg'],
-    artifactName: '${productName}-Mac-${version}-Installer.${ext}',
-  },
-  extraFiles: [
-    {
-      // Standalone CLI exe placed at the install root so $INSTDIR\bite.exe
-      // is on PATH after the installer runs.
-      from: 'dist-cli/cli-bundle.exe',
-      to: 'bite.exe',
-    },
-    {
-      // Node definitions shipped as plain JSON files so users can add custom nodes.
-      from: 'node-definitions',
-      to: 'node-definitions',
-      filter: ['**/*.json'],
-    },
-  ],
   fileAssociations: [
     {
       ext: 'bite',
@@ -45,6 +18,7 @@
     },
   ],
   win: {
+    executableName: 'bite-gui',
     target: [
       {
         target: 'nsis',
@@ -52,6 +26,29 @@
       },
     ],
     artifactName: '${productName}-Windows-${version}-Setup.${ext}',
+    extraResources: [
+      {
+        // Bundled ImageMagick - placed at resources/magick/ inside the packaged app.
+        // At runtime getMagickBinary() resolves this via process.resourcesPath.
+        from: 'resources/win/magick',
+        to: 'magick',
+        filter: ['**/*'],
+      },
+    ],
+    extraFiles: [
+      {
+        // Standalone CLI exe placed at the install root so $INSTDIR\bite.exe
+        // is on PATH after the installer runs.
+        from: 'dist-cli/cli-bundle.exe',
+        to: 'bite.exe',
+      },
+      {
+        // Node definitions shipped as plain JSON files so users can add custom nodes.
+        from: 'node-definitions',
+        to: 'node-definitions',
+        filter: ['**/*.json'],
+      },
+    ],
   },
   nsis: {
     oneClick: false,
@@ -60,7 +57,61 @@
     deleteAppDataOnUninstall: false,
     include: 'build/installer.nsh',
   },
+  mac: {
+    // The app is Bite.app; 'bite-gui' would leak the Windows executable name
+    // into the Finder.
+    executableName: 'Bite',
+    // arm64 only: the bundled ImageMagick is relocated from an Apple Silicon
+    // Homebrew install (scripts/bundle-magick-mac.sh). Intel Macs fall back to
+    // a `magick` on PATH.
+    target: [
+      {
+        target: 'dmg',
+        arch: ['arm64'],
+      },
+    ],
+    artifactName: '${productName}-Mac-${version}-arm64.${ext}',
+    category: 'public.app-category.graphics-design',
+    icon: 'build/icons/icon.icns',
+    hardenedRuntime: true,
+    // Credentials come from APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID.
+    notarize: true,
+    gatekeeperAssess: false,
+    entitlements: 'build/entitlements.mac.plist',
+    entitlementsInherit: 'build/entitlements.mac.plist',
+    extraResources: [
+      {
+        // Bundled ImageMagick (binary + dylibs + coder modules + config).
+        // Resolved at runtime through process.resourcesPath, same as Windows.
+        from: 'resources/mac/magick',
+        to: 'magick',
+        filter: ['**/*'],
+      },
+      {
+        // A .app has no install root to drop files into, so the CLI and the
+        // node definitions live in Contents/Resources. Keeping them in the same
+        // directory means the CLI finds both node-definitions/ and magick/
+        // relative to its own path.
+        from: 'dist-cli/cli-bundle-macos',
+        to: 'bite',
+      },
+      {
+        from: 'node-definitions',
+        to: 'node-definitions',
+        filter: ['**/*.json'],
+      },
+    ],
+  },
+  dmg: {
+    artifactName: '${productName}-Mac-${version}-Installer.${ext}',
+    title: '${productName} ${version}',
+    contents: [
+      { x: 140, y: 200, type: 'file' },
+      { x: 400, y: 200, type: 'link', path: '/Applications' },
+    ],
+  },
   linux: {
+    executableName: 'bite-gui',
     target: ['AppImage'],
     artifactName: '${productName}-Linux-${version}.${ext}',
   },
