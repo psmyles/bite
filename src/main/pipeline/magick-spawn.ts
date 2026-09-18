@@ -1,10 +1,20 @@
 import { spawn, type StdioOptions } from 'node:child_process';
-import { getMagickBinary } from './magick-path.js';
+import { getMagickBinary, getMagickEnv } from './magick-path.js';
 import { log } from '../logger.js';
 
 export interface SpawnMagickOptions {
   env?: NodeJS.ProcessEnv;
   stdio?: StdioOptions;
+}
+
+/**
+ * A bundled magick needs its module and config paths injected (macOS), so every
+ * spawn layers those over whatever environment the caller supplied.
+ */
+function magickSpawnEnv(callerEnv: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
+  const overrides = getMagickEnv();
+  if (Object.keys(overrides).length === 0) return callerEnv ?? process.env;
+  return { ...(callerEnv ?? process.env), ...overrides };
 }
 
 export function spawnMagick(
@@ -18,7 +28,7 @@ export function spawnMagick(
   const label = `${args[0] ?? ''}${args.length > 1 ? ` -> ${args[args.length - 1]}` : ''} (${args.length} args)`;
   log('info', `[magick] spawn: ${label}`);
   return new Promise((resolve, reject) => {
-    const proc = spawn(getMagickBinary(), args, { env: opts?.env, stdio: opts?.stdio });
+    const proc = spawn(getMagickBinary(), args, { env: magickSpawnEnv(opts?.env), stdio: opts?.stdio });
     const stderr: string[] = [];
     const stdout: string[] = [];
 
@@ -75,7 +85,7 @@ export function spawnMagickCapture(args: string[], timeoutMs?: number, opts?: Sp
   const label = `${args[0] ?? ''}${args.length > 1 ? ` -> ${args[args.length - 1]}` : ''} (${args.length} args)`;
   log('info', `[magick] spawn (capture): ${label}`);
   return new Promise((resolve, reject) => {
-    const proc = spawn(getMagickBinary(), args, { env: opts?.env, stdio: opts?.stdio });
+    const proc = spawn(getMagickBinary(), args, { env: magickSpawnEnv(opts?.env), stdio: opts?.stdio });
     const out: string[] = [];
     const err: string[] = [];
     let timer: ReturnType<typeof setTimeout> | undefined;

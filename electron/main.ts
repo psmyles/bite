@@ -91,9 +91,15 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
 
 // In a packaged app the asar contains no loose files; node-definitions are
-// shipped as extraFiles next to the exe so users can add their own JSON nodes.
+// shipped as plain JSON so users can add their own nodes - next to the exe on
+// Windows/Linux, and inside Contents/Resources on macOS, where the app bundle
+// is the only writable-looking place a .app can carry loose files.
+const packagedNodeDefinitionsDir =
+  process.platform === 'darwin'
+    ? path.join(process.resourcesPath, 'node-definitions')
+    : path.join(path.dirname(app.getPath('exe')), 'node-definitions');
 const nodeDefinitionsDir = app.isPackaged
-  ? path.join(path.dirname(app.getPath('exe')), 'node-definitions')
+  ? packagedNodeDefinitionsDir
   : path.join(process.env.APP_ROOT, 'node-definitions');
 const registry = new NodeRegistry();
 const executor = new PipelineExecutor();
