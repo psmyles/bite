@@ -2,7 +2,7 @@
   "id": "math_subtract",
   "version": "1.0.0",
   "label": "Subtract",
-  "description": "A − B",
+  "description": "A - B",
   "category": "Math",
   "inputs": [],
   "outputs": [],

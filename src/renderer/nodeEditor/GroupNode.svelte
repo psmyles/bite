@@ -54,7 +54,7 @@
 
 <NodeResizer minWidth={120} minHeight={80} isVisible={selected} />
 
-<!-- Header — floats above the group box (position:absolute, top:-36px).
+<!-- Header - floats above the group box (position:absolute, top:-36px).
      Height 36px is hardcoded here; keep in sync if changed. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="group-label-wrap" class:selected>
@@ -95,7 +95,7 @@
     box-shadow: none !important; /* suppress default xyflow selection glow */
   }
 
-  /* Header band — floats above the group box via negative top offset.
+  /* Header band - floats above the group box via negative top offset.
      left/right: -1.5px compensates for the 1.5px group border so borders align.
      Height must stay in sync with GROUP_HEADER in NodeEditor.svelte (36px). */
   .group-label-wrap {

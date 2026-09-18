@@ -78,7 +78,7 @@ describe('wireTypesCompatible', () => {
     });
 
     it('numeric IS compatible with boolean via scalarTypes', () => {
-      // boolean, number, numeric are all in scalarTypes → mutually compatible
+      // boolean, number, numeric are all in scalarTypes -> mutually compatible
       expect(wireTypesCompatible('numeric', 'boolean')).toBe(true);
     });
 
@@ -119,23 +119,23 @@ describe('wireTypesCompatible', () => {
   });
 });
 
-// ── paramTypeToWireType ────────────────────────────────────────────────────────
+// -- paramTypeToWireType --------------------------------------------------------
 
 describe('paramTypeToWireType', () => {
-  it('maps bool → boolean', () => expect(paramTypeToWireType('bool')).toBe('boolean'));
-  it('maps string → string', () => expect(paramTypeToWireType('string')).toBe('string'));
-  it('maps vector2 → vector2', () => expect(paramTypeToWireType('vector2')).toBe('vector2'));
-  it('maps vector3 → vector3', () => expect(paramTypeToWireType('vector3')).toBe('vector3'));
-  it('maps vector4 → vector4', () => expect(paramTypeToWireType('vector4')).toBe('vector4'));
-  it('maps color → color', () => expect(paramTypeToWireType('color')).toBe('color'));
-  it('maps numeric → numeric', () => expect(paramTypeToWireType('numeric')).toBe('numeric'));
-  it('maps any → any', () => expect(paramTypeToWireType('any')).toBe('any'));
-  it('maps int → number', () => expect(paramTypeToWireType('int')).toBe('number'));
-  it('maps float → number', () => expect(paramTypeToWireType('float')).toBe('number'));
-  it('maps unknown type → number', () => expect(paramTypeToWireType('unknown_type')).toBe('number'));
+  it('maps bool -> boolean', () => expect(paramTypeToWireType('bool')).toBe('boolean'));
+  it('maps string -> string', () => expect(paramTypeToWireType('string')).toBe('string'));
+  it('maps vector2 -> vector2', () => expect(paramTypeToWireType('vector2')).toBe('vector2'));
+  it('maps vector3 -> vector3', () => expect(paramTypeToWireType('vector3')).toBe('vector3'));
+  it('maps vector4 -> vector4', () => expect(paramTypeToWireType('vector4')).toBe('vector4'));
+  it('maps color -> color', () => expect(paramTypeToWireType('color')).toBe('color'));
+  it('maps numeric -> numeric', () => expect(paramTypeToWireType('numeric')).toBe('numeric'));
+  it('maps any -> any', () => expect(paramTypeToWireType('any')).toBe('any'));
+  it('maps int -> number', () => expect(paramTypeToWireType('int')).toBe('number'));
+  it('maps float -> number', () => expect(paramTypeToWireType('float')).toBe('number'));
+  it('maps unknown type -> number', () => expect(paramTypeToWireType('unknown_type')).toBe('number'));
 });
 
-// ── paramInHandle / paramOutHandle ────────────────────────────────────────────
+// -- paramInHandle / paramOutHandle --------------------------------------------
 
 describe('paramInHandle', () => {
   it('produces param-in-<name>', () => {

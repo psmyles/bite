@@ -2,7 +2,7 @@
   "id": "math_divide",
   "version": "1.0.0",
   "label": "Divide",
-  "description": "A ÷ B (returns 0 when B = 0)",
+  "description": "A / B (returns 0 when B = 0)",
   "category": "Math",
   "inputs": [],
   "outputs": [],

@@ -16,7 +16,7 @@
     processed: 24,
     skipped: 2,
     failed: 1,
-    errors: ['corrupted_scan.jpg: decode error — unsupported colour space'],
+    errors: ['corrupted_scan.jpg: decode error - unsupported colour space'],
     outputDir: null,
   };
   graphStore.batchElapsedMs = 4230;
@@ -49,7 +49,7 @@
     url: '',
   };
 
-  // ── Design token data ──────────────────────────────────────────────────────
+  // -- Design token data ------------------------------------------------------
   const SURFACES = [
     { name: '--bg', value: '#141414', label: 'Main window / canvas background' },
     { name: '--gap-color', value: '#2b2b2b', label: 'Gap between panels (body fill)' },
@@ -72,16 +72,16 @@
   ];
 
   const STATUS_COLORS = [
-    { name: '--color-success', value: '#22c55e', label: 'Success — primary' },
-    { name: '--color-success-text', value: '#86efac', label: 'Success — text on dark bg' },
-    { name: '--color-success-muted', value: '#81c784', label: 'Success — muted text' },
-    { name: '--color-error', value: '#f87171', label: 'Error — primary' },
-    { name: '--color-error-text', value: '#ff9090', label: 'Error — text on dark bg' },
-    { name: '--color-error-border', value: '#7a2020', label: 'Error — list border' },
-    { name: '--color-warning', value: '#f59e0b', label: 'Warning — primary' },
-    { name: '--color-warning-text', value: '#fbbf24', label: 'Warning — text on dark bg' },
-    { name: '--color-danger', value: '#c0392b', label: 'Danger — destructive action' },
-    { name: '--color-danger-text', value: '#fca5a5', label: 'Danger — text on dark bg' },
+    { name: '--color-success', value: '#22c55e', label: 'Success - primary' },
+    { name: '--color-success-text', value: '#86efac', label: 'Success - text on dark bg' },
+    { name: '--color-success-muted', value: '#81c784', label: 'Success - muted text' },
+    { name: '--color-error', value: '#f87171', label: 'Error - primary' },
+    { name: '--color-error-text', value: '#ff9090', label: 'Error - text on dark bg' },
+    { name: '--color-error-border', value: '#7a2020', label: 'Error - list border' },
+    { name: '--color-warning', value: '#f59e0b', label: 'Warning - primary' },
+    { name: '--color-warning-text', value: '#fbbf24', label: 'Warning - text on dark bg' },
+    { name: '--color-danger', value: '#c0392b', label: 'Danger - destructive action' },
+    { name: '--color-danger-text', value: '#fca5a5', label: 'Danger - text on dark bg' },
   ];
 
   const PORT_COLORS = [
@@ -147,11 +147,11 @@
 
 <div class="sc-root">
   <header class="sc-page-header">
-    <h1 class="sc-page-title">imgplex UI Showcase</h1>
+    <h1 class="sc-page-title">Bite UI Showcase</h1>
     <p class="sc-page-sub">Visual reference for all design system components. Dev mode only.</p>
   </header>
 
-  <!-- ── DESIGN TOKENS ──────────────────────────────────────────────────────── -->
+  <!-- -- DESIGN TOKENS -------------------------------------------------------- -->
   <section class="sc-section">
     <h2 class="sc-section-title">Design Tokens</h2>
     <p class="sc-file">src/renderer/assets/theme.css</p>
@@ -213,39 +213,39 @@
     </div>
   </section>
 
-  <!-- ── TYPOGRAPHY ─────────────────────────────────────────────────────────── -->
+  <!-- -- TYPOGRAPHY ----------------------------------------------------------- -->
   <section class="sc-section">
     <h2 class="sc-section-title">Typography</h2>
-    <p class="sc-file">src/renderer/assets/theme.css · src/renderer/assets/fonts.css</p>
+    <p class="sc-file">src/renderer/assets/theme.css - src/renderer/assets/fonts.css</p>
 
     <div class="type-row">
-      <span class="type-meta">--font-ui · AtkinsonHyperlegibleNext</span>
+      <span class="type-meta">--font-ui - AtkinsonHyperlegibleNext</span>
       <span class="type-sample" style="font-family: var(--font-ui); font-size: var(--font-size-base)"
-        >13px — Default body text. Panel labels. Inspector fields.</span
+        >13px - Default body text. Panel labels. Inspector fields.</span
       >
       <span class="type-sample" style="font-family: var(--font-ui); font-size: 14px"
-        >14px — Slightly larger UI labels.</span
+        >14px - Slightly larger UI labels.</span
       >
       <span class="type-sample" style="font-family: var(--font-ui); font-size: var(--font-size-sm); font-weight: 600"
-        >12px 600 — Panel section headers. Node library categories.</span
+        >12px 600 - Panel section headers. Node library categories.</span
       >
     </div>
     <div class="type-row">
-      <span class="type-meta">--font-mono · JetBrainsMono</span>
+      <span class="type-meta">--font-mono - JetBrainsMono</span>
       <span class="type-sample" style="font-family: var(--font-mono); font-size: var(--font-size-sm)"
-        >12px — Node card headers. Computed values.</span
+        >12px - Node card headers. Computed values.</span
       >
       <span class="type-sample" style="font-family: var(--font-mono); font-size: var(--font-size-xs)"
-        >11px — Port type tags. File names. Small labels.</span
+        >11px - Port type tags. File names. Small labels.</span
       >
-      <span class="type-sample" style="font-family: var(--font-mono); font-size: 14px">14px — Zoom level overlay.</span>
+      <span class="type-sample" style="font-family: var(--font-mono); font-size: 14px">14px - Zoom level overlay.</span>
     </div>
   </section>
 
-  <!-- ── BUTTONS ────────────────────────────────────────────────────────────── -->
+  <!-- -- BUTTONS -------------------------------------------------------------- -->
   <section class="sc-section">
     <h2 class="sc-section-title">Buttons</h2>
-    <p class="sc-file">src/renderer/assets/theme.css · .btn .btn--primary .btn--danger .btn--neutral .btn--full</p>
+    <p class="sc-file">src/renderer/assets/theme.css - .btn .btn--primary .btn--danger .btn--neutral .btn--full</p>
 
     <div class="row-group">
       <span class="row-label">Primary</span>
@@ -264,21 +264,21 @@
     <div class="row-group">
       <span class="row-label">Neutral</span>
       <div class="btn-row">
-        <button class="btn btn--neutral">Change Folder…</button>
-        <button class="btn btn--neutral" disabled>Change Folder…</button>
+        <button class="btn btn--neutral">Change Folder...</button>
+        <button class="btn btn--neutral" disabled>Change Folder...</button>
       </div>
     </div>
     <div class="row-group">
       <span class="row-label">Full-width</span>
       <div class="btn-col">
         <button class="btn btn--primary btn--full">Import 27 Images</button>
-        <button class="btn btn--neutral btn--full">Add Images…</button>
+        <button class="btn btn--neutral btn--full">Add Images...</button>
         <button class="btn btn--danger btn--full">Clear All</button>
       </div>
     </div>
   </section>
 
-  <!-- ── FORM CONTROLS ─────────────────────────────────────────────────────── -->
+  <!-- -- FORM CONTROLS ------------------------------------------------------- -->
   <section class="sc-section">
     <h2 class="sc-section-title">Form Controls</h2>
     <p class="sc-file">src/renderer/components/InspectorParamEditor.svelte</p>
@@ -286,7 +286,7 @@
     <div class="controls-grid">
       <div class="ctrl-group">
         <label class="ctrl-label" for="sc-text">Text Input</label>
-        <input id="sc-text" type="text" class="text-input" placeholder="Enter value…" />
+        <input id="sc-text" type="text" class="text-input" placeholder="Enter value..." />
       </div>
       <div class="ctrl-group">
         <label class="ctrl-label" for="sc-num">Number Input</label>
@@ -309,7 +309,7 @@
     </div>
   </section>
 
-  <!-- ── DROPDOWN ──────────────────────────────────────────────────────────── -->
+  <!-- -- DROPDOWN ------------------------------------------------------------ -->
   <section class="sc-section">
     <h2 class="sc-section-title">Dropdown</h2>
     <p class="sc-file">src/renderer/components/Dropdown.svelte</p>
@@ -318,7 +318,7 @@
     </div>
   </section>
 
-  <!-- ── COLOR PICKER ──────────────────────────────────────────────────────── -->
+  <!-- -- COLOR PICKER -------------------------------------------------------- -->
   <section class="sc-section">
     <h2 class="sc-section-title">Color Picker</h2>
     <p class="sc-file">src/renderer/components/ColorPicker.svelte</p>
@@ -327,11 +327,11 @@
     </div>
   </section>
 
-  <!-- ── NODE TYPE COLORS ───────────────────────────────────────────────────── -->
+  <!-- -- NODE TYPE COLORS ----------------------------------------------------- -->
   <section class="sc-section">
     <h2 class="sc-section-title">Node Type Header Colors</h2>
     <p class="sc-file">
-      src/renderer/nodeEditor/[NodeType].svelte — color-mix(in srgb, &lt;accent&gt; &lt;pct&gt;%, var(--node-head-bg))
+      src/renderer/nodeEditor/[NodeType].svelte - color-mix(in srgb, &lt;accent&gt; &lt;pct&gt;%, var(--node-head-bg))
     </p>
 
     <div class="node-type-list">
@@ -350,14 +350,14 @@
         </div>
       {/each}
 
-      <!-- Comment node — special solid colours -->
+      <!-- Comment node - special solid colours -->
       <div class="node-card">
         <div class="node-card-header" style="background: #fde047; color: #5c3200">
           <span class="node-card-label" style="color: #5c3200">commentNode</span>
           <span class="node-card-accent" style="color: #5c3200">#fde047 (solid)</span>
         </div>
         <div class="node-card-body" style="background: #fef08a">
-          <span class="node-card-file" style="color: #422006">Body: #fef08a · Selected border: #ca8a04</span>
+          <span class="node-card-file" style="color: #422006">Body: #fef08a - Selected border: #ca8a04</span>
           <span class="node-card-file" style="color: #422006">src/renderer/nodeEditor/CommentNode.svelte</span>
         </div>
       </div>
@@ -372,17 +372,17 @@
           class="node-card-body"
           style="background: rgba(168,168,168,0.08); border: 1.5px solid rgba(168,168,168,0.25)"
         >
-          <span class="node-card-file">Body: rgba(168,168,168,0.08) · Border: rgba(168,168,168,0.25)</span>
+          <span class="node-card-file">Body: rgba(168,168,168,0.08) - Border: rgba(168,168,168,0.25)</span>
           <span class="node-card-file">src/renderer/nodeEditor/GroupNode.svelte</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ── MODALS ─────────────────────────────────────────────────────────────── -->
+  <!-- -- MODALS --------------------------------------------------------------- -->
   <section class="sc-section">
     <h2 class="sc-section-title">Modals</h2>
-    <p class="sc-file">src/renderer/components/[Modal].svelte — rendered without backdrop</p>
+    <p class="sc-file">src/renderer/components/[Modal].svelte - rendered without backdrop</p>
 
     <div class="modals-grid">
       <div class="modal-entry">
@@ -411,7 +411,7 @@
 
       <div class="modal-entry">
         <div class="modal-meta">
-          <span class="modal-name">UpdateModal — status: latest</span>
+          <span class="modal-name">UpdateModal - status: latest</span>
           <span class="modal-path">src/renderer/components/UpdateModal.svelte</span>
         </div>
         <div class="modal-wrap">
@@ -451,7 +451,7 @@
 
       <div class="modal-entry">
         <div class="modal-meta">
-          <span class="modal-name">ImportProgressModal — done state</span>
+          <span class="modal-name">ImportProgressModal - done state</span>
           <span class="modal-path">src/renderer/components/ImportProgressModal.svelte</span>
         </div>
         <div class="modal-wrap">
@@ -463,7 +463,7 @@
 </div>
 
 <style>
-  /* ── Page shell ── */
+  /* -- Page shell -- */
   :global(html) {
     overflow-y: auto;
     scrollbar-width: thin;
@@ -517,7 +517,7 @@
     color: var(--text);
   }
 
-  /* ── Section ── */
+  /* -- Section -- */
   .sc-section {
     padding: 28px 0;
     border-bottom: 1px solid color-mix(in srgb, var(--border) 35%, transparent);
@@ -553,7 +553,7 @@
     margin: 8px 0 0;
   }
 
-  /* ── Swatches ── */
+  /* -- Swatches -- */
   .swatch-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -616,7 +616,7 @@
     text-overflow: ellipsis;
   }
 
-  /* ── Typography ── */
+  /* -- Typography -- */
   .type-row {
     display: flex;
     flex-direction: column;
@@ -644,7 +644,7 @@
     line-height: 1.5;
   }
 
-  /* ── Buttons ── */
+  /* -- Buttons -- */
   .row-group {
     display: flex;
     align-items: flex-start;
@@ -674,7 +674,7 @@
     width: 280px;
   }
 
-  /* ── Form controls ── */
+  /* -- Form controls -- */
   .controls-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -738,7 +738,7 @@
     user-select: none;
   }
 
-  /* ── Dropdown / ColorPicker frames ── */
+  /* -- Dropdown / ColorPicker frames -- */
   .comp-frame {
     display: flex;
     align-items: flex-start;
@@ -748,7 +748,7 @@
     border-radius: 4px;
   }
 
-  /* ── Node type colors ── */
+  /* -- Node type colors -- */
   .node-type-list {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -797,7 +797,7 @@
     opacity: 0.6;
   }
 
-  /* ── Modals ── */
+  /* -- Modals -- */
   .modals-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

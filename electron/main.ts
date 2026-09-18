@@ -20,19 +20,19 @@ import { timings } from '../src/main/pipeline/timing.js';
 import { TEMP_DIR, clearMetaCache } from '../src/main/pipeline/thumbnail-service.js';
 import { spawnMagickCapture } from '../src/main/pipeline/magick-spawn.js';
 import { getMagickBinary } from '../src/main/pipeline/magick-path.js';
-import { extractImgplexPath, compareSemver } from './update-utils.js';
+import { extractWorkflowPath, compareSemver } from './update-utils.js';
 import { IPC } from '../src/shared/constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-app.setName('imgplex');
+app.setName('Bite');
 
-// ── File-association helpers ──────────────────────────────────────────────────
+// -- File-association helpers --------------------------------------------------
 
-// Extract the first .imgplex path from a process.argv array.
-// In dev: argv = ['electron', 'main.js', ...user args...]  → start at index 2
+// Extract the first .bite path from a process.argv array.
+// In dev: argv = ['electron', 'main.js', ...user args...]  -> start at index 2
 // File path queued before the renderer finishes loading
-let pendingFilePath: string | null = extractImgplexPath(process.argv, app.isPackaged);
+let pendingFilePath: string | null = extractWorkflowPath(process.argv, app.isPackaged);
 
 // macOS: OS delivers the file via this event (fires before or after ready)
 app.on('open-file', (event, filePath) => {
@@ -51,7 +51,7 @@ if (!gotSingleInstanceLock) {
   app.quit();
 } else {
   app.on('second-instance', (_event, argv) => {
-    const fp = extractImgplexPath(argv, app.isPackaged);
+    const fp = extractWorkflowPath(argv, app.isPackaged);
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
@@ -75,12 +75,12 @@ if (process.platform === 'darwin') {
 
 // The built directory structure
 //
-// ├─┬─┬ dist
-// │ │ └── index.html
-// │ │
-// │ ├─┬ dist-electron
-// │ │ ├── main.js
-// │ │ └── preload.js
+// +-+-+ dist
+// | | +-- index.html
+// | |
+// | +-+ dist-electron
+// | | +-- main.js
+// | | +-- preload.js
 //
 process.env.APP_ROOT = path.join(__dirname, '..');
 
@@ -110,7 +110,7 @@ function openLogWindow() {
   logWin = new BrowserWindow({
     width: 900,
     height: 600,
-    title: 'imgplex — Log',
+    title: 'Bite - Log',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -139,7 +139,7 @@ function openShowcaseWindow() {
   showcaseWin = new BrowserWindow({
     width: 1100,
     height: 800,
-    title: 'imgplex — UI Showcase',
+    title: 'Bite - UI Showcase',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -254,13 +254,13 @@ function buildMenu() {
         {
           label: 'Documentation',
           click: () => {
-            shell.openExternal('https://github.com/psmyles/imgplex/tree/main/docs');
+            shell.openExternal('https://github.com/psmyles/bite/tree/main/docs');
           },
         },
         {
           label: 'Report a bug',
           click: () => {
-            shell.openExternal('https://github.com/psmyles/imgplex/issues/new');
+            shell.openExternal('https://github.com/psmyles/bite/issues/new');
           },
         },
         { label: 'Credits', click: send('menu:credits') },
@@ -312,7 +312,7 @@ async function showImageMagickMissingDialog() {
     type: 'warning',
     title: 'ImageMagick Not Found',
     message: 'ImageMagick is not installed or not in your PATH.',
-    detail: 'imgplex requires ImageMagick to process images. Download and install it, then restart imgplex.',
+    detail: 'Bite requires ImageMagick to process images. Download and install it, then restart Bite.',
     buttons: ['Download ImageMagick', 'Dismiss'],
     defaultId: 0,
     cancelId: 1,
@@ -324,7 +324,7 @@ async function showImageMagickMissingDialog() {
 
 function checkImageMagick() {
   // Probe the same binary the pipeline uses (bundled exe in packaged builds),
-  // not the literal 'magick' on PATH — otherwise a bundled-only install warns spuriously.
+  // not the literal 'magick' on PATH - otherwise a bundled-only install warns spuriously.
   const child = spawn(getMagickBinary(), ['--version'], { stdio: 'ignore' });
   child.on('error', () => showImageMagickMissingDialog());
 }
@@ -335,8 +335,8 @@ type UpdateCheckResult =
   | { status: 'error' };
 
 async function fetchLatestRelease(): Promise<UpdateCheckResult> {
-  const res = await fetch('https://api.github.com/repos/psmyles/imgplex/releases/latest', {
-    headers: { 'User-Agent': 'imgplex-updater' },
+  const res = await fetch('https://api.github.com/repos/psmyles/bite/releases/latest', {
+    headers: { 'User-Agent': 'bite-updater' },
   });
   if (!res.ok) return { status: 'error' };
   const data = (await res.json()) as { tag_name: string; body: string; html_url: string };
@@ -345,7 +345,7 @@ async function fetchLatestRelease(): Promise<UpdateCheckResult> {
   const releaseData = {
     version: latest,
     body: data.body ?? '',
-    url: data.html_url ?? 'https://github.com/psmyles/imgplex/releases',
+    url: data.html_url ?? 'https://github.com/psmyles/bite/releases',
   };
   return compareSemver(latest, current) > 0
     ? { status: 'update', ...releaseData }
@@ -359,7 +359,7 @@ async function checkForUpdates() {
       win?.webContents.send(IPC.UPDATE_AVAILABLE, result);
     }
   } catch {
-    // Network unavailable — silently skip
+    // Network unavailable - silently skip
   }
 }
 
@@ -368,7 +368,7 @@ app.whenReady().then(async () => {
 
   // Prune the temp dir at startup: always drop orphaned batch intermediates
   // (left by a previous crash), and age out cached thumbnails/previews so the
-  // folder doesn't grow without bound. Best-effort — failures are ignored.
+  // folder doesn't grow without bound. Best-effort - failures are ignored.
   void (async () => {
     const THUMB_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
     const now = Date.now();
@@ -389,7 +389,7 @@ app.whenReady().then(async () => {
             if (now - stat.mtimeMs > THUMB_MAX_AGE_MS) await fs.promises.unlink(full);
           }
         } catch {
-          /* file vanished or in use — ignore */
+          /* file vanished or in use - ignore */
         }
       })
     );
@@ -413,7 +413,7 @@ app.whenReady().then(async () => {
   // Load node definitions before opening the window
   await registry.load(nodeDefinitionsDir);
 
-  log('info', `imgplex ${app.getVersion()} | ${process.platform}/${process.arch}`);
+  log('info', `Bite ${app.getVersion()} | ${process.platform}/${process.arch}`);
   log(
     'info',
     `resourcesPath: ${(process as NodeJS.Process & { resourcesPath?: string }).resourcesPath ?? 'undefined (dev)'}`
@@ -469,8 +469,8 @@ app.whenReady().then(async () => {
   });
 
   // Re-register DevTools shortcuts removed with the custom menu.
-  // Scope them to this window via before-input-event — globalShortcut would steal
-  // F12 / Ctrl+Shift+I from every other application while imgplex runs.
+  // Scope them to this window via before-input-event - globalShortcut would steal
+  // F12 / Ctrl+Shift+I from every other application while Bite runs.
   win!.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
     const isF12 = input.key === 'F12';

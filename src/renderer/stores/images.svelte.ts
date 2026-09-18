@@ -8,10 +8,10 @@ class ImageStore {
   // $state signal. All public getters read _tick first to establish the reactive
   // dependency, so consumers re-evaluate whenever any mutation occurs.
   // This avoids creating a new Map + spreading arrays for every streaming result
-  // (which was O(N²) work for an import of N images).
+  // (which was O(N^2) work for an import of N images).
   private _nodes = new Map<string, ImageInfo[]>();
   // Images of deleted input nodes are retained here (not discarded) so that undoing
-  // the deletion can restore them — the undo history only snapshots nodes/edges.
+  // the deletion can restore them - the undo history only snapshots nodes/edges.
   private _detached = new Map<string, ImageInfo[]>();
   private _tick = $state(0);
 
@@ -82,7 +82,7 @@ class ImageStore {
       // Don't recreate an image list for a node deleted mid-import.
       if (!graphStore.nodes.some((n) => n.id === targetNodeId)) return;
       doneCount++;
-      // Mutate in-place — no new Map, no array spread. O(1) per image.
+      // Mutate in-place - no new Map, no array spread. O(1) per image.
       let nodeImages = this._nodes.get(targetNodeId);
       if (!nodeImages) {
         nodeImages = [];
@@ -139,7 +139,7 @@ class ImageStore {
       window.ipcRenderer.off(IPC.LOAD_IMAGES_STREAMING_RESULT, onResult);
     }
 
-    // Pre-warm the preview cache — run in parallel with a concurrency window.
+    // Pre-warm the preview cache - run in parallel with a concurrency window.
     (async () => {
       const CONCURRENCY = 6;
       for (let i = 0; i < allAdded.length; i += CONCURRENCY) {

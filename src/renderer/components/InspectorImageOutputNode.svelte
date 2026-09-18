@@ -48,7 +48,7 @@
 </script>
 
 <div class="iio-inspector">
-  <!-- ── CLI Name ──────────────────────────────────────────────── -->
+  <!-- -- CLI Name ------------------------------------------------ -->
   <div class="section">
     <div class="section-title">CLI Name</div>
     <input
@@ -70,7 +70,7 @@
     </span>
   </div>
 
-  <!-- ── Output Path ─────────────────────────────────────────── -->
+  <!-- -- Output Path ------------------------------------------- -->
   <div class="section">
     <div class="section-title">Output Path</div>
     {#if folderEdge}
@@ -88,16 +88,16 @@
             type="text"
             class="text-input path-input"
             value={(params.customPath as string) ?? ''}
-            placeholder="Enter folder path…"
+            placeholder="Enter folder path..."
             oninput={(e) => graphStore.setParam(selectedNode.id, 'customPath', (e.target as HTMLInputElement).value)}
           />
-          {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFolder} title="Browse…">…</button>{/if}
+          {#if IS_ELECTRON}<button class="btn btn--neutral" onclick={browseFolder} title="Browse...">...</button>{/if}
         </div>
       {/if}
     {/if}
   </div>
 
-  <!-- ── Overwrite ───────────────────────────────────────────── -->
+  <!-- -- Overwrite --------------------------------------------- -->
   <div class="section">
     <div class="section-title">Overwrite</div>
     <Dropdown
@@ -108,7 +108,7 @@
     />
   </div>
 
-  <!-- ── Set Naming ──────────────────────────────────────────── -->
+  <!-- -- Set Naming -------------------------------------------- -->
   {#if hasSetInput}
     <div class="section">
       <div class="section-title">Set Naming</div>
@@ -139,7 +139,7 @@
     </div>
   {/if}
 
-  <!-- ── Output Log ──────────────────────────────────────────── -->
+  <!-- -- Output Log -------------------------------------------- -->
   <div class="section">
     <div class="section-title">Output Log</div>
     <label class="log-toggle">

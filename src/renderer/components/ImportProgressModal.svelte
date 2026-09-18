@@ -78,7 +78,7 @@
           <div class="progress-fill" style="width: {pct}%"></div>
         </div>
 
-        <div class="pct-label">{pct}% &nbsp;·&nbsp; {(elapsed / 1000).toFixed(1)}s</div>
+        <div class="pct-label">{pct}% &nbsp;-&nbsp; {(elapsed / 1000).toFixed(1)}s</div>
       </div>
     {/if}
 
@@ -137,7 +137,7 @@
     gap: 12px;
   }
 
-  /* ── In-progress view ── */
+  /* -- In-progress view -- */
   .count-row {
     display: flex;
     align-items: baseline;
@@ -193,7 +193,7 @@
     text-align: right;
   }
 
-  /* ── Done view ── */
+  /* -- Done view -- */
   .done-body {
     align-items: center;
     padding: 28px 24px 24px;
@@ -220,7 +220,7 @@
     text-align: center;
   }
 
-  /* ── Footer ── */
+  /* -- Footer -- */
   .modal-footer {
     padding: 12px 16px;
     border-top: 2px solid var(--ctx-border);

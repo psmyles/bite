@@ -2,14 +2,14 @@
 // unit-tested without booting the app.
 
 /**
- * Find a `.imgplex` file path among process argv.
- * - Packaged:    argv = ['imgplex.exe', ...args]      → start at index 1
- * - Development: argv = ['electron', 'main.js', ...]   → start at index 2
+ * Find a `.bite` file path among process argv.
+ * - Packaged:    argv = ['bite-gui.exe', ...args]      -> start at index 1
+ * - Development: argv = ['electron', 'main.js', ...]   -> start at index 2
  */
-export function extractImgplexPath(argv: string[], isPackaged: boolean): string | null {
+export function extractWorkflowPath(argv: string[], isPackaged: boolean): string | null {
   const start = isPackaged ? 1 : 2;
   for (let i = start; i < argv.length; i++) {
-    if (!argv[i].startsWith('-') && argv[i].endsWith('.imgplex')) return argv[i];
+    if (!argv[i].startsWith('-') && argv[i].endsWith('.bite')) return argv[i];
   }
   return null;
 }

@@ -24,7 +24,7 @@ vi.mock('node:fs', () => ({
 }));
 
 vi.mock('../main/pipeline/thumbnail-service.js', () => ({
-  TEMP_DIR: '/tmp/imgplex-test',
+  TEMP_DIR: '/tmp/bite-test',
   shortHash: (s: string) => s.slice(-8).replace(/[^a-z0-9]/gi, 'x'),
 }));
 
@@ -71,7 +71,7 @@ async function run(
   return executeBatch(graph, outputNodeId, 'input-1', imagePaths, null, overwrite, registry, noop, () => false);
 }
 
-describe('executeBatch — textOutputNode dispatch', () => {
+describe('executeBatch - textOutputNode dispatch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     spawnMagickMock.mockResolvedValue(undefined);
@@ -154,7 +154,7 @@ describe('executeBatch — textOutputNode dispatch', () => {
   });
 });
 
-describe('executeBatch — flipbookOutputNode dispatch', () => {
+describe('executeBatch - flipbookOutputNode dispatch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     spawnMagickMock.mockResolvedValue(undefined);
@@ -183,7 +183,7 @@ describe('executeBatch — flipbookOutputNode dispatch', () => {
     const images = ['/img/c.png', '/img/a.png', '/img/e.png', '/img/b.png', '/img/d.png'];
     const result = await run(flipbookGraph(), 'fb-1', makeRegistry({}), images);
 
-    expect(result.processed).toBe(4); // 2×2 grid
+    expect(result.processed).toBe(4); // 2x2 grid
     expect(result.skipped).toBe(1);
     expect(result.outputFiles).toEqual(['/out/atlas.png']);
     const args = spawnMagickMock.mock.calls[0][0] as string[];

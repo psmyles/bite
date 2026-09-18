@@ -89,7 +89,7 @@
     overflow: hidden;
   }
 
-  /* ── Header ── */
+  /* -- Header -- */
   .panel-header {
     display: flex;
     align-items: center;
@@ -118,7 +118,7 @@
     text-align: right;
   }
 
-  /* ── Scrollable content ── */
+  /* -- Scrollable content -- */
   .content {
     flex: 1;
     overflow-y: auto;

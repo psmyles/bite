@@ -1,8 +1,8 @@
 /**
  * Light structural validation + sanitisation of a loaded workflow graph.
  * Throws on malformed shapes (so we surface a clear error instead of confusing
- * downstream runtime failures) and strips any `__`-prefixed params — see
- * applyParamWires; a malicious .imgplex must not be able to inject `__compute_js__`.
+ * downstream runtime failures) and strips any `__`-prefixed params - see
+ * applyParamWires; a malicious .bite must not be able to inject `__compute_js__`.
  */
 export function sanitizeWorkflowGraph(graph: unknown): unknown {
   if (!graph || typeof graph !== 'object') {

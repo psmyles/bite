@@ -7,7 +7,7 @@ import type { Node, Edge } from '@xyflow/svelte';
 export interface DeleteResult {
   nodes: Node[];
   edges: Edge[];
-  /** Input-node ids removed by this operation — caller frees their image lists. */
+  /** Input-node ids removed by this operation - caller frees their image lists. */
   deletedInputIds: string[];
   /** False when nothing was selected/deletable (caller should no-op). */
   changed: boolean;
@@ -41,7 +41,7 @@ export function computeDeleteSelected(
     return { nodes, edges, deletedInputIds: [], changed: false };
   }
 
-  // Capture deleted input-node ids BEFORE filtering `nodes` — afterwards the lookup
+  // Capture deleted input-node ids BEFORE filtering `nodes` - afterwards the lookup
   // can never find them. (This ordering was the fix for the keyboard-delete leak.)
   const deletedInputIds = [...toDelete].filter((id) => nodes.find((n) => n.id === id)?.type === 'inputNode');
 
@@ -114,7 +114,7 @@ export const CLI_NAME_PREFIXES: Record<string, string> = {
 
 /**
  * First `prefix-N` cliName not already taken by an existing node. A plain count
- * collides after a middle node is deleted (delete input-1 → next add reuses input-2).
+ * collides after a middle node is deleted (delete input-1 -> next add reuses input-2).
  */
 export function makeWorkflowCliName(workflowType: string, currentNodes: Node[]): string {
   const prefix = CLI_NAME_PREFIXES[workflowType] ?? workflowType;

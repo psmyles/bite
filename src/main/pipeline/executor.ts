@@ -11,7 +11,7 @@ import {
   generateThumbnail as generateThumbnailFn,
 } from './thumbnail-service.js';
 
-// ─── PipelineExecutor ─────────────────────────────────────────────────────────
+// --- PipelineExecutor ---------------------------------------------------------
 
 export class PipelineExecutor {
   private previewCache = new PreviewCache();
@@ -31,7 +31,7 @@ export class PipelineExecutor {
     return generateThumbnailFn(imagePath, size);
   }
 
-  // ── Preview pipeline ────────────────────────────────────────────────────────
+  // -- Preview pipeline --------------------------------------------------------
 
   executePreview(
     graph: NodeGraph,
@@ -43,7 +43,7 @@ export class PipelineExecutor {
     return executePreviewFn(this.previewCache, graph, imagePath, registry, fromNodeId, inputNodeId);
   }
 
-  // ── Batch pipeline ────────────────────────────────────────────────────────
+  // -- Batch pipeline --------------------------------------------------------
 
   executeBatch(
     graph: NodeGraph,
@@ -69,7 +69,7 @@ export class PipelineExecutor {
     );
   }
 
-  // ── CLI script export ────────────────────────────────────────────────────────
+  // -- CLI script export --------------------------------------------------------
 
   exportCLI(shellType: 'powershell' | 'bash' | 'cmd', workflowFileName: string, graph: NodeGraph): string {
     const date = new Date().toISOString().slice(0, 10);
@@ -78,7 +78,7 @@ export class PipelineExecutor {
     return cliScriptCmd(workflowFileName, date, graph);
   }
 
-  // ── Cache control ───────────────────────────────────────────────────────────
+  // -- Cache control -----------------------------------------------------------
 
   clearPreviewCache(): void {
     this.previewCache.clear();

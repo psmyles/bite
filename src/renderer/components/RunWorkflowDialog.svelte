@@ -43,7 +43,7 @@
             <div class="node-info">
               <span class="node-name">{status.label}</span>
               {#if !status.valid}
-                <span class="node-reasons">{status.reasons.join(' · ')}</span>
+                <span class="node-reasons">{status.reasons.join(' - ')}</span>
               {/if}
             </div>
           </div>

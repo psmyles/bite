@@ -20,20 +20,20 @@ let anyChanged = false;
 for (const { file, from, to } of patches) {
   const abs = path.resolve(__dirname, '..', file);
   if (!fs.existsSync(abs)) {
-    console.warn(`patch-nsis: not found – ${file}`);
+    console.warn(`patch-nsis: not found - ${file}`);
     continue;
   }
   const src = fs.readFileSync(abs, 'utf8');
   if (src.includes(to)) {
-    console.log(`patch-nsis: already patched – ${file}`);
+    console.log(`patch-nsis: already patched - ${file}`);
     continue;
   }
   if (!src.includes(from)) {
-    console.warn(`patch-nsis: target string not found – ${file}`);
+    console.warn(`patch-nsis: target string not found - ${file}`);
     continue;
   }
   fs.writeFileSync(abs, src.replace(from, to), 'utf8');
-  console.log(`patch-nsis: patched – ${file}`);
+  console.log(`patch-nsis: patched - ${file}`);
   anyChanged = true;
 }
 if (!anyChanged) console.log('patch-nsis: nothing to do');

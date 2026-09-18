@@ -4,7 +4,7 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 export default {
   preprocess: vitePreprocess(),
   onwarn(warning, handler) {
-    // Drag-handle divs are intentionally non-standard ARIA — suppress these
+    // Drag-handle divs are intentionally non-standard ARIA - suppress these
     if (
       warning.code === 'a11y_no_noninteractive_element_interactions' ||
       warning.code === 'a11y_no_noninteractive_tabindex' ||

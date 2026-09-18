@@ -66,10 +66,10 @@ describe('groupBySetPattern', () => {
   });
 
   it('each file only matches the first matching suffix', () => {
-    // '_AO' is a suffix of '_extra_AO' — file should match '_AO', not be double-counted
+    // '_AO' is a suffix of '_extra_AO' - file should match '_AO', not be double-counted
     const files = paths(['T_body_AO.png', 'T_body_extra_AO.png']);
     const result = groupBySetPattern(files, 'T_', ['_AO']);
-    // 'body' matches _AO, 'body_extra' also matches _AO — two separate middles
+    // 'body' matches _AO, 'body_extra' also matches _AO - two separate middles
     expect(result.size).toBe(2);
     expect(result.has('body')).toBe(true);
     expect(result.has('body_extra')).toBe(true);

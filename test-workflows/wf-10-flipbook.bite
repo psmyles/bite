@@ -33,7 +33,7 @@
           "label": "Flipbook Output",
           "definitionId": "",
           "params": {
-            "flipbookOutputPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-10\\atlas.png",
+            "flipbookOutputPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-10\\atlas.png",
             "cols": 2,
             "rows": 2,
             "cellWidth": 64,

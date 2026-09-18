@@ -1,4 +1,4 @@
-// Pure color conversion functions — no Svelte/DOM dependencies.
+// Pure color conversion functions - no Svelte/DOM dependencies.
 
 export function c01(v: number): number {
   return Math.max(0, Math.min(1, isNaN(v) ? 0 : v));

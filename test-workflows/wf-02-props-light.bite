@@ -32,7 +32,7 @@
           "label": "Text Output",
           "definitionId": "",
           "params": {
-            "outputPath": "d:\\Dev\\imgplex\\test-workflows\\out\\wf-02\\report.txt",
+            "outputPath": "d:\\Dev\\bite\\test-workflows\\out\\wf-02\\report.txt",
             "overwrite": "overwrite",
             "portIds": [
               "txo-0",

@@ -1,6 +1,6 @@
 /**
  * Wire-type compatibility utilities shared between NodeEditor.svelte and nodeEditorHelpers.ts.
- * No Svelte reactivity — pure TypeScript.
+ * No Svelte reactivity - pure TypeScript.
  */
 
 /** Wire types that are all numeric and compatible with 'numeric' */
