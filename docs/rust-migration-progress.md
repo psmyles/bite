@@ -583,3 +583,23 @@ panel headers and gap cards, completing the menu command set, matching filmstrip
 status/selection presentation, and tightening Inspector row layout. A final
 Windows screenshot comparison and interaction pass remains required; macOS stays
 pending under the user's platform policy.
+
+The next parity slice fixes port interaction at the node-editor level: each
+colored circle now owns an explicit 14-pixel hit rectangle and point pivot, so a
+wire begins at the port instead of its text label. The create-node popup uses
+Workflow and definition-category submenus while browsing, switches to flat
+compatible results only after text is entered, and retains wire-drop filtering.
+
+Dock tabs are hidden behind Electron-style panel headers. The default widths now
+track the Svelte 220-pixel Library and 280-pixel right column at the reference
+window size, Inspector/Preview uses the source 65/35 split, Filmstrip uses the
+source 120-pixel default, and six-pixel separators reproduce the shell gaps.
+Built-in Input and Image Output cards gained their source footers. Empty Preview
+and Filmstrip surfaces no longer render technical placeholder images. Filmstrip
+items now show their file names, active border and total image count, and the
+Inspector exposes the primary Run Workflow action.
+
+`test-workflows/out/native-parity-current.png` is the current source-backed
+offscreen comparison. Remaining work is interactive Windows confirmation of the
+new pin and submenu hit behavior, plus further inspector control-row refinement
+where individual specialized node editors still differ from Svelte.

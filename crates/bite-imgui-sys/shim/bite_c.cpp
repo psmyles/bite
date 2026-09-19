@@ -13,7 +13,7 @@ static void bite_style(){
     auto& s=ImGui::GetStyle();
     s.WindowPadding=ImVec2(12,10);s.FramePadding=ImVec2(8,5);s.CellPadding=ImVec2(8,5);
     s.ItemSpacing=ImVec2(8,5);s.ItemInnerSpacing=ImVec2(6,4);s.IndentSpacing=16;
-    s.ScrollbarSize=12;s.GrabMinSize=12;
+    s.ScrollbarSize=12;s.GrabMinSize=12;s.DockingSeparatorSize=6;
     s.WindowRounding=6;s.ChildRounding=4;s.FrameRounding=4;s.PopupRounding=4;
     s.ScrollbarRounding=2;s.GrabRounding=4;s.TabRounding=0;
     s.WindowBorderSize=1;s.ChildBorderSize=1;s.PopupBorderSize=1;s.FrameBorderSize=1;s.TabBorderSize=0;
@@ -89,10 +89,13 @@ void bite_dockspace(){
         ImGui::DockBuilderAddNode(dock,ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(dock,viewport->Size);
         auto center=dock;
-        auto right=ImGui::DockBuilderSplitNode(center,ImGuiDir_Right,0.25f,nullptr,&center);
-        auto bottom=ImGui::DockBuilderSplitNode(center,ImGuiDir_Down,0.15f,nullptr,&center);
-        auto left=ImGui::DockBuilderSplitNode(center,ImGuiDir_Left,0.22f,nullptr,&center);
-        auto preview=ImGui::DockBuilderSplitNode(right,ImGuiDir_Down,0.5f,nullptr,&right);
+        auto right=ImGui::DockBuilderSplitNode(center,ImGuiDir_Right,0.18f,nullptr,&center);
+        auto bottom=ImGui::DockBuilderSplitNode(center,ImGuiDir_Down,0.13f,nullptr,&center);
+        auto left=ImGui::DockBuilderSplitNode(center,ImGuiDir_Left,0.17f,nullptr,&center);
+        auto preview=ImGui::DockBuilderSplitNode(right,ImGuiDir_Down,0.35f,nullptr,&right);
+        for(auto id:{left,center,right,preview,bottom}) {
+            if(auto* child=ImGui::DockBuilderGetNode(id)) child->LocalFlags|=ImGuiDockNodeFlags_NoTabBar;
+        }
         ImGui::DockBuilderDockWindow("Library",left);
         ImGui::DockBuilderDockWindow("Canvas",center);
         ImGui::DockBuilderDockWindow("Inspector",right);
@@ -109,7 +112,15 @@ int bite_menu_item(const char* label,const char* shortcut,int selected,int enabl
 int bite_begin(const char* s){return ImGui::Begin(s);}
 void bite_end(){ImGui::End();}
 void bite_text(const char* s){ImGui::TextUnformatted(s);}
+void bite_panel_header(const char* text){
+    const ImVec2 start=ImGui::GetCursorScreenPos();
+    const float width=ImGui::GetContentRegionAvail().x,height=30.0f;
+    ImGui::Dummy(ImVec2(width,height));
+    ImGui::GetWindowDrawList()->AddRectFilled(start,ImVec2(start.x+width,start.y+height),ImColor(28,28,28));
+    ImGui::GetWindowDrawList()->AddText(ImVec2(start.x+10.0f,start.y+(height-ImGui::GetTextLineHeight())*0.5f),ImColor(255,255,255),text);
+}
 int bite_button(const char* s){return ImGui::Button(s);}
+int bite_selectable(const char* s){return ImGui::Selectable(s);}
 int bite_drag_float(const char* s,float* v){return ImGui::DragFloat(s,v,0.1f);}
 int bite_slider_float(const char* s,float* v,float min,float max){return ImGui::SliderFloat(s,v,min,max);}
 int bite_drag_float_n(const char* s,float* v,int count){if(count==2)return ImGui::DragFloat2(s,v,0.1f);if(count==3)return ImGui::DragFloat3(s,v,0.1f);if(count==4)return ImGui::DragFloat4(s,v,0.1f);return 0;}
@@ -122,30 +133,53 @@ void bite_begin_disabled(int disabled){ImGui::BeginDisabled(disabled!=0);}
 void bite_end_disabled(){ImGui::EndDisabled();}
 void bite_image(uint64_t id,float w,float h){ImGui::Image((ImTextureID)(uintptr_t)id,ImVec2(w,h));}
 int bite_image_button(const char* id,uint64_t texture,float w,float h){return ImGui::ImageButton(id,(ImTextureID)(uintptr_t)texture,ImVec2(w,h));}
+int bite_image_button_selected(const char* id,uint64_t texture,float w,float h,int selected){
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(3,3));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize,1.0f);
+    if(selected) ImGui::PushStyleColor(ImGuiCol_Border,color(24,110,160));
+    int clicked=ImGui::ImageButton(id,(ImTextureID)(uintptr_t)texture,ImVec2(w,h));
+    if(selected) ImGui::PopStyleColor();
+    ImGui::PopStyleVar(2);
+    return clicked;
+}
 void bite_same_line(){ImGui::SameLine();}
+void bite_begin_group(){ImGui::BeginGroup();}
+void bite_end_group(){ImGui::EndGroup();}
 void bite_editor_begin(void* context,const char* label){ed::SetCurrentEditor(((State*)context)->editor);ed::Begin(label);}
 void bite_editor_end(){ed::End();}
 void bite_node_begin(uint64_t id){ed::BeginNode(ed::NodeId((uintptr_t)id));}
 void bite_node_end(){ed::EndNode();}
 void bite_node_header(const char* text,float r,float g,float b){
     const ImVec2 start=ImGui::GetCursorScreenPos();
-    const float width=150.0f, height=28.0f;
+    const float width=190.0f, height=28.0f;
     ImGui::Dummy(ImVec2(width,height));
     auto* draw=ImGui::GetWindowDrawList();
     draw->AddRectFilled(start,ImVec2(start.x+width,start.y+height),ImColor(r,g,b,1.0f),6.0f,ImDrawFlags_RoundCornersTop);
-    draw->AddText(ImVec2(start.x+8.0f,start.y+(height-ImGui::GetTextLineHeight())*0.5f),ImGui::GetColorU32(ImGuiCol_Text),text);
+    const ImVec2 textSize=ImGui::CalcTextSize(text);
+    draw->AddText(ImVec2(start.x+(width-textSize.x)*0.5f,start.y+(height-textSize.y)*0.5f),ImGui::GetColorU32(ImGuiCol_Text),text);
+}
+void bite_node_footer(const char* text){
+    const ImVec2 start=ImGui::GetCursorScreenPos();
+    const float width=190.0f,height=22.0f;
+    ImGui::Dummy(ImVec2(width,height));
+    auto* draw=ImGui::GetWindowDrawList();
+    draw->AddLine(start,ImVec2(start.x+width,start.y),ImColor(88,88,88));
+    draw->AddText(ImVec2(start.x+10.0f,start.y+(height-ImGui::GetTextLineHeight())*0.5f),ImColor(168,168,168),text);
 }
 void bite_typed_pin(uint64_t id,int output,const char* label,float r,float g,float b){
-    ed::BeginPin(ed::PinId((uintptr_t)id),output?ed::PinKind::Output:ed::PinKind::Input);
     const ImVec2 cursor=ImGui::GetCursorScreenPos();
-    const float width=150.0f;
+    const float width=190.0f, height=20.0f;
     const ImVec2 size=ImGui::CalcTextSize(label);
-    if(output) ImGui::SetCursorScreenPos(ImVec2(cursor.x+width-size.x-8.0f,cursor.y));
-    else ImGui::SetCursorScreenPos(ImVec2(cursor.x+8.0f,cursor.y));
-    ImGui::TextColored(ImVec4(r,g,b,1.0f),"%s",label);
-    const ImVec2 a=ImGui::GetItemRectMin(), z=ImGui::GetItemRectMax();
+    ImGui::Dummy(ImVec2(width,height));
+    const float textX=output?cursor.x+width-size.x-10.0f:cursor.x+10.0f;
+    const float centerY=cursor.y+height*0.5f;
+    ImGui::GetWindowDrawList()->AddText(ImVec2(textX,cursor.y+(height-size.y)*0.5f),ImColor(r,g,b,1.0f),label);
     const float x=output?cursor.x+width:cursor.x;
-    ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(x,(a.y+z.y)*0.5f),5.0f,ImColor(r,g,b,1.0f));
+    ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(x,centerY),5.0f,ImColor(r,g,b,1.0f));
+    ed::BeginPin(ed::PinId((uintptr_t)id),output?ed::PinKind::Output:ed::PinKind::Input);
+    const ImVec2 hitMin(x-7.0f,centerY-7.0f),hitMax(x+7.0f,centerY+7.0f),pivot(x,centerY);
+    ed::PinRect(hitMin,hitMax);
+    ed::PinPivotRect(pivot,pivot);
     ed::EndPin();
 }
 void bite_pin_begin(uint64_t id,int output){ed::BeginPin(ed::PinId((uintptr_t)id),output?ed::PinKind::Output:ed::PinKind::Input);}

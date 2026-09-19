@@ -227,7 +227,7 @@ fn layout_path() -> Option<PathBuf> {
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")));
     // Bump the persisted layout when the source-backed Electron shell changes.
     // This prevents obsolete prototype docks from overriding the new default.
-    root.map(|root| root.join("BITE/native-layout-v2.ini"))
+    root.map(|root| root.join("BITE/native-layout-v4.ini"))
 }
 
 fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
@@ -1262,6 +1262,7 @@ impl Demo {
             }
         }
         ui.window("Library", |ui| {
+            ui.panel_header("Node Library");
             if *technical_demo {
                 ui.text("Ten fake node types");
                 for name in [
@@ -1274,19 +1275,19 @@ impl Demo {
                 ui.next_item_full_width();
                 ui.input_text("##library-search", node_search);
                 ui.text("Workflow");
-                if ui.button("Input") {
+                if ui.selectable("Input") {
                     studio.add_input(Position { x: 0.0, y: 0.0 });
                 }
-                if ui.button("Image Output") {
+                if ui.selectable("Image Output") {
                     studio.add_output(Position { x: 600.0, y: 0.0 });
                 }
-                if ui.button("Text Output") {
+                if ui.selectable("Text Output") {
                     studio.add_text_output(Position { x: 600.0, y: 120.0 });
                 }
-                if ui.button("Flipbook Output") {
+                if ui.selectable("Flipbook Output") {
                     studio.add_flipbook_output(Position { x: 600.0, y: 240.0 });
                 }
-                if ui.button("Comment") {
+                if ui.selectable("Comment") {
                     studio.add_comment(Position { x: 250.0, y: 250.0 });
                 }
                 let query = node_search.trim().to_lowercase();
@@ -1318,7 +1319,7 @@ impl Demo {
                         category = next_category;
                         ui.text(&category);
                     }
-                    if ui.button(&label) {
+                    if ui.selectable(&label) {
                         if let Err(error) =
                             studio.add_processing(&id, Position { x: 300.0, y: 200.0 })
                         {
@@ -1482,6 +1483,45 @@ impl Demo {
                                 .unwrap_or([1.0, 1.0, 1.0]);
                                 ui.typed_pin(pin, true, label, color);
                             }
+                            match node.kind {
+                                NodeKind::Builtin(BuiltinNodeKind::Input) => {
+                                    let count = active_input
+                                        .as_ref()
+                                        .filter(|id| *id == &node.id)
+                                        .map(|_| image_paths.len())
+                                        .or_else(|| {
+                                            input_media
+                                                .get(&node.id)
+                                                .map(|media| media.image_paths.len())
+                                        })
+                                        .unwrap_or(0);
+                                    let footer = match count {
+                                        0 => "no images".into(),
+                                        1 => "1 image".into(),
+                                        count => format!("{count} images"),
+                                    };
+                                    ui.node_footer(&footer);
+                                }
+                                NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
+                                    let output = node
+                                        .data
+                                        .params
+                                        .get("outputPath")
+                                        .and_then(|value| match value {
+                                            bite_schema::ParamValue::String(value) => {
+                                                Some(value.as_str())
+                                            }
+                                            _ => None,
+                                        })
+                                        .unwrap_or("source");
+                                    ui.node_footer(if output == "source" {
+                                        "same folder as source"
+                                    } else {
+                                        output
+                                    });
+                                }
+                                _ => {}
+                            }
                         });
                         if ui.selected(node_id) {
                             *selected = node_id;
@@ -1640,70 +1680,72 @@ impl Demo {
                     .unwrap_or(Position { x: 300.0, y: 200.0 });
                 let query = node_search.to_lowercase();
                 let mut created = None;
-                if (query.is_empty() || "input".contains(&query))
-                    && candidate_allowed(
-                        studio,
-                        pending_wire,
-                        NodeKind::Builtin(BuiltinNodeKind::Input),
-                        "",
-                    )
-                    && ui.button("Input")
-                {
-                    if pending_wire.is_some() {
-                        studio.begin_transaction();
+                if !query.is_empty() {
+                    if (query.is_empty() || "input".contains(&query))
+                        && candidate_allowed(
+                            studio,
+                            pending_wire,
+                            NodeKind::Builtin(BuiltinNodeKind::Input),
+                            "",
+                        )
+                        && ui.button("Input")
+                    {
+                        if pending_wire.is_some() {
+                            studio.begin_transaction();
+                        }
+                        created = Some(studio.add_input(position.clone()));
                     }
-                    created = Some(studio.add_input(position.clone()));
-                }
-                if (query.is_empty() || "image output".contains(&query))
-                    && candidate_allowed(
-                        studio,
-                        pending_wire,
-                        NodeKind::Builtin(BuiltinNodeKind::ImageOutput),
-                        "",
-                    )
-                    && ui.button("Image Output")
-                {
-                    if pending_wire.is_some() {
-                        studio.begin_transaction();
+                    if (query.is_empty() || "image output".contains(&query))
+                        && candidate_allowed(
+                            studio,
+                            pending_wire,
+                            NodeKind::Builtin(BuiltinNodeKind::ImageOutput),
+                            "",
+                        )
+                        && ui.button("Image Output")
+                    {
+                        if pending_wire.is_some() {
+                            studio.begin_transaction();
+                        }
+                        created = Some(studio.add_output(position.clone()));
                     }
-                    created = Some(studio.add_output(position.clone()));
-                }
-                if (query.is_empty() || "text output".contains(&query))
-                    && candidate_allowed(
-                        studio,
-                        pending_wire,
-                        NodeKind::Builtin(BuiltinNodeKind::TextOutput),
-                        "",
-                    )
-                    && ui.button("Text Output")
-                {
-                    if pending_wire.is_some() {
-                        studio.begin_transaction();
+                    if (query.is_empty() || "text output".contains(&query))
+                        && candidate_allowed(
+                            studio,
+                            pending_wire,
+                            NodeKind::Builtin(BuiltinNodeKind::TextOutput),
+                            "",
+                        )
+                        && ui.button("Text Output")
+                    {
+                        if pending_wire.is_some() {
+                            studio.begin_transaction();
+                        }
+                        created = Some(studio.add_text_output(position.clone()));
                     }
-                    created = Some(studio.add_text_output(position.clone()));
-                }
-                if (query.is_empty() || "flipbook output".contains(&query))
-                    && candidate_allowed(
-                        studio,
-                        pending_wire,
-                        NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput),
-                        "",
-                    )
-                    && ui.button("Flipbook Output")
-                {
-                    if pending_wire.is_some() {
-                        studio.begin_transaction();
+                    if (query.is_empty() || "flipbook output".contains(&query))
+                        && candidate_allowed(
+                            studio,
+                            pending_wire,
+                            NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput),
+                            "",
+                        )
+                        && ui.button("Flipbook Output")
+                    {
+                        if pending_wire.is_some() {
+                            studio.begin_transaction();
+                        }
+                        created = Some(studio.add_flipbook_output(position.clone()));
                     }
-                    created = Some(studio.add_flipbook_output(position.clone()));
-                }
-                if pending_wire.is_none()
-                    && (query.is_empty() || "comment".contains(&query))
-                    && ui.button("Comment")
-                {
-                    if pending_wire.is_some() {
-                        studio.begin_transaction();
+                    if pending_wire.is_none()
+                        && (query.is_empty() || "comment".contains(&query))
+                        && ui.button("Comment")
+                    {
+                        if pending_wire.is_some() {
+                            studio.begin_transaction();
+                        }
+                        created = Some(studio.add_comment(position.clone()));
                     }
-                    created = Some(studio.add_comment(position.clone()));
                 }
                 let mut definitions: Vec<_> = studio
                     .registry
@@ -1734,19 +1776,75 @@ impl Demo {
                     })
                     .collect();
                 definitions.sort();
-                let mut category = String::new();
-                for (next_category, id, label) in definitions {
-                    if category != next_category {
-                        category = next_category;
-                        ui.text(&category);
-                    }
-                    if ui.button(&label) {
-                        if pending_wire.is_some() {
-                            studio.begin_transaction();
+                if query.is_empty() {
+                    ui.menu("Workflow", |ui| {
+                        for (label, kind) in [
+                            ("Input", BuiltinNodeKind::Input),
+                            ("Image Output", BuiltinNodeKind::ImageOutput),
+                            ("Text Output", BuiltinNodeKind::TextOutput),
+                            ("Flipbook Output", BuiltinNodeKind::FlipbookOutput),
+                            ("Comment", BuiltinNodeKind::Comment),
+                        ] {
+                            let allowed = (kind != BuiltinNodeKind::Comment
+                                || pending_wire.is_none())
+                                && candidate_allowed(
+                                    studio,
+                                    pending_wire,
+                                    NodeKind::Builtin(kind.clone()),
+                                    "",
+                                );
+                            if ui.menu_item(label, "", false, allowed) {
+                                if pending_wire.is_some() {
+                                    studio.begin_transaction();
+                                }
+                                created = Some(match kind {
+                                    BuiltinNodeKind::Input => studio.add_input(position.clone()),
+                                    BuiltinNodeKind::ImageOutput => {
+                                        studio.add_output(position.clone())
+                                    }
+                                    BuiltinNodeKind::TextOutput => {
+                                        studio.add_text_output(position.clone())
+                                    }
+                                    BuiltinNodeKind::FlipbookOutput => {
+                                        studio.add_flipbook_output(position.clone())
+                                    }
+                                    BuiltinNodeKind::Comment => {
+                                        studio.add_comment(position.clone())
+                                    }
+                                    _ => unreachable!(),
+                                });
+                            }
                         }
-                        match studio.add_processing(&id, position.clone()) {
-                            Ok(id) => created = Some(id),
-                            Err(error) => studio.status = error,
+                    });
+                    let mut categories: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
+                    for (category, id, label) in definitions {
+                        categories.entry(category).or_default().push((id, label));
+                    }
+                    for (category, entries) in categories {
+                        ui.menu(&category, |ui| {
+                            for (id, label) in entries {
+                                if ui.menu_item(&label, "", false, true) {
+                                    if pending_wire.is_some() {
+                                        studio.begin_transaction();
+                                    }
+                                    match studio.add_processing(&id, position.clone()) {
+                                        Ok(id) => created = Some(id),
+                                        Err(error) => studio.status = error,
+                                    }
+                                }
+                            }
+                        });
+                    }
+                } else {
+                    for (_, id, label) in definitions {
+                        if ui.menu_item(&label, "", false, true) {
+                            if pending_wire.is_some() {
+                                studio.begin_transaction();
+                            }
+                            match studio.add_processing(&id, position.clone()) {
+                                Ok(id) => created = Some(id),
+                                Err(error) => studio.status = error,
+                            }
                         }
                     }
                 }
@@ -1813,6 +1911,7 @@ impl Demo {
             });
         });
         ui.window("Inspector", |ui| {
+            ui.panel_header("Inspector");
             if let Some(index) = studio
                 .workflow
                 .graph
@@ -2592,17 +2691,59 @@ impl Demo {
                 ui.input_text("Text", text);
             }
             ui.text(dropped);
+            if runner.is_none() && ui.button("Run Workflow") {
+                let graph = studio.workflow.graph.clone();
+                let registry = studio.registry.clone();
+                let options = studio.run_options_with_overrides(
+                    PathBuf::from(&*input_path).as_path(),
+                    PathBuf::from(&*output_path).as_path(),
+                    runtime_paths,
+                );
+                let cancelled = options.cancelled.clone();
+                let (send, receive) = mpsc::channel();
+                std::thread::spawn(move || {
+                    let mut host = bite_imagemagick::Magick::discover(options.cancelled.clone());
+                    let progress = send.clone();
+                    let result = bite_core::execution::run_workflow(
+                        &graph,
+                        &registry,
+                        &mut host,
+                        &options,
+                        &mut |done, total, file| {
+                            let _ = progress.send(RunEvent::Progress(
+                                done,
+                                total,
+                                file.file_name()
+                                    .unwrap_or_default()
+                                    .to_string_lossy()
+                                    .into_owned(),
+                            ));
+                        },
+                    );
+                    let _ = send.send(RunEvent::Complete(result));
+                });
+                *runner = Some(RunState {
+                    cancelled,
+                    events: receive,
+                });
+                studio.status = "Running workflow…".into();
+            } else if let Some(active) = runner.as_ref() {
+                if ui.button("Cancel Run") {
+                    active.cancelled.store(true, Ordering::Relaxed);
+                    studio.status = "Cancelling…".into();
+                }
+            }
         });
         ui.window("Preview", |ui| {
-            ui.image(
-                preview_texture
-                    .or_else(|| thumbnails.first().copied())
-                    .unwrap_or(2),
-                256.,
-                256.,
-            );
+            ui.panel_header("Preview");
+            if let Some(texture) = preview_texture.or_else(|| thumbnails.first().copied()) {
+                ui.image(texture, 256., 256.);
+            } else {
+                ui.text("No image selected");
+            }
         });
         ui.window("Filmstrip", |ui| {
+            ui.panel_header("Filmstrip");
             if let Some(input) = active_input.as_ref().and_then(|id| {
                 studio
                     .workflow
@@ -2614,16 +2755,33 @@ impl Demo {
                 ui.text(&format!("Input: {}", input.data.label));
             }
             let displayed = thumbnails.clone();
-            if let Some(path) = image_paths.get(*selected_image) {
-                ui.text(&format!("Selected: {}", path.display()));
-            }
             for (index, texture) in displayed.into_iter().enumerate() {
-                if ui.image_button(&format!("filmstrip-{index}"), texture, 64., 64.)
-                    && index < thumbnails.len()
-                {
-                    *preview_requested = Some(index);
-                }
+                ui.layout_group(|ui| {
+                    if ui.image_button_selected(
+                        &format!("filmstrip-{index}"),
+                        texture,
+                        64.,
+                        64.,
+                        index == *selected_image,
+                    ) && index < thumbnails.len()
+                    {
+                        *preview_requested = Some(index);
+                    }
+                    if let Some(name) = image_paths
+                        .get(index)
+                        .and_then(|path| path.file_name())
+                        .and_then(|name| name.to_str())
+                    {
+                        let short: String = name.chars().take(10).collect();
+                        ui.text(&short);
+                    }
+                });
                 ui.same_line();
+            }
+            if image_paths.is_empty() {
+                ui.text("Drop images here or click Import images in the Input inspector.");
+            } else {
+                ui.text(&format!("{} images", image_paths.len()));
             }
         });
         *frames += 1;

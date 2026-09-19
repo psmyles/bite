@@ -111,9 +111,11 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn bite_text(text: *const ::std::os::raw::c_char);
+    pub fn bite_panel_header(text: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
     pub fn bite_button(text: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
+    pub fn bite_selectable(text: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
     pub fn bite_drag_float(
@@ -165,9 +167,18 @@ unsafe extern "C" {
         width: f32,
         height: f32,
     ) -> ::std::os::raw::c_int;
+    pub fn bite_image_button_selected(
+        id: *const ::std::os::raw::c_char,
+        texture: u64,
+        width: f32,
+        height: f32,
+        selected: ::std::os::raw::c_int,
+    ) -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
     pub fn bite_same_line();
+    pub fn bite_begin_group();
+    pub fn bite_end_group();
 }
 unsafe extern "C" {
     pub fn bite_editor_begin(
@@ -184,6 +195,7 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn bite_node_end();
     pub fn bite_node_header(text: *const ::std::os::raw::c_char, r: f32, g: f32, b: f32);
+    pub fn bite_node_footer(text: *const ::std::os::raw::c_char);
     pub fn bite_typed_pin(
         id: u64,
         output: ::std::os::raw::c_int,

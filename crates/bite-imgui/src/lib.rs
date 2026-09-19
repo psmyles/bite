@@ -339,8 +339,14 @@ impl Ui<'_> {
     pub fn text(&mut self, text: &str) {
         unsafe { sys::bite_text(c(text).as_ptr()) }
     }
+    pub fn panel_header(&mut self, text: &str) {
+        unsafe { sys::bite_panel_header(c(text).as_ptr()) }
+    }
     pub fn button(&mut self, text: &str) -> bool {
         unsafe { sys::bite_button(c(text).as_ptr()) != 0 }
+    }
+    pub fn selectable(&mut self, text: &str) -> bool {
+        unsafe { sys::bite_selectable(c(text).as_ptr()) != 0 }
     }
     pub fn drag_float(&mut self, label: &str, value: &mut f32) -> bool {
         unsafe { sys::bite_drag_float(c(label).as_ptr(), value) != 0 }
@@ -409,8 +415,27 @@ impl Ui<'_> {
     pub fn image_button(&mut self, label: &str, id: u64, width: f32, height: f32) -> bool {
         unsafe { sys::bite_image_button(c(label).as_ptr(), id, width, height) != 0 }
     }
+    pub fn image_button_selected(
+        &mut self,
+        label: &str,
+        id: u64,
+        width: f32,
+        height: f32,
+        selected: bool,
+    ) -> bool {
+        unsafe {
+            sys::bite_image_button_selected(c(label).as_ptr(), id, width, height, selected.into())
+                != 0
+        }
+    }
     pub fn same_line(&mut self) {
         unsafe { sys::bite_same_line() }
+    }
+    pub fn layout_group<R>(&mut self, body: impl FnOnce(&mut Self) -> R) -> R {
+        unsafe { sys::bite_begin_group() }
+        let result = body(self);
+        unsafe { sys::bite_end_group() }
+        result
     }
     pub fn editor(&mut self, label: &str, body: impl FnOnce(&mut Self)) {
         assert_eq!(self.scope.get(), 0, "editors cannot be nested");
@@ -438,6 +463,10 @@ impl Ui<'_> {
     pub fn node_header(&mut self, text: &str, color: [f32; 3]) {
         assert_eq!(self.scope.get(), 2, "node header requires a node");
         unsafe { sys::bite_node_header(c(text).as_ptr(), color[0], color[1], color[2]) }
+    }
+    pub fn node_footer(&mut self, text: &str) {
+        assert_eq!(self.scope.get(), 2, "node footer requires a node");
+        unsafe { sys::bite_node_footer(c(text).as_ptr()) }
     }
     pub fn typed_pin(&mut self, id: u64, output: bool, label: &str, color: [f32; 3]) {
         assert_eq!(self.scope.get(), 2, "pin requires a node");
