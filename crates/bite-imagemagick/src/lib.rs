@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc, Mutex,
     },
     thread,
@@ -45,6 +45,60 @@ pub struct Magick {
     metadata_cache: BTreeMap<(PathBuf, bool), CachedMetadata>,
     pub metadata_cache_stats: CacheStats,
     pub metadata_cache_ttl: Duration,
+    current_child_memory: Arc<AtomicU64>,
+    peak_child_memory: Arc<AtomicU64>,
+}
+
+#[cfg(windows)]
+fn child_working_set(child: &std::process::Child) -> u64 {
+    use std::{ffi::c_void, os::windows::io::AsRawHandle};
+    #[repr(C)]
+    struct ProcessMemoryCounters {
+        cb: u32,
+        page_fault_count: u32,
+        peak_working_set_size: usize,
+        working_set_size: usize,
+        quota_peak_paged_pool_usage: usize,
+        quota_paged_pool_usage: usize,
+        quota_peak_non_paged_pool_usage: usize,
+        quota_non_paged_pool_usage: usize,
+        pagefile_usage: usize,
+        peak_pagefile_usage: usize,
+    }
+    #[link(name = "psapi")]
+    unsafe extern "system" {
+        fn GetProcessMemoryInfo(
+            process: *mut c_void,
+            counters: *mut ProcessMemoryCounters,
+            size: u32,
+        ) -> i32;
+    }
+    let mut counters = ProcessMemoryCounters {
+        cb: std::mem::size_of::<ProcessMemoryCounters>() as u32,
+        page_fault_count: 0,
+        peak_working_set_size: 0,
+        working_set_size: 0,
+        quota_peak_paged_pool_usage: 0,
+        quota_paged_pool_usage: 0,
+        quota_peak_non_paged_pool_usage: 0,
+        quota_non_paged_pool_usage: 0,
+        pagefile_usage: 0,
+        peak_pagefile_usage: 0,
+    };
+    // SAFETY: the child handle is valid for the duration of this call and the
+    // structure matches Windows PROCESS_MEMORY_COUNTERS.
+    let ok =
+        unsafe { GetProcessMemoryInfo(child.as_raw_handle().cast(), &mut counters, counters.cb) };
+    if ok == 0 {
+        0
+    } else {
+        counters.working_set_size as u64
+    }
+}
+
+#[cfg(not(windows))]
+fn child_working_set(_child: &std::process::Child) -> u64 {
+    0
 }
 
 impl Magick {
@@ -117,7 +171,20 @@ impl Magick {
             metadata_cache: BTreeMap::new(),
             metadata_cache_stats: CacheStats::default(),
             metadata_cache_ttl: Duration::from_secs(10 * 60),
+            current_child_memory: Arc::new(AtomicU64::new(0)),
+            peak_child_memory: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    pub fn peak_child_memory_bytes(&self) -> u64 {
+        self.peak_child_memory.load(Ordering::Relaxed)
+    }
+
+    pub fn reset_peak_child_memory(&self) {
+        self.peak_child_memory.store(
+            self.current_child_memory.load(Ordering::Relaxed),
+            Ordering::Relaxed,
+        );
     }
 
     fn file_stamp(path: &Path) -> Result<FileStamp, String> {
@@ -206,7 +273,21 @@ impl Magick {
         let error = thread::spawn(move || drain(stderr));
         let start = Instant::now();
         let mut stopped = None;
+        let mut tracked_memory = 0;
         let status = loop {
+            let memory = child_working_set(&child);
+            if memory > tracked_memory {
+                let delta = memory - tracked_memory;
+                let current = self
+                    .current_child_memory
+                    .fetch_add(delta, Ordering::Relaxed)
+                    + delta;
+                self.peak_child_memory.fetch_max(current, Ordering::Relaxed);
+            } else if tracked_memory > memory {
+                self.current_child_memory
+                    .fetch_sub(tracked_memory - memory, Ordering::Relaxed);
+            }
+            tracked_memory = memory;
             if self.cancelled.load(Ordering::Relaxed) || start.elapsed() > self.timeout {
                 stopped = Some(if self.cancelled.load(Ordering::Relaxed) {
                     "Cancelled"
@@ -221,6 +302,8 @@ impl Magick {
             }
             thread::sleep(Duration::from_millis(5));
         };
+        self.current_child_memory
+            .fetch_sub(tracked_memory, Ordering::Relaxed);
         let stdout = out.join().map_err(|_| "stdout reader failed")??;
         let stderr = error.join().map_err(|_| "stderr reader failed")??;
         if let Some(message) = stopped {
@@ -257,6 +340,8 @@ impl Magick {
         let environment = self.environment.clone();
         let cancelled = self.cancelled.clone();
         let timeout = self.timeout;
+        let current_child_memory = self.current_child_memory.clone();
+        let peak_child_memory = self.peak_child_memory.clone();
         thread::scope(|scope| {
             for _ in 0..jobs.min(count) {
                 let queue = queue.clone();
@@ -265,6 +350,8 @@ impl Magick {
                 let binary = binary.clone();
                 let environment = environment.clone();
                 let cancelled = cancelled.clone();
+                let current_child_memory = current_child_memory.clone();
+                let peak_child_memory = peak_child_memory.clone();
                 scope.spawn(move || {
                     let mut worker = Magick {
                         binary,
@@ -275,8 +362,13 @@ impl Magick {
                         metadata_cache: BTreeMap::new(),
                         metadata_cache_stats: CacheStats::default(),
                         metadata_cache_ttl: Duration::from_secs(10 * 60),
+                        current_child_memory,
+                        peak_child_memory,
                     };
                     loop {
+                        if worker.cancelled.load(Ordering::Relaxed) {
+                            break;
+                        }
                         let Some((index, args)) = queue.lock().unwrap().pop_front() else {
                             break;
                         };
@@ -293,7 +385,7 @@ impl Magick {
             .into_inner()
             .unwrap()
             .into_iter()
-            .map(|result| result.expect("worker result"))
+            .map(|result| result.unwrap_or_else(|| Err("Cancelled".into())))
             .collect()
     }
 }
@@ -330,6 +422,8 @@ impl ImageHost for Magick {
         let environment = self.environment.clone();
         let cancelled = self.cancelled.clone();
         let timeout = self.timeout;
+        let current_child_memory = self.current_child_memory.clone();
+        let peak_child_memory = self.peak_child_memory.clone();
         thread::scope(|scope| {
             for _ in 0..jobs.min(count) {
                 let queue = queue.clone();
@@ -338,6 +432,8 @@ impl ImageHost for Magick {
                 let binary = binary.clone();
                 let environment = environment.clone();
                 let cancelled = cancelled.clone();
+                let current_child_memory = current_child_memory.clone();
+                let peak_child_memory = peak_child_memory.clone();
                 scope.spawn(move || {
                     let mut worker = Magick {
                         binary,
@@ -348,8 +444,13 @@ impl ImageHost for Magick {
                         metadata_cache: BTreeMap::new(),
                         metadata_cache_stats: CacheStats::default(),
                         metadata_cache_ttl: Duration::from_secs(10 * 60),
+                        current_child_memory,
+                        peak_child_memory,
                     };
                     loop {
+                        if worker.cancelled.load(Ordering::Relaxed) {
+                            break;
+                        }
                         let Some((index, operation)) = queue.lock().unwrap().pop_front() else {
                             break;
                         };
@@ -366,7 +467,7 @@ impl ImageHost for Magick {
             .into_inner()
             .unwrap()
             .into_iter()
-            .map(|result| result.expect("worker result"))
+            .map(|result| result.unwrap_or_else(|| Err("Cancelled".into())))
             .collect()
     }
     fn metadata(&mut self, path: &Path, heavy: bool) -> Result<Context, String> {
@@ -508,6 +609,8 @@ mod process_tests {
             metadata_cache: BTreeMap::new(),
             metadata_cache_stats: CacheStats::default(),
             metadata_cache_ttl: Duration::from_secs(10 * 60),
+            current_child_memory: Arc::new(AtomicU64::new(0)),
+            peak_child_memory: Arc::new(AtomicU64::new(0)),
         }
     }
 

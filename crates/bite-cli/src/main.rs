@@ -4,7 +4,105 @@ use std::{env, fs, process::ExitCode, time::Instant};
 fn run() -> Result<(), String> {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.is_empty() || args[0] == "--help" || args[0] == "-h" {
-        println!("bite run <workflow.bite> [--<cliName> <path>] [--overwrite] [--jobs N]\n  --overwrite  Overwrite existing output files (default: skip)\n  --jobs N     Bounded ImageMagick worker count (safe default: half the CPUs, max 8)\nbite plan <workflow.bite> [--<cliName> <path>] [--overwrite] [--facts <json>]\n  Reports complete=false when image analysis facts are required.\nbite observe <workflow.bite> [--<cliName> <path>] --facts-out <json>\n  Runs only required analysis and writes provenance-bound planning facts.\nbite bench-import <folder> [--recursive] [--size 256] [--jobs N]\n  Measures scan plus cold/warm native thumbnail import.\nbite bench-workflow <workflow.bite> --overwrite [--iterations 2] [run flags]\n  Measures repeated native workflow throughput and process/cache counts.\nbite inspect|validate <workflow.bite>\nbite validate-node <file>\nbite validate-format <file>\nbite validate-workflow <file>\nbite expr --params <json> <expression>\nbite schemas <directory>\nbite nodes|formats|version");
+        println!("bite run <workflow.bite> [--<cliName> <path>] [--overwrite] [--jobs N]\n  --overwrite  Overwrite existing output files (default: skip)\n  --jobs N     Bounded ImageMagick worker count (safe default: half the CPUs, max 8)\nbite plan <workflow.bite> [--<cliName> <path>] [--overwrite] [--facts <json>]\n  Reports complete=false when image analysis facts are required.\nbite observe <workflow.bite> [--<cliName> <path>] --facts-out <json>\n  Runs only required analysis and writes provenance-bound planning facts.\nbite bench-import <folder> [--recursive] [--size 256] [--jobs N]\n  Measures scan plus cold/warm native thumbnail import.\nbite bench-workflow <workflow.bite> --overwrite [--iterations 2] [run flags]\n  Measures repeated native workflow throughput and process/cache counts.\nbite bench-cancel <workflow.bite> [--after-ms 250] [run flags]\n  Measures cooperative cancellation latency during a native workflow.\nbite inspect|validate <workflow.bite>\nbite validate-node <file>\nbite validate-format <file>\nbite validate-workflow <file>\nbite expr --params <json> <expression>\nbite schemas <directory>\nbite nodes|formats|version");
+        return Ok(());
+    }
+    if args[0] == "bench-cancel" {
+        if args.len() < 2 {
+            return Err(
+                "usage: bite bench-cancel <workflow.bite> [--after-ms 250] [run flags]".into(),
+            );
+        }
+        let mut options = bite_core::execution::RunOptions::default();
+        let mut after_ms = 250u64;
+        let mut i = 2;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--overwrite" => options.overwrite = true,
+                "--after-ms" | "--jobs" => {
+                    let flag = args[i].clone();
+                    i += 1;
+                    let value = args
+                        .get(i)
+                        .ok_or_else(|| format!("{flag} requires a value"))?;
+                    if flag == "--after-ms" {
+                        after_ms = value.parse().map_err(|_| "invalid --after-ms")?;
+                        if after_ms > 60_000 {
+                            return Err("--after-ms must be at most 60000".into());
+                        }
+                    } else {
+                        options.jobs = value.parse().map_err(|_| "invalid --jobs")?;
+                        if options.jobs == 0 || options.jobs > 256 {
+                            return Err("--jobs must be between 1 and 256".into());
+                        }
+                    }
+                }
+                flag if flag.starts_with("--") => {
+                    i += 1;
+                    let value = args
+                        .get(i)
+                        .ok_or_else(|| format!("{flag} requires a path"))?;
+                    let path = std::path::PathBuf::from(value);
+                    options.named_paths.insert(
+                        flag.trim_start_matches("--").into(),
+                        if path.is_absolute() {
+                            path
+                        } else {
+                            env::current_dir()
+                                .map_err(|error| error.to_string())?
+                                .join(path)
+                        },
+                    );
+                }
+                value => return Err(format!("Unexpected bench-cancel argument: {value}")),
+            }
+            i += 1;
+        }
+        let registry = load_registry()?;
+        let workflow = bite_core::workflow::load(
+            &fs::read_to_string(&args[1]).map_err(|error| error.to_string())?,
+            &registry,
+        )?;
+        let triggered = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let trigger_time = triggered.clone();
+        let cancelled = options.cancelled.clone();
+        let trigger = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(after_ms));
+            *trigger_time.lock().unwrap() = Some(Instant::now());
+            cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
+        });
+        let mut host = bite_imagemagick::Magick::discover(options.cancelled.clone());
+        let result = bite_core::execution::run_workflow(
+            &workflow.workflow.graph,
+            &registry,
+            &mut host,
+            &options,
+            &mut |_, _, _| {},
+        );
+        trigger.join().map_err(|_| "cancellation trigger failed")?;
+        let latency_ms = triggered
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(Instant::elapsed)
+            .unwrap_or_default()
+            .as_secs_f64()
+            * 1000.0;
+        if !result.is_err_and(|error| error == "Cancelled") {
+            return Err("workflow did not return the expected Cancelled result".into());
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "backend": "rust",
+                "after_ms": after_ms,
+                "cancellation_latency_ms": latency_ms,
+                "jobs": options.jobs,
+                "imagemagick_processes_started": host.processes,
+                "peak_child_memory_bytes": host.peak_child_memory_bytes(),
+            }))
+            .map_err(|error| error.to_string())?
+        );
         return Ok(());
     }
     if args[0] == "bench-workflow" {
@@ -73,6 +171,7 @@ fn run() -> Result<(), String> {
             let processes = host.processes;
             let hits = host.metadata_cache_stats.hits;
             let misses = host.metadata_cache_stats.misses;
+            host.reset_peak_child_memory();
             let started = Instant::now();
             let result = bite_core::execution::run_workflow(
                 &workflow.workflow.graph,
@@ -88,6 +187,7 @@ fn run() -> Result<(), String> {
                 "skipped": result.skipped,
                 "failed": result.failed,
                 "imagemagick_processes": host.processes - processes,
+                "peak_child_memory_bytes": host.peak_child_memory_bytes(),
                 "metadata_cache_hits": host.metadata_cache_stats.hits - hits,
                 "metadata_cache_misses": host.metadata_cache_stats.misses - misses,
             }));
@@ -161,11 +261,14 @@ fn run() -> Result<(), String> {
         let mut cache = bite_imagemagick::import::ThumbnailCache::new(cache_dir.clone());
         cache.jobs = jobs;
         let mut host = bite_imagemagick::Magick::discover(cancelled);
+        host.reset_peak_child_memory();
         let cold_started = Instant::now();
         let cold = cache.load_batch(&mut host, &paths, size)?;
         let cold_ms = cold_started.elapsed().as_secs_f64() * 1000.0;
         let cold_processes = host.processes;
+        let cold_peak_child_memory = host.peak_child_memory_bytes();
         let after_cold = cache.stats;
+        host.reset_peak_child_memory();
         let warm_started = Instant::now();
         let warm = cache.load_batch(&mut host, &paths, size)?;
         let warm_ms = warm_started.elapsed().as_secs_f64() * 1000.0;
@@ -182,6 +285,7 @@ fn run() -> Result<(), String> {
                     "elapsed_ms": cold_ms,
                     "images": cold.len(),
                     "processes": cold_processes,
+                    "peak_child_memory_bytes": cold_peak_child_memory,
                     "disk_hits": after_cold.disk_hits,
                     "disk_misses": after_cold.disk_misses,
                 },
@@ -189,6 +293,7 @@ fn run() -> Result<(), String> {
                     "elapsed_ms": warm_ms,
                     "images": warm.len(),
                     "processes": host.processes - cold_processes,
+                    "peak_child_memory_bytes": host.peak_child_memory_bytes(),
                     "memory_hits": cache.stats.memory_hits - after_cold.memory_hits,
                     "disk_hits": cache.stats.disk_hits - after_cold.disk_hits,
                 },

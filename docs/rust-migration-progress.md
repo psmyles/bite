@@ -32,7 +32,8 @@ usable until parity and cutover gates pass.
 - Phase 7: five-format header readers, operation fusion, per-process thread
   limits, progress, parallel scanning, metadata/thumbnail caches, batched
   thumbnails, configurable bounded workers and initial benchmark commands exist.
-  Node comparison, resource/cancellation metrics and the M3 benchmark gate remain.
+  **M3 passes on Windows:** Node comparison, peak process-tree memory,
+  cancellation latency and the 2,000-image import gate are recorded. macOS is pending.
 - Phase 8: pinned C++ submodules, owned C ABI/bindings, safe Rust wrapper and
   Winit/WGPU prototype compile on Windows. Offscreen rendering of 120 nodes,
   docking, inspector and uploaded preview/filmstrip textures was visually
@@ -61,12 +62,10 @@ A task heartbeat named `Continue BITE Rust migration` resumes work every 15
 minutes when eligible, from this log. Continue substantive implementation; do
 not treat this checkpoint as the completion of the migration.
 
-1. Implement the remaining Phase 7 performance services: thumbnails and caches,
-   parallel scanning, bounded configurable workers and batched spawning.
-2. Add reproducible import/workflow benchmarks and compare Node versus Rust on
-   deterministic fixtures and `test_images`; record macOS as pending.
-3. Keep the full GUI paused at the user's direction until backend work is done.
-4. Continue phases 9–13 in plan order. No cutover, release or legacy removal has
+1. Begin Phase 9 functional GUI integration from the accepted technical
+   prototype, calling `bite-core` directly and avoiding visual-polish work.
+2. Keep macOS M2/M3 and GUI platform checks explicitly pending.
+3. Continue phases 10–13 in plan order. No cutover, release or legacy removal has
    occurred. Work is on branch `rust-migration`; changes are not yet committed.
 
 ## Continuation 2026-09-19 — CLI edge cases
@@ -379,3 +378,29 @@ processes on the warm pass. Warm no-work CLI startup was 38–41 ms for Node and
 the small-workload startup/import/throughput harness item. Peak memory,
 cancellation latency, the approximately 2,000-image workload, and macOS remain
 before M3 can pass.
+
+## Continuation 2026-09-19 — M3 Windows gate complete
+
+The deterministic 2,000-image mixed-format import workload is derived from the
+checked-in `test_images`. Node completed cold/warm import in 22.07 s / 276 ms;
+Rust completed it in 18.01 s / 193 ms using 250 batched processes cold and zero
+warm. All 2,000 images were returned by both implementations.
+
+Added cooperative cancellation benchmarking. The first large-queue run exposed
+workers draining cancelled queue entries; workers now stop dequeuing immediately
+after cancellation. Five 2,000-image runs returned 9–43 ms after cancellation,
+with at most the eight already-running ImageMagick children needing termination.
+
+Windows process-tree sampling and native child working-set tracking now provide
+peak-memory evidence. In the final 26-image release matrix, Node used about
+2.66 GB at peak and completed in 1672–1725 ms; Rust used 1.31–1.39 GB and
+completed in 1858–1886 ms. Rust cold thumbnail import used about 338 MB. Startup,
+warm cache, import throughput, workflow throughput, process count, cache-hit
+rate, peak memory and cancellation latency are now tracked. The final report is
+`test-workflows/out/benchmark-2026-09-19T09-39-44-764Z/results.json`.
+
+Rust is faster for startup and import, uses roughly half the peak process-tree
+memory, and is 8–11% slower on the representative fast-path workflow. This is
+comparable with no major Windows regression, so M3 passes on Windows under the
+user's platform policy. macOS M2/M3 remains pending. The user's prototype review
+accepted the GUI direction; Phase 9 can proceed without further visual polish.

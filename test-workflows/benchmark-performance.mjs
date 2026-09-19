@@ -25,6 +25,29 @@ function invoke(executable, args) {
   return { elapsedMs, stdout: result.stdout, stderr: result.stderr };
 }
 
+function invokeMeasured(executable, args) {
+  if (process.platform !== 'win32') return invoke(executable, args);
+  const wrapper = invoke('powershell.exe', [
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    path.join(here, 'measure-windows-process.ps1'),
+    '-Executable',
+    executable,
+    '-CommandArgumentsBase64',
+    Buffer.from(JSON.stringify(args)).toString('base64'),
+  ]);
+  const measured = JSON.parse(wrapper.stdout.trim());
+  if (measured.exitCode !== 0) throw new Error(`${executable} failed (${measured.exitCode}):\n${measured.stderr}`);
+  return {
+    elapsedMs: measured.elapsedMs,
+    peakWorkingSetBytes: measured.peakWorkingSetBytes,
+    stdout: measured.stdout ?? '',
+    stderr: measured.stderr ?? '',
+  };
+}
+
 function files(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => entry.isFile()).length;
 }
@@ -49,7 +72,7 @@ for (const [name, executable, prefix] of [
   fs.mkdirSync(output, { recursive: true });
   report.workflowRuns[name] = [];
   for (let iteration = 1; iteration <= 2; iteration++) {
-    const run = invoke(executable, [
+    const run = invokeMeasured(executable, [
       ...prefix,
       'run',
       workflow,
@@ -60,7 +83,12 @@ for (const [name, executable, prefix] of [
       '--overwrite',
       ...(name === 'rust' ? ['--jobs', '8'] : []),
     ]);
-    report.workflowRuns[name].push({ iteration, elapsedMs: run.elapsedMs, outputFiles: files(output) });
+    report.workflowRuns[name].push({
+      iteration,
+      elapsedMs: run.elapsedMs,
+      peakWorkingSetBytes: run.peakWorkingSetBytes,
+      outputFiles: files(output),
+    });
   }
 }
 const reportPath = path.join(runRoot, 'results.json');
