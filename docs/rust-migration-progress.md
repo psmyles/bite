@@ -451,3 +451,19 @@ reruns the direct preview for the chosen source. The Phase 9 feature set is
 implemented. Its remaining exit gate is the interactive Windows
 create-preview-save-reopen-run sequence. Background runs display per-file
 progress and support cancellation. Visual polish remains intentionally deferred.
+
+## Continuation 2026-09-19 — Phase 9 acceptance fixes
+
+The first interactive review found that filmstrip selection appeared stuck,
+enum parameters were rendered as text boxes, and single-line text fields were
+incorrectly rendered as 100-pixel-high multiline controls with labels clipped
+at the panel edge. The ImGui wrapper now has native combo and checkbox controls,
+single-line text input and full-width item sizing. The inspector uses definition
+labels and enum options, and workflow paths use compact labeled fields.
+
+Filmstrip previews now use a texture id specific to the selected image and show
+the selected source path. Parameter changes also refresh the current preview
+without requiring another import. The functional smoke explicitly selects the
+second imported image; `test-workflows/out/native-functional-controls.png`
+shows that image in Preview and as the selected Filmstrip item, alongside the
+corrected Resize controls. Interactive confirmation remains the Phase 9 gate.

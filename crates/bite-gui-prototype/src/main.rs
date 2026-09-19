@@ -3,7 +3,7 @@ mod renderer;
 mod studio;
 use bite_core::execution::ImageHost;
 use bite_imgui::{Context, Key};
-use bite_schema::{BuiltinNodeKind, NodeKind, Position};
+use bite_schema::{BuiltinNodeKind, NodeKind, ParamType, Position, WidgetType};
 use renderer::Renderer;
 use std::{
     collections::BTreeMap,
@@ -36,6 +36,7 @@ struct Demo {
     technical_demo: bool,
     import_requested: bool,
     preview_requested: Option<usize>,
+    selected_image: usize,
     image_paths: Vec<PathBuf>,
     thumbnails: Vec<u64>,
     preview_texture: Option<u64>,
@@ -56,6 +57,25 @@ fn stable_id(text: &str) -> u64 {
         value = (value ^ u64::from(byte)).wrapping_mul(0x100000001b3);
     }
     value.max(1)
+}
+
+fn human_label(name: &str) -> String {
+    let name = name.trim_start_matches('_');
+    let mut label = String::new();
+    for (index, character) in name.chars().enumerate() {
+        if character == '_' {
+            label.push(' ');
+        } else {
+            if index > 0 && character.is_uppercase() {
+                label.push(' ');
+            }
+            label.push(character);
+        }
+    }
+    if let Some(first) = label.get_mut(0..1) {
+        first.make_ascii_uppercase();
+    }
+    label.replace("Cli ", "CLI ")
 }
 
 fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
@@ -180,6 +200,7 @@ impl Demo {
             technical_demo,
             import_requested: false,
             preview_requested: None,
+            selected_image: 0,
             image_paths: Vec::new(),
             thumbnails: Vec::new(),
             preview_texture: None,
@@ -232,8 +253,10 @@ impl Demo {
             None,
         )?;
         let (width, height, pixels) = decode_png(&preview.png)?;
-        renderer.texture(90, width, height, &pixels);
-        self.preview_texture = Some(90);
+        let texture = 1000 + index as u64;
+        renderer.texture(texture, width, height, &pixels);
+        self.preview_texture = Some(texture);
+        self.selected_image = index;
         self.resolved_values = preview.resolved_values;
         self.studio.status = format!("Previewing {}", image.display());
         Ok(())
@@ -255,7 +278,8 @@ impl Demo {
             technical_demo,
             import_requested,
             preview_requested,
-            image_paths: _,
+            selected_image,
+            image_paths,
             thumbnails,
             preview_texture,
             resolved_values,
@@ -292,7 +316,9 @@ impl Demo {
         let mut ui = frame.ui();
         ui.dockspace();
         ui.window("Workflow", |ui| {
-            ui.input_text("Workflow path", workflow_path);
+            ui.text("Workflow file");
+            ui.next_item_full_width();
+            ui.input_text("##workflow-path", workflow_path);
             if ui.button("Open") {
                 match Studio::open(
                     studio.registry.clone(),
@@ -311,8 +337,12 @@ impl Demo {
                     studio.status = format!("Save failed: {error}");
                 }
             }
-            ui.input_text("Input folder", input_path);
-            ui.input_text("Output folder", output_path);
+            ui.text("Input folder");
+            ui.next_item_full_width();
+            ui.input_text("##input-folder", input_path);
+            ui.text("Output folder");
+            ui.next_item_full_width();
+            ui.input_text("##output-folder", output_path);
             if ui.button("Import images") {
                 *import_requested = true;
                 studio.status = "Importing images…".into();
@@ -565,24 +595,106 @@ impl Demo {
                 ui.text(&format!("Definition: {}", node.data.definition_id));
                 let node_id = node.id.clone();
                 let params = node.data.params.clone();
-                for (name, value) in params {
+                let compiled_definition = studio.registry.nodes.get(&node.data.definition_id);
+                let definition_list = compiled_definition
+                    .map(|compiled| compiled.definition.params.clone())
+                    .unwrap_or_default();
+                let definitions: BTreeMap<_, _> = definition_list
+                    .iter()
+                    .map(|definition| (definition.name.clone(), definition.clone()))
+                    .collect();
+                let mut context = compiled_definition
+                    .map(|compiled| {
+                        bite_expr::definition::default_context(&compiled.definition.params)
+                    })
+                    .unwrap_or_default();
+                for (name, value) in &params {
+                    if let Some(value) = bite_expr::definition::to_value(value) {
+                        context.insert(name.clone(), value);
+                    }
+                }
+                let visible = |name: &str| {
+                    compiled_definition
+                        .and_then(|compiled| compiled.visible.get(name))
+                        .map(|expression| {
+                            expression
+                                .evaluate(&context)
+                                .map(|value| value.truthy())
+                                .unwrap_or(true)
+                        })
+                        .unwrap_or(true)
+                };
+                let mut parameter_names: Vec<_> = definition_list
+                    .iter()
+                    .map(|definition| definition.name.clone())
+                    .filter(|name| params.contains_key(name) && visible(name))
+                    .collect();
+                parameter_names.extend(
+                    params
+                        .keys()
+                        .filter(|name| !definitions.contains_key(*name))
+                        .cloned(),
+                );
+                for name in parameter_names {
+                    let Some(value) = params.get(&name).cloned() else {
+                        continue;
+                    };
+                    let definition = definitions.get(&name);
+                    let fallback_label = human_label(&name);
+                    let label = definition
+                        .map(|definition| definition.label.as_str())
+                        .filter(|label| !label.is_empty())
+                        .unwrap_or(&fallback_label);
+                    let control_id = format!("##{node_id}-{name}");
                     let changed = match value {
                         bite_schema::ParamValue::Number(number) => {
                             let mut edited = number as f32;
-                            ui.drag_float(&name, &mut edited)
+                            ui.text(label);
+                            ui.next_item_full_width();
+                            ui.drag_float(&control_id, &mut edited)
                                 .then_some(bite_schema::ParamValue::Number(f64::from(edited)))
                         }
                         bite_schema::ParamValue::Int(number) => {
                             let mut edited = number as f32;
-                            ui.drag_float(&name, &mut edited)
+                            ui.text(label);
+                            ui.next_item_full_width();
+                            ui.drag_float(&control_id, &mut edited)
                                 .then_some(bite_schema::ParamValue::Int(edited.round() as i64))
                         }
-                        bite_schema::ParamValue::String(mut text) => ui
-                            .input_text(&name, &mut text)
-                            .then_some(bite_schema::ParamValue::String(text)),
-                        bite_schema::ParamValue::Bool(value) => ui
-                            .button(&format!("{name}: {value}"))
-                            .then_some(bite_schema::ParamValue::Bool(!value)),
+                        bite_schema::ParamValue::String(text)
+                            if definition.is_some_and(|definition| {
+                                definition.kind == ParamType::Enum
+                                    || definition.widget == Some(WidgetType::Dropdown)
+                            }) =>
+                        {
+                            let definition = definition.expect("guarded above");
+                            let mut selected = definition
+                                .options
+                                .iter()
+                                .position(|option| option == &text)
+                                .unwrap_or(0);
+                            let displayed = if definition.labels.len() == definition.options.len() {
+                                definition.labels.clone()
+                            } else {
+                                definition.options.clone()
+                            };
+                            ui.text(label);
+                            ui.next_item_full_width();
+                            ui.combo(&control_id, &mut selected, &displayed).then(|| {
+                                bite_schema::ParamValue::String(
+                                    definition.options[selected].clone(),
+                                )
+                            })
+                        }
+                        bite_schema::ParamValue::String(mut text) => {
+                            ui.text(label);
+                            ui.next_item_full_width();
+                            ui.input_text(&control_id, &mut text)
+                                .then_some(bite_schema::ParamValue::String(text))
+                        }
+                        bite_schema::ParamValue::Bool(mut value) => ui
+                            .checkbox(label, &mut value)
+                            .then_some(bite_schema::ParamValue::Bool(value)),
                         other => {
                             ui.text(&format!("{name}: {other:?}"));
                             None
@@ -594,7 +706,8 @@ impl Demo {
                             .params
                             .insert(name, value);
                         studio.dirty = true;
-                        studio.status = "Parameter changed; import again to refresh preview".into();
+                        *preview_requested = Some(*selected_image);
+                        studio.status = "Parameter changed; refreshing preview…".into();
                     }
                 }
                 if let Some(values) = resolved_values.get(&node_id) {
@@ -626,6 +739,9 @@ impl Demo {
             } else {
                 thumbnails.clone()
             };
+            if let Some(path) = image_paths.get(*selected_image) {
+                ui.text(&format!("Selected: {}", path.display()));
+            }
             for (index, texture) in displayed.into_iter().enumerate() {
                 if ui.image_button(&format!("filmstrip-{index}"), texture, 64., 64.)
                     && index < thumbnails.len()
@@ -898,11 +1014,24 @@ fn smoke(path: &str, workflow: Option<&str>, import_folder: Option<&str>) -> Res
             PathBuf::from(workflow).as_path(),
         )?;
         demo.workflow_path = workflow.into();
+        if let Some(node) = demo
+            .studio
+            .workflow
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.data.definition_id == "resize")
+        {
+            demo.selected = stable_id(&format!("node:{}", node.id));
+        }
         demo.frames = 0;
     }
     if let Some(import_folder) = import_folder {
         demo.input_path = import_folder.into();
         demo.import_images(&mut renderer)?;
+        if demo.image_paths.len() > 1 {
+            demo.refresh_preview(&mut renderer, 1)?;
+        }
     }
     let (width, height) = (1600, 1000);
     let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {

@@ -99,7 +99,10 @@ void bite_end(){ImGui::End();}
 void bite_text(const char* s){ImGui::TextUnformatted(s);}
 int bite_button(const char* s){return ImGui::Button(s);}
 int bite_drag_float(const char* s,float* v){return ImGui::DragFloat(s,v,0.1f);}
-int bite_input_text(const char* s,char* data,size_t size){return ImGui::InputTextMultiline(s,data,size,ImVec2(-1,100));}
+int bite_input_text(const char* s,char* data,size_t size){return ImGui::InputText(s,data,size);}
+int bite_checkbox(const char* s,int* value){bool checked=*value!=0;bool changed=ImGui::Checkbox(s,&checked);*value=checked?1:0;return changed;}
+int bite_combo(const char* s,int* current,const char* items){return ImGui::Combo(s,current,items);}
+void bite_next_item_full_width(){ImGui::SetNextItemWidth(-FLT_MIN);}
 void bite_image(uint64_t id,float w,float h){ImGui::Image((ImTextureID)(uintptr_t)id,ImVec2(w,h));}
 int bite_image_button(const char* id,uint64_t texture,float w,float h){return ImGui::ImageButton(id,(ImTextureID)(uintptr_t)texture,ImVec2(w,h));}
 void bite_same_line(){ImGui::SameLine();}

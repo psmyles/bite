@@ -306,6 +306,32 @@ impl Ui<'_> {
         }
         changed
     }
+    pub fn checkbox(&mut self, label: &str, value: &mut bool) -> bool {
+        let mut raw = i32::from(*value);
+        let changed = unsafe { sys::bite_checkbox(c(label).as_ptr(), &mut raw) != 0 };
+        *value = raw != 0;
+        changed
+    }
+    pub fn combo(&mut self, label: &str, current: &mut usize, items: &[String]) -> bool {
+        if items.is_empty() {
+            return false;
+        }
+        let mut encoded = Vec::new();
+        for item in items {
+            encoded.extend(item.bytes().filter(|byte| *byte != 0));
+            encoded.push(0);
+        }
+        encoded.push(0);
+        let mut selected = (*current).min(items.len() - 1) as i32;
+        let changed = unsafe {
+            sys::bite_combo(c(label).as_ptr(), &mut selected, encoded.as_ptr().cast()) != 0
+        };
+        *current = (selected as usize).min(items.len() - 1);
+        changed
+    }
+    pub fn next_item_full_width(&mut self) {
+        unsafe { sys::bite_next_item_full_width() }
+    }
     pub fn image(&mut self, id: u64, width: f32, height: f32) {
         unsafe { sys::bite_image(id, width, height) }
     }

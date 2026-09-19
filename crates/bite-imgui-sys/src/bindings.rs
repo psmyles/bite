@@ -110,6 +110,18 @@ unsafe extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
+    pub fn bite_checkbox(
+        label: *const ::std::os::raw::c_char,
+        value: *mut ::std::os::raw::c_int,
+    ) -> ::std::os::raw::c_int;
+    pub fn bite_combo(
+        label: *const ::std::os::raw::c_char,
+        current: *mut ::std::os::raw::c_int,
+        items: *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+    pub fn bite_next_item_full_width();
+}
+unsafe extern "C" {
     pub fn bite_image(texture: u64, width: f32, height: f32);
     pub fn bite_image_button(
         id: *const ::std::os::raw::c_char,

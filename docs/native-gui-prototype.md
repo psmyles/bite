@@ -55,6 +55,8 @@ for the selected node.
 The Inspector edits scalar, integer, string and Boolean workflow parameters and
 shows resolved pure-value outputs. Clicking a Filmstrip thumbnail reruns the
 direct preview for that source. Structured and vector editors remain Phase 10.
+Enum parameters use definition-backed combo boxes, Boolean parameters use
+checkboxes, and text/path values use labeled single-line controls.
 
 The remaining Phase 9 Windows acceptance is an interactive pass:
 
