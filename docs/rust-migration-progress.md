@@ -39,10 +39,11 @@ usable until parity and cutover gates pass.
   docking, inspector and uploaded preview/filmstrip textures was visually
   verified on an RTX 4080. Interaction/DPI/IME acceptance remains pending; see
   `docs/native-gui-prototype.md` for commands and the exact remaining checks.
-- Phase 9: functional native GUI implementation complete; real workflow open/save, graph,
+- Phase 9: **Windows gate passed**; real workflow open/save, graph,
   library, image import/filmstrip, direct transformed preview and background
   execution/progress/cancellation and basic editable inspector controls exist.
-  The interactive Windows exit-gate sequence remains.
+  The user confirmed a workflow runs through the native GUI; automated coverage
+  supplies save/reopen and zero-pixel-difference CLI comparison evidence.
 - Phases 10–13: pending; Electron remains intact.
 - macOS automated, GUI, packaging, and clean-machine checks: pending.
 - Windows GUI, mixed-DPI/IME, packaging, and clean-machine checks: pending.
@@ -62,17 +63,14 @@ the runner regenerates deterministic fixtures. macOS remains pending.
 
 ## Next work and continuation
 
-A task heartbeat named `Continue BITE Rust migration` resumes work every 15
-minutes when eligible, from this log. Continue substantive implementation; do
-not treat this checkpoint as the completion of the migration.
+Use this log as the continuation checkpoint; do not treat it as completion of
+the migration.
 
-1. Complete the Phase 9 interactive Windows acceptance sequence documented in
-   `docs/native-gui-prototype.md`; the automated studio, preview and run paths
-   are implemented and verified.
+1. Begin Phase 10 with an explicit Electron/native editor-parity inventory, then
+   implement the shared undoable editing foundation and graph interactions.
 2. Keep macOS M2/M3 and GUI platform checks explicitly pending.
-3. After the Phase 9 gate passes, continue phases 10–13 in plan order. No
-   cutover, release or legacy removal has occurred. Work is on branch
-   `rust-migration`.
+3. Continue phases 10–13 in plan order. No cutover, release or legacy removal
+   has occurred. Work is on branch `rust-migration`.
 
 ## Continuation 2026-09-19 — CLI edge cases
 
@@ -466,4 +464,15 @@ the selected source path. Parameter changes also refresh the current preview
 without requiring another import. The functional smoke explicitly selects the
 second imported image; `test-workflows/out/native-functional-controls.png`
 shows that image in Preview and as the selected Filmstrip item, alongside the
-corrected Resize controls. Interactive confirmation remains the Phase 9 gate.
+corrected Resize controls. This prepared the corrected build for interactive
+confirmation.
+
+## Continuation 2026-09-19 — Phase 9 Windows gate passed
+
+The user confirmed that a workflow runs through the native GUI after the
+acceptance fixes. Together with automated workflow creation, save/reopen,
+transformed preview, 26-image execution and zero-pixel-difference CLI comparison,
+this satisfies the Phase 9 Windows exit gate. The current interface remains a
+technical functional shell; Electron-level editor organization, interaction
+flow and daily-use behavior are the explicit scope of Phase 10. macOS Phase 9
+execution remains pending under the user's platform policy.
