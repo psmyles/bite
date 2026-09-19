@@ -1,0 +1,69 @@
+{
+  "aliases": [
+    "edge detect",
+    "border",
+    "stroke",
+    "dilation"
+  ],
+  "category": "FX",
+  "description": "Add a solid-color border around transparent sprite edges using alpha channel dilation",
+  "id": "outline",
+  "implementation": {
+    "args": [
+      "(",
+      "+clone",
+      "-alpha",
+      "extract",
+      "-morphology",
+      "Dilate",
+      {
+        "expr": "format('Disk:{}', size)"
+      },
+      "-background",
+      {
+        "expr": "str(color)"
+      },
+      "-alpha",
+      "Shape",
+      ")",
+      "+swap",
+      "-composite"
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Outline",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 2,
+      "label": "Size",
+      "max": 50,
+      "min": 1,
+      "name": "size",
+      "type": "int",
+      "widget": "slider"
+    },
+    {
+      "default": "#000000",
+      "label": "Color",
+      "name": "color",
+      "type": "color",
+      "widget": "color-picker"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

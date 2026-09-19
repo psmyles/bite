@@ -1,0 +1,48 @@
+{
+  "aliases": [
+    "hue shift",
+    "hue rotate",
+    "color shift"
+  ],
+  "category": "Color",
+  "description": "Shift the hue of an image",
+  "icon": "palette",
+  "id": "hue_offset",
+  "implementation": {
+    "args": [
+      "-modulate",
+      {
+        "expr": "format('100,100,{}', 100 + hue / 1.8)"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Hue Offset",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 0,
+      "label": "Hue Shift",
+      "max": 180,
+      "min": -180,
+      "name": "hue",
+      "type": "int",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

@@ -1,0 +1,50 @@
+{
+  "aliases": [
+    "export format",
+    "change format",
+    "file format"
+  ],
+  "category": "Output",
+  "description": "Convert image to a different file format",
+  "icon": "file-output",
+  "id": "format_convert",
+  "implementation": {
+    "executor": "format_convert",
+    "type": "native"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Convert Format",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": "PNG",
+      "label": "Format",
+      "name": "format",
+      "options": [
+        "PNG",
+        "JPEG",
+        "WEBP",
+        "TIFF",
+        "AVIF",
+        "BMP",
+        "TGA"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

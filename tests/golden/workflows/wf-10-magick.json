@@ -1,0 +1,15 @@
+[
+  [
+    "montage",
+    "<run>/fixtures/flip/fb_a_red.png",
+    "<run>/fixtures/flip/fb_b_green.png",
+    "<run>/fixtures/flip/fb_c_blue.png",
+    "-tile",
+    "2x2",
+    "-geometry",
+    "64x64!+0+0",
+    "-background",
+    "#ff00ffff",
+    "<run>/wf-10/atlas.png"
+  ]
+]

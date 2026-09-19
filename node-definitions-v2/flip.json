@@ -1,0 +1,50 @@
+{
+  "aliases": [
+    "mirror",
+    "reflect",
+    "horizontal flip",
+    "vertical flip"
+  ],
+  "category": "Transform",
+  "description": "Mirror the image horizontally or vertically",
+  "icon": "flip-horizontal",
+  "id": "flip",
+  "implementation": {
+    "args": [
+      {
+        "expr": "if(axis == 'vertical', '-flip', '-flop')"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Flip",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": "horizontal",
+      "label": "Axis",
+      "name": "axis",
+      "options": [
+        "horizontal",
+        "vertical"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

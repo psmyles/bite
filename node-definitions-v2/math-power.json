@@ -1,0 +1,40 @@
+{
+  "category": "Math",
+  "description": "Base ^ Exponent",
+  "id": "math_power",
+  "implementation": {
+    "outputs": {
+      "result": "pow(base, exponent)"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Power",
+  "outputs": [],
+  "params": [
+    {
+      "default": 2,
+      "label": "Base",
+      "name": "base",
+      "type": "numeric",
+      "widget": "number"
+    },
+    {
+      "default": 2,
+      "label": "Exponent",
+      "name": "exponent",
+      "type": "float",
+      "widget": "number"
+    },
+    {
+      "default": 4,
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "numeric",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

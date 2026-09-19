@@ -1,0 +1,79 @@
+{
+  "category": "Values",
+  "description": "Outputs a constant RGBA color with individual channel outputs",
+  "id": "value_color",
+  "implementation": {
+    "outputs": {
+      "a": "color.w",
+      "b": "color.z",
+      "g": "color.y",
+      "r": "color.x",
+      "rgb": "vec3(color.x,color.y,color.z)",
+      "rgba": "vec4(color.x,color.y,color.z,color.w)"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Color",
+  "outputs": [],
+  "params": [
+    {
+      "default": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "label": "Color",
+      "name": "color",
+      "noPort": true,
+      "step": 0.01,
+      "type": "color",
+      "widget": "vector"
+    },
+    {
+      "label": "RGBA",
+      "name": "rgba",
+      "portOnly": true,
+      "readonly": true,
+      "type": "color"
+    },
+    {
+      "label": "RGB",
+      "name": "rgb",
+      "portOnly": true,
+      "readonly": true,
+      "type": "vector3"
+    },
+    {
+      "label": "R",
+      "name": "r",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "G",
+      "name": "g",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "B",
+      "name": "b",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "A",
+      "name": "a",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

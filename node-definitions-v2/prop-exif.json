@@ -1,0 +1,98 @@
+{
+  "category": "Properties",
+  "description": "Outputs EXIF metadata from the current image",
+  "id": "prop_exif",
+  "implementation": {
+    "outputs": {
+      "aperture": "if(bool(rational(image.exif.FNumber)), rational(image.exif.FNumber), rational(image.exif.ApertureValue))",
+      "camera_make": "image.exif.Make",
+      "camera_model": "image.exif.Model",
+      "date_taken": "image.exif.DateTimeOriginal",
+      "exposure_time": "image.exif.ExposureTime",
+      "focal_length": "rational(image.exif.FocalLength)",
+      "iso": "if(bool(parse_int(image.exif.PhotographicSensitivity)), parse_int(image.exif.PhotographicSensitivity), parse_int(image.exif.ISOSpeedRatings))",
+      "lens": "if(bool(image.exif.LensModel), image.exif.LensModel, image.exif.LensMake)",
+      "shutter_speed": "image.exif.ShutterSpeedValue"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "EXIF",
+  "outputs": [],
+  "params": [
+    {
+      "default": "",
+      "label": "Camera Make",
+      "name": "camera_make",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    },
+    {
+      "default": "",
+      "label": "Camera Model",
+      "name": "camera_model",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    },
+    {
+      "default": "",
+      "label": "Lens",
+      "name": "lens",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    },
+    {
+      "default": "",
+      "label": "Exposure Time",
+      "name": "exposure_time",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    },
+    {
+      "default": "",
+      "label": "Shutter Speed",
+      "name": "shutter_speed",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    },
+    {
+      "default": 0,
+      "label": "Aperture",
+      "name": "aperture",
+      "readonly": true,
+      "type": "float",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "ISO",
+      "name": "iso",
+      "readonly": true,
+      "type": "int",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "Focal Length",
+      "name": "focal_length",
+      "readonly": true,
+      "type": "float",
+      "widget": "number"
+    },
+    {
+      "default": "",
+      "label": "Date Taken",
+      "name": "date_taken",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

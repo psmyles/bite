@@ -1,0 +1,95 @@
+{
+  "definition": {
+    "id": "premultiply-alpha",
+    "version": "1.0.0",
+    "label": "Premultiply Alpha",
+    "description": "Associate (premultiply) or Disassociate (un-premultiply) alpha for correct compositing in game engines",
+    "aliases": [
+      "premultiply",
+      "alpha premult",
+      "straight alpha",
+      "unpremultiply"
+    ],
+    "category": "Channels",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "mode",
+        "label": "Mode",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "premultiply",
+        "options": [
+          "premultiply",
+          "unpremultiply"
+        ],
+        "labels": [
+          "Premultiply (Associate)",
+          "Un-premultiply (Disassociate)"
+        ]
+      }
+    ],
+    "command_js": "return ['-alpha', params.mode === 'premultiply' ? 'Associate' : 'Disassociate']"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "mode": "premultiply"
+      },
+      "expected_args": [
+        "-alpha",
+        "Associate"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-alpha",
+        "Disassociate"
+      ]
+    },
+    {
+      "name": "mode-0",
+      "params": {
+        "mode": "premultiply"
+      },
+      "expected_args": [
+        "-alpha",
+        "Associate"
+      ]
+    },
+    {
+      "name": "mode-1",
+      "params": {
+        "mode": "unpremultiply"
+      },
+      "expected_args": [
+        "-alpha",
+        "Disassociate"
+      ]
+    },
+    {
+      "name": "mode-2",
+      "params": {
+        "mode": "__invalid__"
+      },
+      "expected_args": [
+        "-alpha",
+        "Disassociate"
+      ]
+    }
+  ]
+}

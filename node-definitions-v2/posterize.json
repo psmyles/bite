@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "id": "posterize",
+  "version": "1.0.0",
+  "label": "Posterize",
+  "category": "Color",
+  "inputs": [{ "name": "input", "type": "image", "label": "Input" }],
+  "outputs": [{ "name": "output", "type": "image", "label": "Output" }],
+  "params": [{ "name": "levels", "label": "Levels", "type": "int", "widget": "slider", "default": 4, "min": 2, "max": 256 }],
+  "implementation": { "type": "imagemagick", "args": ["-posterize", { "expr": "levels" }] }
+}

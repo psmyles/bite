@@ -1,0 +1,47 @@
+{
+  "aliases": [
+    "separate channels",
+    "extract channels",
+    "unpack channels"
+  ],
+  "category": "Channels",
+  "description": "Splits an image into its R, G, B, and A channels as separate grayscale images",
+  "id": "channel_split",
+  "implementation": {
+    "executor": "channel_split",
+    "type": "native"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Split Channels",
+  "outputs": [
+    {
+      "label": "R",
+      "name": "r",
+      "type": "image"
+    },
+    {
+      "label": "G",
+      "name": "g",
+      "type": "image"
+    },
+    {
+      "label": "B",
+      "name": "b",
+      "type": "image"
+    },
+    {
+      "label": "A",
+      "name": "a",
+      "type": "image"
+    }
+  ],
+  "params": [],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

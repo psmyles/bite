@@ -1,0 +1,24 @@
+{
+  "category": "Values",
+  "description": "Outputs a constant text string",
+  "id": "value_string",
+  "implementation": {
+    "outputs": {},
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "String",
+  "outputs": [],
+  "params": [
+    {
+      "default": "",
+      "label": "Value",
+      "name": "value",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

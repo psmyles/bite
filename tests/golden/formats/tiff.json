@@ -1,0 +1,122 @@
+{
+  "definition": {
+    "id": "TIFF",
+    "extension": ".tif",
+    "params": [
+      {
+        "name": "tiff_compression",
+        "label": "Compression",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "LZW",
+        "options": [
+          "LZW",
+          "ZIP",
+          "JPEG",
+          "PackBits",
+          "None"
+        ]
+      }
+    ],
+    "args_js": "return ['-compress',String(params.tiff_compression??'LZW')];"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "tiff_compression": "LZW"
+      },
+      "expected_args": [
+        "-compress",
+        "LZW"
+      ],
+      "expected_extension": ".tif"
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-compress",
+        "LZW"
+      ],
+      "expected_extension": ".tif"
+    },
+    {
+      "name": "tiff_compression-0",
+      "params": {
+        "tiff_compression": "LZW"
+      },
+      "expected_args": [
+        "-compress",
+        "LZW"
+      ],
+      "expected_extension": ".tif"
+    },
+    {
+      "name": "tiff_compression-1",
+      "params": {
+        "tiff_compression": "ZIP"
+      },
+      "expected_args": [
+        "-compress",
+        "ZIP"
+      ],
+      "expected_extension": ".tif"
+    },
+    {
+      "name": "tiff_compression-2",
+      "params": {
+        "tiff_compression": "JPEG"
+      },
+      "expected_args": [
+        "-compress",
+        "JPEG"
+      ],
+      "expected_extension": ".tif"
+    },
+    {
+      "name": "tiff_compression-3",
+      "params": {
+        "tiff_compression": "PackBits"
+      },
+      "expected_args": [
+        "-compress",
+        "PackBits"
+      ],
+      "expected_extension": ".tif"
+    },
+    {
+      "name": "tiff_compression-4",
+      "params": {
+        "tiff_compression": "None"
+      },
+      "expected_args": [
+        "-compress",
+        "None"
+      ],
+      "expected_extension": ".tif"
+    },
+    {
+      "name": "tiff_compression-5",
+      "params": {
+        "tiff_compression": "__invalid__"
+      },
+      "expected_args": [
+        "-compress",
+        "__invalid__"
+      ],
+      "expected_extension": ".tif"
+    },
+    {
+      "name": "legacy-quality",
+      "params": {
+        "quality": 42
+      },
+      "expected_args": [
+        "-compress",
+        "LZW"
+      ],
+      "expected_extension": ".tif"
+    }
+  ]
+}

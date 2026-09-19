@@ -1,0 +1,54 @@
+{
+  "aliases": [
+    "premultiply",
+    "alpha premult",
+    "straight alpha",
+    "unpremultiply"
+  ],
+  "category": "Channels",
+  "description": "Associate (premultiply) or Disassociate (un-premultiply) alpha for correct compositing in game engines",
+  "id": "premultiply-alpha",
+  "implementation": {
+    "args": [
+      "-alpha",
+      {
+        "expr": "if(mode == 'premultiply', 'Associate', 'Disassociate')"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Premultiply Alpha",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": "premultiply",
+      "label": "Mode",
+      "labels": [
+        "Premultiply (Associate)",
+        "Un-premultiply (Disassociate)"
+      ],
+      "name": "mode",
+      "options": [
+        "premultiply",
+        "unpremultiply"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

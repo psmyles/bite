@@ -1,0 +1,50 @@
+{
+  "category": "Math",
+  "description": "Linear interpolation: A + (B - A) * T",
+  "id": "math_lerp",
+  "implementation": {
+    "outputs": {
+      "result": "lerp(a, b, t)"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Lerp",
+  "outputs": [],
+  "params": [
+    {
+      "default": 0,
+      "label": "A",
+      "name": "a",
+      "type": "numeric",
+      "widget": "number"
+    },
+    {
+      "default": 1,
+      "label": "B",
+      "name": "b",
+      "type": "numeric",
+      "widget": "number"
+    },
+    {
+      "default": 0.5,
+      "label": "T",
+      "max": 1,
+      "min": 0,
+      "name": "t",
+      "step": 0.01,
+      "type": "float",
+      "widget": "slider"
+    },
+    {
+      "default": 0.5,
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "numeric",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

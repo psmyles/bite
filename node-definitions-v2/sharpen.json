@@ -1,0 +1,59 @@
+{
+  "aliases": [
+    "unsharp mask",
+    "crisp",
+    "detail"
+  ],
+  "category": "Filters",
+  "description": "Apply unsharp mask sharpening",
+  "icon": "zap",
+  "id": "sharpen",
+  "implementation": {
+    "args": [
+      "-unsharp",
+      {
+        "expr": "format(\"0x{}+{}\", sigma, amount)"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Sharpen",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 1,
+      "label": "Radius",
+      "max": 10,
+      "min": 0.1,
+      "name": "sigma",
+      "step": 0.1,
+      "type": "float",
+      "widget": "slider"
+    },
+    {
+      "default": 1,
+      "label": "Amount",
+      "max": 5,
+      "min": 0,
+      "name": "amount",
+      "step": 0.1,
+      "type": "float",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

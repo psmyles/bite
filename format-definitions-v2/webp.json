@@ -1,0 +1,56 @@
+{
+  "args": [
+    {
+      "args": [
+        "-define",
+        "webp:lossless=true"
+      ],
+      "when": "webp_lossless"
+    },
+    {
+      "args": [
+        "-quality",
+        {
+          "expr": "webp_quality"
+        }
+      ],
+      "when": "!webp_lossless"
+    },
+    "-define",
+    {
+      "expr": "format('webp:method={}',webp_method)"
+    }
+  ],
+  "extension": ".webp",
+  "id": "WEBP",
+  "params": [
+    {
+      "default": false,
+      "label": "Lossless",
+      "name": "webp_lossless",
+      "type": "bool",
+      "widget": "checkbox"
+    },
+    {
+      "default": 85,
+      "label": "Quality",
+      "max": 100,
+      "min": 1,
+      "name": "webp_quality",
+      "type": "int",
+      "visible_when": "webp_lossless == false",
+      "widget": "slider"
+    },
+    {
+      "default": 4,
+      "label": "Method (0 = fast, 6 = best)",
+      "max": 6,
+      "min": 0,
+      "name": "webp_method",
+      "type": "int",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

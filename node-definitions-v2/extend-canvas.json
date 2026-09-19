@@ -1,0 +1,130 @@
+{
+  "aliases": [
+    "pad",
+    "add border",
+    "expand canvas",
+    "margin"
+  ],
+  "category": "Transform",
+  "description": "Add transparent padding to each side of the image independently",
+  "id": "extend-canvas",
+  "implementation": {
+    "args": [
+      {
+        "args": [
+          "-gravity",
+          "West",
+          "-background",
+          "none",
+          "-splice",
+          {
+            "expr": "format('{}x0', left)"
+          }
+        ],
+        "when": "left > 0"
+      },
+      {
+        "args": [
+          "-gravity",
+          "East",
+          "-background",
+          "none",
+          "-splice",
+          {
+            "expr": "format('{}x0', right)"
+          }
+        ],
+        "when": "right > 0"
+      },
+      {
+        "args": [
+          "-gravity",
+          "North",
+          "-background",
+          "none",
+          "-splice",
+          {
+            "expr": "format('0x{}', top)"
+          }
+        ],
+        "when": "top > 0"
+      },
+      {
+        "args": [
+          "-gravity",
+          "South",
+          "-background",
+          "none",
+          "-splice",
+          {
+            "expr": "format('0x{}', bottom)"
+          }
+        ],
+        "when": "bottom > 0"
+      },
+      {
+        "args": [
+          "-gravity",
+          "NorthWest"
+        ],
+        "when": "left > 0 || right > 0 || top > 0 || bottom > 0"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Extend Canvas",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 0,
+      "label": "Top",
+      "max": 2048,
+      "min": 0,
+      "name": "top",
+      "type": "int",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "Right",
+      "max": 2048,
+      "min": 0,
+      "name": "right",
+      "type": "int",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "Bottom",
+      "max": 2048,
+      "min": 0,
+      "name": "bottom",
+      "type": "int",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "Left",
+      "max": 2048,
+      "min": 0,
+      "name": "left",
+      "type": "int",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

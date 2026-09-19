@@ -1,0 +1,275 @@
+{
+  "definition": {
+    "id": "text_filter",
+    "version": "1.0.0",
+    "label": "Text Filter",
+    "description": "Tests a string against prefix, suffix, and contains conditions. Outputs true when all non-empty conditions match. Wire a Name or Path property node to the Input port.",
+    "category": "Logic",
+    "inputs": [],
+    "outputs": [],
+    "executor": "text_filter",
+    "params": [
+      {
+        "name": "input",
+        "label": "Input",
+        "type": "string",
+        "widget": "text",
+        "default": ""
+      },
+      {
+        "name": "prefix",
+        "label": "Prefix",
+        "type": "string",
+        "widget": "text",
+        "default": ""
+      },
+      {
+        "name": "suffix",
+        "label": "Suffix",
+        "type": "string",
+        "widget": "text",
+        "default": ""
+      },
+      {
+        "name": "contains",
+        "label": "Contains",
+        "type": "string",
+        "widget": "text",
+        "default": ""
+      },
+      {
+        "name": "match_case",
+        "label": "Match Case",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": true
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "result": true
+      }
+    },
+    {
+      "name": "input-0",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": true
+      }
+    },
+    {
+      "name": "input-1",
+      "params": {
+        "input": "a b \"quoted\"",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "a b \"quoted\"",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": true
+      }
+    },
+    {
+      "name": "prefix-0",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": true
+      }
+    },
+    {
+      "name": "prefix-1",
+      "params": {
+        "input": "",
+        "prefix": "a b \"quoted\"",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "a b \"quoted\"",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      }
+    },
+    {
+      "name": "suffix-0",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": true
+      }
+    },
+    {
+      "name": "suffix-1",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "a b \"quoted\"",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "a b \"quoted\"",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      }
+    },
+    {
+      "name": "contains-0",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": true
+      }
+    },
+    {
+      "name": "contains-1",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "a b \"quoted\"",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "a b \"quoted\"",
+        "match_case": false,
+        "result": false
+      }
+    },
+    {
+      "name": "match_case-0",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": false,
+        "result": true
+      }
+    },
+    {
+      "name": "match_case-1",
+      "params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": true,
+        "result": false
+      },
+      "expected_params": {
+        "input": "",
+        "prefix": "",
+        "suffix": "",
+        "contains": "",
+        "match_case": true,
+        "result": true
+      }
+    }
+  ]
+}

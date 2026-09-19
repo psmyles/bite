@@ -1,0 +1,40 @@
+{
+  "category": "Source",
+  "description": "Groups filmstrip images by naming convention (prefix + middle name + suffixes) and outputs each suffix image as a separate port.",
+  "id": "process_as_set",
+  "implementation": {
+    "executor": "process_as_set",
+    "type": "native"
+  },
+  "inputs": [
+    {
+      "label": "Images",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Process As Set",
+  "outputs": [],
+  "params": [
+    {
+      "default": "",
+      "label": "Prefix",
+      "name": "prefix",
+      "noPort": true,
+      "type": "string",
+      "widget": "text"
+    },
+    {
+      "default": {
+        "suffixes": [],
+        "type": "set_suffixes"
+      },
+      "label": "Suffixes",
+      "name": "suffixes",
+      "noPort": true,
+      "type": "set_suffixes"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

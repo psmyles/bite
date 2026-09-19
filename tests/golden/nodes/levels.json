@@ -1,0 +1,263 @@
+{
+  "definition": {
+    "id": "levels",
+    "version": "1.0.0",
+    "label": "Levels",
+    "description": "Adjust black point, white point, and gamma",
+    "aliases": [
+      "curves",
+      "white point",
+      "black point",
+      "input output levels"
+    ],
+    "category": "Color",
+    "icon": "sliders",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "black_point",
+        "label": "Black Point",
+        "type": "float",
+        "widget": "slider",
+        "default": 0,
+        "min": 0,
+        "max": 99,
+        "step": 0.5
+      },
+      {
+        "name": "white_point",
+        "label": "White Point",
+        "type": "float",
+        "widget": "slider",
+        "default": 100,
+        "min": 1,
+        "max": 100,
+        "step": 0.5
+      },
+      {
+        "name": "gamma",
+        "label": "Gamma",
+        "type": "float",
+        "widget": "slider",
+        "default": 1,
+        "min": 0.1,
+        "max": 10,
+        "step": 0.1
+      }
+    ],
+    "command_template": "-level {{black_point}}%,{{white_point}}%,{{gamma}}"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,1"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-level",
+        "0%,100%,1"
+      ]
+    },
+    {
+      "name": "black_point-0",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,1"
+      ]
+    },
+    {
+      "name": "black_point-1",
+      "params": {
+        "black_point": -1,
+        "white_point": 100,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "-1%,100%,1"
+      ]
+    },
+    {
+      "name": "black_point-2",
+      "params": {
+        "black_point": 0.5,
+        "white_point": 100,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0.5%,100%,1"
+      ]
+    },
+    {
+      "name": "black_point-3",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,1"
+      ]
+    },
+    {
+      "name": "black_point-4",
+      "params": {
+        "black_point": 99,
+        "white_point": 100,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "99%,100%,1"
+      ]
+    },
+    {
+      "name": "white_point-0",
+      "params": {
+        "black_point": 0,
+        "white_point": 0,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0%,0%,1"
+      ]
+    },
+    {
+      "name": "white_point-1",
+      "params": {
+        "black_point": 0,
+        "white_point": -1,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0%,-1%,1"
+      ]
+    },
+    {
+      "name": "white_point-2",
+      "params": {
+        "black_point": 0,
+        "white_point": 0.5,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0%,0.5%,1"
+      ]
+    },
+    {
+      "name": "white_point-3",
+      "params": {
+        "black_point": 0,
+        "white_point": 1,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0%,1%,1"
+      ]
+    },
+    {
+      "name": "white_point-4",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": 1
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,1"
+      ]
+    },
+    {
+      "name": "gamma-0",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": 0
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,0"
+      ]
+    },
+    {
+      "name": "gamma-1",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": -1
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,-1"
+      ]
+    },
+    {
+      "name": "gamma-2",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": 0.5
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,0.5"
+      ]
+    },
+    {
+      "name": "gamma-3",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": 0.1
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,0.1"
+      ]
+    },
+    {
+      "name": "gamma-4",
+      "params": {
+        "black_point": 0,
+        "white_point": 100,
+        "gamma": 10
+      },
+      "expected_args": [
+        "-level",
+        "0%,100%,10"
+      ]
+    }
+  ]
+}

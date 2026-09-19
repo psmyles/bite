@@ -1,0 +1,26 @@
+{
+  "category": "Properties",
+  "description": "Outputs the file type extension of the current image",
+  "id": "prop_filetype",
+  "implementation": {
+    "outputs": {
+      "value": "image.extension"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "File Type",
+  "outputs": [],
+  "params": [
+    {
+      "default": "",
+      "label": "Extension",
+      "name": "value",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

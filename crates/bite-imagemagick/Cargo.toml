@@ -1,0 +1,9 @@
+[package]
+name = "bite-imagemagick"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bite-core.workspace = true
+bite-expr.workspace = true

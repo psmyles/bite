@@ -1,0 +1,53 @@
+{
+  "args": [
+    "-quality",
+    {
+      "expr": "jpeg_quality"
+    },
+    "-sampling-factor",
+    {
+      "expr": "jpeg_sampling"
+    },
+    {
+      "args": [
+        "-interlace",
+        "Plane"
+      ],
+      "when": "jpeg_progressive"
+    }
+  ],
+  "extension": ".jpg",
+  "id": "JPEG",
+  "params": [
+    {
+      "default": 85,
+      "label": "Quality",
+      "max": 100,
+      "min": 1,
+      "name": "jpeg_quality",
+      "type": "int",
+      "widget": "slider"
+    },
+    {
+      "default": "4:2:0",
+      "label": "Chroma Subsampling",
+      "name": "jpeg_sampling",
+      "options": [
+        "4:4:4",
+        "4:2:2",
+        "4:2:0"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    },
+    {
+      "default": false,
+      "label": "Progressive",
+      "name": "jpeg_progressive",
+      "type": "bool",
+      "widget": "checkbox"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

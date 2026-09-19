@@ -1,0 +1,29 @@
+{
+  "category": "Utility",
+  "description": "Outputs a folder path. Connect to the Output node's folder port to set the output destination.",
+  "id": "folderpath",
+  "implementation": {
+    "outputs": {},
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Folder Path",
+  "outputs": [
+    {
+      "label": "folder",
+      "name": "output",
+      "type": "path"
+    }
+  ],
+  "params": [
+    {
+      "default": "",
+      "label": "Folder",
+      "name": "folderPath",
+      "noPort": true,
+      "type": "string"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0"
+}

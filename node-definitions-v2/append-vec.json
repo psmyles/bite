@@ -1,0 +1,66 @@
+{
+  "category": "Utility",
+  "description": "Combines float components into a vector",
+  "id": "append_vec",
+  "implementation": {
+    "outputs": {
+      "result": "if(int(dimensions) == 2, vec2(x,y), if(int(dimensions) == 3, vec3(x,y,z), vec4(x,y,z,w)))"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Append",
+  "outputs": [],
+  "params": [
+    {
+      "default": 0,
+      "label": "X",
+      "name": "x",
+      "type": "float",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "Y",
+      "name": "y",
+      "type": "float",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "Z",
+      "name": "z",
+      "type": "float",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "W",
+      "name": "w",
+      "type": "float",
+      "widget": "number"
+    },
+    {
+      "default": "4",
+      "label": "Dimensions",
+      "name": "dimensions",
+      "options": [
+        "2",
+        "3",
+        "4"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    },
+    {
+      "default": 0,
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "numeric",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

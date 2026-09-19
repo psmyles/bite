@@ -11,3 +11,6 @@ node_modules/
 release/
 test_images/
 unity-tools/
+tests/golden/**/*.json
+crates/**/vendor/**
+target/**

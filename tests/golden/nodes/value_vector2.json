@@ -1,0 +1,125 @@
+{
+  "definition": {
+    "id": "value_vector2",
+    "version": "1.0.0",
+    "label": "Vector 2",
+    "description": "Outputs a constant Vector2 (X, Y)",
+    "category": "Values",
+    "inputs": [],
+    "outputs": [],
+    "executor": "value_vector2",
+    "params": [
+      {
+        "name": "vec",
+        "label": "Vector",
+        "type": "vector2",
+        "widget": "vector",
+        "default": [
+          0,
+          0
+        ],
+        "noPort": true
+      },
+      {
+        "name": "xy",
+        "label": "XY",
+        "type": "vector2",
+        "readonly": true,
+        "portOnly": true
+      },
+      {
+        "name": "x",
+        "label": "X",
+        "type": "float",
+        "readonly": true,
+        "portOnly": true
+      },
+      {
+        "name": "y",
+        "label": "Y",
+        "type": "float",
+        "readonly": true,
+        "portOnly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "vec": [
+          0,
+          0
+        ]
+      },
+      "expected_params": {
+        "vec": [
+          0,
+          0
+        ],
+        "xy": [
+          0,
+          0
+        ],
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "xy": [
+          0,
+          0
+        ],
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "name": "vec-0",
+      "params": {
+        "vec": [
+          0,
+          0
+        ]
+      },
+      "expected_params": {
+        "vec": [
+          0,
+          0
+        ],
+        "xy": [
+          0,
+          0
+        ],
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "name": "vec-1",
+      "params": {
+        "vec": [
+          3,
+          0,
+          4
+        ]
+      },
+      "expected_params": {
+        "vec": [
+          3,
+          0,
+          4
+        ],
+        "xy": [
+          3,
+          0
+        ],
+        "x": 3,
+        "y": 0
+      }
+    }
+  ]
+}

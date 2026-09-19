@@ -1,0 +1,26 @@
+{
+  "category": "Properties",
+  "description": "Outputs the bit depth of the current image",
+  "id": "prop_bitdepth",
+  "implementation": {
+    "outputs": {
+      "value": "image.bit_depth"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Bit Depth",
+  "outputs": [],
+  "params": [
+    {
+      "default": 0,
+      "label": "Bit Depth",
+      "name": "value",
+      "readonly": true,
+      "type": "int",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

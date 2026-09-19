@@ -1,0 +1,54 @@
+{
+  "aliases": [
+    "desaturate",
+    "black and white",
+    "greyscale",
+    "monochrome"
+  ],
+  "category": "Color",
+  "description": "Convert image to grayscale",
+  "icon": "circle-half",
+  "id": "grayscale",
+  "implementation": {
+    "args": [
+      "-grayscale",
+      {
+        "expr": "method"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Grayscale",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": "Rec709Luminance",
+      "label": "Method",
+      "name": "method",
+      "options": [
+        "Rec709Luminance",
+        "Rec601Luminance",
+        "Average",
+        "RMS",
+        "Brightness"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

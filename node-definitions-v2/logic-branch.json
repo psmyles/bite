@@ -1,0 +1,41 @@
+{
+  "category": "Logic",
+  "description": "Outputs If True when Condition is true, otherwise If False",
+  "id": "logic_branch",
+  "implementation": {
+    "outputs": {
+      "result": "if(condition, value_true, value_false)"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Branch",
+  "outputs": [],
+  "params": [
+    {
+      "default": false,
+      "label": "Condition",
+      "name": "condition",
+      "type": "bool",
+      "widget": "checkbox"
+    },
+    {
+      "label": "If True",
+      "name": "value_true",
+      "type": "value"
+    },
+    {
+      "label": "If False",
+      "name": "value_false",
+      "type": "value"
+    },
+    {
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "value"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

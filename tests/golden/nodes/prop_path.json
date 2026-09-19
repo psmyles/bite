@@ -1,0 +1,185 @@
+{
+  "definition": {
+    "id": "prop_path",
+    "version": "1.0.0",
+    "label": "Path",
+    "description": "Outputs the file path of the current image",
+    "category": "Properties",
+    "inputs": [],
+    "outputs": [],
+    "executor": "prop_path",
+    "needs_image_meta": true,
+    "params": [
+      {
+        "name": "value",
+        "label": "Path",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      },
+      {
+        "name": "strip_filename",
+        "label": "Folder Only",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false,
+        "noPort": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "value": "",
+        "strip_filename": false
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "value": "/fixtures/photo.test.png",
+        "strip_filename": false
+      }
+    },
+    {
+      "name": "defaults-no-meta",
+      "params": {
+        "value": "",
+        "strip_filename": false
+      },
+      "expected_params": {
+        "value": "",
+        "strip_filename": false
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "value": "/fixtures/photo.test.png"
+      }
+    },
+    {
+      "name": "missing-no-meta",
+      "params": {},
+      "expected_params": {
+        "value": ""
+      }
+    },
+    {
+      "name": "strip_filename-0",
+      "params": {
+        "value": "",
+        "strip_filename": false
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "value": "/fixtures/photo.test.png",
+        "strip_filename": false
+      }
+    },
+    {
+      "name": "strip_filename-0-no-meta",
+      "params": {
+        "value": "",
+        "strip_filename": false
+      },
+      "expected_params": {
+        "value": "",
+        "strip_filename": false
+      }
+    },
+    {
+      "name": "strip_filename-1",
+      "params": {
+        "value": "",
+        "strip_filename": true
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "value": "/fixtures",
+        "strip_filename": true
+      }
+    },
+    {
+      "name": "strip_filename-1-no-meta",
+      "params": {
+        "value": "",
+        "strip_filename": true
+      },
+      "expected_params": {
+        "value": ".",
+        "strip_filename": true
+      }
+    }
+  ]
+}

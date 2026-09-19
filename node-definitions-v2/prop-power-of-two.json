@@ -1,0 +1,44 @@
+{
+  "category": "Properties",
+  "description": "Returns true if both image dimensions are powers of two (1, 2, 4, 8, 16, ... 4096, etc.)",
+  "id": "prop_power_of_two",
+  "implementation": {
+    "outputs": {
+      "height_ok": "power_of_two(image.height)",
+      "result": "power_of_two(image.width) && power_of_two(image.height)",
+      "width_ok": "power_of_two(image.width)"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Power of Two",
+  "outputs": [],
+  "params": [
+    {
+      "default": false,
+      "label": "Width PoT",
+      "name": "width_ok",
+      "readonly": true,
+      "type": "bool",
+      "widget": "checkbox"
+    },
+    {
+      "default": false,
+      "label": "Height PoT",
+      "name": "height_ok",
+      "readonly": true,
+      "type": "bool",
+      "widget": "checkbox"
+    },
+    {
+      "default": false,
+      "label": "Both PoT",
+      "name": "result",
+      "readonly": true,
+      "type": "bool",
+      "widget": "checkbox"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

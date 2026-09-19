@@ -1,0 +1,48 @@
+{
+  "aliases": [
+    "mask",
+    "black white cutoff",
+    "binary"
+  ],
+  "category": "Color",
+  "description": "Convert to a pure black-and-white mask by cutting at a percentage brightness level",
+  "id": "threshold",
+  "implementation": {
+    "args": [
+      "-threshold",
+      {
+        "expr": "format(\"{}%\", value)"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Threshold",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 50,
+      "label": "Threshold",
+      "max": 100,
+      "min": 0,
+      "name": "value",
+      "step": 1,
+      "type": "float",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

@@ -1,0 +1,60 @@
+{
+  "category": "Transform",
+  "description": "Resize with nearest-neighbor (Point) filter - no interpolation or blurring, ideal for pixel art",
+  "id": "resize-nn",
+  "implementation": {
+    "args": [
+      "-filter",
+      "Point",
+      "-resize",
+      {
+        "expr": "format('{}x{}{}', width, height, if(ignore_aspect, '!', ''))"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Resize (Nearest Neighbor)",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 64,
+      "label": "Width",
+      "max": 16384,
+      "min": 1,
+      "name": "width",
+      "type": "int",
+      "widget": "number"
+    },
+    {
+      "default": 64,
+      "label": "Height",
+      "max": 16384,
+      "min": 1,
+      "name": "height",
+      "type": "int",
+      "widget": "number"
+    },
+    {
+      "default": true,
+      "label": "Ignore Aspect Ratio",
+      "name": "ignore_aspect",
+      "type": "bool",
+      "widget": "checkbox"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

@@ -1,0 +1,71 @@
+{
+  "definition": {
+    "id": "TGA",
+    "extension": ".tga",
+    "params": [
+      {
+        "name": "tga_rle",
+        "label": "RLE Compression",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": true
+      }
+    ],
+    "args_js": "return ['-compress',params.tga_rle!==false?'RLE':'None'];"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "tga_rle": true
+      },
+      "expected_args": [
+        "-compress",
+        "RLE"
+      ],
+      "expected_extension": ".tga"
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-compress",
+        "RLE"
+      ],
+      "expected_extension": ".tga"
+    },
+    {
+      "name": "tga_rle-0",
+      "params": {
+        "tga_rle": false
+      },
+      "expected_args": [
+        "-compress",
+        "None"
+      ],
+      "expected_extension": ".tga"
+    },
+    {
+      "name": "tga_rle-1",
+      "params": {
+        "tga_rle": true
+      },
+      "expected_args": [
+        "-compress",
+        "RLE"
+      ],
+      "expected_extension": ".tga"
+    },
+    {
+      "name": "legacy-quality",
+      "params": {
+        "quality": 42
+      },
+      "expected_args": [
+        "-compress",
+        "RLE"
+      ],
+      "expected_extension": ".tga"
+    }
+  ]
+}

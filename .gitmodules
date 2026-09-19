@@ -1,0 +1,6 @@
+[submodule "crates/bite-imgui-sys/vendor/cimgui"]
+	path = crates/bite-imgui-sys/vendor/cimgui
+	url = https://github.com/cimgui/cimgui.git
+[submodule "crates/bite-imgui-sys/vendor/imgui-node-editor"]
+	path = crates/bite-imgui-sys/vendor/imgui-node-editor
+	url = https://github.com/thedmd/imgui-node-editor.git

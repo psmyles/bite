@@ -1,0 +1,50 @@
+{
+  "aliases": [
+    "autocrop",
+    "trim transparent",
+    "crop alpha"
+  ],
+  "category": "Transform",
+  "description": "Auto-crop to the tight bounding box by removing transparent or near-transparent border pixels",
+  "id": "trim-alpha",
+  "implementation": {
+    "args": [
+      "-fuzz",
+      {
+        "expr": "format(\"{}%\", fuzz)"
+      },
+      "-trim",
+      "+repage"
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Trim Alpha",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 0,
+      "label": "Fuzz",
+      "max": 50,
+      "min": 0,
+      "name": "fuzz",
+      "step": 0.5,
+      "type": "float",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

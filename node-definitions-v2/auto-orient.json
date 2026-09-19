@@ -1,0 +1,34 @@
+{
+  "aliases": [
+    "fix rotation",
+    "exif rotate",
+    "correct orientation"
+  ],
+  "category": "Transform",
+  "description": "Apply the EXIF rotation tag to physically rotate the image, then strip the tag",
+  "id": "auto-orient",
+  "implementation": {
+    "args": [
+      "-auto-orient"
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Auto Orient",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

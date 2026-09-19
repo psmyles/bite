@@ -1,0 +1,69 @@
+{
+  "definition": {
+    "id": "process_as_set",
+    "label": "Process As Set",
+    "category": "Source",
+    "description": "Groups filmstrip images by naming convention (prefix + middle name + suffixes) and outputs each suffix image as a separate port.",
+    "inputs": [
+      {
+        "name": "images",
+        "label": "Images",
+        "type": "image"
+      }
+    ],
+    "outputs": [],
+    "executor": "process_as_set",
+    "params": [
+      {
+        "name": "prefix",
+        "label": "Prefix",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "noPort": true
+      },
+      {
+        "name": "suffixes",
+        "label": "Suffixes",
+        "type": "any",
+        "default": [],
+        "noPort": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "prefix": "",
+        "suffixes": []
+      },
+      "native_executor": "process_as_set",
+      "expected_args": []
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "native_executor": "process_as_set",
+      "expected_args": []
+    },
+    {
+      "name": "prefix-0",
+      "params": {
+        "prefix": "",
+        "suffixes": []
+      },
+      "native_executor": "process_as_set",
+      "expected_args": []
+    },
+    {
+      "name": "prefix-1",
+      "params": {
+        "prefix": "a b \"quoted\"",
+        "suffixes": []
+      },
+      "native_executor": "process_as_set",
+      "expected_args": []
+    }
+  ]
+}

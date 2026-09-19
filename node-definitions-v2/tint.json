@@ -1,0 +1,58 @@
+{
+  "aliases": [
+    "colorize",
+    "color overlay",
+    "hue tint"
+  ],
+  "category": "Color",
+  "description": "Blend a solid color over the image at a given strength using colorize",
+  "id": "tint",
+  "implementation": {
+    "args": [
+      "-fill",
+      {
+        "expr": "color"
+      },
+      "-colorize",
+      {
+        "expr": "amount"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Tint",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": "#ff0000",
+      "label": "Color",
+      "name": "color",
+      "type": "color",
+      "widget": "color-picker"
+    },
+    {
+      "default": 50,
+      "label": "Amount",
+      "max": 100,
+      "min": 0,
+      "name": "amount",
+      "type": "int",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

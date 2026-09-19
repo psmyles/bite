@@ -1,0 +1,60 @@
+{
+  "aliases": [
+    "spin",
+    "turn",
+    "orientation"
+  ],
+  "category": "Transform",
+  "description": "Rotate image by an arbitrary angle",
+  "icon": "rotate-cw",
+  "id": "rotate",
+  "implementation": {
+    "args": [
+      "-background",
+      {
+        "expr": "background"
+      },
+      "-rotate",
+      {
+        "expr": "angle"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Rotate",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 0,
+      "label": "Angle (deg)",
+      "max": 360,
+      "min": -360,
+      "name": "angle",
+      "step": 0.5,
+      "type": "float",
+      "widget": "slider"
+    },
+    {
+      "default": "#000000",
+      "label": "Background Color",
+      "name": "background",
+      "type": "color",
+      "widget": "color-picker"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

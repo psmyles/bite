@@ -1,0 +1,31 @@
+{
+  "category": "Logic",
+  "description": "NOT A",
+  "id": "logic_not",
+  "implementation": {
+    "outputs": {
+      "result": "!bool(a)"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Not",
+  "outputs": [],
+  "params": [
+    {
+      "label": "A",
+      "name": "a",
+      "type": "value"
+    },
+    {
+      "default": true,
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "bool",
+      "widget": "checkbox"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

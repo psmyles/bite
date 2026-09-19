@@ -1,0 +1,34 @@
+{
+  "aliases": [
+    "average brightness",
+    "luminance",
+    "image average"
+  ],
+  "category": "Math",
+  "description": "Outputs the mean (average) pixel value of the input channel on a scale of 0.0 to 1.0.",
+  "id": "mean_value",
+  "implementation": {
+    "executor": "mean_value",
+    "type": "native"
+  },
+  "inputs": [
+    {
+      "label": "Channel",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Mean Value",
+  "outputs": [],
+  "params": [
+    {
+      "default": 0,
+      "label": "Value",
+      "name": "value",
+      "readonly": true,
+      "type": "float"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

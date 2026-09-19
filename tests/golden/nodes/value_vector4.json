@@ -1,0 +1,161 @@
+{
+  "definition": {
+    "id": "value_vector4",
+    "version": "1.0.0",
+    "label": "Vector 4",
+    "description": "Outputs a constant Vector4 (X, Y, Z, W)",
+    "category": "Values",
+    "inputs": [],
+    "outputs": [],
+    "executor": "value_vector4",
+    "params": [
+      {
+        "name": "vec",
+        "label": "Vector",
+        "type": "vector4",
+        "widget": "vector",
+        "default": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "noPort": true
+      },
+      {
+        "name": "xyzw",
+        "label": "XYZW",
+        "type": "vector4",
+        "readonly": true,
+        "portOnly": true
+      },
+      {
+        "name": "x",
+        "label": "X",
+        "type": "float",
+        "readonly": true,
+        "portOnly": true
+      },
+      {
+        "name": "y",
+        "label": "Y",
+        "type": "float",
+        "readonly": true,
+        "portOnly": true
+      },
+      {
+        "name": "z",
+        "label": "Z",
+        "type": "float",
+        "readonly": true,
+        "portOnly": true
+      },
+      {
+        "name": "w",
+        "label": "W",
+        "type": "float",
+        "readonly": true,
+        "portOnly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "vec": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "expected_params": {
+        "vec": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "xyzw": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "xyzw": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "vec-0",
+      "params": {
+        "vec": [
+          0,
+          0
+        ]
+      },
+      "expected_params": {
+        "vec": [
+          0,
+          0
+        ],
+        "xyzw": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "vec-1",
+      "params": {
+        "vec": [
+          3,
+          0,
+          4
+        ]
+      },
+      "expected_params": {
+        "vec": [
+          3,
+          0,
+          4
+        ],
+        "xyzw": [
+          3,
+          0,
+          4,
+          0
+        ],
+        "x": 3,
+        "y": 0,
+        "z": 4,
+        "w": 0
+      }
+    }
+  ]
+}

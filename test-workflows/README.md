@@ -8,6 +8,12 @@ workflow through the CLI, and asserts the outputs.
 
 ## How to run
 
+The migration's portable runner is `npm run test:workflows` (Node + ImageMagick,
+Windows or macOS). It builds just the CLI and injects all fixture output paths
+into a fresh run directory. Results are saved under `test-workflows/out/`.
+See `tests/golden/README.md` for reference regeneration and Rust CLI comparison.
+The PowerShell runner below is retained for existing manual GUI checks.
+
 ```powershell
 # Full suite: generate fixtures, run all workflows via CLI, assert outputs
 .\test-workflows\run-tests.ps1

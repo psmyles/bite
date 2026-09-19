@@ -1,0 +1,76 @@
+{
+  "aliases": [
+    "cut",
+    "slice",
+    "region"
+  ],
+  "category": "Transform",
+  "description": "Crop a rectangular region from the image",
+  "icon": "crop",
+  "id": "crop",
+  "implementation": {
+    "args": [
+      "-crop",
+      {
+        "expr": "format(\"{}x{}+{}+{}\", width, height, x, y)"
+      },
+      "+repage"
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Crop",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 1024,
+      "label": "Width",
+      "max": 16384,
+      "min": 1,
+      "name": "width",
+      "type": "int",
+      "widget": "slider"
+    },
+    {
+      "default": 1024,
+      "label": "Height",
+      "max": 16384,
+      "min": 1,
+      "name": "height",
+      "type": "int",
+      "widget": "slider"
+    },
+    {
+      "default": 0,
+      "label": "X Offset",
+      "max": 16384,
+      "min": 0,
+      "name": "x",
+      "type": "int",
+      "widget": "slider"
+    },
+    {
+      "default": 0,
+      "label": "Y Offset",
+      "max": 16384,
+      "min": 0,
+      "name": "y",
+      "type": "int",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

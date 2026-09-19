@@ -1,0 +1,70 @@
+{
+  "aliases": [
+    "curves",
+    "white point",
+    "black point",
+    "input output levels"
+  ],
+  "category": "Color",
+  "description": "Adjust black point, white point, and gamma",
+  "icon": "sliders",
+  "id": "levels",
+  "implementation": {
+    "args": [
+      "-level",
+      {
+        "expr": "format(\"{}%,{}%,{}\", black_point, white_point, gamma)"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Levels",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 0,
+      "label": "Black Point",
+      "max": 99,
+      "min": 0,
+      "name": "black_point",
+      "step": 0.5,
+      "type": "float",
+      "widget": "slider"
+    },
+    {
+      "default": 100,
+      "label": "White Point",
+      "max": 100,
+      "min": 1,
+      "name": "white_point",
+      "step": 0.5,
+      "type": "float",
+      "widget": "slider"
+    },
+    {
+      "default": 1,
+      "label": "Gamma",
+      "max": 10,
+      "min": 0.1,
+      "name": "gamma",
+      "step": 0.1,
+      "type": "float",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

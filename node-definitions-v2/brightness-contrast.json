@@ -1,0 +1,56 @@
+{
+  "aliases": [
+    "exposure",
+    "levels adjustment"
+  ],
+  "category": "Color",
+  "description": "Adjust image brightness and contrast",
+  "icon": "sun",
+  "id": "brightness_contrast",
+  "implementation": {
+    "args": [
+      "-brightness-contrast",
+      {
+        "expr": "format(\"{}x{}\", brightness, contrast)"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Brightness / Contrast",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 0,
+      "label": "Brightness",
+      "max": 100,
+      "min": -100,
+      "name": "brightness",
+      "type": "int",
+      "widget": "slider"
+    },
+    {
+      "default": 0,
+      "label": "Contrast",
+      "max": 100,
+      "min": -100,
+      "name": "contrast",
+      "type": "int",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

@@ -1,0 +1,458 @@
+{
+  "definition": {
+    "id": "math_lerp",
+    "version": "1.0.0",
+    "label": "Lerp",
+    "description": "Linear interpolation: A + (B - A) * T",
+    "category": "Math",
+    "inputs": [],
+    "outputs": [],
+    "executor": "math_lerp",
+    "params": [
+      {
+        "name": "a",
+        "label": "A",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "b",
+        "label": "B",
+        "type": "numeric",
+        "widget": "number",
+        "default": 1
+      },
+      {
+        "name": "t",
+        "label": "T",
+        "type": "float",
+        "widget": "slider",
+        "default": 0.5,
+        "min": 0,
+        "max": 1,
+        "step": 0.01
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0.5,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "a": 0,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "result": 0
+      }
+    },
+    {
+      "name": "a-0",
+      "params": {
+        "a": 0,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      }
+    },
+    {
+      "name": "a-1",
+      "params": {
+        "a": -1,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": -1,
+        "b": 1,
+        "t": 0.5,
+        "result": 0
+      }
+    },
+    {
+      "name": "a-2",
+      "params": {
+        "a": 0.5,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0.5,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.75
+      }
+    },
+    {
+      "name": "a-3",
+      "params": {
+        "a": [
+          0,
+          0
+        ],
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": [
+          0,
+          0
+        ],
+        "b": 1,
+        "t": 0.5,
+        "result": [
+          0.5,
+          0.5
+        ]
+      }
+    },
+    {
+      "name": "a-4",
+      "params": {
+        "a": [
+          3,
+          0,
+          4
+        ],
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": [
+          3,
+          0,
+          4
+        ],
+        "b": 1,
+        "t": 0.5,
+        "result": [
+          2,
+          0.5,
+          2.5
+        ]
+      }
+    },
+    {
+      "name": "a-5",
+      "params": {
+        "a": [
+          2
+        ],
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": [
+          2
+        ],
+        "b": 1,
+        "t": 0.5,
+        "result": [
+          1.5
+        ]
+      }
+    },
+    {
+      "name": "b-0",
+      "params": {
+        "a": 0,
+        "b": 0,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 0,
+        "t": 0.5,
+        "result": 0
+      }
+    },
+    {
+      "name": "b-1",
+      "params": {
+        "a": 0,
+        "b": -1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": -1,
+        "t": 0.5,
+        "result": -0.5
+      }
+    },
+    {
+      "name": "b-2",
+      "params": {
+        "a": 0,
+        "b": 0.5,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 0.5,
+        "t": 0.5,
+        "result": 0.25
+      }
+    },
+    {
+      "name": "b-3",
+      "params": {
+        "a": 0,
+        "b": [
+          0,
+          0
+        ],
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": [
+          0,
+          0
+        ],
+        "t": 0.5,
+        "result": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "b-4",
+      "params": {
+        "a": 0,
+        "b": [
+          3,
+          0,
+          4
+        ],
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": [
+          3,
+          0,
+          4
+        ],
+        "t": 0.5,
+        "result": [
+          1.5,
+          0,
+          2
+        ]
+      }
+    },
+    {
+      "name": "b-5",
+      "params": {
+        "a": 0,
+        "b": [
+          2
+        ],
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": [
+          2
+        ],
+        "t": 0.5,
+        "result": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "t-0",
+      "params": {
+        "a": 0,
+        "b": 1,
+        "t": 0,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 1,
+        "t": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "t-1",
+      "params": {
+        "a": 0,
+        "b": 1,
+        "t": -1,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 1,
+        "t": -1,
+        "result": -1
+      }
+    },
+    {
+      "name": "t-2",
+      "params": {
+        "a": 0,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 1,
+        "t": 0.5,
+        "result": 0.5
+      }
+    },
+    {
+      "name": "t-3",
+      "params": {
+        "a": 0,
+        "b": 1,
+        "t": 0,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 1,
+        "t": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "t-4",
+      "params": {
+        "a": 0,
+        "b": 1,
+        "t": 1,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 1,
+        "t": 1,
+        "result": 1
+      }
+    },
+    {
+      "name": "broadcast-19",
+      "params": {
+        "a": [
+          1,
+          2,
+          3
+        ],
+        "b": [
+          4
+        ],
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": [
+          1,
+          2,
+          3
+        ],
+        "b": [
+          4
+        ],
+        "t": 0.5,
+        "result": [
+          2.5,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "name": "broadcast-20",
+      "params": {
+        "a": 2,
+        "b": [
+          3,
+          4
+        ],
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": 2,
+        "b": [
+          3,
+          4
+        ],
+        "t": 0.5,
+        "result": [
+          2.5,
+          3
+        ]
+      }
+    },
+    {
+      "name": "broadcast-21",
+      "params": {
+        "a": [
+          1,
+          0
+        ],
+        "b": 0,
+        "t": 0.5,
+        "result": 0.5
+      },
+      "expected_params": {
+        "a": [
+          1,
+          0
+        ],
+        "b": 0,
+        "t": 0.5,
+        "result": [
+          0.5,
+          0
+        ]
+      }
+    }
+  ]
+}

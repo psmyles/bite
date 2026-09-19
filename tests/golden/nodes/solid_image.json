@@ -1,0 +1,90 @@
+{
+  "definition": {
+    "id": "solid_image",
+    "version": "1.0.0",
+    "label": "Solid Image",
+    "description": "Outputs a solid grayscale image with uniform brightness, sized to match the workflow input",
+    "aliases": [
+      "fill",
+      "flat color",
+      "constant color"
+    ],
+    "category": "Channels",
+    "inputs": [],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "value",
+        "label": "Value",
+        "type": "float",
+        "widget": "slider",
+        "default": 1,
+        "min": 0,
+        "max": 1,
+        "step": 0.01
+      }
+    ],
+    "executor": "solid_image"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "value": 1
+      },
+      "native_executor": "solid_image",
+      "expected_args": []
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "native_executor": "solid_image",
+      "expected_args": []
+    },
+    {
+      "name": "value-0",
+      "params": {
+        "value": 0
+      },
+      "native_executor": "solid_image",
+      "expected_args": []
+    },
+    {
+      "name": "value-1",
+      "params": {
+        "value": -1
+      },
+      "native_executor": "solid_image",
+      "expected_args": []
+    },
+    {
+      "name": "value-2",
+      "params": {
+        "value": 0.5
+      },
+      "native_executor": "solid_image",
+      "expected_args": []
+    },
+    {
+      "name": "value-3",
+      "params": {
+        "value": 0
+      },
+      "native_executor": "solid_image",
+      "expected_args": []
+    },
+    {
+      "name": "value-4",
+      "params": {
+        "value": 1
+      },
+      "native_executor": "solid_image",
+      "expected_args": []
+    }
+  ]
+}

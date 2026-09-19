@@ -1,0 +1,52 @@
+{
+  "category": "Values",
+  "description": "Outputs a constant Vector2 (X, Y)",
+  "id": "value_vector2",
+  "implementation": {
+    "outputs": {
+      "x": "vec.x",
+      "xy": "vec2(vec.x,vec.y)",
+      "y": "vec.y"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Vector 2",
+  "outputs": [],
+  "params": [
+    {
+      "default": [
+        0,
+        0
+      ],
+      "label": "Vector",
+      "name": "vec",
+      "noPort": true,
+      "type": "vector2",
+      "widget": "vector"
+    },
+    {
+      "label": "XY",
+      "name": "xy",
+      "portOnly": true,
+      "readonly": true,
+      "type": "vector2"
+    },
+    {
+      "label": "X",
+      "name": "x",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "Y",
+      "name": "y",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

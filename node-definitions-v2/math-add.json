@@ -1,0 +1,40 @@
+{
+  "category": "Math",
+  "description": "A + B",
+  "id": "math_add",
+  "implementation": {
+    "outputs": {
+      "result": "a + b"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Add",
+  "outputs": [],
+  "params": [
+    {
+      "default": 0,
+      "label": "A",
+      "name": "a",
+      "type": "numeric",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "B",
+      "name": "b",
+      "type": "numeric",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "numeric",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

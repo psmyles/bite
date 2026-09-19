@@ -1,0 +1,30 @@
+{
+  "source_sha256": "677ae160e2cb13cf98a9a076c10002e867694443154ace55ea0c048766e57893",
+  "nodes": 3,
+  "edges": 2,
+  "execution_order": [
+    "input-1",
+    "color-1",
+    "flipbook-1"
+  ],
+  "outputs": [
+    {
+      "id": "flipbook-1",
+      "input": "input-1",
+      "contributors": [
+        "flipbook-1",
+        "input-1",
+        "color-1"
+      ]
+    }
+  ],
+  "descendants": [
+    {
+      "id": "input-1",
+      "nodes": [
+        "input-1",
+        "flipbook-1"
+      ]
+    }
+  ]
+}

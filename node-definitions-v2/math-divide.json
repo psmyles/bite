@@ -1,0 +1,40 @@
+{
+  "category": "Math",
+  "description": "A / B (returns 0 when B = 0)",
+  "id": "math_divide",
+  "implementation": {
+    "outputs": {
+      "result": "a / b"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Divide",
+  "outputs": [],
+  "params": [
+    {
+      "default": 1,
+      "label": "A",
+      "name": "a",
+      "type": "numeric",
+      "widget": "number"
+    },
+    {
+      "default": 1,
+      "label": "B",
+      "name": "b",
+      "type": "numeric",
+      "widget": "number"
+    },
+    {
+      "default": 1,
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "numeric",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

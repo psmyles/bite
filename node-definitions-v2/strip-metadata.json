@@ -1,0 +1,34 @@
+{
+  "aliases": [
+    "remove exif",
+    "clean metadata",
+    "strip exif"
+  ],
+  "category": "Format",
+  "description": "Remove all EXIF data, ICC profiles, and embedded comments from the image",
+  "id": "strip-metadata",
+  "implementation": {
+    "args": [
+      "-strip"
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Strip Metadata",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

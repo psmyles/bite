@@ -1,0 +1,55 @@
+{
+  "aliases": [
+    "mosaic",
+    "blocky",
+    "pixel art"
+  ],
+  "category": "Transform",
+  "description": "Scale down then back up with nearest-neighbor filtering to create intentional pixel-art blockiness",
+  "id": "pixelate",
+  "implementation": {
+    "args": [
+      "-filter",
+      "Point",
+      "-resize",
+      {
+        "expr": "format('{}%', 100 / max(2, round(block_size)))"
+      },
+      "-filter",
+      "Point",
+      "-resize",
+      {
+        "expr": "format('{}%', max(2, round(block_size)) * 100)"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Pixelate",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 8,
+      "label": "Block Size",
+      "max": 64,
+      "min": 2,
+      "name": "block_size",
+      "type": "int",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

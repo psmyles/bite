@@ -1,0 +1,355 @@
+{
+  "definition": {
+    "id": "extend-canvas",
+    "version": "1.0.0",
+    "label": "Extend Canvas",
+    "description": "Add transparent padding to each side of the image independently",
+    "aliases": [
+      "pad",
+      "add border",
+      "expand canvas",
+      "margin"
+    ],
+    "category": "Transform",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "top",
+        "label": "Top",
+        "type": "int",
+        "widget": "number",
+        "default": 0,
+        "min": 0,
+        "max": 2048
+      },
+      {
+        "name": "right",
+        "label": "Right",
+        "type": "int",
+        "widget": "number",
+        "default": 0,
+        "min": 0,
+        "max": 2048
+      },
+      {
+        "name": "bottom",
+        "label": "Bottom",
+        "type": "int",
+        "widget": "number",
+        "default": 0,
+        "min": 0,
+        "max": 2048
+      },
+      {
+        "name": "left",
+        "label": "Left",
+        "type": "int",
+        "widget": "number",
+        "default": 0,
+        "min": 0,
+        "max": 2048
+      }
+    ],
+    "command_js": "const args = []\nif (params.left   > 0) args.push('-gravity', 'West',  '-background', 'none', '-splice', params.left   + 'x0')\nif (params.right  > 0) args.push('-gravity', 'East',  '-background', 'none', '-splice', params.right  + 'x0')\nif (params.top    > 0) args.push('-gravity', 'North', '-background', 'none', '-splice', '0x' + params.top)\nif (params.bottom > 0) args.push('-gravity', 'South', '-background', 'none', '-splice', '0x' + params.bottom)\nif (args.length > 0)   args.push('-gravity', 'NorthWest')\nreturn args"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": []
+    },
+    {
+      "name": "top-0",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "top-1",
+      "params": {
+        "top": -1,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "top-2",
+      "params": {
+        "top": 0.5,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": [
+        "-gravity",
+        "North",
+        "-background",
+        "none",
+        "-splice",
+        "0x0.5",
+        "-gravity",
+        "NorthWest"
+      ]
+    },
+    {
+      "name": "top-3",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "top-4",
+      "params": {
+        "top": 2048,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": [
+        "-gravity",
+        "North",
+        "-background",
+        "none",
+        "-splice",
+        "0x2048",
+        "-gravity",
+        "NorthWest"
+      ]
+    },
+    {
+      "name": "right-0",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "right-1",
+      "params": {
+        "top": 0,
+        "right": -1,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "right-2",
+      "params": {
+        "top": 0,
+        "right": 0.5,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": [
+        "-gravity",
+        "East",
+        "-background",
+        "none",
+        "-splice",
+        "0.5x0",
+        "-gravity",
+        "NorthWest"
+      ]
+    },
+    {
+      "name": "right-3",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "right-4",
+      "params": {
+        "top": 0,
+        "right": 2048,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": [
+        "-gravity",
+        "East",
+        "-background",
+        "none",
+        "-splice",
+        "2048x0",
+        "-gravity",
+        "NorthWest"
+      ]
+    },
+    {
+      "name": "bottom-0",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "bottom-1",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": -1,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "bottom-2",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0.5,
+        "left": 0
+      },
+      "expected_args": [
+        "-gravity",
+        "South",
+        "-background",
+        "none",
+        "-splice",
+        "0x0.5",
+        "-gravity",
+        "NorthWest"
+      ]
+    },
+    {
+      "name": "bottom-3",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "bottom-4",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 2048,
+        "left": 0
+      },
+      "expected_args": [
+        "-gravity",
+        "South",
+        "-background",
+        "none",
+        "-splice",
+        "0x2048",
+        "-gravity",
+        "NorthWest"
+      ]
+    },
+    {
+      "name": "left-0",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "left-1",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": -1
+      },
+      "expected_args": []
+    },
+    {
+      "name": "left-2",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0.5
+      },
+      "expected_args": [
+        "-gravity",
+        "West",
+        "-background",
+        "none",
+        "-splice",
+        "0.5x0",
+        "-gravity",
+        "NorthWest"
+      ]
+    },
+    {
+      "name": "left-3",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "expected_args": []
+    },
+    {
+      "name": "left-4",
+      "params": {
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 2048
+      },
+      "expected_args": [
+        "-gravity",
+        "West",
+        "-background",
+        "none",
+        "-splice",
+        "2048x0",
+        "-gravity",
+        "NorthWest"
+      ]
+    }
+  ]
+}

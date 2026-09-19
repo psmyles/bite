@@ -1,0 +1,50 @@
+{
+  "category": "Logic",
+  "description": "Compare two values and output a boolean result",
+  "id": "logic_comparison",
+  "implementation": {
+    "outputs": {
+      "result": "if(operator == 'equal', float(a) == float(b), if(operator == 'not equal', float(a) != float(b), if(operator == 'greater than', float(a) > float(b), if(operator == 'less than', float(a) < float(b), if(operator == 'greater or equal', float(a) >= float(b), if(operator == 'less or equal', float(a) <= float(b), false))))))"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Compare",
+  "outputs": [],
+  "params": [
+    {
+      "label": "A",
+      "name": "a",
+      "type": "value"
+    },
+    {
+      "default": "equal",
+      "label": "Operator",
+      "name": "operator",
+      "options": [
+        "equal",
+        "not equal",
+        "greater than",
+        "less than",
+        "greater or equal",
+        "less or equal"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    },
+    {
+      "label": "B",
+      "name": "b",
+      "type": "value"
+    },
+    {
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "bool",
+      "widget": "checkbox"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

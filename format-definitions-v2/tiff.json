@@ -1,0 +1,28 @@
+{
+  "args": [
+    "-compress",
+    {
+      "expr": "tiff_compression"
+    }
+  ],
+  "extension": ".tif",
+  "id": "TIFF",
+  "params": [
+    {
+      "default": "LZW",
+      "label": "Compression",
+      "name": "tiff_compression",
+      "options": [
+        "LZW",
+        "ZIP",
+        "JPEG",
+        "PackBits",
+        "None"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

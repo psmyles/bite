@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = ["crates/bite-schema", "crates/bite-expr", "crates/bite-core", "crates/bite-imagemagick", "crates/bite-cli", "crates/bite-imgui-sys", "crates/bite-imgui", "crates/bite-gui-prototype"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.87"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = { version = "1", features = ["derive"] }
+bite-schema = { path = "crates/bite-schema" }
+bite-expr = { path = "crates/bite-expr" }
+bite-core = { path = "crates/bite-core" }
+bite-imagemagick = { path = "crates/bite-imagemagick" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

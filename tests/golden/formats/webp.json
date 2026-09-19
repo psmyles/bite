@@ -1,0 +1,264 @@
+{
+  "definition": {
+    "id": "WEBP",
+    "extension": ".webp",
+    "params": [
+      {
+        "name": "webp_lossless",
+        "label": "Lossless",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false
+      },
+      {
+        "name": "webp_quality",
+        "label": "Quality",
+        "type": "int",
+        "widget": "slider",
+        "min": 1,
+        "max": 100,
+        "default": 85
+      },
+      {
+        "name": "webp_method",
+        "label": "Method (0 = fast, 6 = best)",
+        "type": "int",
+        "widget": "slider",
+        "min": 0,
+        "max": 6,
+        "default": 4
+      }
+    ],
+    "params_visibility": [
+      {
+        "show": "webp_quality",
+        "when": {
+          "param": "webp_lossless",
+          "eq": false
+        }
+      }
+    ],
+    "args_js": "const a=[]; if(params.webp_lossless===true){a.push('-define','webp:lossless=true');}else{a.push('-quality',String(params.webp_quality??85));} a.push('-define','webp:method='+String(params.webp_method??4)); return a;"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 85,
+        "webp_method": 4
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-quality",
+        "85",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_lossless-0",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 85,
+        "webp_method": 4
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_lossless-1",
+      "params": {
+        "webp_lossless": true,
+        "webp_quality": 85,
+        "webp_method": 4
+      },
+      "expected_args": [
+        "-define",
+        "webp:lossless=true",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_quality-0",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 0,
+        "webp_method": 4
+      },
+      "expected_args": [
+        "-quality",
+        "0",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_quality-1",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": -1,
+        "webp_method": 4
+      },
+      "expected_args": [
+        "-quality",
+        "-1",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_quality-2",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 0.5,
+        "webp_method": 4
+      },
+      "expected_args": [
+        "-quality",
+        "0.5",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_quality-3",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 1,
+        "webp_method": 4
+      },
+      "expected_args": [
+        "-quality",
+        "1",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_quality-4",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 100,
+        "webp_method": 4
+      },
+      "expected_args": [
+        "-quality",
+        "100",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_method-0",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 85,
+        "webp_method": 0
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-define",
+        "webp:method=0"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_method-1",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 85,
+        "webp_method": -1
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-define",
+        "webp:method=-1"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_method-2",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 85,
+        "webp_method": 0.5
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-define",
+        "webp:method=0.5"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_method-3",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 85,
+        "webp_method": 0
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-define",
+        "webp:method=0"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "webp_method-4",
+      "params": {
+        "webp_lossless": false,
+        "webp_quality": 85,
+        "webp_method": 6
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-define",
+        "webp:method=6"
+      ],
+      "expected_extension": ".webp"
+    },
+    {
+      "name": "legacy-quality",
+      "params": {
+        "quality": 42
+      },
+      "expected_args": [
+        "-quality",
+        "42",
+        "-define",
+        "webp:method=4"
+      ],
+      "expected_extension": ".webp"
+    }
+  ]
+}

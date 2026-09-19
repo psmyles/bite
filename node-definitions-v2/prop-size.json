@@ -1,0 +1,39 @@
+{
+  "category": "Properties",
+  "description": "Outputs the file size of the current image in the selected unit",
+  "id": "prop_size",
+  "implementation": {
+    "outputs": {
+      "value": "image.size / if(unit == 'KB', 1024, if(unit == 'MB', 1048576, if(unit == 'GB', 1073741824, 1)))"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Size",
+  "outputs": [],
+  "params": [
+    {
+      "default": "bytes",
+      "label": "Unit",
+      "name": "unit",
+      "options": [
+        "bytes",
+        "KB",
+        "MB",
+        "GB"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    },
+    {
+      "default": 0,
+      "label": "Size",
+      "name": "value",
+      "readonly": true,
+      "type": "float",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

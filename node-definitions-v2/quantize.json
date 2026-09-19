@@ -1,0 +1,63 @@
+{
+  "aliases": [
+    "reduce colors",
+    "color depth",
+    "palette"
+  ],
+  "category": "Color",
+  "description": "Reduce the image to N distinct colors with optional dithering for a retro palette look",
+  "id": "quantize",
+  "implementation": {
+    "args": [
+      "-dither",
+      {
+        "expr": "dither"
+      },
+      "-colors",
+      {
+        "expr": "colors"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Quantize",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 16,
+      "label": "Colors",
+      "max": 256,
+      "min": 2,
+      "name": "colors",
+      "type": "int",
+      "widget": "slider"
+    },
+    {
+      "default": "FloydSteinberg",
+      "label": "Dither",
+      "name": "dither",
+      "options": [
+        "FloydSteinberg",
+        "Riemersma",
+        "None"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

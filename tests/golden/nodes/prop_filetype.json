@@ -1,0 +1,93 @@
+{
+  "definition": {
+    "id": "prop_filetype",
+    "version": "1.0.0",
+    "label": "File Type",
+    "description": "Outputs the file type extension of the current image",
+    "category": "Properties",
+    "inputs": [],
+    "outputs": [],
+    "executor": "prop_filetype",
+    "needs_image_meta": true,
+    "params": [
+      {
+        "name": "value",
+        "label": "Extension",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "value": ""
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "value": "png"
+      }
+    },
+    {
+      "name": "defaults-no-meta",
+      "params": {
+        "value": ""
+      },
+      "expected_params": {
+        "value": ""
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "value": "png"
+      }
+    },
+    {
+      "name": "missing-no-meta",
+      "params": {},
+      "expected_params": {
+        "value": ""
+      }
+    }
+  ]
+}

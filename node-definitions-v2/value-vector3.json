@@ -1,0 +1,61 @@
+{
+  "category": "Values",
+  "description": "Outputs a constant Vector3 (X, Y, Z)",
+  "id": "value_vector3",
+  "implementation": {
+    "outputs": {
+      "x": "vec.x",
+      "xyz": "vec3(vec.x,vec.y,vec.z)",
+      "y": "vec.y",
+      "z": "vec.z"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Vector 3",
+  "outputs": [],
+  "params": [
+    {
+      "default": [
+        0,
+        0,
+        0
+      ],
+      "label": "Vector",
+      "name": "vec",
+      "noPort": true,
+      "type": "vector3",
+      "widget": "vector"
+    },
+    {
+      "label": "XYZ",
+      "name": "xyz",
+      "portOnly": true,
+      "readonly": true,
+      "type": "vector3"
+    },
+    {
+      "label": "X",
+      "name": "x",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "Y",
+      "name": "y",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "Z",
+      "name": "z",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}

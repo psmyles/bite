@@ -1,0 +1,36 @@
+{
+  "category": "Logic",
+  "description": "A OR B",
+  "id": "logic_or",
+  "implementation": {
+    "outputs": {
+      "result": "bool(a) || bool(b)"
+    },
+    "type": "compute"
+  },
+  "inputs": [],
+  "label": "Or",
+  "outputs": [],
+  "params": [
+    {
+      "label": "A",
+      "name": "a",
+      "type": "value"
+    },
+    {
+      "label": "B",
+      "name": "b",
+      "type": "value"
+    },
+    {
+      "default": false,
+      "label": "Result",
+      "name": "result",
+      "readonly": true,
+      "type": "bool",
+      "widget": "checkbox"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
+}
