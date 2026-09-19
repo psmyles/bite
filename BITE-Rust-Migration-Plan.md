@@ -8,14 +8,16 @@ The migration is deliberately incremental. Every phase ends with something indep
 
 The plan preserves BITE's existing strengths:
 
-- Runtime-loaded JSON node definitions
+- Runtime-loaded JSON node definitions, including hot reload of the definitions folder in packaged builds
 - Versioned `.bite` workflow files
-- Headless CLI execution
+- Headless CLI execution, whose `bite run` flag contract is consumed by exported scripts and by `unity-tools/BiteBatchTool.cs`
 - Graph validation and typed connections
 - Node-level preview caching
 - Native image-header fast paths
 - Operation fusion and batched ImageMagick processing
 - Specialized multi-stream, channel, and set-processing behavior
+- Live computed values shown on the canvas for pure-value nodes (`propParams`)
+- A browser build of the workflow editor, currently deployed to GitHub Pages
 
 The central architectural rule is:
 
@@ -34,6 +36,8 @@ bite/
 │   ├── bite-core/            Graphs, workflows, planning, and execution
 │   ├── bite-imagemagick/     ImageMagick process integration
 │   ├── bite-cli/             Headless CLI
+│   ├── bite-imgui-sys/       Vendored Dear ImGui + imgui-node-editor, C shim, generated bindings
+│   ├── bite-imgui/           Thin safe wrapper over the parts bite-gui uses
 │   └── bite-gui/             Dear ImGui application
 │
 ├── schemas/
@@ -57,12 +61,12 @@ bite-expr
     ↑
 bite-core ← bite-imagemagick
    ↑   ↑
-   │   └──────── bite-gui
+   │   └──────── bite-gui ← bite-imgui ← bite-imgui-sys
    │
 bite-cli
 ```
 
-Neither the GUI nor CLI should contain pipeline logic. Both should call `bite-core` directly.
+Neither the GUI nor CLI should contain pipeline logic. Both should call `bite-core` directly. `bite-imgui-sys` and `bite-imgui` know nothing about BITE; they are the only crates that touch C or C++.
 
 ---
 
@@ -120,6 +124,8 @@ Replace `command_template`, `command_js`, `compute_js`, and the current top-leve
 }
 ```
 
+This tier absorbs the roughly thirty pure-value nodes that are `executor`-keyed today: `math_*`, `logic_*`, `vec_math_*`, `split_vec`, `append_vec`, `value_*`, `text_filter`, and the `prop_*` properties nodes. Note that `compute_js` is typed and documented but used by no shipped definition; the executor switch in `src/main/pipeline/executor-compute.ts` is the real behavior to migrate, and its numeric semantics become part of the expression specification (section 6).
+
 ### Complex native node
 
 ```json
@@ -165,6 +171,8 @@ Another example:
 ```
 
 There is no shell parser, quoting convention, whitespace splitting, or opportunity for one expression to inject several arguments accidentally.
+
+An expression always yields exactly one argument. An expression that evaluates to an empty string produces an empty argument; it is never dropped. Omission is expressed with `when`. This differs from the current `command_template` splitter in `command-builder.ts`, which drops tokens that become empty after substitution, so Phase 0 goldens must flag any definition that relies on that behavior.
 
 ## 4. Support conditional argument groups
 
@@ -321,6 +329,24 @@ v.z
 v.w
 ```
 
+### Numeric semantics inherited from the current executors
+
+The `numeric` param type is polymorphic today: a value is a scalar or a vector, and operators broadcast. These rules are observable in saved workflows and must be preserved exactly, then verified by golden tests:
+
+- Scalar op vector applies the scalar to every component.
+- Vector op vector is component-wise; a missing component reads as the operator's identity (`0` for add and subtract, `1` for multiply, the left operand for lerp).
+- Division by zero yields `0`, not an error or infinity.
+- Truthiness of a vector is "any component non-zero".
+- Ordered comparison of a vector uses its magnitude.
+
+### Colors and vectors as ImageMagick strings
+
+Nodes such as Tint pass a `color` param straight into `-fill`. The language needs an explicit, documented conversion for that case, for example `rgba(color)` producing `rgba(r,g,b,a)` in ImageMagick's expected ranges, and a defined `str()` result for vectors. Do not rely on an implicit array-to-string coercion.
+
+### Structured params stay out of expressions
+
+Params typed `any` that hold structured data (Rename blocks, Process As Set suffixes) are read directly by their native executor. They are not injected into the expression context, and the schema should declare them with an explicit structured type rather than `any`.
+
 Do not add a general-purpose array language unless a compelling real-world use case appears.
 
 ### Suggested core value types
@@ -445,7 +471,7 @@ image.dpi_y
 image.exif.*
 ```
 
-This preserves BITE's fast-path metadata behavior while removing a fragile manual flag.
+The batch pipeline's choice between a shared plan and a per-image plan (`hasImageMetaNodes` / `hasHeavyMetaNodes` in `batch-pipeline.ts`) is then derived from the union of metadata references across the graph, replacing the `needs_image_meta` plus `LIGHT_META_EXECUTORS` pairing. This preserves BITE's fast-path metadata behavior while removing a fragile manual flag.
 
 ## 9. Put visibility and enabled expressions on parameters
 
@@ -525,6 +551,19 @@ in:input
 
 Stable names make node-definition evolution safer and workflows easier to inspect.
 
+### Handle migration
+
+Today's workflows use five handle kinds. The v1 to v2 migration must map every one of them, not only image ports:
+
+| v1 handle | Meaning | v2 form |
+|---|---|---|
+| `in-N` / `out-N` | Image port by index | `in:<name>` / `out:<name>` from the definition's port list |
+| `param-in-<name>` / `param-out-<name>` | Param wire | `param:<name>` on each side |
+| `txo-N` | Text Output value slot | `txo:<N>`, or a named slot list stored on the node |
+| `txo-condition` | Text Output row condition | `txo:condition` |
+
+Text Output and Process As Set have dynamic port counts, so their port names come from node data rather than from a definition. The schema must allow that.
+
 ## 11. Use the same argument system for format definitions
 
 Remove the separate `args_js` mechanism. Format definitions should use the same `ArgSpec` parser, expression evaluator, validation, and tests as node definitions.
@@ -597,6 +636,12 @@ Format definitions should also become loose, runtime-loaded JSON rather than bui
 
 `schema_version` determines how to deserialize and migrate the file. `created_with` is informational and useful for diagnostics. Application version should no longer be the primary compatibility mechanism for workflow files.
 
+Workflow files carry parameters only, never expressions or code. Expressions live in node and format definitions. This retires the `__`-prefixed param sanitizer and the `param-in-__compute_js__` injection vector, because a `.bite` file has nothing executable in it.
+
+## 13. Type the built-in workflow node types
+
+Input, Image Output, Text Output, Flipbook Output, Folder Path, Group, and Comment are not JSON definitions today; they are registered in the renderer and special-cased in the pipeline. `bite-schema` must type them explicitly, including group containment (`parentId`, `extent`, `width`, `height`), per-input `thumbnailSize`, `cliName`, output path modes, and the Text Output and Flipbook settings. Treat their parameter sets as part of the v2 schema, with the same validation as JSON-defined nodes.
+
 ---
 
 # Migration phases
@@ -626,6 +671,25 @@ Build a characterization suite around the existing application and capture:
 - CLI argument handling
 
 Extend the current workflow fixtures and unit tests rather than starting a disconnected test system.
+
+The existing pipeline suite is Windows-only: `test-workflows/run-tests.ps1` plus fixture `.bite` files with absolute `d:\Dev\bite\...` output paths. Before it can act as the contract on both platforms:
+
+- Port the runner to a cross-platform script (Node, since it is already in the toolchain).
+- Make fixture output paths relative or injected at run time.
+- Run it green on both Windows and macOS and record the outputs as goldens.
+
+The golden generator itself must be written in TypeScript, because the reference behavior only exists there. This is the one deliberate exception to working rule 3.
+
+Also capture the CLI contract as a golden: accepted flags, `--overwrite` with skip as the default, the `[Bite]` stderr prefix, exit codes, and the `--<cliName>` mapping. `unity-tools/BiteBatchTool.cs` and every exported script depend on it.
+
+### Known deviations
+
+Goldens capture current behavior, including bugs. Keep `tests/golden/KNOWN_DEVIATIONS.md`, listing behavior the Rust port must intentionally change together with the golden it overrides. Seed it with:
+
+- `solid_image` declares an executor that is never registered and is a pass-through today; Rust implements it.
+- `format-definitions/png.json` uses `-depth 16`, which ImageMagick ignores for flat content; v2 uses `-define png:bit-depth=16`.
+
+Anything else found during Phase 0 goes in the same file rather than into a golden as expected output.
 
 Create machine-readable golden fixtures:
 
@@ -699,6 +763,8 @@ Workflow
 GraphNode
 GraphEdge
 Viewport
+BuiltinNodeKind   (Input, ImageOutput, TextOutput, FlipbookOutput, FolderPath, Group, Comment)
+StructuredParam   (Rename blocks, Process As Set suffixes)
 ```
 
 Create formal JSON Schema files:
@@ -864,13 +930,11 @@ format("{}x{}", width, height)
 
 ### Convert complex definitions manually
 
-Explicitly rewrite:
+Explicitly rewrite the fourteen definitions that carry code today: the seven `command_js` nodes (`extend_canvas`, `flip`, `hue_offset`, `outline`, `premultiply_alpha`, `pixelate`, `resize_nn`) and the seven `args_js` format definitions.
 
-```text
-command_js
-compute_js
-args_js
-```
+Rewrite the `resize` executor (`buildResizeArgs`) as a declarative definition using `switch` on `mode` and `when` on `preserve_aspect`. It is the best proving case for the argument schema and for `visible_when` replacing `InspectorResizeNode.svelte`.
+
+Convert the pure-value executor nodes to `compute` implementations, with one golden per node covering scalar and vector inputs.
 
 Do not build a JavaScript parser or transpiler for this migration. Manual conversion is more reviewable and forces each definition to validate the new schema.
 
@@ -937,6 +1001,14 @@ Port pure graph and workflow logic first:
 Rust should read a v1 `.bite` file and transform it into an in-memory `WorkflowV2` representation.
 
 Do not rewrite the original file immediately. Save as v2 only when the user explicitly saves from the new application or invokes a migration command.
+
+Carry forward the compatibility shims that exist today, and test each one:
+
+- Legacy node ids `workflow-input` and `workflow-output`, used as fallbacks by the preview pipeline
+- The old shared `quality` param mapped to `jpeg_quality`, `webp_quality`, or `avif_quality`
+- The hidden `_enabled` bypass param on every processing node
+- The `compat-ranges.json` policy for which v1 files are accepted at all
+- Group containment fields on nodes
 
 ### Add inspection commands
 
@@ -1034,7 +1106,11 @@ mean_value
 solid_image
 format_convert
 process_as_set
+text_output
+flipbook_atlas
 ```
+
+`text_output` and `flipbook_atlas` (`text-output.ts`, `atlas.ts`) are pipeline-side behaviors of built-in nodes rather than JSON definitions, but they belong to this tier. `resize` is deliberately absent because Phase 3 converts it to a declarative definition.
 
 Also classify and port any other multi-input, multi-output, or structural executor discovered during definition conversion.
 
@@ -1067,7 +1143,7 @@ bite formats
 bite version
 ```
 
-Preserve the named input and output flag concept derived from workflow input and output nodes:
+The `bite run` flag contract is an external API. Exported scripts and `unity-tools/BiteBatchTool.cs` call it, so the Rust CLI must accept the same invocation unchanged: named `--<cliName>` flags, `--overwrite` with skip as the default, the same exit codes, and the same `[Bite]`-prefixed diagnostics on stderr. New subcommands are additive.
 
 ```bash
 bite run workflow.bite \
@@ -1198,17 +1274,74 @@ This completes milestone **M3 — Performance parity** and the backend migration
 
 ---
 
-## Phase 8 — Native GUI technical prototype
+## Phase 8 — Native GUI technical prototype (parallel track)
+
+This phase does not wait for Phase 7. It starts as soon as the Cargo workspace exists in Phase 1 and runs alongside Phases 1 to 3. It has no backend dependency, it is cheap, and its outcome should be known before any GUI-specific decisions accumulate in `bite-core`'s API.
+
+### GUI stack decision
+
+The native GUI is Dear ImGui with the docking system, and the graph canvas is thedmd's `imgui-node-editor`. Both are decided; this phase validates them rather than evaluating alternatives.
+
+Why Dear ImGui:
+
+- Immediate mode fits BITE's model. The UI is a function of one authoritative graph state each frame, which removes the reactive store, IPC listener, and derived-UI invalidation layer that the Svelte renderer needs. Undo and redo become snapshots of that one state.
+- Images are GPU textures. Preview and filmstrip thumbnails are uploaded once and drawn directly. The IPC serialization cost that the original spec cited against Tauri does not exist here.
+- BITE's audience already works in this idiom. The Unity editor tool ships with the project, and Dear ImGui is the native look of game and VFX tooling.
+- Docking is first-party and production-stable, and it gives the library, canvas, inspector, preview, and filmstrip layout directly, with rearrangeable panels as a side effect.
+- The built-in widgets cover the entire `WidgetType` union: slider, drag number, combo, checkbox, text, `ColorEdit4`, and `DragFloat2/3/4` for vectors.
+- Small binary, low memory, instant startup, MIT license, and it compiles to WebAssembly, which keeps Phase 13 possible.
+
+Why `imgui-node-editor`:
+
+- Dear ImGui ships no node editor. Its core provides draw lists, bezier curves, and clipping; every node graph is a third-party extension.
+- Of the available extensions, it is the only one that covers BITE's existing editor behavior without a hand-written canvas: real canvas zoom, pan, group nodes whose children move with them, comments, rubber-band selection, typed link colors, and hooks for wire-dropped-on-empty-canvas and background context menus. `imnodes` has no canvas zoom, which BITE's shortcuts and the Phase 10 parity list require.
+
+Known costs, accepted:
+
+- The node canvas is still the largest piece of GUI work; the extension provides the mechanics, not BITE's visual language.
+- Text input is behind a browser textarea for IME and multi-line editing. Non-Latin input is a required prototype test.
+- No accessibility tree. Screen readers see nothing, and this cannot be retrofitted.
+- Platform glue that Electron provided is now ours: file dialogs, native menu bar, drag and drop, dark-mode detection, clipboard, file association.
+- Font atlas and DPI changes need explicit handling, including mixed-DPI multi-monitor setups.
+- Immediate mode redraws every frame unless rendering is gated on input and timers. The prototype must render on demand from the start.
+- We own the binding layer and its upgrades.
+
+### Binding strategy
+
+Do not depend on community Rust bindings. Generate our own through the C wrappers, so the vendored C++ commit, the C shim, and the Rust bindings are always in step.
+
+```text
+crates/bite-imgui-sys/
+├── vendor/
+│   ├── imgui/                 Dear ImGui, pinned commit, docking-enabled
+│   ├── cimgui/                C wrapper for that commit
+│   └── imgui-node-editor/     Pinned commit
+├── shim/
+│   └── node_editor_c.h/.cpp   C shim over imgui_node_editor.h
+├── src/bindings.rs            Pre-generated by bindgen, checked in
+└── build.rs                   Compiles vendor + shim with the cc crate
+```
+
+Rules:
+
+- Pin exact commits as git submodules. Upgrade only at phase boundaries, and regenerate bindings in the same change.
+- `imgui-node-editor` has no first-party C API. Use a maintained C wrapper if one exists at the time and pins cleanly to the same Dear ImGui commit; otherwise generate one with cimgui's generator or hand-write the shim. The public surface of `imgui_node_editor.h` is on the order of a hundred functions, so a hand-written shim is a bounded task, and it is the only piece we maintain.
+- Check the generated `bindings.rs` into the repository so contributors need a Rust toolchain and a platform C++17 compiler, not libclang.
+- `bite-imgui` exposes only what `bite-gui` calls. Do not attempt a complete safe wrapper.
+- Windowing and rendering stay in Rust: `winit` for the window and input, `wgpu` for rendering. Write the `ImDrawData` renderer and the input mapping ourselves; both are a few hundred lines and well-trodden.
+- Layout persistence, undo history, and all state belong to `bite-gui`, not to the extension's own persistence.
+
+ImGui Test Engine, from the same author, is free for open-source projects and provides scripted UI tests. Evaluate it in this phase as the answer to "there is no DOM to test against", but do not block on it.
 
 ### Goal
 
-Prove Dear ImGui and the selected Rust bindings are suitable before rebuilding the entire application.
+Prove the decided stack is suitable before rebuilding the entire application, and produce the `bite-imgui-sys` and `bite-imgui` crates that Phase 9 builds on.
 
 Do not recreate BITE yet. Build only a technical prototype containing:
 
 - Native window
 - Dockspace
-- Node editor
+- Node editor on `imgui-node-editor`
 - Inspector
 - Image texture view
 - Filmstrip
@@ -1218,11 +1351,10 @@ Prototype with:
 
 ```text
 Dear ImGui docking
+imgui-node-editor
 Winit
 WGPU
 ```
-
-Evaluate the binding and node-editor libraries here rather than locking them in earlier.
 
 ### Prototype workload
 
@@ -1230,21 +1362,28 @@ Use ten hardcoded fake node types and test:
 
 - 100+ visible nodes
 - Zoom and pan
-- Wire dragging
-- Node selection
-- Multi-select
-- Docked panels
+- Wire dragging, including drop on empty canvas raising a creation menu
+- Typed link colors
+- Node selection and rubber-band multi-select
+- Group nodes whose children move with them
+- Comment nodes
+- Background and node context menus
+- Docked panels, rearranged and restored
 - 4K and high-DPI displays
 - Retina macOS
+- DPI change while running, including moving between monitors of different scale
 - Image upload and texture updates
 - File drop
 - Keyboard focus
-- Text input
+- Text input, including non-Latin IME input and multi-line editing
 - Multiple monitors
+- Idle CPU and GPU use with the window open and untouched
 
 ### Test at the end
 
 Manually use the fake editor on Windows and macOS. Record performance, DPI, focus, input, and rendering issues.
+
+Build `bite-imgui-sys` from a clean clone on Windows with MSVC and on macOS with Apple clang, with only the Rust toolchain and the platform C++ compiler installed.
 
 ### Exit gate
 
@@ -1254,7 +1393,8 @@ Continue only if:
 - DPI behavior is correct.
 - Image preview is performant.
 - Text editing is acceptable.
-- The chosen binding stack is maintained and practical.
+- The binding crates build cleanly on both platforms from a clean clone.
+- Idle rendering is gated and the untouched application uses negligible CPU.
 
 This is the major GUI go/no-go checkpoint.
 
@@ -1297,6 +1437,8 @@ Use a direct library call:
 ```rust
 bite_core::preview(...)
 ```
+
+The preview call returns both the rendered image and the resolved values of pure-value nodes, which the canvas displays live today as `propParams`. Keep that in the core API rather than recomputing it in the GUI.
 
 Do not implement preview as:
 
@@ -1388,6 +1530,17 @@ Treat current editor behavior as requirements, not incidental Svelte implementat
 - Flipbook output
 - Process As Set
 - CLI names
+
+### Application features
+
+- Export CLI Script (PowerShell, Bash, CMD) with the companion `.bite` file
+- Update check against the latest GitHub release, with the Update Available dialog
+- Output log written next to batch outputs when enabled
+- Dirty-state prompts on close, new, and open
+- Per-input-node thumbnail size
+- Live computed values on pure-value nodes
+- Custom inspectors that are editors rather than widgets: Rename block editor, Process As Set suffix list, Format Convert per-format params, Folder Path
+- Hot reload of node and format definitions
 
 ### Test at the end
 
@@ -1523,6 +1676,8 @@ format-definitions-v2 → format-definitions
 
 Make schema v2 canonical while retaining supported workflow migration code.
 
+The GitHub Pages deploy (`.github/workflows/deploy-pages.yml`) keeps serving the final Svelte web build, pinned to the `electron-final` tag, until Phase 13 replaces or retires it. Removing Svelte from the production tree does not remove that pinned deployment.
+
 ### Test at the end
 
 Search the production source tree for:
@@ -1542,12 +1697,37 @@ No legacy production references should remain.
 Perform a clean build using only:
 
 - Rust toolchain
-- Platform SDK/toolchain
+- Platform SDK/toolchain, including a C++17 compiler for the vendored Dear ImGui sources
 - ImageMagick packaging prerequisites
 
 ### Final exit gate
 
 BITE builds, installs, opens, previews, and runs representative workflows on clean Windows and macOS systems without Node.js installed.
+
+---
+
+## Phase 13 — Browser target (exploratory)
+
+### Goal
+
+Replace the retired Svelte web editor with the native GUI compiled to WebAssembly, so a workflow-editing-only build can be published to GitHub Pages again.
+
+This phase is exploratory and comes after M4. It must not shape earlier decisions beyond one constraint: keep `bite-gui` free of direct filesystem and process calls, routing them through `bite-core` traits, so a wasm build can stub them.
+
+### Work
+
+- Build `bite-gui` for `wasm32` on WGPU's WebGPU or WebGL backend.
+- Provide a browser storage backend for opening and saving `.bite` files.
+- Load node and format definitions over HTTP.
+- Disable preview and batch execution; the browser build edits workflows only, as the Svelte web build does today.
+
+### Test at the end
+
+Open, edit, and save each `test-workflows/*.bite` in the browser build. The saved files must match, in graph content, files saved by the native build.
+
+### Exit gate
+
+Either the wasm build is deployed to GitHub Pages, or a written decision retires the browser editor. Do not leave the question open.
 
 ---
 
@@ -1603,10 +1783,12 @@ Native Rust executor
 The required order is:
 
 ```text
-M1 → M2 → M3 → M4
+M1 → M2 → { M3 ∥ M4 } → cutover
 ```
 
-Do not begin the full GUI rebuild before M2. Once the Rust CLI runs real workflows, the hardest architectural risk has been retired and the GUI becomes a frontend project instead of a backend and frontend rewrite happening simultaneously.
+Do not begin the full GUI rebuild (Phase 9) before M2. Once the Rust CLI runs real workflows, the hardest architectural risk has been retired and the GUI becomes a frontend project instead of a backend and frontend rewrite happening simultaneously.
+
+M3 and M4 are independent after M2 and proceed in parallel. Performance parity gates the cutover in Phase 11, not the start of GUI work. The Phase 8 prototype runs earlier still, alongside Phases 1 to 3.
 
 ---
 
@@ -1614,7 +1796,7 @@ Do not begin the full GUI rebuild before M2. Once the Rust CLI runs real workflo
 
 1. Keep the Electron build usable until the native application reaches parity.
 2. Use Phase 0 goldens as the compatibility contract throughout the migration.
-3. Do not implement the expression language in TypeScript and then reimplement it in Rust.
+3. Do not implement the expression language in TypeScript and then reimplement it in Rust. The only new TypeScript is the Phase 0 golden generator and the cross-platform test runner.
 4. Compile and validate definitions at load time; evaluate cached ASTs at runtime.
 5. Keep expressions deterministic, bounded, and free of side effects.
 6. Add DSL capabilities only when a real migrated definition requires them.
@@ -1622,5 +1804,7 @@ Do not begin the full GUI rebuild before M2. Once the Rust CLI runs real workflo
 8. Preserve v1 workflow loading until a deliberate compatibility policy says otherwise.
 9. Benchmark with representative real data before and after every performance-sensitive change.
 10. Make every phase pass its exit gate before expanding scope.
+11. Expressions live only in node and format definitions. Workflow files never carry code.
+12. Behavior the Rust port intentionally changes goes in `KNOWN_DEVIATIONS.md` with the golden it overrides. Never edit a golden to match a bug fix silently.
 
 This sequence ensures there is never a point where the working Electron application must be abandoned before its Rust replacement is genuinely useful.
