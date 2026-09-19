@@ -44,7 +44,9 @@ usable until parity and cutover gates pass.
   execution/progress/cancellation and basic editable inspector controls exist.
   The user confirmed a workflow runs through the native GUI; automated coverage
   supplies save/reopen and zero-pixel-difference CLI comparison evidence.
-- Phases 10–13: pending; Electron remains intact.
+- Phase 10: editor-parity implementation is complete; the Windows hands-on
+  interaction checklist remains before M4 can pass. Electron remains intact.
+- Phases 11–13: pending.
 - macOS automated, GUI, packaging, and clean-machine checks: pending.
 - Windows GUI, mixed-DPI/IME, packaging, and clean-machine checks: pending.
 
@@ -66,11 +68,10 @@ the runner regenerates deterministic fixtures. macOS remains pending.
 Use this log as the continuation checkpoint; do not treat it as completion of
 the migration.
 
-1. Begin Phase 10 with an explicit Electron/native editor-parity inventory, then
-   implement the shared undoable editing foundation and graph interactions.
+1. Complete `docs/phase10-windows-acceptance.md`; then record M4 on Windows.
 2. Keep macOS M2/M3 and GUI platform checks explicitly pending.
-3. Continue phases 10–13 in plan order. No cutover, release or legacy removal
-   has occurred. Work is on branch `rust-migration`.
+3. Begin Phase 11 only after the Windows M4 gate. No cutover, release or legacy
+   removal has occurred. Work is on branch `rust-migration`.
 
 ## Continuation 2026-09-19 — CLI edge cases
 
@@ -521,11 +522,12 @@ or deterministic examples, and Process As Set shows matched/complete set
 counts. Core execution now honors `generateLog` by writing a nonfatal output
 summary next to produced files.
 
-All 53 Rust tests and strict workspace Clippy pass. The offscreen acceptance
+All 54 Rust tests and strict workspace Clippy pass. The offscreen acceptance
 image is `test-workflows/out/native-phase10-outputs.png`. Remaining Phase 10
-work includes per-input filmstrip collections, generated Text Output preview,
-and full Windows interaction/high-DPI acceptance, including hands-on group
-containment and resize checks. macOS Phase 10 acceptance remains pending.
+work is the hands-on Windows interaction gate: native dialogs, system clipboard,
+keyboard focus, drag/drop, group containment/resize and live mixed-DPI movement.
+The packaged clean-machine run belongs to Phase 11. macOS Phase 10 acceptance
+remains pending.
 
 Windows native dialogs now cover workflow open/save-as, input and output folder
 selection, Folder Path browsing and CLI export destinations. Copy/paste uses a
@@ -540,8 +542,17 @@ thumbnail size controls import generation. Image Output exposes the Folder Path
 port and hides its local folder controls while wired; set naming appears only
 when Process As Set is upstream. Text and Flipbook outputs have native file
 dialogs, readable choice labels, ordered connected-port labels and an atlas
-size/capacity summary. The single active filmstrip collection and generated
-Text Output preview remain explicit gaps.
+size/capacity summary. Each Input branch now retains its own image paths,
+thumbnail textures, selection and preview state. Preview follows the selected
+image-producing node, and Text Output can evaluate the first ten active images
+through the normal core execution path into an isolated temporary report.
+
+The functional GUI smoke passes at both 1× and 2× scale; the latter is captured
+in `test-workflows/out/native-phase10-hidpi.png`. The binding can rebuild and
+re-upload its font atlas when Winit reports a scale change. Moving a live window
+between mixed-DPI monitors still requires hands-on Windows acceptance. A hidden
+Windows idle sample consumed 0.0781 CPU seconds over 10 seconds while working
+set fell from 182.03 MiB to 180.63 MiB, consistent with event-driven idle.
 
 The native Windows build now checks the GitHub releases API over WinHTTP on a
 background thread, compares the release tag against the product version and

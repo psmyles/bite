@@ -62,8 +62,8 @@ native control provides the same workflow more clearly.
 
 | Requirement | Native status |
 | --- | --- |
-| Multiple inputs and image outputs with CLI names | Implemented with collision-free defaults and independent per-node run folders; filmstrip media is still a single active collection |
-| Text and flipbook outputs | Dedicated output-file dialogs, labelled separators/sort modes, ordered Text ports and Flipbook atlas/capacity summary implemented; generated Text Output preview remains pending |
+| Multiple inputs and image outputs with CLI names | Implemented with collision-free defaults, independent per-node run folders and separate filmstrip/preview state for each Input branch |
+| Text and flipbook outputs | Dedicated output-file dialogs, labelled separators/sort modes, ordered Text ports, exact generated-text preview and Flipbook atlas/capacity summary implemented |
 | Process As Set | Creation, dynamic typed ports, suffix editing and matched/complete set preview implemented |
 | Save/open/new and dirty prompts | Implemented with Save and continue, Discard and Cancel |
 | Run, progress and cancellation | Implemented |
@@ -76,7 +76,8 @@ native control provides the same workflow more clearly.
 
 ## Platform acceptance
 
-- Windows: automated context creation and graph persistence pass; native dialog,
-  clipboard, keyboard focus, drag/drop, grouping, high DPI, mixed DPI, idle usage
-  and clean-machine interaction checks remain.
+- Windows: automated context creation, graph persistence, font-atlas rebuild,
+  1×/2× rendering and short idle-resource checks pass; native dialog,
+  clipboard, keyboard focus, drag/drop, grouping and live mixed-DPI interaction
+  checks remain.
 - macOS: all native GUI checks pending under the project platform policy.

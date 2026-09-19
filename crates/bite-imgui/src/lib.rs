@@ -145,6 +145,16 @@ impl Context {
     pub fn set_font_texture(&mut self, id: u64) {
         unsafe { sys::bite_font_texture(id) }
     }
+    pub fn set_scale(&mut self, scale: f32) -> Result<(u32, u32, Vec<u8>), String> {
+        if !scale.is_finite() || scale <= 0.0 {
+            return Err("UI scale must be a positive finite number".into());
+        }
+        let font = ui_font_path()
+            .and_then(|path| path.to_str().map(c))
+            .unwrap_or_else(|| c(""));
+        unsafe { sys::bite_set_scale(font.as_ptr(), 16.0, scale) };
+        Ok(self.font_atlas())
+    }
     pub fn mouse_position(&mut self, x: f32, y: f32) {
         if x.is_finite() && y.is_finite() {
             unsafe { sys::bite_mouse_position(x, y) }
@@ -513,6 +523,9 @@ mod tests {
             let mut context = Context::new().unwrap();
             let (w, h, pixels) = context.font_atlas();
             assert_eq!(pixels.len(), (w * h * 4) as usize);
+            let (scaled_w, scaled_h, scaled_pixels) = context.set_scale(2.0).unwrap();
+            assert_eq!(scaled_pixels.len(), (scaled_w * scaled_h * 4) as usize);
+            assert!(scaled_w >= w && scaled_h >= h);
             context.set_font_texture(1);
             let mut data = Vec::new();
             for _ in 0..3 {

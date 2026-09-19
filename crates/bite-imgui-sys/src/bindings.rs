@@ -84,6 +84,13 @@ unsafe extern "C" {
     pub fn bite_font_texture(texture: u64);
 }
 unsafe extern "C" {
+    pub fn bite_set_scale(
+        font_path: *const ::std::os::raw::c_char,
+        font_size: f32,
+        ui_scale: f32,
+    );
+}
+unsafe extern "C" {
     pub fn bite_dockspace();
 }
 unsafe extern "C" {

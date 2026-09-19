@@ -22,6 +22,8 @@ use winit::{
     window::{Window, WindowId},
 };
 
+type TextPreview = (String, Result<Vec<String>, String>);
+
 struct Demo {
     context: Context,
     text: String,
@@ -44,6 +46,8 @@ struct Demo {
     image_paths: Vec<PathBuf>,
     thumbnails: Vec<u64>,
     preview_texture: Option<u64>,
+    active_input: Option<String>,
+    input_media: BTreeMap<String, InputMedia>,
     resolved_values: BTreeMap<String, bite_expr::Context>,
     control_down: bool,
     shift_down: bool,
@@ -56,6 +60,15 @@ struct Demo {
     update_receiver: Option<mpsc::Receiver<Result<updates::UpdateInfo, String>>>,
     update_result: Option<Result<updates::UpdateInfo, String>>,
     update_show_all: bool,
+    text_preview_receiver: Option<mpsc::Receiver<TextPreview>>,
+    text_preview_result: Option<TextPreview>,
+}
+#[derive(Clone, Default)]
+struct InputMedia {
+    image_paths: Vec<PathBuf>,
+    thumbnails: Vec<u64>,
+    selected_image: usize,
+    preview_texture: Option<u64>,
 }
 #[derive(Clone)]
 struct PendingWire {
@@ -142,6 +155,23 @@ fn upstream_contains_definition(
         }
     }
     false
+}
+
+fn upstream_input_id(graph: &bite_schema::Graph, node_id: &str) -> Option<String> {
+    let mut pending = vec![node_id];
+    let mut visited = BTreeSet::new();
+    while let Some(target) = pending.pop() {
+        let node = graph.nodes.iter().find(|node| node.id == target)?;
+        if node.kind == NodeKind::Builtin(BuiltinNodeKind::Input) {
+            return Some(node.id.clone());
+        }
+        for edge in graph.edges.iter().filter(|edge| edge.target == target) {
+            if visited.insert(edge.source.as_str()) {
+                pending.push(&edge.source);
+            }
+        }
+    }
+    None
 }
 
 fn wire_color(kind: bite_core::graph::WireType) -> [f32; 3] {
@@ -521,6 +551,8 @@ impl Demo {
             image_paths: Vec::new(),
             thumbnails: Vec::new(),
             preview_texture: None,
+            active_input: None,
+            input_media: BTreeMap::new(),
             resolved_values: BTreeMap::new(),
             control_down: false,
             shift_down: false,
@@ -533,7 +565,46 @@ impl Demo {
             update_receiver: Some(update_receive),
             update_result: None,
             update_show_all: false,
+            text_preview_receiver: None,
+            text_preview_result: None,
         })
+    }
+
+    fn activate_input(&mut self, node_id: &str) {
+        if self.active_input.as_deref() == Some(node_id) {
+            return;
+        }
+        if let Some(previous) = self.active_input.take() {
+            self.input_media.insert(
+                previous,
+                InputMedia {
+                    image_paths: std::mem::take(&mut self.image_paths),
+                    thumbnails: std::mem::take(&mut self.thumbnails),
+                    selected_image: self.selected_image,
+                    preview_texture: self.preview_texture.take(),
+                },
+            );
+        }
+        let media = self.input_media.remove(node_id).unwrap_or_default();
+        self.image_paths = media.image_paths;
+        self.thumbnails = media.thumbnails;
+        self.selected_image = media.selected_image;
+        self.preview_texture = media.preview_texture;
+        self.active_input = Some(node_id.to_owned());
+        self.text_preview_receiver = None;
+        self.text_preview_result = None;
+    }
+
+    fn clear_media(&mut self) {
+        self.active_input = None;
+        self.input_media.clear();
+        self.image_paths.clear();
+        self.thumbnails.clear();
+        self.selected_image = 0;
+        self.preview_texture = None;
+        self.resolved_values.clear();
+        self.text_preview_receiver = None;
+        self.text_preview_result = None;
     }
 
     fn import_images(&mut self, renderer: &mut Renderer) -> Result<(), String> {
@@ -545,7 +616,13 @@ impl Demo {
             .iter()
             .find(|node| {
                 node.kind == NodeKind::Builtin(BuiltinNodeKind::Input)
-                    && stable_id(&format!("node:{}", node.id)) == self.selected
+                    && self.active_input.as_deref() == Some(node.id.as_str())
+            })
+            .or_else(|| {
+                self.studio.workflow.graph.nodes.iter().find(|node| {
+                    node.kind == NodeKind::Builtin(BuiltinNodeKind::Input)
+                        && stable_id(&format!("node:{}", node.id)) == self.selected
+                })
             })
             .or_else(|| {
                 self.studio
@@ -554,19 +631,30 @@ impl Demo {
                     .nodes
                     .iter()
                     .find(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::Input))
-            });
-        let root = selected_input
-            .and_then(|node| self.runtime_paths.get(&node.id))
+            })
+            .map(|node| {
+                let thumbnail_size = node
+                    .data
+                    .params
+                    .get("thumbnailSize")
+                    .and_then(|value| match value {
+                        bite_schema::ParamValue::Int(value) => u32::try_from(*value).ok(),
+                        _ => None,
+                    })
+                    .unwrap_or(256)
+                    .clamp(64, 2048);
+                (node.id.clone(), thumbnail_size)
+            })
+            .ok_or("Workflow has no Input node")?;
+        self.activate_input(&selected_input.0);
+        self.text_preview_receiver = None;
+        self.text_preview_result = None;
+        let root = self
+            .runtime_paths
+            .get(&selected_input.0)
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(&self.input_path));
-        let thumbnail_size = selected_input
-            .and_then(|node| node.data.params.get("thumbnailSize"))
-            .and_then(|value| match value {
-                bite_schema::ParamValue::Int(value) => u32::try_from(*value).ok(),
-                _ => None,
-            })
-            .unwrap_or(256)
-            .clamp(64, 2048);
+        let thumbnail_size = selected_input.1;
         let cancelled = std::sync::atomic::AtomicBool::new(false);
         let paths = bite_imagemagick::import::scan_folder(&root, false, 8, &cancelled)?;
         let cache_dir = std::env::temp_dir().join("bite-native-thumbnails");
@@ -584,7 +672,7 @@ impl Demo {
             ])?;
             let bytes = std::fs::read(&png_path).map_err(|error| error.to_string())?;
             let (width, height, pixels) = decode_png(&bytes)?;
-            let texture = 100 + index as u64;
+            let texture = stable_id(&format!("thumbnail:{}:{index}", selected_input.0));
             renderer.texture(texture, width, height, &pixels);
             self.thumbnails.push(texture);
         }
@@ -605,15 +693,54 @@ impl Demo {
             .ok_or_else(|| format!("Image {index} is no longer in the filmstrip"))?;
         let cancelled = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let mut host = bite_imagemagick::Magick::discover(cancelled);
+        let selected_node = self
+            .studio
+            .workflow
+            .graph
+            .nodes
+            .iter()
+            .find(|node| stable_id(&format!("node:{}", node.id)) == self.selected);
+        let explicit_source = selected_node.and_then(|node| {
+            if node.kind == NodeKind::Builtin(BuiltinNodeKind::ImageOutput) {
+                self.studio
+                    .workflow
+                    .graph
+                    .edges
+                    .iter()
+                    .find(|edge| edge.target == node.id && edge.target_handle == "in:input")
+                    .map(|edge| (edge.source.clone(), edge.source_handle.clone()))
+            } else {
+                node_ports(node, &self.studio.registry)
+                    .1
+                    .into_iter()
+                    .find(|(handle, _)| {
+                        matches!(
+                            bite_core::graph::handle_type(
+                                node,
+                                handle,
+                                true,
+                                &self.studio.registry
+                            ),
+                            Ok(bite_core::graph::WireType::Image)
+                        )
+                    })
+                    .map(|(handle, _)| (node.id.clone(), handle))
+            }
+        });
         let preview = bite_core::preview::render(
             &self.studio.workflow.graph,
             &self.studio.registry,
             &mut host,
             image,
-            None,
+            explicit_source
+                .as_ref()
+                .map(|(node, handle)| (node.as_str(), handle.as_str())),
         )?;
         let (width, height, pixels) = decode_png(&preview.png)?;
-        let texture = 1000 + index as u64;
+        let texture = stable_id(&format!(
+            "preview:{}:{index}",
+            self.active_input.as_deref().unwrap_or("default")
+        ));
         renderer.texture(texture, width, height, &pixels);
         self.preview_texture = Some(texture);
         self.selected_image = index;
@@ -622,6 +749,17 @@ impl Demo {
         Ok(())
     }
     fn draw(&mut self, width: u32, height: u32, scale: f32, delta: f32) -> bite_imgui::DrawData {
+        let selected_input = self
+            .studio
+            .workflow
+            .graph
+            .nodes
+            .iter()
+            .find(|node| stable_id(&format!("node:{}", node.id)) == self.selected)
+            .and_then(|node| upstream_input_id(&self.studio.workflow.graph, &node.id));
+        if let Some(input) = selected_input {
+            self.activate_input(&input);
+        }
         let Self {
             context,
             text,
@@ -644,6 +782,8 @@ impl Demo {
             image_paths,
             thumbnails,
             preview_texture,
+            active_input,
+            input_media,
             resolved_values,
             control_down: _,
             shift_down: _,
@@ -656,6 +796,8 @@ impl Demo {
             update_receiver,
             update_result,
             update_show_all,
+            text_preview_receiver,
+            text_preview_result,
         } = self;
         let mut completed = false;
         if let Some(active) = runner.as_ref() {
@@ -691,6 +833,12 @@ impl Demo {
                 }
                 *update_receiver = None;
                 *update_show_all = false;
+            }
+        }
+        if let Some(receiver) = text_preview_receiver.as_ref() {
+            if let Ok(result) = receiver.try_recv() {
+                *text_preview_result = Some(result);
+                *text_preview_receiver = None;
             }
         }
         let mut frame = context.frame(
@@ -786,10 +934,30 @@ impl Demo {
                 }
             }
             ui.same_line();
-            if ui.button("Delete") && studio.delete_selection(selected_nodes) {
-                *selected = 0;
-                selected_nodes.clear();
-                *frames = 0;
+            if ui.button("Delete") {
+                let deleting_active = active_input
+                    .as_ref()
+                    .is_some_and(|id| selected_nodes.contains(id));
+                let deleting = selected_nodes.clone();
+                if studio.delete_selection(selected_nodes) {
+                    for id in &deleting {
+                        runtime_paths.remove(id);
+                        input_media.remove(id);
+                    }
+                    if deleting_active {
+                        *active_input = None;
+                        image_paths.clear();
+                        thumbnails.clear();
+                        *selected_image = 0;
+                        *preview_texture = None;
+                        resolved_values.clear();
+                        *text_preview_receiver = None;
+                        *text_preview_result = None;
+                    }
+                    *selected = 0;
+                    selected_nodes.clear();
+                    *frames = 0;
+                }
             }
             if ui.button("Group") {
                 if let Some(id) = studio.group_selection(selected_nodes) {
@@ -985,6 +1153,15 @@ impl Demo {
                     studio.mark_clean();
                     *workflow_path = "workflow.bite".into();
                     runtime_paths.clear();
+                    *active_input = None;
+                    input_media.clear();
+                    image_paths.clear();
+                    thumbnails.clear();
+                    *selected_image = 0;
+                    *preview_texture = None;
+                    resolved_values.clear();
+                    *text_preview_receiver = None;
+                    *text_preview_result = None;
                     *selected = 0;
                     selected_nodes.clear();
                     *frames = 0;
@@ -998,6 +1175,15 @@ impl Demo {
                         *selected = 0;
                         selected_nodes.clear();
                         runtime_paths.clear();
+                        *active_input = None;
+                        input_media.clear();
+                        image_paths.clear();
+                        thumbnails.clear();
+                        *selected_image = 0;
+                        *preview_texture = None;
+                        resolved_values.clear();
+                        *text_preview_receiver = None;
+                        *text_preview_result = None;
                         *frames = 0;
                     }
                     Err(error) => studio.status = format!("Open failed: {error}"),
@@ -1519,6 +1705,7 @@ impl Demo {
                 ui.text(&format!("ID: {}", node.id));
                 ui.text(&format!("Definition: {}", node.data.definition_id));
                 let node_id = node.id.clone();
+                let is_text_output = node.kind == NodeKind::Builtin(BuiltinNodeKind::TextOutput);
                 let params = node.data.params.clone();
                 let mut dialog_error = None;
                 let folder_wired = studio
@@ -1637,23 +1824,72 @@ impl Demo {
                     } else {
                         &*output_path
                     };
-                    let path = runtime_paths
-                        .entry(node_id.clone())
-                        .or_insert_with(|| fallback.clone());
+                    let mut path = runtime_paths
+                        .get(&node_id)
+                        .cloned()
+                        .unwrap_or_else(|| fallback.clone());
                     ui.text(if is_input {
                         "Run input folder"
                     } else {
                         "Run output folder"
                     });
                     ui.next_item_full_width();
-                    ui.input_text(&format!("##runtime-path-{node_id}"), path);
+                    if ui.input_text(&format!("##runtime-path-{node_id}"), &mut path) {
+                        runtime_paths.insert(node_id.clone(), path.clone());
+                    }
                     if ui.button(&format!("Browse run folder##{node_id}")) {
                         match dialogs::select_folder() {
                             Ok(Some(selected)) => {
-                                *path = selected.to_string_lossy().into_owned();
+                                runtime_paths.insert(
+                                    node_id.clone(),
+                                    selected.to_string_lossy().into_owned(),
+                                );
                             }
                             Ok(None) => {}
                             Err(error) => dialog_error = Some(error),
+                        }
+                    }
+                }
+                if is_text_output {
+                    ui.text("Generated text preview");
+                    if image_paths.is_empty() {
+                        ui.text("Import images to preview this output");
+                    } else if text_preview_receiver.is_none()
+                        && ui.button(&format!("Refresh preview##text-preview-{node_id}"))
+                    {
+                        let graph = studio.workflow.graph.clone();
+                        let registry = studio.registry.clone();
+                        let images: Vec<_> = image_paths.iter().take(10).cloned().collect();
+                        let preview_node = node_id.clone();
+                        let (send, receive) = mpsc::channel();
+                        std::thread::spawn(move || {
+                            let cancelled = Arc::new(std::sync::atomic::AtomicBool::new(false));
+                            let mut host = bite_imagemagick::Magick::discover(cancelled);
+                            let result = bite_core::preview::render_text(
+                                &graph,
+                                &registry,
+                                &mut host,
+                                &images,
+                                &preview_node,
+                            );
+                            let _ = send.send((preview_node, result));
+                        });
+                        *text_preview_receiver = Some(receive);
+                        *text_preview_result = None;
+                    } else if text_preview_receiver.is_some() {
+                        ui.text("Computing preview…");
+                    }
+                    if let Some((preview_node, result)) = text_preview_result.as_ref() {
+                        if preview_node == &node_id {
+                            match result {
+                                Ok(lines) if lines.is_empty() => ui.text("Preview is empty"),
+                                Ok(lines) => {
+                                    for line in lines.iter().take(10) {
+                                        ui.text(line);
+                                    }
+                                }
+                                Err(error) => ui.text(&format!("Preview failed: {error}")),
+                            }
                         }
                     }
                 }
@@ -2213,6 +2449,9 @@ impl Demo {
                     if studio.set_param(&node_id, name, value)
                         && image_paths.get(*selected_image).is_some()
                     {
+                        if is_text_output {
+                            *text_preview_result = None;
+                        }
                         *preview_requested = Some(*selected_image);
                         studio.status = "Parameter changed; refreshing preview…".into();
                     }
@@ -2244,6 +2483,16 @@ impl Demo {
             );
         });
         ui.window("Filmstrip", |ui| {
+            if let Some(input) = active_input.as_ref().and_then(|id| {
+                studio
+                    .workflow
+                    .graph
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == *id)
+            }) {
+                ui.text(&format!("Input: {}", input.data.label));
+            }
             let displayed: Vec<_> = if thumbnails.is_empty() {
                 vec![2; 8]
             } else {
@@ -2285,7 +2534,7 @@ impl App {
             event_loop
                 .create_window(
                     Window::default_attributes()
-                        .with_title("BITE · Native technical prototype")
+                        .with_title("BITE")
                         .with_inner_size(winit::dpi::LogicalSize::new(1600., 1000.)),
                 )
                 .map_err(|e| e.to_string())?,
@@ -2499,6 +2748,25 @@ impl ApplicationHandler for App {
                         match code {
                             KeyCode::Delete | KeyCode::Backspace => {
                                 if s.demo.studio.delete_selection(&selection) {
+                                    let deleting_active = s
+                                        .demo
+                                        .active_input
+                                        .as_ref()
+                                        .is_some_and(|id| selection.contains(id));
+                                    for id in &selection {
+                                        s.demo.runtime_paths.remove(id);
+                                        s.demo.input_media.remove(id);
+                                    }
+                                    if deleting_active {
+                                        s.demo.active_input = None;
+                                        s.demo.image_paths.clear();
+                                        s.demo.thumbnails.clear();
+                                        s.demo.selected_image = 0;
+                                        s.demo.preview_texture = None;
+                                        s.demo.resolved_values.clear();
+                                        s.demo.text_preview_receiver = None;
+                                        s.demo.text_preview_result = None;
+                                    }
                                     s.demo.selected = 0;
                                     s.demo.selected_nodes.clear();
                                     s.demo.frames = 0;
@@ -2578,6 +2846,7 @@ impl ApplicationHandler for App {
                                     s.demo.studio.mark_clean();
                                     s.demo.workflow_path = "workflow.bite".into();
                                     s.demo.runtime_paths.clear();
+                                    s.demo.clear_media();
                                     s.demo.selected = 0;
                                     s.demo.selected_nodes.clear();
                                     s.demo.frames = 0;
@@ -2597,6 +2866,7 @@ impl ApplicationHandler for App {
                                                 Ok(studio) => {
                                                     s.demo.studio = studio;
                                                     s.demo.runtime_paths.clear();
+                                                    s.demo.clear_media();
                                                     s.demo.selected = 0;
                                                     s.demo.selected_nodes.clear();
                                                     s.demo.frames = 0;
@@ -2647,6 +2917,7 @@ impl ApplicationHandler for App {
                             s.demo.workflow_path = path.to_string_lossy().into_owned();
                             s.demo.studio = studio;
                             s.demo.runtime_paths.clear();
+                            s.demo.clear_media();
                             s.demo.frames = 0;
                         }
                         Err(error) => s.demo.studio.status = format!("Open failed: {error}"),
@@ -2656,7 +2927,16 @@ impl ApplicationHandler for App {
                     s.demo.studio.status = format!("Input folder: {}", path.display());
                 }
             }
-            WindowEvent::ScaleFactorChanged { .. } => {}
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                match s.demo.context.set_scale(scale_factor as f32) {
+                    Ok((width, height, pixels)) => {
+                        s.renderer.texture(1, width, height, &pixels);
+                        s.demo.context.set_font_texture(1);
+                        s.demo.studio.status = format!("UI scale: {scale_factor:.2}×");
+                    }
+                    Err(error) => s.demo.studio.status = format!("DPI update failed: {error}"),
+                }
+            }
             _ => return,
         }
         s.settle = 2;
@@ -2664,13 +2944,18 @@ impl ApplicationHandler for App {
     }
 }
 fn smoke(path: &str, workflow: Option<&str>, import_folder: Option<&str>) -> Result<(), String> {
+    let scale = std::env::var("BITE_SMOKE_SCALE")
+        .ok()
+        .and_then(|value| value.parse::<f32>().ok())
+        .filter(|value| value.is_finite() && *value >= 1.0 && *value <= 4.0)
+        .unwrap_or(1.0);
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
         .map_err(|e| e.to_string())?;
     println!("Adapter: {:?}", adapter.get_info());
     let mut renderer =
         pollster::block_on(Renderer::new(&adapter, wgpu::TextureFormat::Rgba8Unorm))?;
-    let mut demo = Demo::new(&mut renderer, 1.0, workflow.is_none())?;
+    let mut demo = Demo::new(&mut renderer, scale, workflow.is_none())?;
     if let Some(workflow) = workflow {
         demo.studio = Studio::open(
             demo.studio.registry.clone(),
@@ -2713,8 +2998,8 @@ fn smoke(path: &str, workflow: Option<&str>, import_folder: Option<&str>) -> Res
     });
     let view = texture.create_view(&Default::default());
     for _ in 0..8 {
-        let data = demo.draw(width, height, 1., 1. / 60.);
-        renderer.render(&view, &data, width, height, 1.);
+        let data = demo.draw(width, height, scale, 1. / 60.);
+        renderer.render(&view, &data, width, height, scale);
     }
     let stride = (width * 4).div_ceil(256) * 256;
     let buffer = renderer.device.create_buffer(&wgpu::BufferDescriptor {

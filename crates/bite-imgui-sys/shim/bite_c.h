@@ -19,6 +19,7 @@ void bite_focus(int focused);
 int bite_want_text_input(void);
 void bite_font_pixels(const unsigned char** pixels,int* width,int* height);
 void bite_font_texture(uint64_t texture);
+void bite_set_scale(const char* font_path,float font_size,float ui_scale);
 void bite_dockspace(void);
 int bite_begin(const char* title);
 void bite_end(void);

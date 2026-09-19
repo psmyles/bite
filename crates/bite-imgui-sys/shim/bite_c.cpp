@@ -76,6 +76,10 @@ void bite_focus(int f){ImGui::GetIO().AddFocusEvent(f!=0);}
 int bite_want_text_input(){return ImGui::GetIO().WantTextInput;}
 void bite_font_pixels(const unsigned char** pixels,int* w,int* h){unsigned char* p;ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&p,w,h);*pixels=p;}
 void bite_font_texture(uint64_t id){ImGui::GetIO().Fonts->SetTexID((ImTextureID)(uintptr_t)id);}
+void bite_set_scale(const char* font_path,float font_size,float ui_scale){
+    auto& io=ImGui::GetIO();if(ui_scale<=0)ui_scale=1;io.FontGlobalScale=1/ui_scale;
+    io.Fonts->Clear();if(font_path&&font_path[0]&&font_size>0)io.Fonts->AddFontFromFileTTF(font_path,font_size*ui_scale);
+}
 void bite_dockspace(){
     auto viewport=ImGui::GetMainViewport();
     auto dock=ImGui::DockSpaceOverViewport(0,viewport);
