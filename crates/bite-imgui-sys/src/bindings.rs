@@ -38,7 +38,11 @@ const _: () = {
         [::std::mem::offset_of!(BiteCommand, texture) - 32usize];
 };
 unsafe extern "C" {
-    pub fn bite_create() -> *mut ::std::os::raw::c_void;
+    pub fn bite_create(
+        font_path: *const ::std::os::raw::c_char,
+        font_size: f32,
+        ui_scale: f32,
+    ) -> *mut ::std::os::raw::c_void;
 }
 unsafe extern "C" {
     pub fn bite_destroy(context: *mut ::std::os::raw::c_void);

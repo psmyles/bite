@@ -6,7 +6,7 @@ extern "C" {
 #endif
 typedef struct BiteVertex {float pos[2];float uv[2];uint32_t color;} BiteVertex;
 typedef struct BiteCommand {uint32_t count;uint32_t index_offset;uint32_t vertex_offset;float clip[4];uint64_t texture;} BiteCommand;
-void* bite_create(void);
+void* bite_create(const char* font_path,float font_size,float ui_scale);
 void bite_destroy(void* context);
 void bite_frame(float width,float height,float scale,float delta);
 void bite_render(void);

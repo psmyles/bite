@@ -4,12 +4,46 @@ use std::{
     cell::Cell,
     ffi::CString,
     marker::PhantomData,
+    path::PathBuf,
     rc::Rc,
     sync::{Mutex, MutexGuard},
 };
 static OWNER: Mutex<()> = Mutex::new(());
 fn c(text: &str) -> CString {
     CString::new(text.replace('\0', "�")).unwrap()
+}
+fn ui_font_path() -> Option<PathBuf> {
+    let configured = std::env::var_os("BITE_UI_FONT").map(PathBuf::from);
+    if configured.as_ref().is_some_and(|path| path.is_file()) {
+        return configured;
+    }
+
+    #[cfg(target_os = "windows")]
+    let candidates = {
+        let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+        let windows = std::env::var_os("WINDIR").map(PathBuf::from);
+        [
+            local
+                .as_ref()
+                .map(|root| root.join("Microsoft/Windows/Fonts/Inter.ttc")),
+            windows.as_ref().map(|root| root.join("Fonts/Inter.ttc")),
+            windows.as_ref().map(|root| root.join("Fonts/Inter.ttf")),
+        ]
+    };
+    #[cfg(target_os = "macos")]
+    let candidates = [
+        Some(PathBuf::from("/Library/Fonts/Inter.ttc")),
+        Some(PathBuf::from("/Library/Fonts/Inter.ttf")),
+    ];
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    let candidates = [
+        Some(PathBuf::from("/usr/share/fonts/truetype/inter/Inter.ttc")),
+        Some(PathBuf::from(
+            "/usr/share/fonts/truetype/inter/Inter-Regular.ttf",
+        )),
+    ];
+
+    candidates.into_iter().flatten().find(|path| path.is_file())
 }
 pub struct Context {
     raw: *mut std::ffi::c_void,
@@ -63,10 +97,19 @@ pub enum Key {
 }
 impl Context {
     pub fn new() -> Result<Self, String> {
+        Self::with_scale(1.0)
+    }
+    pub fn with_scale(scale: f32) -> Result<Self, String> {
+        if !scale.is_finite() || scale <= 0.0 {
+            return Err("UI scale must be a positive finite number".into());
+        }
         let owner = OWNER
             .try_lock()
             .map_err(|_| "only one ImGui context may be active")?;
-        let raw = unsafe { sys::bite_create() };
+        let font = ui_font_path()
+            .and_then(|path| path.to_str().map(c))
+            .unwrap_or_else(|| c(""));
+        let raw = unsafe { sys::bite_create(font.as_ptr(), 16.0, scale) };
         if raw.is_null() {
             return Err("ImGui context creation failed".into());
         }

@@ -6,7 +6,62 @@
 
 namespace ed=ax::NodeEditor;
 struct State {ImGuiContext* imgui;ed::EditorContext* editor;};
-void* bite_create(){auto s=new State;s->imgui=ImGui::CreateContext();auto& io=ImGui::GetIO();io.ConfigFlags|=ImGuiConfigFlags_DockingEnable;io.BackendFlags|=ImGuiBackendFlags_RendererHasVtxOffset;io.IniFilename=nullptr;ed::Config c;c.SettingsFile=nullptr;s->editor=ed::CreateEditor(&c);ImGui::StyleColorsDark();return s;}
+static ImVec4 color(int r,int g,int b,int a=255){return ImVec4(r/255.0f,g/255.0f,b/255.0f,a/255.0f);}
+static void bite_style(){
+    ImGui::StyleColorsDark();
+    auto& s=ImGui::GetStyle();
+    s.WindowPadding=ImVec2(12,10);s.FramePadding=ImVec2(8,5);s.CellPadding=ImVec2(8,5);
+    s.ItemSpacing=ImVec2(8,6);s.ItemInnerSpacing=ImVec2(6,4);s.IndentSpacing=16;
+    s.ScrollbarSize=12;s.GrabMinSize=12;
+    s.WindowRounding=6;s.ChildRounding=4;s.FrameRounding=4;s.PopupRounding=4;
+    s.ScrollbarRounding=2;s.GrabRounding=4;s.TabRounding=0;
+    s.WindowBorderSize=1;s.ChildBorderSize=1;s.PopupBorderSize=1;s.FrameBorderSize=1;s.TabBorderSize=0;
+    auto* c=s.Colors;
+    c[ImGuiCol_Text]=color(235,235,235);c[ImGuiCol_TextDisabled]=color(140,140,140);
+    c[ImGuiCol_WindowBg]=color(30,30,30);c[ImGuiCol_ChildBg]=color(24,24,24);
+    c[ImGuiCol_PopupBg]=color(30,30,30);c[ImGuiCol_Border]=color(70,70,70);c[ImGuiCol_BorderShadow]=color(0,0,0,0);
+    c[ImGuiCol_FrameBg]=color(26,26,26);c[ImGuiCol_FrameBgHovered]=color(60,60,60);c[ImGuiCol_FrameBgActive]=color(24,110,160);
+    c[ImGuiCol_TitleBg]=color(30,30,30);c[ImGuiCol_TitleBgActive]=color(37,37,38);c[ImGuiCol_TitleBgCollapsed]=color(30,30,30);
+    c[ImGuiCol_MenuBarBg]=color(30,30,30);c[ImGuiCol_ScrollbarBg]=color(24,24,24,0);
+    c[ImGuiCol_ScrollbarGrab]=color(70,70,70);c[ImGuiCol_ScrollbarGrabHovered]=color(90,90,90);c[ImGuiCol_ScrollbarGrabActive]=color(24,110,160);
+    c[ImGuiCol_CheckMark]=color(255,255,255);c[ImGuiCol_SliderGrab]=color(24,110,160);c[ImGuiCol_SliderGrabActive]=color(32,130,185);
+    c[ImGuiCol_Button]=color(60,60,60);c[ImGuiCol_ButtonHovered]=color(75,75,75);c[ImGuiCol_ButtonActive]=color(24,110,160);
+    c[ImGuiCol_Header]=color(48,48,48);c[ImGuiCol_HeaderHovered]=color(60,60,60);c[ImGuiCol_HeaderActive]=color(24,110,160);
+    c[ImGuiCol_Separator]=color(60,60,60);c[ImGuiCol_SeparatorHovered]=color(24,110,160);c[ImGuiCol_SeparatorActive]=color(32,130,185);
+    c[ImGuiCol_ResizeGrip]=color(70,70,70,80);c[ImGuiCol_ResizeGripHovered]=color(24,110,160);c[ImGuiCol_ResizeGripActive]=color(32,130,185);
+    c[ImGuiCol_Tab]=color(30,30,30);c[ImGuiCol_TabHovered]=color(60,60,60);c[ImGuiCol_TabSelected]=color(37,37,38);
+    c[ImGuiCol_TabDimmed]=color(26,26,26);c[ImGuiCol_TabDimmedSelected]=color(32,32,32);
+    c[ImGuiCol_DockingPreview]=color(24,110,160,180);c[ImGuiCol_DockingEmptyBg]=color(24,24,24);
+    c[ImGuiCol_PlotLines]=color(140,140,140);c[ImGuiCol_PlotLinesHovered]=color(32,130,185);
+    c[ImGuiCol_PlotHistogram]=color(24,110,160);c[ImGuiCol_PlotHistogramHovered]=color(32,130,185);
+    c[ImGuiCol_TableHeaderBg]=color(37,37,38);c[ImGuiCol_TableBorderStrong]=color(70,70,70);c[ImGuiCol_TableBorderLight]=color(60,60,60);
+    c[ImGuiCol_TextSelectedBg]=color(24,110,160,160);c[ImGuiCol_DragDropTarget]=color(32,130,185);
+    c[ImGuiCol_NavHighlight]=color(32,130,185);c[ImGuiCol_ModalWindowDimBg]=color(0,0,0,150);
+}
+static void bite_node_style(){
+    auto& s=ed::GetStyle();
+    s.NodePadding=ImVec4(10,8,10,8);s.NodeRounding=6;s.NodeBorderWidth=1;
+    s.HoveredNodeBorderWidth=2;s.SelectedNodeBorderWidth=2;s.PinRounding=4;s.PinBorderWidth=0;
+    s.GroupRounding=6;s.GroupBorderWidth=1;
+    s.Colors[ed::StyleColor_Bg]=color(24,24,27);s.Colors[ed::StyleColor_Grid]=color(255,255,255,16);
+    s.Colors[ed::StyleColor_NodeBg]=color(37,37,38,245);s.Colors[ed::StyleColor_NodeBorder]=color(70,70,70);
+    s.Colors[ed::StyleColor_HovNodeBorder]=color(32,130,185);s.Colors[ed::StyleColor_SelNodeBorder]=color(24,110,160);
+    s.Colors[ed::StyleColor_NodeSelRect]=color(24,110,160,50);s.Colors[ed::StyleColor_NodeSelRectBorder]=color(32,130,185,180);
+    s.Colors[ed::StyleColor_HovLinkBorder]=color(32,130,185);s.Colors[ed::StyleColor_SelLinkBorder]=color(32,130,185);
+    s.Colors[ed::StyleColor_HighlightLinkBorder]=color(32,130,185);s.Colors[ed::StyleColor_LinkSelRect]=color(24,110,160,50);
+    s.Colors[ed::StyleColor_LinkSelRectBorder]=color(32,130,185,180);s.Colors[ed::StyleColor_PinRect]=color(24,110,160,100);
+    s.Colors[ed::StyleColor_PinRectBorder]=color(32,130,185,180);s.Colors[ed::StyleColor_Flow]=color(32,130,185);
+    s.Colors[ed::StyleColor_FlowMarker]=color(235,235,235);s.Colors[ed::StyleColor_GroupBg]=color(0,0,0,80);
+    s.Colors[ed::StyleColor_GroupBorder]=color(140,140,140,100);
+}
+void* bite_create(const char* font_path,float font_size,float ui_scale){
+    auto s=new State;s->imgui=ImGui::CreateContext();auto& io=ImGui::GetIO();
+    io.ConfigFlags|=ImGuiConfigFlags_DockingEnable;io.BackendFlags|=ImGuiBackendFlags_RendererHasVtxOffset;io.IniFilename=nullptr;
+    if(ui_scale<=0)ui_scale=1;io.FontGlobalScale=1/ui_scale;
+    if(font_path&&font_path[0]&&font_size>0)io.Fonts->AddFontFromFileTTF(font_path,font_size*ui_scale);
+    ed::Config c;c.SettingsFile=nullptr;s->editor=ed::CreateEditor(&c);ed::SetCurrentEditor(s->editor);
+    bite_style();bite_node_style();return s;
+}
 void bite_destroy(void* context){auto s=(State*)context;ed::DestroyEditor(s->editor);ImGui::DestroyContext(s->imgui);delete s;}
 void bite_frame(float w,float h,float scale,float dt){auto& io=ImGui::GetIO();io.DisplaySize=ImVec2(w,h);io.DisplayFramebufferScale=ImVec2(scale,scale);io.DeltaTime=dt;ImGui::NewFrame();}
 void bite_render(){ImGui::Render();}

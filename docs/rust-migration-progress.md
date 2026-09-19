@@ -237,3 +237,31 @@ M2 remains open for complete deferred planning after unresolved analysis, fact
 fingerprint/version provenance, solid-only input selection, runtime parameter-wire
 coercion/default edge cases, and aggregate text/atlas failure compatibility.
 Full GUI remains gated. macOS and interactive Windows acceptance remain pending.
+
+## Interactive review 2026-09-19 — native prototype typography and theme
+
+The Windows prototype review found that the technical UI still used Dear
+ImGui's small bundled pixel font and stock dark colors. The native wrapper now
+loads Inter at 16 px from the normal per-user or system font locations, with a
+`BITE_UI_FONT` override and the bundled font retained as a portable fallback.
+This keeps font selection on the Rust side and lets later packaging provide an
+explicit font asset without another C ABI change.
+
+The initial atlas is rasterized at 16 px times the window DPI scale and uses
+the reciprocal ImGui font scale for 16 logical-pixel layout. This avoids
+bilinear enlargement of a low-resolution atlas on scaled Windows displays.
+Live atlas rebuilding after moving a window between unlike-DPI monitors remains
+future full-GUI work.
+
+Applied Fire-aligned metrics and colors to ImGui and the node editor: roomier
+frames and items, restrained rounding, charcoal surfaces, subtle borders and
+grid, and a consistent blue interaction accent. The generated 1600x1000 smoke
+render is `test-workflows/out/native-prototype-inter.png`; it confirms Inter is
+in the atlas and the stock blue title bars and purple canvas are gone.
+
+Windows verification: the `bite-imgui` and `bite-imgui-sys` tests pass, strict
+workspace Clippy passes, the 120-node GPU smoke render completes on Vulkan, and
+`git diff --check` reports no patch errors. The recurring incremental-cache
+cleanup warning remains non-fatal. This is prototype polish within the existing
+Phase 8 spike; the full GUI remains gated on M2. macOS font discovery and visual
+acceptance remain pending.

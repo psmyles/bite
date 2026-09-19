@@ -21,8 +21,8 @@ struct Demo {
     selected: u64,
 }
 impl Demo {
-    fn new(renderer: &mut Renderer) -> Result<Self, String> {
-        let mut context = Context::new()?;
+    fn new(renderer: &mut Renderer, scale: f32) -> Result<Self, String> {
+        let mut context = Context::with_scale(scale)?;
         let (w, h, pixels) = context.font_atlas();
         renderer.texture(1, w, h, &pixels);
         context.set_font_texture(1);
@@ -198,7 +198,7 @@ impl App {
             .unwrap_or(config.format);
         let mut renderer = pollster::block_on(Renderer::new(&adapter, config.format))?;
         surface.configure(&renderer.device, &config);
-        let demo = Demo::new(&mut renderer)?;
+        let demo = Demo::new(&mut renderer, window.scale_factor() as f32)?;
         window.request_redraw();
         self.state = Some(State {
             window,
@@ -375,7 +375,7 @@ fn smoke(path: &str) -> Result<(), String> {
     println!("Adapter: {:?}", adapter.get_info());
     let mut renderer =
         pollster::block_on(Renderer::new(&adapter, wgpu::TextureFormat::Rgba8Unorm))?;
-    let mut demo = Demo::new(&mut renderer)?;
+    let mut demo = Demo::new(&mut renderer, 1.0)?;
     let (width, height) = (1600, 1000);
     let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
         label: Some("prototype smoke"),
