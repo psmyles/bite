@@ -521,12 +521,11 @@ or deterministic examples, and Process As Set shows matched/complete set
 counts. Core execution now honors `generateLog` by writing a nonfatal output
 summary next to produced files.
 
-All 52 Rust tests and strict workspace Clippy pass. The offscreen acceptance
-image is `test-workflows/out/native-phase10-foundation.png`. Remaining Phase 10
-work includes the update dialog, dedicated input/output presentation, richer
-Text/Flipbook inspectors, and full Windows interaction/high-DPI acceptance,
-including hands-on group containment and resize checks. macOS Phase 10
-acceptance remains pending.
+All 53 Rust tests and strict workspace Clippy pass. The offscreen acceptance
+image is `test-workflows/out/native-phase10-outputs.png`. Remaining Phase 10
+work includes per-input filmstrip collections, generated Text Output preview,
+and full Windows interaction/high-DPI acceptance, including hands-on group
+containment and resize checks. macOS Phase 10 acceptance remains pending.
 
 Windows native dialogs now cover workflow open/save-as, input and output folder
 selection, Folder Path browsing and CLI export destinations. Copy/paste uses a
@@ -534,3 +533,18 @@ versioned JSON graph fragment on the Windows system clipboard while retaining
 the in-process fallback. Fragment round-trip and internal-edge preservation are
 covered by the Rust suite. macOS native dialogs and system clipboard remain
 pending under the platform policy.
+
+Input and Image Output nodes now accept independent runtime folders, so a GUI
+run can supply different paths to each CLI-named endpoint. The selected Input's
+thumbnail size controls import generation. Image Output exposes the Folder Path
+port and hides its local folder controls while wired; set naming appears only
+when Process As Set is upstream. Text and Flipbook outputs have native file
+dialogs, readable choice labels, ordered connected-port labels and an atlas
+size/capacity summary. The single active filmstrip collection and generated
+Text Output preview remain explicit gaps.
+
+The native Windows build now checks the GitHub releases API over WinHTTP on a
+background thread, compares the release tag against the product version and
+shows an Update Available dialog without blocking editor input. Manual checks
+also report the up-to-date and error states. macOS update checking remains
+pending.

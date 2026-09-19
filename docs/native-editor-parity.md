@@ -62,17 +62,17 @@ native control provides the same workflow more clearly.
 
 | Requirement | Native status |
 | --- | --- |
-| Multiple inputs and image outputs with CLI names | Implemented with collision-free default CLI names |
-| Text and flipbook outputs | Creation, ports and generic/custom values implemented; Text Output maintains one trailing dynamic port; richer output inspectors pending |
-| Process As Set | Creation, dynamic typed ports and suffix editing implemented; matched-set preview pending |
+| Multiple inputs and image outputs with CLI names | Implemented with collision-free defaults and independent per-node run folders; filmstrip media is still a single active collection |
+| Text and flipbook outputs | Dedicated output-file dialogs, labelled separators/sort modes, ordered Text ports and Flipbook atlas/capacity summary implemented; generated Text Output preview remains pending |
+| Process As Set | Creation, dynamic typed ports, suffix editing and matched/complete set preview implemented |
 | Save/open/new and dirty prompts | Implemented with Save and continue, Discard and Cancel |
 | Run, progress and cancellation | Implemented |
 | PowerShell/Bash/CMD CLI export | Core generator and native save dialog implemented with companion `.bite` file |
 | Output logs | `generateLog` writes a nonfatal summary beside produced files |
-| Per-input thumbnail size | Editable and used by import; dedicated presentation pass pending |
+| Per-input thumbnail size | Editable and used when importing for the selected Input node |
 | Definition hot reload | Reloads transactionally when the app regains focus; manual reload is also available |
-| Update check/dialog | Pending |
-| File dialogs and file association | Windows open/save/folder dialogs implemented; file association is Phase 11 and macOS dialogs remain pending |
+| Update check/dialog | Windows HTTPS GitHub release check and update dialog implemented; macOS pending |
+| File dialogs and file association | Windows workflow, CLI export, Folder Path, image-output folder, Text Output and Flipbook dialogs implemented; file association is Phase 11 and macOS dialogs remain pending |
 
 ## Platform acceptance
 

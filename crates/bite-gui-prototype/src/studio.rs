@@ -583,8 +583,10 @@ impl Studio {
         if self.workflow.graph.nodes[index].data.definition_id == "process_as_set"
             && name == "suffixes"
         {
-            let suffixes = match value {
-                ParamValue::Structured(StructuredParam::SetSuffixes { suffixes }) => suffixes,
+            let suffixes = match &value {
+                ParamValue::Structured(StructuredParam::SetSuffixes { suffixes }) => {
+                    suffixes.clone()
+                }
                 _ => Vec::new(),
             };
             self.workflow.graph.nodes[index].data.outputs = suffixes
@@ -609,6 +611,25 @@ impl Studio {
                         || edge.target_handle == "param:prefix"
                         || valid_params.contains(&edge.target_handle))
             });
+        }
+        if self.workflow.graph.nodes[index].kind == NodeKind::Builtin(BuiltinNodeKind::TextOutput)
+            && name == "portIds"
+        {
+            let slots: BTreeSet<_> = match &value {
+                ParamValue::Structured(StructuredParam::TextSlots { slots }) => {
+                    slots.iter().cloned().collect()
+                }
+                _ => BTreeSet::new(),
+            };
+            self.workflow.graph.edges.retain(|edge| {
+                edge.target != node_id
+                    || !edge.target_handle.starts_with("txo:")
+                    || edge
+                        .target_handle
+                        .strip_prefix("txo:")
+                        .is_some_and(|slot| slots.contains(slot))
+            });
+            normalize_text_slots(&mut self.workflow.graph);
         }
         self.finish_edit("Changed parameter");
         true
@@ -987,6 +1008,15 @@ impl Studio {
     }
 
     pub fn run_options(&self, input: &Path, output: &Path) -> RunOptions {
+        self.run_options_with_overrides(input, output, &BTreeMap::new())
+    }
+
+    pub fn run_options_with_overrides(
+        &self,
+        input: &Path,
+        output: &Path,
+        runtime_paths: &BTreeMap<String, String>,
+    ) -> RunOptions {
         let mut options = RunOptions {
             overwrite: true,
             ..Default::default()
@@ -1003,10 +1033,22 @@ impl Studio {
             if let Some(flag) = flag {
                 match node.kind {
                     NodeKind::Builtin(BuiltinNodeKind::Input) => {
-                        options.named_paths.insert(flag, input.to_owned());
+                        options.named_paths.insert(
+                            flag,
+                            runtime_paths
+                                .get(&node.id)
+                                .map(PathBuf::from)
+                                .unwrap_or_else(|| input.to_owned()),
+                        );
                     }
                     NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
-                        options.named_paths.insert(flag, output.to_owned());
+                        options.named_paths.insert(
+                            flag,
+                            runtime_paths
+                                .get(&node.id)
+                                .map(PathBuf::from)
+                                .unwrap_or_else(|| output.to_owned()),
+                        );
                     }
                     _ => {}
                 }
@@ -1210,6 +1252,38 @@ mod tests {
     }
 
     #[test]
+    fn runtime_paths_are_independent_for_multiple_inputs_and_outputs() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = Studio::load_registry(&root).unwrap();
+        let mut studio = Studio::blank(registry);
+        let input_a = studio.add_input(Position { x: 0.0, y: 0.0 });
+        let input_b = studio.add_input(Position { x: 0.0, y: 100.0 });
+        let output_a = studio.add_output(Position { x: 400.0, y: 0.0 });
+        let output_b = studio.add_output(Position { x: 400.0, y: 100.0 });
+        let overrides = BTreeMap::from([
+            (input_a, "inputs/a".into()),
+            (input_b, "inputs/b".into()),
+            (output_a, "outputs/a".into()),
+            (output_b, "outputs/b".into()),
+        ]);
+        let options = studio.run_options_with_overrides(
+            Path::new("fallback-input"),
+            Path::new("fallback-output"),
+            &overrides,
+        );
+        assert_eq!(options.named_paths["input-1"], PathBuf::from("inputs/a"));
+        assert_eq!(options.named_paths["input-2"], PathBuf::from("inputs/b"));
+        assert_eq!(
+            options.named_paths["output-image-1"],
+            PathBuf::from("outputs/a")
+        );
+        assert_eq!(
+            options.named_paths["output-image-2"],
+            PathBuf::from("outputs/b")
+        );
+    }
+
+    #[test]
     fn exports_cli_script_with_companion_workflow() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let registry = Studio::load_registry(&root).unwrap();
@@ -1298,8 +1372,22 @@ mod tests {
             }
         }
         assert_eq!(slots(&studio, &text), vec!["0", "1"]);
+        studio
+            .connect(&input, "out:output", &text, "txo:1")
+            .unwrap();
+        assert_eq!(slots(&studio, &text), vec!["0", "1", "2"]);
+        assert!(studio.set_param(
+            &text,
+            "portIds".into(),
+            ParamValue::Structured(StructuredParam::TextSlots {
+                slots: vec!["0".into(), "2".into()],
+            }),
+        ));
+        assert_eq!(slots(&studio, &text), vec!["0", "2"]);
+        assert_eq!(studio.workflow.graph.edges.len(), 1);
+        assert_eq!(studio.workflow.graph.edges[0].target_handle, "txo:0");
         studio.delete_edge(&edge);
-        assert_eq!(slots(&studio, &text), vec!["1"]);
+        assert_eq!(slots(&studio, &text), vec!["2"]);
     }
 
     #[test]

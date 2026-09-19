@@ -2,6 +2,7 @@
 mod dialogs;
 mod renderer;
 mod studio;
+mod updates;
 use bite_core::execution::ImageHost;
 use bite_imgui::{Context, Key};
 use bite_schema::{BuiltinNodeKind, NodeKind, ParamType, Position, WidgetType};
@@ -34,6 +35,7 @@ struct Demo {
     workflow_path: String,
     input_path: String,
     output_path: String,
+    runtime_paths: BTreeMap<String, String>,
     runner: Option<RunState>,
     technical_demo: bool,
     import_requested: bool,
@@ -51,6 +53,9 @@ struct Demo {
     pending_wire: Option<PendingWire>,
     open_creation_requested: bool,
     node_search: String,
+    update_receiver: Option<mpsc::Receiver<Result<updates::UpdateInfo, String>>>,
+    update_result: Option<Result<updates::UpdateInfo, String>>,
+    update_show_all: bool,
 }
 #[derive(Clone)]
 struct PendingWire {
@@ -100,6 +105,45 @@ fn human_label(name: &str) -> String {
     label.replace("Cli ", "CLI ")
 }
 
+fn sanitize_cli_name(value: &str) -> String {
+    value
+        .to_ascii_lowercase()
+        .chars()
+        .filter_map(|character| {
+            if character.is_ascii_alphanumeric() || character == '-' {
+                Some(character)
+            } else if character.is_ascii_whitespace() {
+                Some('-')
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn upstream_contains_definition(
+    graph: &bite_schema::Graph,
+    node_id: &str,
+    definition_id: &str,
+) -> bool {
+    let mut pending = vec![node_id];
+    let mut visited = BTreeSet::new();
+    while let Some(target) = pending.pop() {
+        for edge in graph.edges.iter().filter(|edge| edge.target == target) {
+            if !visited.insert(edge.source.as_str()) {
+                continue;
+            }
+            if let Some(node) = graph.nodes.iter().find(|node| node.id == edge.source) {
+                if node.data.definition_id == definition_id {
+                    return true;
+                }
+                pending.push(&node.id);
+            }
+        }
+    }
+    false
+}
+
 fn wire_color(kind: bite_core::graph::WireType) -> [f32; 3] {
     use bite_core::graph::WireType;
     match kind {
@@ -120,6 +164,17 @@ fn builtin_options(name: &str) -> Vec<String> {
         "overwrite" => &["skip", "overwrite"],
         "separatorType" => &["comma", "tab", "space", "custom"],
         "sortBy" => &["import_order", "name", "name_desc"],
+        _ => &[],
+    };
+    values.iter().map(|value| (*value).into()).collect()
+}
+
+fn builtin_labels(name: &str) -> Vec<String> {
+    let values: &[&str] = match name {
+        "outputPath" => &["Same as source", "Custom folder"],
+        "overwrite" => &["Skip existing", "Overwrite"],
+        "separatorType" => &["Comma", "Tab", "Space", "Custom…"],
+        "sortBy" => &["Import order", "File name (A–Z)", "File name (Z–A)"],
         _ => &[],
     };
     values.iter().map(|value| (*value).into()).collect()
@@ -180,9 +235,13 @@ fn node_ports(node: &bite_schema::GraphNode, registry: &bite_core::Registry) -> 
         NodeKind::Builtin(BuiltinNodeKind::Input) => {
             (Vec::new(), vec![("out:output".into(), "Image".into())])
         }
-        NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
-            (vec![("in:input".into(), "Image".into())], Vec::new())
-        }
+        NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => (
+            vec![
+                ("in:input".into(), "Image".into()),
+                ("folder-in".into(), "Folder".into()),
+            ],
+            Vec::new(),
+        ),
         NodeKind::Builtin(BuiltinNodeKind::TextOutput) => {
             let mut inputs = vec![("in:input".into(), "Image".into())];
             if let Some(bite_schema::ParamValue::Structured(
@@ -431,6 +490,10 @@ impl Demo {
             studio.mark_clean();
         }
         let workflow_path = initial.unwrap_or_else(|| "workflow.bite".into());
+        let (update_send, update_receive) = mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = update_send.send(updates::check());
+        });
         Ok(Self {
             context,
             text: "Multiline input\nType here to test input and IME.".into(),
@@ -449,6 +512,7 @@ impl Demo {
                 .join("test-workflows/out/native-gui")
                 .to_string_lossy()
                 .into_owned(),
+            runtime_paths: BTreeMap::new(),
             runner: None,
             technical_demo,
             import_requested: false,
@@ -466,18 +530,50 @@ impl Demo {
             pending_wire: None,
             open_creation_requested: false,
             node_search: String::new(),
+            update_receiver: Some(update_receive),
+            update_result: None,
+            update_show_all: false,
         })
     }
 
     fn import_images(&mut self, renderer: &mut Renderer) -> Result<(), String> {
-        let root = PathBuf::from(&self.input_path);
+        let selected_input = self
+            .studio
+            .workflow
+            .graph
+            .nodes
+            .iter()
+            .find(|node| {
+                node.kind == NodeKind::Builtin(BuiltinNodeKind::Input)
+                    && stable_id(&format!("node:{}", node.id)) == self.selected
+            })
+            .or_else(|| {
+                self.studio
+                    .workflow
+                    .graph
+                    .nodes
+                    .iter()
+                    .find(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::Input))
+            });
+        let root = selected_input
+            .and_then(|node| self.runtime_paths.get(&node.id))
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(&self.input_path));
+        let thumbnail_size = selected_input
+            .and_then(|node| node.data.params.get("thumbnailSize"))
+            .and_then(|value| match value {
+                bite_schema::ParamValue::Int(value) => u32::try_from(*value).ok(),
+                _ => None,
+            })
+            .unwrap_or(256)
+            .clamp(64, 2048);
         let cancelled = std::sync::atomic::AtomicBool::new(false);
         let paths = bite_imagemagick::import::scan_folder(&root, false, 8, &cancelled)?;
         let cache_dir = std::env::temp_dir().join("bite-native-thumbnails");
         let mut cache = bite_imagemagick::import::ThumbnailCache::new(cache_dir.clone());
         cache.jobs = 8;
         let mut host = bite_imagemagick::Magick::discover(Arc::new(cancelled));
-        let images = cache.load_batch(&mut host, &paths, 128)?;
+        let images = cache.load_batch(&mut host, &paths, thumbnail_size)?;
         self.thumbnails.clear();
         self.image_paths = paths.iter().take(32).cloned().collect();
         for (index, image) in images.iter().take(32).enumerate() {
@@ -495,7 +591,10 @@ impl Demo {
         if !self.image_paths.is_empty() {
             self.refresh_preview(renderer, 0)?;
         }
-        self.studio.status = format!("Imported {} images", images.len());
+        self.studio.status = format!(
+            "Imported {} images at {thumbnail_size}px thumbnail size",
+            images.len()
+        );
         Ok(())
     }
 
@@ -536,6 +635,7 @@ impl Demo {
             workflow_path,
             input_path,
             output_path,
+            runtime_paths,
             runner,
             technical_demo,
             import_requested,
@@ -553,6 +653,9 @@ impl Demo {
             pending_wire,
             open_creation_requested,
             node_search,
+            update_receiver,
+            update_result,
+            update_show_all,
         } = self;
         let mut completed = false;
         if let Some(active) = runner.as_ref() {
@@ -576,6 +679,19 @@ impl Demo {
         }
         if completed {
             *runner = None;
+        }
+        if let Some(receiver) = update_receiver.as_ref() {
+            if let Ok(result) = receiver.try_recv() {
+                if *update_show_all
+                    || result
+                        .as_ref()
+                        .is_ok_and(|information| information.available)
+                {
+                    *update_result = Some(result);
+                }
+                *update_receiver = None;
+                *update_show_all = false;
+            }
         }
         let mut frame = context.frame(
             width as f32 / scale,
@@ -721,6 +837,18 @@ impl Demo {
                     studio.status = format!("Definition reload failed: {error}");
                 }
             }
+            if update_receiver.is_none() && ui.button("Check for updates") {
+                let (send, receive) = mpsc::channel();
+                std::thread::spawn(move || {
+                    let _ = send.send(updates::check());
+                });
+                *update_receiver = Some(receive);
+                *update_result = None;
+                *update_show_all = true;
+                studio.status = "Checking for updates…".into();
+            } else if update_receiver.is_some() {
+                ui.text("Checking for updates…");
+            }
             ui.text("Input folder");
             ui.next_item_full_width();
             ui.input_text("##input-folder", input_path);
@@ -748,9 +876,10 @@ impl Demo {
             if runner.is_none() && ui.button("Run") {
                 let graph = studio.workflow.graph.clone();
                 let registry = studio.registry.clone();
-                let options = studio.run_options(
+                let options = studio.run_options_with_overrides(
                     PathBuf::from(&*input_path).as_path(),
                     PathBuf::from(&*output_path).as_path(),
+                    runtime_paths,
                 );
                 let cancelled = options.cancelled.clone();
                 let (send, receive) = mpsc::channel();
@@ -788,6 +917,43 @@ impl Demo {
             }
             ui.text(&studio.status);
         });
+        let mut dismiss_update = false;
+        let mut copy_update_url = None;
+        if let Some(result) = update_result.as_ref() {
+            ui.window("BITE update", |ui| {
+                match result {
+                    Ok(update) if update.available => {
+                        ui.text(&format!("Update available: {}", update.version));
+                        for line in update.body.lines().take(20) {
+                            ui.text(line);
+                        }
+                        ui.text(&update.url);
+                        if ui.button("Copy release URL") {
+                            copy_update_url = Some(update.url.clone());
+                        }
+                    }
+                    Ok(update) => {
+                        ui.text(&format!(
+                            "BITE is up to date (latest release: {})",
+                            update.version
+                        ));
+                    }
+                    Err(error) => ui.text(&format!("Update check failed: {error}")),
+                }
+                if ui.button("Dismiss") {
+                    dismiss_update = true;
+                }
+            });
+        }
+        if let Some(url) = copy_update_url {
+            studio.status = match dialogs::write_clipboard(&url) {
+                Ok(()) => "Copied the release URL".into(),
+                Err(error) => format!("Could not copy the release URL: {error}"),
+            };
+        }
+        if dismiss_update {
+            *update_result = None;
+        }
         if let Some(pending) = *pending_action {
             ui.window("Unsaved changes", |ui| {
                 ui.text("Save the current workflow before continuing?");
@@ -818,6 +984,7 @@ impl Demo {
                     studio.add_output(Position { x: 700.0, y: 100.0 });
                     studio.mark_clean();
                     *workflow_path = "workflow.bite".into();
+                    runtime_paths.clear();
                     *selected = 0;
                     selected_nodes.clear();
                     *frames = 0;
@@ -830,6 +997,7 @@ impl Demo {
                         *studio = opened;
                         *selected = 0;
                         selected_nodes.clear();
+                        runtime_paths.clear();
                         *frames = 0;
                     }
                     Err(error) => studio.status = format!("Open failed: {error}"),
@@ -1352,6 +1520,18 @@ impl Demo {
                 ui.text(&format!("Definition: {}", node.data.definition_id));
                 let node_id = node.id.clone();
                 let params = node.data.params.clone();
+                let mut dialog_error = None;
+                let folder_wired = studio
+                    .workflow
+                    .graph
+                    .edges
+                    .iter()
+                    .any(|edge| edge.target == node_id && edge.target_handle == "folder-in");
+                let has_set_input = upstream_contains_definition(
+                    &studio.workflow.graph,
+                    &node_id,
+                    "process_as_set",
+                );
                 let compiled_definition = studio.registry.nodes.get(&node.data.definition_id);
                 let mut definition_list = compiled_definition
                     .map(|compiled| compiled.definition.params.clone())
@@ -1417,6 +1597,66 @@ impl Demo {
                         })
                         .unwrap_or(true)
                 };
+                let builtin_visible = |name: &str| match (node.kind.clone(), name) {
+                    (NodeKind::Builtin(BuiltinNodeKind::ImageOutput), "outputPath") => {
+                        !folder_wired
+                    }
+                    (NodeKind::Builtin(BuiltinNodeKind::ImageOutput), "customPath") => {
+                        !folder_wired
+                            && matches!(
+                            params.get("outputPath"),
+                            Some(bite_schema::ParamValue::String(value)) if value == "custom"
+                            )
+                    }
+                    (
+                        NodeKind::Builtin(BuiltinNodeKind::ImageOutput),
+                        "setOutputPrefix" | "setOutputSuffix",
+                    ) => has_set_input,
+                    (NodeKind::Builtin(BuiltinNodeKind::TextOutput), "customSeparator") => {
+                        matches!(
+                            params.get("separatorType"),
+                            Some(bite_schema::ParamValue::String(value)) if value == "custom"
+                        )
+                    }
+                    (NodeKind::Builtin(BuiltinNodeKind::TextOutput), "nextPortIndex") => false,
+                    _ => true,
+                };
+                if folder_wired {
+                    ui.text("Output folder: connected Folder Path node");
+                }
+                if node.kind == NodeKind::Builtin(BuiltinNodeKind::Input) {
+                    ui.text(&format!("Imported images: {}", image_paths.len()));
+                }
+                if matches!(
+                    node.kind,
+                    NodeKind::Builtin(BuiltinNodeKind::Input | BuiltinNodeKind::ImageOutput)
+                ) {
+                    let is_input = node.kind == NodeKind::Builtin(BuiltinNodeKind::Input);
+                    let fallback = if is_input {
+                        &*input_path
+                    } else {
+                        &*output_path
+                    };
+                    let path = runtime_paths
+                        .entry(node_id.clone())
+                        .or_insert_with(|| fallback.clone());
+                    ui.text(if is_input {
+                        "Run input folder"
+                    } else {
+                        "Run output folder"
+                    });
+                    ui.next_item_full_width();
+                    ui.input_text(&format!("##runtime-path-{node_id}"), path);
+                    if ui.button(&format!("Browse run folder##{node_id}")) {
+                        match dialogs::select_folder() {
+                            Ok(Some(selected)) => {
+                                *path = selected.to_string_lossy().into_owned();
+                            }
+                            Ok(None) => {}
+                            Err(error) => dialog_error = Some(error),
+                        }
+                    }
+                }
                 let mut parameter_names: Vec<_> = definition_list
                     .iter()
                     .map(|definition| definition.name.clone())
@@ -1427,6 +1667,7 @@ impl Demo {
                                 .and_then(|definition| definition.default.as_ref())
                                 .is_some())
                             && visible(name)
+                            && builtin_visible(name)
                             && !definitions
                                 .get(name)
                                 .is_some_and(|definition| definition.port_only)
@@ -1435,11 +1676,14 @@ impl Demo {
                 parameter_names.extend(
                     params
                         .keys()
-                        .filter(|name| !definitions.contains_key(*name))
+                        .filter(|name| {
+                            !definitions.contains_key(*name)
+                                && visible(name)
+                                && builtin_visible(name)
+                        })
                         .cloned(),
                 );
                 let mut parameter_changes = Vec::new();
-                let mut dialog_error = None;
                 for name in parameter_names {
                     let Some(value) = params.get(&name).cloned().or_else(|| {
                         definitions
@@ -1485,20 +1729,22 @@ impl Demo {
                             let mut edited = number as f32;
                             ui.text(label);
                             ui.next_item_full_width();
-                            let changed = if definition.is_some_and(|definition| {
-                                definition.widget == Some(WidgetType::Slider)
-                            }) {
-                                ui.slider_float(
-                                    &control_id,
-                                    &mut edited,
-                                    definition
-                                        .and_then(|definition| definition.min)
-                                        .unwrap_or(0.0) as f32,
-                                    definition
-                                        .and_then(|definition| definition.max)
-                                        .unwrap_or(100.0)
-                                        as f32,
-                                )
+                            let range = definition
+                                .filter(|definition| definition.widget == Some(WidgetType::Slider))
+                                .map(|definition| {
+                                    (
+                                        definition.min.unwrap_or(0.0) as f32,
+                                        definition.max.unwrap_or(100.0) as f32,
+                                    )
+                                })
+                                .or(match name.as_str() {
+                                    "thumbnailSize" => Some((64.0, 1024.0)),
+                                    "cols" | "rows" => Some((1.0, 64.0)),
+                                    "cellWidth" | "cellHeight" => Some((1.0, 8192.0)),
+                                    _ => None,
+                                });
+                            let changed = if let Some((minimum, maximum)) = range {
+                                ui.slider_float(&control_id, &mut edited, minimum, maximum)
                             } else {
                                 ui.drag_float(&control_id, &mut edited)
                             };
@@ -1527,12 +1773,53 @@ impl Demo {
                                         definition.labels.len() == definition.options.len()
                                     })
                                     .map(|definition| definition.labels.clone())
-                                    .unwrap_or_else(|| options.clone());
+                                    .unwrap_or_else(|| {
+                                        let labels = builtin_labels(&name);
+                                        if labels.len() == options.len() {
+                                            labels
+                                        } else {
+                                            options.clone()
+                                        }
+                                    });
                                 ui.combo(&control_id, &mut selected, &displayed).then(|| {
                                     bite_schema::ParamValue::String(options[selected].clone())
                                 })
                             };
-                            if name == "folderPath" && ui.button("Browse folder") {
+                            if name == "cliName" {
+                                if let Some(bite_schema::ParamValue::String(value)) = &mut changed {
+                                    *value = sanitize_cli_name(value);
+                                }
+                                let current_name = params
+                                    .get("cliName")
+                                    .and_then(|value| match value {
+                                        bite_schema::ParamValue::String(value) => {
+                                            Some(value.as_str())
+                                        }
+                                        _ => None,
+                                    })
+                                    .unwrap_or("");
+                                let conflict = !current_name.is_empty()
+                                    && studio.workflow.graph.nodes.iter().any(|other| {
+                                        other.id != node_id
+                                            && other.data.params.get("cliName").is_some_and(
+                                                |value| {
+                                                    value
+                                                        == &bite_schema::ParamValue::String(
+                                                            current_name.into(),
+                                                        )
+                                                },
+                                            )
+                                    });
+                                if conflict {
+                                    ui.text("CLI name is already used by another workflow node");
+                                } else if !current_name.is_empty() {
+                                    ui.text(&format!("Export flag: --{current_name}"));
+                                }
+                            }
+                            let browse_folder = name == "folderPath"
+                                || (node.kind == NodeKind::Builtin(BuiltinNodeKind::ImageOutput)
+                                    && name == "customPath");
+                            if browse_folder && ui.button("Browse folder") {
                                 match dialogs::select_folder() {
                                     Ok(Some(path)) => {
                                         changed = Some(bite_schema::ParamValue::String(
@@ -1542,6 +1829,42 @@ impl Demo {
                                     Ok(None) => {}
                                     Err(error) => {
                                         dialog_error = Some(error);
+                                    }
+                                }
+                            }
+                            let browse_output = match (node.kind.clone(), name.as_str()) {
+                                (NodeKind::Builtin(BuiltinNodeKind::TextOutput), "outputPath") => {
+                                    Some(("txt", "Text output"))
+                                }
+                                (
+                                    NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput),
+                                    "flipbookOutputPath",
+                                ) => Some(("png", "Flipbook image")),
+                                _ => None,
+                            };
+                            if let Some((extension, description)) = browse_output {
+                                if ui.button("Browse output file") {
+                                    let default = params
+                                        .get(&name)
+                                        .and_then(|value| match value {
+                                            bite_schema::ParamValue::String(value)
+                                                if !value.is_empty() =>
+                                            {
+                                                Some(PathBuf::from(value))
+                                            }
+                                            _ => None,
+                                        })
+                                        .unwrap_or_else(|| {
+                                            PathBuf::from(format!("output.{extension}"))
+                                        });
+                                    match dialogs::save_file(&default, extension, description) {
+                                        Ok(Some(path)) => {
+                                            changed = Some(bite_schema::ParamValue::String(
+                                                path.to_string_lossy().into_owned(),
+                                            ));
+                                        }
+                                        Ok(None) => {}
+                                        Err(error) => dialog_error = Some(error),
                                     }
                                 }
                             }
@@ -1774,22 +2097,70 @@ impl Demo {
                         ) => {
                             ui.text(&format!("{label}: {} text ports", slots.len()));
                             let mut changed = false;
-                            if ui.button(&format!("Add text port##{node_id}")) {
-                                let next = slots
+                            let connected: BTreeSet<_> = studio
+                                .workflow
+                                .graph
+                                .edges
+                                .iter()
+                                .filter(|edge| edge.target == node_id)
+                                .filter_map(|edge| {
+                                    edge.target_handle.strip_prefix("txo:").map(str::to_owned)
+                                })
+                                .collect();
+                            let mut move_slot = None;
+                            let mut remove_slot = None;
+                            for (index, slot) in slots.iter().enumerate() {
+                                let source_label = studio
+                                    .workflow
+                                    .graph
+                                    .edges
                                     .iter()
-                                    .filter_map(|slot| slot.parse::<u64>().ok())
-                                    .max()
-                                    .unwrap_or(0)
-                                    + 1;
-                                slots.push(next.to_string());
+                                    .find(|edge| {
+                                        edge.target == node_id
+                                            && edge.target_handle == format!("txo:{slot}")
+                                    })
+                                    .and_then(|edge| {
+                                        studio
+                                            .workflow
+                                            .graph
+                                            .nodes
+                                            .iter()
+                                            .find(|source| source.id == edge.source)
+                                    })
+                                    .map(|source| source.data.label.as_str());
+                                ui.text(&format!(
+                                    "Text {} — {}",
+                                    index + 1,
+                                    source_label.unwrap_or("empty connection")
+                                ));
+                                if index > 0 && ui.button(&format!("Up##text-{slot}")) {
+                                    move_slot = Some((index, index - 1));
+                                }
+                                if index > 0 {
+                                    ui.same_line();
+                                }
+                                if index + 1 < slots.len()
+                                    && ui.button(&format!("Down##text-{slot}"))
+                                {
+                                    move_slot = Some((index, index + 1));
+                                }
+                                if index + 1 < slots.len() {
+                                    ui.same_line();
+                                }
+                                if !connected.contains(slot)
+                                    && slots.len() > 1
+                                    && ui.button(&format!("Remove##text-{slot}"))
+                                {
+                                    remove_slot = Some(index);
+                                }
+                            }
+                            if let Some((from, to)) = move_slot {
+                                slots.swap(from, to);
                                 changed = true;
                             }
-                            if slots.len() > 1 {
-                                ui.same_line();
-                                if ui.button(&format!("Remove last port##{node_id}")) {
-                                    slots.pop();
-                                    changed = true;
-                                }
+                            if let Some(index) = remove_slot {
+                                slots.remove(index);
+                                changed = true;
                             }
                             changed.then_some(bite_schema::ParamValue::Structured(
                                 bite_schema::StructuredParam::TextSlots { slots },
@@ -1804,8 +2175,44 @@ impl Demo {
                         parameter_changes.push((name, value));
                     }
                 }
+                if node.kind == NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) {
+                    let integer = |name: &str, fallback: i64| {
+                        params
+                            .get(name)
+                            .and_then(|value| match value {
+                                bite_schema::ParamValue::Int(value) => Some(*value),
+                                _ => None,
+                            })
+                            .unwrap_or(fallback)
+                            .max(1)
+                    };
+                    let cols = integer("cols", 4);
+                    let rows = integer("rows", 4);
+                    let cell_width = integer("cellWidth", 128);
+                    let cell_height = integer("cellHeight", 128);
+                    let capacity = cols.saturating_mul(rows);
+                    let images = i64::try_from(image_paths.len()).unwrap_or(i64::MAX);
+                    ui.text(&format!(
+                        "Atlas: {} × {} px; {capacity} cells ({cols} × {rows})",
+                        cols.saturating_mul(cell_width),
+                        rows.saturating_mul(cell_height)
+                    ));
+                    if images > capacity {
+                        ui.text(&format!(
+                            "Images: {images}; {} will be truncated",
+                            images - capacity
+                        ));
+                    } else {
+                        ui.text(&format!(
+                            "Images: {images}; {} cells unfilled",
+                            capacity - images
+                        ));
+                    }
+                }
                 for (name, value) in parameter_changes {
-                    if studio.set_param(&node_id, name, value) {
+                    if studio.set_param(&node_id, name, value)
+                        && image_paths.get(*selected_image).is_some()
+                    {
                         *preview_requested = Some(*selected_image);
                         studio.status = "Parameter changed; refreshing preview…".into();
                     }
@@ -2170,6 +2577,7 @@ impl ApplicationHandler for App {
                                     s.demo.studio.add_output(Position { x: 700.0, y: 100.0 });
                                     s.demo.studio.mark_clean();
                                     s.demo.workflow_path = "workflow.bite".into();
+                                    s.demo.runtime_paths.clear();
                                     s.demo.selected = 0;
                                     s.demo.selected_nodes.clear();
                                     s.demo.frames = 0;
@@ -2188,6 +2596,7 @@ impl ApplicationHandler for App {
                                             ) {
                                                 Ok(studio) => {
                                                     s.demo.studio = studio;
+                                                    s.demo.runtime_paths.clear();
                                                     s.demo.selected = 0;
                                                     s.demo.selected_nodes.clear();
                                                     s.demo.frames = 0;
@@ -2237,6 +2646,7 @@ impl ApplicationHandler for App {
                         Ok(studio) => {
                             s.demo.workflow_path = path.to_string_lossy().into_owned();
                             s.demo.studio = studio;
+                            s.demo.runtime_paths.clear();
                             s.demo.frames = 0;
                         }
                         Err(error) => s.demo.studio.status = format!("Open failed: {error}"),
