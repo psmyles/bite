@@ -3,6 +3,7 @@
 pub mod execution;
 pub mod graph;
 pub mod plan;
+pub mod preview;
 pub mod resolve;
 pub mod workflow;
 use bite_expr::{definition::CompiledDefinition, CompiledArg};

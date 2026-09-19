@@ -26,6 +26,7 @@ int bite_button(const char* text);
 int bite_drag_float(const char* label,float* value);
 int bite_input_text(const char* label,char* data,size_t size);
 void bite_image(uint64_t texture,float width,float height);
+int bite_image_button(const char* id,uint64_t texture,float width,float height);
 void bite_same_line(void);
 void bite_editor_begin(void* context,const char* label);
 void bite_editor_end(void);

@@ -39,7 +39,11 @@ usable until parity and cutover gates pass.
   docking, inspector and uploaded preview/filmstrip textures was visually
   verified on an RTX 4080. Interaction/DPI/IME acceptance remains pending; see
   `docs/native-gui-prototype.md` for commands and the exact remaining checks.
-- Phases 9–13: pending; Electron remains intact.
+- Phase 9: functional native GUI implementation complete; real workflow open/save, graph,
+  library, image import/filmstrip, direct transformed preview and background
+  execution/progress/cancellation and basic editable inspector controls exist.
+  The interactive Windows exit-gate sequence remains.
+- Phases 10–13: pending; Electron remains intact.
 - macOS automated, GUI, packaging, and clean-machine checks: pending.
 - Windows GUI, mixed-DPI/IME, packaging, and clean-machine checks: pending.
 
@@ -62,11 +66,13 @@ A task heartbeat named `Continue BITE Rust migration` resumes work every 15
 minutes when eligible, from this log. Continue substantive implementation; do
 not treat this checkpoint as the completion of the migration.
 
-1. Begin Phase 9 functional GUI integration from the accepted technical
-   prototype, calling `bite-core` directly and avoiding visual-polish work.
+1. Complete the Phase 9 interactive Windows acceptance sequence documented in
+   `docs/native-gui-prototype.md`; the automated studio, preview and run paths
+   are implemented and verified.
 2. Keep macOS M2/M3 and GUI platform checks explicitly pending.
-3. Continue phases 10–13 in plan order. No cutover, release or legacy removal has
-   occurred. Work is on branch `rust-migration`; changes are not yet committed.
+3. After the Phase 9 gate passes, continue phases 10–13 in plan order. No
+   cutover, release or legacy removal has occurred. Work is on branch
+   `rust-migration`.
 
 ## Continuation 2026-09-19 — CLI edge cases
 
@@ -404,3 +410,44 @@ memory, and is 8–11% slower on the representative fast-path workflow. This is
 comparable with no major Windows regression, so M3 passes on Windows under the
 user's platform policy. macOS M2/M3 remains pending. The user's prototype review
 accepted the GUI direction; Phase 9 can proceed without further visual polish.
+
+## Continuation 2026-09-19 — Phase 9 functional GUI begins
+
+The native application now loads the real node/format registry and workflow
+model instead of displaying only fake nodes. It opens and migrates `.bite`
+files, draws their actual nodes and edges, updates persisted node positions,
+adds Input/Image Output and any of the 68 processing definitions, and validates
+new links through `bite-core` before accepting them. The studio model has an
+automated regression that creates the primary Input → Resize → Sharpen →
+Format Convert → Image Output workflow, saves it, reopens it and verifies its
+five nodes and four edges.
+
+Workflow execution calls `bite_core::execution::run_workflow` directly on a
+background thread, with progress-independent window responsiveness and a Cancel
+button wired to the shared cancellation token. Open, Save, input/output path
+fields and drag-and-drop workflow/folder selection are functional. A headless
+GUI-path run processed all 26 `test_images` outputs successfully.
+
+Image import uses the Phase 7 scanner and thumbnail cache, converts thumbnails
+to uploaded WGPU textures, and fills the native Filmstrip. The new direct
+`bite_core::preview::render` API executes a selected image through the graph,
+returns an in-memory PNG plus resolved pure-value contexts, and feeds the
+Preview and Inspector without spawning the CLI.
+The functional offscreen result is
+`test-workflows/out/native-functional-preview.png`; it shows the migrated wf-01
+graph, 26 real imported images and a transformed preview. The original 120-node
+technical smoke mode still passes. All 42 workspace tests, strict workspace
+Clippy and the studio regression pass.
+
+The GUI direct-core run path and `bite run` each processed all 26 checked-in
+images through `wf-01-fastpath.bite`. Twenty-three outputs were byte-identical;
+the three PNG files with differing encoder metadata had ImageMagick absolute
+pixel error (AE) zero. This completes the automated CLI comparison portion of
+the Phase 9 gate.
+
+Scalar, integer, string and Boolean inspector values are now editable, while
+structured/vector/custom editors remain Phase 10 work. Filmstrip selection now
+reruns the direct preview for the chosen source. The Phase 9 feature set is
+implemented. Its remaining exit gate is the interactive Windows
+create-preview-save-reopen-run sequence. Background runs display per-file
+progress and support cancellation. Visual polish remains intentionally deferred.

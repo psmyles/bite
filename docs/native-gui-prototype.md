@@ -24,7 +24,7 @@ that draw data remains valid after context destruction.
 `bite-gui-prototype` adds a Winit window and an owned WGPU renderer, with 120 fake
 nodes, ten types, typed link colors, a group/comment, docked library/inspector/
 preview/filmstrip panels, keyboard/mouse input and file-drop display. It does not
-depend on the workflow backend. Its event loop waits when untouched; a finite
+depend on the workflow backend in `--smoke` mode. Its event loop waits when untouched; a finite
 redraw burst settles ImGui layout after input. The initial canvas fit waits until
 docking has settled and uses zero-duration navigation to avoid fitting against
 the initial tiny window bounds.
@@ -32,13 +32,45 @@ the initial tiny window bounds.
 ```
 cargo run -p bite-gui-prototype
 cargo run -p bite-gui-prototype -- --smoke test-workflows/out/native-prototype.png
+cargo run -p bite-gui-prototype -- workflow.bite
+cargo run -p bite-gui-prototype -- --functional-smoke test-workflows/out/native-functional.png workflow.bite test_images
 ```
 
 Windows offscreen smoke rendered all 120 nodes and uploaded textures on an
 NVIDIA RTX 4080 (WGPU Vulkan); the exported PNG was visually inspected. This is
 rendering evidence, not an interactive acceptance result.
 
-Pending: creation/context menus, layout persistence, clipboard, non-Latin font
+The Phase 9 path now loads the real v2 registry and calls `bite-core` directly.
+It opens and migrates workflows, renders real nodes and links, adds processing
+and builtin nodes, validates newly drawn links, persists graph positions, saves
+v2 workflows, imports cached thumbnails into WGPU textures, and runs/cancels a
+workflow on a background thread. Dropping a `.bite` file opens it and dropping
+a directory selects it for import. The technical `--smoke` path remains intact.
+
+The Preview panel now calls the dedicated `bite_core::preview::render` API. It
+renders one source image through the graph to an in-memory PNG and returns live
+contexts for pure-value nodes; the GUI uploads the PNG and shows resolved values
+for the selected node.
+
+The Inspector edits scalar, integer, string and Boolean workflow parameters and
+shows resolved pure-value outputs. Clicking a Filmstrip thumbnail reruns the
+direct preview for that source. Structured and vector editors remain Phase 10.
+
+The remaining Phase 9 Windows acceptance is an interactive pass:
+
+1. Run `cargo run -p bite-gui-prototype`.
+2. Create Input → Resize → Sharpen → Format Convert → Image Output with the
+   Library and canvas link controls.
+3. Import `test_images`, select more than one Filmstrip image, and verify that
+   Preview follows the selection.
+4. Save the workflow, close the window, reopen the saved file, and run it to a
+   new output directory. Exercise Cancel during a second run.
+
+The automated equivalent already creates/saves/reopens the five-node workflow,
+runs all 26 images, and compares GUI-path output to `bite run` with zero pixel
+differences. The interactive pass verifies the actual controls and event loop.
+
+Pending: structured/vector inspector widgets, creation/context menus, layout persistence, clipboard, non-Latin font
 coverage and IME preedit/candidate positioning, live DPI font-atlas rebuild,
 texture updates, interactive drag/group/selection checks, measured idle CPU/GPU,
 mixed-monitor validation, macOS/clean-clone builds, and ImGui Test Engine

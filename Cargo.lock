@@ -197,9 +197,14 @@ dependencies = [
 name = "bite-gui-prototype"
 version = "0.1.0"
 dependencies = [
+ "bite-core",
+ "bite-expr",
+ "bite-imagemagick",
  "bite-imgui",
+ "bite-schema",
  "png",
  "pollster",
+ "serde_json",
  "wgpu",
  "winit",
 ]

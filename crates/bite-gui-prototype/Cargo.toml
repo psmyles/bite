@@ -6,6 +6,11 @@ license.workspace = true
 
 [dependencies]
 bite-imgui = { path = "../bite-imgui" }
+bite-core.workspace = true
+bite-schema.workspace = true
+bite-expr.workspace = true
+bite-imagemagick.workspace = true
+serde_json.workspace = true
 wgpu = "30.0.1"
 winit = "0.30.13"
 pollster = "0.4"

@@ -111,6 +111,12 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn bite_image(texture: u64, width: f32, height: f32);
+    pub fn bite_image_button(
+        id: *const ::std::os::raw::c_char,
+        texture: u64,
+        width: f32,
+        height: f32,
+    ) -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
     pub fn bite_same_line();

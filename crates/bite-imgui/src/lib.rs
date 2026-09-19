@@ -309,6 +309,9 @@ impl Ui<'_> {
     pub fn image(&mut self, id: u64, width: f32, height: f32) {
         unsafe { sys::bite_image(id, width, height) }
     }
+    pub fn image_button(&mut self, label: &str, id: u64, width: f32, height: f32) -> bool {
+        unsafe { sys::bite_image_button(c(label).as_ptr(), id, width, height) != 0 }
+    }
     pub fn same_line(&mut self) {
         unsafe { sys::bite_same_line() }
     }
