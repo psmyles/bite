@@ -28,6 +28,7 @@ struct Demo {
     links: Vec<(u64, u64, u64)>,
     frames: u64,
     selected: u64,
+    selected_nodes: Vec<String>,
     studio: Studio,
     workflow_path: String,
     input_path: String,
@@ -41,6 +42,25 @@ struct Demo {
     thumbnails: Vec<u64>,
     preview_texture: Option<u64>,
     resolved_values: BTreeMap<String, bite_expr::Context>,
+    control_down: bool,
+    shift_down: bool,
+    pending_action: Option<PendingAction>,
+    exit_requested: bool,
+    creation_position: Option<Position>,
+    pending_wire: Option<PendingWire>,
+    node_search: String,
+}
+#[derive(Clone)]
+struct PendingWire {
+    node: String,
+    handle: String,
+    output: bool,
+}
+#[derive(Clone, Copy)]
+enum PendingAction {
+    Exit,
+    New,
+    Open,
 }
 struct RunState {
     cancelled: Arc<std::sync::atomic::AtomicBool>,
@@ -76,6 +96,31 @@ fn human_label(name: &str) -> String {
         first.make_ascii_uppercase();
     }
     label.replace("Cli ", "CLI ")
+}
+
+fn wire_color(kind: bite_core::graph::WireType) -> [f32; 3] {
+    use bite_core::graph::WireType;
+    match kind {
+        WireType::Image => [0.25, 0.65, 0.95],
+        WireType::Mask => [0.95, 0.62, 0.2],
+        WireType::Number | WireType::Numeric => [0.35, 0.8, 0.45],
+        WireType::Bool => [0.9, 0.32, 0.35],
+        WireType::String | WireType::Path => [0.9, 0.75, 0.25],
+        WireType::Vector2 | WireType::Vector3 | WireType::Vector4 => [0.55, 0.45, 0.95],
+        WireType::Color => [0.95, 0.35, 0.75],
+        WireType::Value => [0.7, 0.7, 0.72],
+    }
+}
+
+fn builtin_options(name: &str) -> Vec<String> {
+    let values: &[&str] = match name {
+        "outputPath" => &["source", "custom"],
+        "overwrite" => &["skip", "overwrite"],
+        "separatorType" => &["comma", "tab", "space", "custom"],
+        "sortBy" => &["import_order", "name", "name_desc"],
+        _ => &[],
+    };
+    values.iter().map(|value| (*value).into()).collect()
 }
 
 fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
@@ -116,29 +161,105 @@ fn node_ports(node: &bite_schema::GraphNode, registry: &bite_core::Registry) -> 
         NodeKind::Builtin(BuiltinNodeKind::Input) => {
             (Vec::new(), vec![("out:output".into(), "Image".into())])
         }
-        NodeKind::Builtin(
-            BuiltinNodeKind::ImageOutput
-            | BuiltinNodeKind::TextOutput
-            | BuiltinNodeKind::FlipbookOutput,
-        ) => (vec![("in:input".into(), "Image".into())], Vec::new()),
+        NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
+            (vec![("in:input".into(), "Image".into())], Vec::new())
+        }
+        NodeKind::Builtin(BuiltinNodeKind::TextOutput) => {
+            let mut inputs = vec![("in:input".into(), "Image".into())];
+            if let Some(bite_schema::ParamValue::Structured(
+                bite_schema::StructuredParam::TextSlots { slots },
+            )) = node.data.params.get("portIds")
+            {
+                inputs.extend(
+                    slots.iter().enumerate().map(|(index, slot)| {
+                        (format!("txo:{slot}"), format!("Text {}", index + 1))
+                    }),
+                );
+            }
+            (inputs, Vec::new())
+        }
+        NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) => (
+            vec![
+                ("in:input".into(), "Image".into()),
+                ("param:bgColor".into(), "Background".into()),
+            ],
+            Vec::new(),
+        ),
+        _ if node.data.definition_id == "process_as_set" => {
+            let suffixes = match node.data.params.get("suffixes") {
+                Some(bite_schema::ParamValue::Structured(
+                    bite_schema::StructuredParam::SetSuffixes { suffixes },
+                )) => suffixes.clone(),
+                _ => Vec::new(),
+            };
+            let mut inputs = vec![
+                ("in:input".into(), "Images".into()),
+                ("param:prefix".into(), "Prefix".into()),
+            ];
+            inputs.extend(
+                suffixes
+                    .iter()
+                    .enumerate()
+                    .map(|(index, suffix)| (format!("param:suffix_{index}"), suffix.clone())),
+            );
+            let outputs = suffixes
+                .iter()
+                .enumerate()
+                .map(|(index, suffix)| (format!("out:suffix_{index}"), suffix.clone()))
+                .collect();
+            (inputs, outputs)
+        }
         _ => registry
             .nodes
             .get(&node.data.definition_id)
             .map(|definition| {
-                (
-                    definition
-                        .definition
-                        .inputs
-                        .iter()
-                        .map(|port| (format!("in:{}", port.name), port.label.clone()))
-                        .collect(),
-                    definition
-                        .definition
-                        .outputs
-                        .iter()
-                        .map(|port| (format!("out:{}", port.name), port.label.clone()))
-                        .collect(),
-                )
+                let input_definitions = if node.data.inputs.is_empty() {
+                    &definition.definition.inputs
+                } else {
+                    &node.data.inputs
+                };
+                let output_definitions = if node.data.outputs.is_empty() {
+                    &definition.definition.outputs
+                } else {
+                    &node.data.outputs
+                };
+                let mut inputs: UiPorts = input_definitions
+                    .iter()
+                    .map(|port| (format!("in:{}", port.name), port.label.clone()))
+                    .collect();
+                let mut outputs: UiPorts = output_definitions
+                    .iter()
+                    .map(|port| (format!("out:{}", port.name), port.label.clone()))
+                    .collect();
+                let mut context =
+                    bite_expr::definition::default_context(&definition.definition.params);
+                for (name, value) in &node.data.params {
+                    if let Some(value) = bite_expr::definition::to_value(value) {
+                        context.insert(name.clone(), value);
+                    }
+                }
+                for parameter in &definition.definition.params {
+                    let visible = definition
+                        .visible
+                        .get(&parameter.name)
+                        .map(|expression| {
+                            expression
+                                .evaluate(&context)
+                                .map(|value| value.truthy())
+                                .unwrap_or(true)
+                        })
+                        .unwrap_or(true);
+                    if parameter.no_port || !visible {
+                        continue;
+                    }
+                    let port = (format!("param:{}", parameter.name), parameter.label.clone());
+                    if parameter.readonly {
+                        outputs.push(port);
+                    } else {
+                        inputs.push(port);
+                    }
+                }
+                (inputs, outputs)
             })
             .unwrap_or_default(),
     }
@@ -176,7 +297,7 @@ impl Demo {
         if studio.workflow.graph.nodes.is_empty() && !technical_demo {
             studio.add_input(Position { x: 0.0, y: 100.0 });
             studio.add_output(Position { x: 700.0, y: 100.0 });
-            studio.dirty = false;
+            studio.mark_clean();
         }
         let workflow_path = initial.unwrap_or_else(|| "workflow.bite".into());
         Ok(Self {
@@ -189,6 +310,7 @@ impl Demo {
                 .collect(),
             frames: 0,
             selected: 0,
+            selected_nodes: Vec::new(),
             studio,
             workflow_path,
             input_path: root.join("test_images").to_string_lossy().into_owned(),
@@ -205,6 +327,13 @@ impl Demo {
             thumbnails: Vec::new(),
             preview_texture: None,
             resolved_values: BTreeMap::new(),
+            control_down: false,
+            shift_down: false,
+            pending_action: None,
+            exit_requested: false,
+            creation_position: None,
+            pending_wire: None,
+            node_search: String::new(),
         })
     }
 
@@ -270,6 +399,7 @@ impl Demo {
             links,
             frames,
             selected,
+            selected_nodes,
             studio,
             workflow_path,
             input_path,
@@ -283,6 +413,13 @@ impl Demo {
             thumbnails,
             preview_texture,
             resolved_values,
+            control_down: _,
+            shift_down: _,
+            pending_action,
+            exit_requested,
+            creation_position,
+            pending_wire,
+            node_search,
         } = self;
         let mut completed = false;
         if let Some(active) = runner.as_ref() {
@@ -315,26 +452,106 @@ impl Demo {
         );
         let mut ui = frame.ui();
         ui.dockspace();
+        let mut action = None;
         ui.window("Workflow", |ui| {
             ui.text("Workflow file");
             ui.next_item_full_width();
             ui.input_text("##workflow-path", workflow_path);
+            if ui.button("New") {
+                if studio.dirty {
+                    *pending_action = Some(PendingAction::New);
+                } else {
+                    action = Some(PendingAction::New);
+                }
+            }
+            ui.same_line();
             if ui.button("Open") {
-                match Studio::open(
-                    studio.registry.clone(),
-                    PathBuf::from(&*workflow_path).as_path(),
-                ) {
-                    Ok(opened) => {
-                        *studio = opened;
-                        *frames = 0;
-                    }
-                    Err(error) => studio.status = format!("Open failed: {error}"),
+                if studio.dirty {
+                    *pending_action = Some(PendingAction::Open);
+                } else {
+                    action = Some(PendingAction::Open);
                 }
             }
             ui.same_line();
             if ui.button("Save") {
                 if let Err(error) = studio.save(PathBuf::from(&*workflow_path).as_path()) {
                     studio.status = format!("Save failed: {error}");
+                }
+            }
+            let undo_label = if studio.can_undo() {
+                "Undo"
+            } else {
+                "Undo (empty)"
+            };
+            if ui.button(undo_label) && studio.undo() {
+                *frames = 0;
+            }
+            ui.same_line();
+            let redo_label = if studio.can_redo() {
+                "Redo"
+            } else {
+                "Redo (empty)"
+            };
+            if ui.button(redo_label) && studio.redo() {
+                *frames = 0;
+            }
+            if ui.button("Copy") {
+                studio.copy_selection(selected_nodes);
+            }
+            ui.same_line();
+            if ui.button("Paste") {
+                let pasted = studio.paste();
+                if let Some(id) = pasted.first() {
+                    *selected = stable_id(&format!("node:{id}"));
+                    *frames = 0;
+                }
+            }
+            ui.same_line();
+            if ui.button("Duplicate") {
+                let pasted = studio.duplicate_selection(selected_nodes);
+                if let Some(id) = pasted.first() {
+                    *selected = stable_id(&format!("node:{id}"));
+                    *frames = 0;
+                }
+            }
+            ui.same_line();
+            if ui.button("Delete") && studio.delete_selection(selected_nodes) {
+                *selected = 0;
+                selected_nodes.clear();
+                *frames = 0;
+            }
+            if ui.button("Group") {
+                if let Some(id) = studio.group_selection(selected_nodes) {
+                    *selected = stable_id(&format!("node:{id}"));
+                    *frames = 0;
+                }
+            }
+            ui.same_line();
+            if ui.button("Ungroup") && studio.ungroup_selection(selected_nodes) {
+                *selected = 0;
+                *frames = 0;
+            }
+            ui.text("Export CLI script");
+            for (index, (label, extension, shell)) in [
+                (
+                    "PowerShell",
+                    "ps1",
+                    bite_core::cli_export::Shell::PowerShell,
+                ),
+                ("Bash", "sh", bite_core::cli_export::Shell::Bash),
+                ("CMD", "bat", bite_core::cli_export::Shell::Cmd),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                if ui.button(label) {
+                    let path = PathBuf::from(&*workflow_path).with_extension(extension);
+                    if let Err(error) = studio.export_cli(&path, shell) {
+                        studio.status = format!("Export failed: {error}");
+                    }
+                }
+                if index < 2 {
+                    ui.same_line();
                 }
             }
             ui.text("Input folder");
@@ -390,6 +607,54 @@ impl Demo {
             }
             ui.text(&studio.status);
         });
+        if let Some(pending) = *pending_action {
+            ui.window("Unsaved changes", |ui| {
+                ui.text("Save the current workflow before continuing?");
+                if ui.button("Save and continue") {
+                    match studio.save(PathBuf::from(&*workflow_path).as_path()) {
+                        Ok(()) => action = Some(pending),
+                        Err(error) => studio.status = format!("Save failed: {error}"),
+                    }
+                    *pending_action = None;
+                }
+                ui.same_line();
+                if ui.button("Discard") {
+                    action = Some(pending);
+                    *pending_action = None;
+                }
+                ui.same_line();
+                if ui.button("Cancel") {
+                    *pending_action = None;
+                }
+            });
+        }
+        if let Some(action) = action {
+            match action {
+                PendingAction::Exit => *exit_requested = true,
+                PendingAction::New => {
+                    *studio = Studio::blank(studio.registry.clone());
+                    studio.add_input(Position { x: 0.0, y: 100.0 });
+                    studio.add_output(Position { x: 700.0, y: 100.0 });
+                    studio.mark_clean();
+                    *workflow_path = "workflow.bite".into();
+                    *selected = 0;
+                    selected_nodes.clear();
+                    *frames = 0;
+                }
+                PendingAction::Open => match Studio::open(
+                    studio.registry.clone(),
+                    PathBuf::from(&*workflow_path).as_path(),
+                ) {
+                    Ok(opened) => {
+                        *studio = opened;
+                        *selected = 0;
+                        selected_nodes.clear();
+                        *frames = 0;
+                    }
+                    Err(error) => studio.status = format!("Open failed: {error}"),
+                },
+            }
+        }
         ui.window("Library", |ui| {
             if *technical_demo {
                 ui.text("Ten fake node types");
@@ -405,6 +670,15 @@ impl Demo {
                 }
                 if ui.button("Image Output") {
                     studio.add_output(Position { x: 600.0, y: 0.0 });
+                }
+                if ui.button("Text Output") {
+                    studio.add_text_output(Position { x: 600.0, y: 120.0 });
+                }
+                if ui.button("Flipbook Output") {
+                    studio.add_flipbook_output(Position { x: 600.0, y: 240.0 });
+                }
+                if ui.button("Comment") {
+                    studio.add_comment(Position { x: 250.0, y: 250.0 });
                 }
                 let definitions: Vec<_> = studio
                     .registry
@@ -429,6 +703,7 @@ impl Demo {
             }
         });
         ui.window("Canvas", |ui| {
+            let mut open_create = false;
             ui.editor("Prototype", |ui| {
                 if *technical_demo {
                     for i in 0..120u64 {
@@ -482,21 +757,52 @@ impl Demo {
                         ui.navigate();
                     }
                 } else {
+                    if ui.dragging_selection() {
+                        studio.begin_transaction();
+                    } else {
+                        studio.finish_transaction("Moved node selection");
+                    }
                     let nodes = studio.workflow.graph.nodes.clone();
                     let edges = studio.workflow.graph.edges.clone();
+                    let group_positions: BTreeMap<_, _> = nodes
+                        .iter()
+                        .filter(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::Group))
+                        .map(|node| (node.id.clone(), node.position.clone()))
+                        .collect();
                     let mut pins: BTreeMap<u64, (String, String, bool)> = BTreeMap::new();
                     let mut positions = Vec::new();
+                    let mut current_selection = Vec::new();
                     for node in &nodes {
                         let node_id = stable_id(&format!("node:{}", node.id));
+                        let display_position = node
+                            .parent_id
+                            .as_ref()
+                            .and_then(|parent| group_positions.get(parent))
+                            .map(|parent| {
+                                [
+                                    (parent.x + node.position.x) as f32,
+                                    (parent.y + node.position.y) as f32,
+                                ]
+                            })
+                            .unwrap_or([node.position.x as f32, node.position.y as f32]);
                         if *frames < 2 {
-                            ui.set_position(
-                                node_id,
-                                [node.position.x as f32, node.position.y as f32],
-                            );
+                            ui.set_position(node_id, display_position);
                         }
                         let (inputs, outputs) = node_ports(node, &studio.registry);
                         ui.node(node_id, |ui| {
                             ui.text(&node.data.label);
+                            if node.kind == NodeKind::Builtin(BuiltinNodeKind::Group) {
+                                ui.group(
+                                    node.width.unwrap_or(320.0) as f32,
+                                    node.height.unwrap_or(220.0) as f32,
+                                );
+                            } else if node.kind == NodeKind::Builtin(BuiltinNodeKind::Comment) {
+                                if let Some(bite_schema::ParamValue::String(body)) =
+                                    node.data.params.get("body")
+                                {
+                                    ui.text(body);
+                                }
+                            }
                             for (handle, label) in &inputs {
                                 let pin = stable_id(&format!("pin:{}:{handle}", node.id));
                                 pins.insert(pin, (node.id.clone(), handle.clone(), false));
@@ -510,6 +816,7 @@ impl Demo {
                         });
                         if ui.selected(node_id) {
                             *selected = node_id;
+                            current_selection.push(node.id.clone());
                         }
                         positions.push((node.id.clone(), ui.position(node_id)));
                     }
@@ -518,11 +825,25 @@ impl Demo {
                             stable_id(&format!("pin:{}:{}", edge.source, edge.source_handle));
                         let target =
                             stable_id(&format!("pin:{}:{}", edge.target, edge.target_handle));
+                        let color = nodes
+                            .iter()
+                            .find(|node| node.id == edge.source)
+                            .and_then(|node| {
+                                bite_core::graph::handle_type(
+                                    node,
+                                    &edge.source_handle,
+                                    true,
+                                    &studio.registry,
+                                )
+                                .ok()
+                            })
+                            .map(wire_color)
+                            .unwrap_or([0.3, 0.65, 0.9]);
                         ui.link(
                             stable_id(&format!("link:{}", edge.id)),
                             source,
                             target,
-                            [0.3, 0.65, 0.9],
+                            color,
                         );
                     }
                     if let Some((a, b)) = ui.new_link() {
@@ -541,6 +862,21 @@ impl Demo {
                             }
                         }
                     }
+                    if let Some(pin) = ui.new_node() {
+                        if let Some((node, handle, output)) = pins.get(&pin) {
+                            *pending_wire = Some(PendingWire {
+                                node: node.clone(),
+                                handle: handle.clone(),
+                                output: *output,
+                            });
+                            let position = ui.canvas_mouse_position();
+                            *creation_position = Some(Position {
+                                x: f64::from(position[0]),
+                                y: f64::from(position[1]),
+                            });
+                            open_create = true;
+                        }
+                    }
                     if let Some(link) = ui.deleted_link() {
                         if let Some(edge) = studio
                             .workflow
@@ -550,14 +886,10 @@ impl Demo {
                             .find(|edge| stable_id(&format!("link:{}", edge.id)) == link)
                             .cloned()
                         {
-                            studio
-                                .workflow
-                                .graph
-                                .edges
-                                .retain(|candidate| candidate.id != edge.id);
-                            studio.dirty = true;
+                            studio.delete_edge(&edge.id);
                         }
                     }
+                    let new_positions: BTreeMap<_, _> = positions.iter().cloned().collect();
                     for (id, position) in positions {
                         if let Some(node) = studio
                             .workflow
@@ -567,6 +899,14 @@ impl Demo {
                             .find(|node| node.id == id)
                         {
                             if *frames > 1 {
+                                let position = node
+                                    .parent_id
+                                    .as_ref()
+                                    .and_then(|parent| new_positions.get(parent))
+                                    .map(|parent| {
+                                        [position[0] - parent[0], position[1] - parent[1]]
+                                    })
+                                    .unwrap_or(position);
                                 let changed = node.position.x != f64::from(position[0])
                                     || node.position.y != f64::from(position[1]);
                                 node.position.x = f64::from(position[0]);
@@ -575,9 +915,160 @@ impl Demo {
                             }
                         }
                     }
+                    *selected_nodes = current_selection;
+                    if ui.background_menu() {
+                        *pending_wire = None;
+                        let position = ui.canvas_mouse_position();
+                        *creation_position = Some(Position {
+                            x: f64::from(position[0]),
+                            y: f64::from(position[1]),
+                        });
+                        open_create = true;
+                    }
                     if *frames == 2 {
                         ui.navigate();
                     }
+                }
+            });
+            if open_create {
+                node_search.clear();
+                ui.open_popup("Create node");
+            }
+            ui.popup("Create node", |ui| {
+                ui.text("Create node");
+                ui.next_item_full_width();
+                ui.input_text("##node-search", node_search);
+                let position = creation_position
+                    .clone()
+                    .unwrap_or(Position { x: 300.0, y: 200.0 });
+                let query = node_search.to_lowercase();
+                let mut created = None;
+                if (query.is_empty() || "input".contains(&query)) && ui.button("Input") {
+                    if pending_wire.is_some() {
+                        studio.begin_transaction();
+                    }
+                    created = Some(studio.add_input(position.clone()));
+                }
+                if (query.is_empty() || "image output".contains(&query))
+                    && ui.button("Image Output")
+                {
+                    if pending_wire.is_some() {
+                        studio.begin_transaction();
+                    }
+                    created = Some(studio.add_output(position.clone()));
+                }
+                if (query.is_empty() || "text output".contains(&query)) && ui.button("Text Output")
+                {
+                    if pending_wire.is_some() {
+                        studio.begin_transaction();
+                    }
+                    created = Some(studio.add_text_output(position.clone()));
+                }
+                if (query.is_empty() || "flipbook output".contains(&query))
+                    && ui.button("Flipbook Output")
+                {
+                    if pending_wire.is_some() {
+                        studio.begin_transaction();
+                    }
+                    created = Some(studio.add_flipbook_output(position.clone()));
+                }
+                if (query.is_empty() || "comment".contains(&query)) && ui.button("Comment") {
+                    if pending_wire.is_some() {
+                        studio.begin_transaction();
+                    }
+                    created = Some(studio.add_comment(position.clone()));
+                }
+                let definitions: Vec<_> = studio
+                    .registry
+                    .nodes
+                    .values()
+                    .filter(|definition| {
+                        query.is_empty()
+                            || definition.definition.label.to_lowercase().contains(&query)
+                            || definition.definition.id.to_lowercase().contains(&query)
+                            || definition
+                                .definition
+                                .category
+                                .to_lowercase()
+                                .contains(&query)
+                    })
+                    .map(|definition| {
+                        (
+                            definition.definition.id.clone(),
+                            definition.definition.label.clone(),
+                        )
+                    })
+                    .collect();
+                for (id, label) in definitions {
+                    if ui.button(&label) {
+                        if pending_wire.is_some() {
+                            studio.begin_transaction();
+                        }
+                        match studio.add_processing(&id, position.clone()) {
+                            Ok(id) => created = Some(id),
+                            Err(error) => studio.status = error,
+                        }
+                    }
+                }
+                if let Some(id) = created {
+                    if let Some(wire) = pending_wire.take() {
+                        let connection = studio
+                            .workflow
+                            .graph
+                            .nodes
+                            .iter()
+                            .find(|node| node.id == wire.node)
+                            .and_then(|existing| {
+                                bite_core::graph::handle_type(
+                                    existing,
+                                    &wire.handle,
+                                    wire.output,
+                                    &studio.registry,
+                                )
+                                .ok()
+                            })
+                            .and_then(|wire_type| {
+                                studio
+                                    .workflow
+                                    .graph
+                                    .nodes
+                                    .iter()
+                                    .find(|node| node.id == id)
+                                    .and_then(|node| {
+                                        let (inputs, outputs) = node_ports(node, &studio.registry);
+                                        let candidates = if wire.output { inputs } else { outputs };
+                                        candidates.into_iter().find_map(|(handle, _)| {
+                                            bite_core::graph::handle_type(
+                                                node,
+                                                &handle,
+                                                !wire.output,
+                                                &studio.registry,
+                                            )
+                                            .ok()
+                                            .filter(|candidate| {
+                                                bite_core::graph::compatible(wire_type, *candidate)
+                                            })
+                                            .map(|_| handle)
+                                        })
+                                    })
+                            });
+                        let result = if let Some(handle) = connection {
+                            if wire.output {
+                                studio.connect(&wire.node, &wire.handle, &id, &handle)
+                            } else {
+                                studio.connect(&id, &handle, &wire.node, &wire.handle)
+                            }
+                        } else {
+                            Err("New node has no compatible port".into())
+                        };
+                        studio.finish_transaction("Created and connected node");
+                        if let Err(error) = result {
+                            studio.status = format!("Created node; connection rejected: {error}");
+                        }
+                    }
+                    *selected = stable_id(&format!("node:{id}"));
+                    *frames = 0;
+                    ui.close_popup();
                 }
             });
         });
@@ -596,26 +1087,62 @@ impl Demo {
                 let node_id = node.id.clone();
                 let params = node.data.params.clone();
                 let compiled_definition = studio.registry.nodes.get(&node.data.definition_id);
-                let definition_list = compiled_definition
+                let mut definition_list = compiled_definition
                     .map(|compiled| compiled.definition.params.clone())
                     .unwrap_or_default();
+                let format_parameters = if node.data.definition_id == "format_convert" {
+                    params
+                        .get("format")
+                        .and_then(|value| match value {
+                            bite_schema::ParamValue::String(format) => {
+                                studio.registry.formats.get(&format.to_uppercase())
+                            }
+                            _ => None,
+                        })
+                        .map(|(format, _)| format.params.clone())
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                definition_list.extend(format_parameters.clone());
                 let definitions: BTreeMap<_, _> = definition_list
                     .iter()
                     .map(|definition| (definition.name.clone(), definition.clone()))
                     .collect();
-                let mut context = compiled_definition
-                    .map(|compiled| {
-                        bite_expr::definition::default_context(&compiled.definition.params)
-                    })
-                    .unwrap_or_default();
+                let mut context = bite_expr::definition::default_context(&definition_list);
                 for (name, value) in &params {
                     if let Some(value) = bite_expr::definition::to_value(value) {
                         context.insert(name.clone(), value);
                     }
                 }
                 let visible = |name: &str| {
-                    compiled_definition
+                    let compiled_result = compiled_definition
                         .and_then(|compiled| compiled.visible.get(name))
+                        .map(|expression| {
+                            expression
+                                .evaluate(&context)
+                                .map(|value| value.truthy())
+                                .unwrap_or(true)
+                        });
+                    let format_result = format_parameters
+                        .iter()
+                        .find(|parameter| parameter.name == name)
+                        .and_then(|parameter| parameter.visible_when.as_deref())
+                        .and_then(|source| {
+                            let types = bite_expr::definition::parameter_types(&format_parameters);
+                            bite_expr::Expression::compile(source, &types).ok()
+                        })
+                        .map(|expression| {
+                            expression
+                                .evaluate(&context)
+                                .map(|value| value.truthy())
+                                .unwrap_or(true)
+                        });
+                    compiled_result.or(format_result).unwrap_or(true)
+                };
+                let enabled = |name: &str| {
+                    compiled_definition
+                        .and_then(|compiled| compiled.enabled.get(name))
                         .map(|expression| {
                             expression
                                 .evaluate(&context)
@@ -627,7 +1154,17 @@ impl Demo {
                 let mut parameter_names: Vec<_> = definition_list
                     .iter()
                     .map(|definition| definition.name.clone())
-                    .filter(|name| params.contains_key(name) && visible(name))
+                    .filter(|name| {
+                        (params.contains_key(name)
+                            || definitions
+                                .get(name)
+                                .and_then(|definition| definition.default.as_ref())
+                                .is_some())
+                            && visible(name)
+                            && !definitions
+                                .get(name)
+                                .is_some_and(|definition| definition.port_only)
+                    })
                     .collect();
                 parameter_names.extend(
                     params
@@ -635,8 +1172,13 @@ impl Demo {
                         .filter(|name| !definitions.contains_key(*name))
                         .cloned(),
                 );
+                let mut parameter_changes = Vec::new();
                 for name in parameter_names {
-                    let Some(value) = params.get(&name).cloned() else {
+                    let Some(value) = params.get(&name).cloned().or_else(|| {
+                        definitions
+                            .get(&name)
+                            .and_then(|definition| definition.default.clone())
+                    }) else {
                         continue;
                     };
                     let definition = definitions.get(&name);
@@ -646,66 +1188,277 @@ impl Demo {
                         .filter(|label| !label.is_empty())
                         .unwrap_or(&fallback_label);
                     let control_id = format!("##{node_id}-{name}");
-                    let changed = match value {
+                    let editable =
+                        enabled(&name) && !definition.is_some_and(|definition| definition.readonly);
+                    let changed = ui.disabled(!editable, |ui| match value {
                         bite_schema::ParamValue::Number(number) => {
                             let mut edited = number as f32;
                             ui.text(label);
                             ui.next_item_full_width();
-                            ui.drag_float(&control_id, &mut edited)
-                                .then_some(bite_schema::ParamValue::Number(f64::from(edited)))
+                            let changed = if definition.is_some_and(|definition| {
+                                definition.widget == Some(WidgetType::Slider)
+                            }) {
+                                ui.slider_float(
+                                    &control_id,
+                                    &mut edited,
+                                    definition
+                                        .and_then(|definition| definition.min)
+                                        .unwrap_or(0.0) as f32,
+                                    definition
+                                        .and_then(|definition| definition.max)
+                                        .unwrap_or(100.0)
+                                        as f32,
+                                )
+                            } else {
+                                ui.drag_float(&control_id, &mut edited)
+                            };
+                            changed.then_some(bite_schema::ParamValue::Number(f64::from(edited)))
                         }
                         bite_schema::ParamValue::Int(number) => {
                             let mut edited = number as f32;
                             ui.text(label);
                             ui.next_item_full_width();
-                            ui.drag_float(&control_id, &mut edited)
-                                .then_some(bite_schema::ParamValue::Int(edited.round() as i64))
-                        }
-                        bite_schema::ParamValue::String(text)
-                            if definition.is_some_and(|definition| {
-                                definition.kind == ParamType::Enum
-                                    || definition.widget == Some(WidgetType::Dropdown)
-                            }) =>
-                        {
-                            let definition = definition.expect("guarded above");
-                            let mut selected = definition
-                                .options
-                                .iter()
-                                .position(|option| option == &text)
-                                .unwrap_or(0);
-                            let displayed = if definition.labels.len() == definition.options.len() {
-                                definition.labels.clone()
-                            } else {
-                                definition.options.clone()
-                            };
-                            ui.text(label);
-                            ui.next_item_full_width();
-                            ui.combo(&control_id, &mut selected, &displayed).then(|| {
-                                bite_schema::ParamValue::String(
-                                    definition.options[selected].clone(),
+                            let changed = if definition.is_some_and(|definition| {
+                                definition.widget == Some(WidgetType::Slider)
+                            }) {
+                                ui.slider_float(
+                                    &control_id,
+                                    &mut edited,
+                                    definition
+                                        .and_then(|definition| definition.min)
+                                        .unwrap_or(0.0) as f32,
+                                    definition
+                                        .and_then(|definition| definition.max)
+                                        .unwrap_or(100.0)
+                                        as f32,
                                 )
-                            })
+                            } else {
+                                ui.drag_float(&control_id, &mut edited)
+                            };
+                            changed.then_some(bite_schema::ParamValue::Int(edited.round() as i64))
                         }
                         bite_schema::ParamValue::String(mut text) => {
+                            let options = definition
+                                .filter(|definition| {
+                                    definition.kind == ParamType::Enum
+                                        || definition.widget == Some(WidgetType::Dropdown)
+                                })
+                                .map(|definition| definition.options.clone())
+                                .unwrap_or_else(|| builtin_options(&name));
                             ui.text(label);
                             ui.next_item_full_width();
-                            ui.input_text(&control_id, &mut text)
-                                .then_some(bite_schema::ParamValue::String(text))
+                            if options.is_empty() {
+                                ui.input_text(&control_id, &mut text)
+                                    .then_some(bite_schema::ParamValue::String(text))
+                            } else {
+                                let mut selected = options
+                                    .iter()
+                                    .position(|option| option == &text)
+                                    .unwrap_or(0);
+                                let displayed = definition
+                                    .filter(|definition| {
+                                        definition.labels.len() == definition.options.len()
+                                    })
+                                    .map(|definition| definition.labels.clone())
+                                    .unwrap_or_else(|| options.clone());
+                                ui.combo(&control_id, &mut selected, &displayed).then(|| {
+                                    bite_schema::ParamValue::String(options[selected].clone())
+                                })
+                            }
                         }
                         bite_schema::ParamValue::Bool(mut value) => ui
                             .checkbox(label, &mut value)
                             .then_some(bite_schema::ParamValue::Bool(value)),
+                        bite_schema::ParamValue::Vector(values) => {
+                            ui.text(label);
+                            ui.next_item_full_width();
+                            if name == "bgColor"
+                                || definition.is_some_and(|definition| {
+                                    definition.kind == ParamType::Color
+                                        || definition.widget == Some(WidgetType::ColorPicker)
+                                })
+                            {
+                                let mut color = [
+                                    values.first().copied().unwrap_or(0.0) as f32,
+                                    values.get(1).copied().unwrap_or(0.0) as f32,
+                                    values.get(2).copied().unwrap_or(0.0) as f32,
+                                    values.get(3).copied().unwrap_or(1.0) as f32,
+                                ];
+                                ui.color_edit4(&control_id, &mut color).then_some(
+                                    bite_schema::ParamValue::Vector(
+                                        color.into_iter().map(f64::from).collect(),
+                                    ),
+                                )
+                            } else {
+                                let mut edited: Vec<_> =
+                                    values.iter().copied().map(|value| value as f32).collect();
+                                ui.drag_float_n(&control_id, &mut edited).then_some(
+                                    bite_schema::ParamValue::Vector(
+                                        edited.into_iter().map(f64::from).collect(),
+                                    ),
+                                )
+                            }
+                        }
+                        bite_schema::ParamValue::Structured(
+                            bite_schema::StructuredParam::SetSuffixes { mut suffixes },
+                        ) => {
+                            ui.text(label);
+                            let mut changed = false;
+                            let mut remove = None;
+                            for (index, suffix) in suffixes.iter_mut().enumerate() {
+                                ui.next_item_full_width();
+                                changed |=
+                                    ui.input_text(&format!("##{node_id}-{name}-{index}"), suffix);
+                                if ui.button(&format!("Remove suffix##{node_id}-{index}")) {
+                                    remove = Some(index);
+                                }
+                            }
+                            if let Some(index) = remove {
+                                suffixes.remove(index);
+                                changed = true;
+                            }
+                            if ui.button(&format!("Add suffix##{node_id}")) {
+                                suffixes.push(String::new());
+                                changed = true;
+                            }
+                            changed.then_some(bite_schema::ParamValue::Structured(
+                                bite_schema::StructuredParam::SetSuffixes { suffixes },
+                            ))
+                        }
+                        bite_schema::ParamValue::Structured(
+                            bite_schema::StructuredParam::RenameBlocks { mut blocks },
+                        ) => {
+                            ui.text(label);
+                            let mut changed = false;
+                            let mut remove = None;
+                            let mut move_block = None;
+                            let block_count = blocks.len();
+                            for (index, block) in blocks.iter_mut().enumerate() {
+                                match block {
+                                    bite_schema::RenameBlock::Text { value } => {
+                                        ui.text(&format!("Text block {}", index + 1));
+                                        ui.next_item_full_width();
+                                        changed |= ui.input_text(
+                                            &format!("##{node_id}-{name}-text-{index}"),
+                                            value,
+                                        );
+                                    }
+                                    bite_schema::RenameBlock::Number { start, pad } => {
+                                        ui.text(&format!("Number block {}", index + 1));
+                                        let mut start_value = *start as f32;
+                                        let mut pad_value = *pad as f32;
+                                        changed |= ui.drag_float(
+                                            &format!("Start##{node_id}-{index}"),
+                                            &mut start_value,
+                                        );
+                                        changed |= ui.drag_float(
+                                            &format!("Pad##{node_id}-{index}"),
+                                            &mut pad_value,
+                                        );
+                                        *start = f64::from(start_value.max(0.0).round());
+                                        *pad = f64::from(pad_value.clamp(1.0, 8.0).round());
+                                    }
+                                    bite_schema::RenameBlock::Oldname { find, replace_with } => {
+                                        ui.text(&format!("Old name block {}", index + 1));
+                                        ui.next_item_full_width();
+                                        changed |= ui
+                                            .input_text(&format!("Find##{node_id}-{index}"), find);
+                                        ui.next_item_full_width();
+                                        changed |= ui.input_text(
+                                            &format!("Replace##{node_id}-{index}"),
+                                            replace_with,
+                                        );
+                                    }
+                                }
+                                if index > 0 && ui.button(&format!("Up##{node_id}-{index}")) {
+                                    move_block = Some((index, index - 1));
+                                }
+                                if index > 0 {
+                                    ui.same_line();
+                                }
+                                if index + 1 < block_count
+                                    && ui.button(&format!("Down##{node_id}-{index}"))
+                                {
+                                    move_block = Some((index, index + 1));
+                                }
+                                if index + 1 < block_count {
+                                    ui.same_line();
+                                }
+                                if ui.button(&format!("Remove##{node_id}-{index}")) {
+                                    remove = Some(index);
+                                }
+                            }
+                            if let Some((from, to)) = move_block {
+                                blocks.swap(from, to);
+                                changed = true;
+                            }
+                            if let Some(index) = remove {
+                                blocks.remove(index);
+                                changed = true;
+                            }
+                            if ui.button(&format!("Add Text##{node_id}")) {
+                                blocks.push(bite_schema::RenameBlock::Text {
+                                    value: String::new(),
+                                });
+                                changed = true;
+                            }
+                            ui.same_line();
+                            if ui.button(&format!("Add Number##{node_id}")) {
+                                blocks.push(bite_schema::RenameBlock::Number {
+                                    start: 1.0,
+                                    pad: 2.0,
+                                });
+                                changed = true;
+                            }
+                            ui.same_line();
+                            if ui.button(&format!("Add Old Name##{node_id}")) {
+                                blocks.push(bite_schema::RenameBlock::Oldname {
+                                    find: String::new(),
+                                    replace_with: String::new(),
+                                });
+                                changed = true;
+                            }
+                            changed.then_some(bite_schema::ParamValue::Structured(
+                                bite_schema::StructuredParam::RenameBlocks { blocks },
+                            ))
+                        }
+                        bite_schema::ParamValue::Structured(
+                            bite_schema::StructuredParam::TextSlots { mut slots },
+                        ) => {
+                            ui.text(&format!("{label}: {} text ports", slots.len()));
+                            let mut changed = false;
+                            if ui.button(&format!("Add text port##{node_id}")) {
+                                let next = slots
+                                    .iter()
+                                    .filter_map(|slot| slot.parse::<u64>().ok())
+                                    .max()
+                                    .unwrap_or(0)
+                                    + 1;
+                                slots.push(next.to_string());
+                                changed = true;
+                            }
+                            if slots.len() > 1 {
+                                ui.same_line();
+                                if ui.button(&format!("Remove last port##{node_id}")) {
+                                    slots.pop();
+                                    changed = true;
+                                }
+                            }
+                            changed.then_some(bite_schema::ParamValue::Structured(
+                                bite_schema::StructuredParam::TextSlots { slots },
+                            ))
+                        }
                         other => {
                             ui.text(&format!("{name}: {other:?}"));
                             None
                         }
-                    };
+                    });
                     if let Some(value) = changed {
-                        studio.workflow.graph.nodes[index]
-                            .data
-                            .params
-                            .insert(name, value);
-                        studio.dirty = true;
+                        parameter_changes.push((name, value));
+                    }
+                }
+                for (name, value) in parameter_changes {
+                    if studio.set_param(&node_id, name, value) {
                         *preview_requested = Some(*selected_image);
                         studio.status = "Parameter changed; refreshing preview…".into();
                     }
@@ -859,7 +1612,12 @@ impl ApplicationHandler for App {
         let scale = s.window.scale_factor() as f32;
         match event {
             WindowEvent::CloseRequested => {
-                event_loop.exit();
+                if s.demo.studio.dirty {
+                    s.demo.pending_action = Some(PendingAction::Exit);
+                    s.window.request_redraw();
+                } else {
+                    event_loop.exit();
+                }
                 return;
             }
             WindowEvent::RedrawRequested => {
@@ -912,6 +1670,10 @@ impl ApplicationHandler for App {
                 );
                 s.window.pre_present_notify();
                 s.renderer.queue.present(frame);
+                if s.demo.exit_requested {
+                    event_loop.exit();
+                    return;
+                }
                 if s.settle > 0 {
                     s.settle -= 1;
                     s.window.request_redraw();
@@ -953,6 +1715,8 @@ impl ApplicationHandler for App {
             }
             WindowEvent::ModifiersChanged(m) => {
                 let m = m.state();
+                s.demo.control_down = m.control_key() || m.super_key();
+                s.demo.shift_down = m.shift_key();
                 for (k, v) in [
                     (Key::Ctrl, m.control_key()),
                     (Key::Shift, m.shift_key()),
@@ -966,6 +1730,75 @@ impl ApplicationHandler for App {
                 if let PhysicalKey::Code(code) = event.physical_key {
                     if let Some(k) = key(code) {
                         s.demo.context.key(k, event.state == ElementState::Pressed);
+                    }
+                    if event.state == ElementState::Pressed && !s.demo.context.want_text_input() {
+                        let selection = s.demo.selected_nodes.clone();
+                        let mut select_pasted = |pasted: Vec<String>| {
+                            if let Some(id) = pasted.first() {
+                                s.demo.selected = stable_id(&format!("node:{id}"));
+                                s.demo.frames = 0;
+                            }
+                        };
+                        match code {
+                            KeyCode::Delete | KeyCode::Backspace => {
+                                if s.demo.studio.delete_selection(&selection) {
+                                    s.demo.selected = 0;
+                                    s.demo.selected_nodes.clear();
+                                    s.demo.frames = 0;
+                                }
+                            }
+                            KeyCode::KeyZ if s.demo.control_down && s.demo.shift_down => {
+                                if s.demo.studio.redo() {
+                                    s.demo.frames = 0;
+                                }
+                            }
+                            KeyCode::KeyZ if s.demo.control_down => {
+                                if s.demo.studio.undo() {
+                                    s.demo.frames = 0;
+                                }
+                            }
+                            KeyCode::KeyY if s.demo.control_down => {
+                                if s.demo.studio.redo() {
+                                    s.demo.frames = 0;
+                                }
+                            }
+                            KeyCode::KeyC if s.demo.control_down => {
+                                s.demo.studio.copy_selection(&selection);
+                            }
+                            KeyCode::KeyV if s.demo.control_down => {
+                                let pasted = s.demo.studio.paste();
+                                select_pasted(pasted);
+                            }
+                            KeyCode::KeyD if s.demo.control_down => {
+                                let pasted = s.demo.studio.duplicate_selection(&selection);
+                                select_pasted(pasted);
+                            }
+                            KeyCode::KeyG if s.demo.control_down && s.demo.shift_down => {
+                                if s.demo.studio.ungroup_selection(&selection) {
+                                    s.demo.selected = 0;
+                                    s.demo.frames = 0;
+                                }
+                            }
+                            KeyCode::KeyG if s.demo.control_down => {
+                                if let Some(id) = s.demo.studio.group_selection(&selection) {
+                                    s.demo.selected = stable_id(&format!("node:{id}"));
+                                    s.demo.frames = 0;
+                                }
+                            }
+                            KeyCode::KeyS if s.demo.control_down => {
+                                let path = PathBuf::from(&s.demo.workflow_path);
+                                if let Err(error) = s.demo.studio.save(&path) {
+                                    s.demo.studio.status = format!("Save failed: {error}");
+                                }
+                            }
+                            KeyCode::KeyN if s.demo.control_down => {
+                                s.demo.pending_action = Some(PendingAction::New);
+                            }
+                            KeyCode::KeyO if s.demo.control_down => {
+                                s.demo.pending_action = Some(PendingAction::Open);
+                            }
+                            _ => {}
+                        }
                     }
                 }
                 if event.state == ElementState::Pressed {

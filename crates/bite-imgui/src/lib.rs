@@ -188,6 +188,9 @@ impl Context {
     pub fn focus(&mut self, focused: bool) {
         unsafe { sys::bite_focus(focused.into()) }
     }
+    pub fn want_text_input(&self) -> bool {
+        unsafe { sys::bite_want_text_input() != 0 }
+    }
     pub fn frame(&mut self, width: f32, height: f32, scale: f32, delta: f32) -> Frame<'_> {
         assert!(
             width.is_finite()
@@ -294,6 +297,20 @@ impl Ui<'_> {
     pub fn drag_float(&mut self, label: &str, value: &mut f32) -> bool {
         unsafe { sys::bite_drag_float(c(label).as_ptr(), value) != 0 }
     }
+    pub fn slider_float(&mut self, label: &str, value: &mut f32, min: f32, max: f32) -> bool {
+        unsafe { sys::bite_slider_float(c(label).as_ptr(), value, min, max) != 0 }
+    }
+    pub fn drag_float_n(&mut self, label: &str, values: &mut [f32]) -> bool {
+        if !(2..=4).contains(&values.len()) {
+            return false;
+        }
+        unsafe {
+            sys::bite_drag_float_n(c(label).as_ptr(), values.as_mut_ptr(), values.len() as i32) != 0
+        }
+    }
+    pub fn color_edit4(&mut self, label: &str, values: &mut [f32; 4]) -> bool {
+        unsafe { sys::bite_color_edit4(c(label).as_ptr(), values.as_mut_ptr()) != 0 }
+    }
     pub fn input_text(&mut self, label: &str, text: &mut String) -> bool {
         let mut bytes = vec![0u8; text.len().max(4095) + 1];
         bytes[..text.len()].copy_from_slice(text.as_bytes());
@@ -331,6 +348,12 @@ impl Ui<'_> {
     }
     pub fn next_item_full_width(&mut self) {
         unsafe { sys::bite_next_item_full_width() }
+    }
+    pub fn disabled<R>(&mut self, disabled: bool, body: impl FnOnce(&mut Self) -> R) -> R {
+        unsafe { sys::bite_begin_disabled(disabled.into()) }
+        let result = body(self);
+        unsafe { sys::bite_end_disabled() }
+        result
     }
     pub fn image(&mut self, id: u64, width: f32, height: f32) {
         unsafe { sys::bite_image(id, width, height) }
@@ -432,6 +455,31 @@ impl Ui<'_> {
     pub fn background_menu(&mut self) -> bool {
         assert_eq!(self.scope.get(), 1, "background menu requires an editor");
         unsafe { sys::bite_background_menu() != 0 }
+    }
+    pub fn canvas_mouse_position(&mut self) -> [f32; 2] {
+        assert_eq!(self.scope.get(), 1, "canvas position requires an editor");
+        let (mut x, mut y) = (0.0, 0.0);
+        unsafe { sys::bite_canvas_mouse_position(&mut x, &mut y) }
+        [x, y]
+    }
+    pub fn dragging_selection(&mut self) -> bool {
+        assert_eq!(self.scope.get(), 1, "drag state requires an editor");
+        unsafe { sys::bite_editor_dragging_selection() != 0 }
+    }
+    pub fn open_popup(&mut self, id: &str) {
+        assert_eq!(self.scope.get(), 0, "popup must be outside an editor");
+        unsafe { sys::bite_open_popup(c(id).as_ptr()) }
+    }
+    pub fn popup(&mut self, id: &str, body: impl FnOnce(&mut Self)) {
+        assert_eq!(self.scope.get(), 0, "popup must be outside an editor");
+        if unsafe { sys::bite_begin_popup(c(id).as_ptr()) != 0 } {
+            let _scope = Scope(sys::bite_end_popup);
+            body(self);
+        }
+    }
+    pub fn close_popup(&mut self) {
+        assert_eq!(self.scope.get(), 0, "popup must be outside an editor");
+        unsafe { sys::bite_close_popup() }
     }
     pub fn navigate(&mut self) {
         assert_eq!(self.scope.get(), 1, "navigation requires an editor");

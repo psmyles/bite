@@ -70,6 +70,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn bite_focus(focused: ::std::os::raw::c_int);
+    pub fn bite_want_text_input() -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
     pub fn bite_font_pixels(
@@ -108,6 +109,21 @@ unsafe extern "C" {
         data: *mut ::std::os::raw::c_char,
         size: usize,
     ) -> ::std::os::raw::c_int;
+    pub fn bite_slider_float(
+        label: *const ::std::os::raw::c_char,
+        value: *mut f32,
+        min: f32,
+        max: f32,
+    ) -> ::std::os::raw::c_int;
+    pub fn bite_drag_float_n(
+        label: *const ::std::os::raw::c_char,
+        values: *mut f32,
+        count: ::std::os::raw::c_int,
+    ) -> ::std::os::raw::c_int;
+    pub fn bite_color_edit4(
+        label: *const ::std::os::raw::c_char,
+        values: *mut f32,
+    ) -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
     pub fn bite_checkbox(
@@ -120,6 +136,8 @@ unsafe extern "C" {
         items: *const ::std::os::raw::c_char,
     ) -> ::std::os::raw::c_int;
     pub fn bite_next_item_full_width();
+    pub fn bite_begin_disabled(disabled: ::std::os::raw::c_int);
+    pub fn bite_end_disabled();
 }
 unsafe extern "C" {
     pub fn bite_image(texture: u64, width: f32, height: f32);
@@ -180,6 +198,12 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn bite_background_menu() -> ::std::os::raw::c_int;
+    pub fn bite_canvas_mouse_position(x: *mut f32, y: *mut f32);
+    pub fn bite_editor_dragging_selection() -> ::std::os::raw::c_int;
+    pub fn bite_open_popup(id: *const ::std::os::raw::c_char);
+    pub fn bite_begin_popup(id: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
+    pub fn bite_end_popup();
+    pub fn bite_close_popup();
 }
 unsafe extern "C" {
     pub fn bite_navigate();

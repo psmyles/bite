@@ -71,6 +71,7 @@ void bite_mouse_wheel(float x,float y){ImGui::GetIO().AddMouseWheelEvent(x,y);}
 void bite_key(int key,int down){ImGui::GetIO().AddKeyEvent((ImGuiKey)key,down!=0);}
 void bite_text_input(const char* s){ImGui::GetIO().AddInputCharactersUTF8(s);}
 void bite_focus(int f){ImGui::GetIO().AddFocusEvent(f!=0);}
+int bite_want_text_input(){return ImGui::GetIO().WantTextInput;}
 void bite_font_pixels(const unsigned char** pixels,int* w,int* h){unsigned char* p;ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&p,w,h);*pixels=p;}
 void bite_font_texture(uint64_t id){ImGui::GetIO().Fonts->SetTexID((ImTextureID)(uintptr_t)id);}
 void bite_dockspace(){
@@ -82,10 +83,12 @@ void bite_dockspace(){
         ImGui::DockBuilderAddNode(dock,ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(dock,viewport->Size);
         auto center=dock;
-        auto left=ImGui::DockBuilderSplitNode(center,ImGuiDir_Left,0.15f,nullptr,&center);
+        auto left=ImGui::DockBuilderSplitNode(center,ImGuiDir_Left,0.22f,nullptr,&center);
         auto right=ImGui::DockBuilderSplitNode(center,ImGuiDir_Right,0.25f,nullptr,&center);
         auto bottom=ImGui::DockBuilderSplitNode(center,ImGuiDir_Down,0.15f,nullptr,&center);
         auto preview=ImGui::DockBuilderSplitNode(right,ImGuiDir_Down,0.5f,nullptr,&right);
+        auto workflow=ImGui::DockBuilderSplitNode(left,ImGuiDir_Up,0.48f,nullptr,&left);
+        ImGui::DockBuilderDockWindow("Workflow",workflow);
         ImGui::DockBuilderDockWindow("Library",left);
         ImGui::DockBuilderDockWindow("Canvas",center);
         ImGui::DockBuilderDockWindow("Inspector",right);
@@ -99,10 +102,15 @@ void bite_end(){ImGui::End();}
 void bite_text(const char* s){ImGui::TextUnformatted(s);}
 int bite_button(const char* s){return ImGui::Button(s);}
 int bite_drag_float(const char* s,float* v){return ImGui::DragFloat(s,v,0.1f);}
+int bite_slider_float(const char* s,float* v,float min,float max){return ImGui::SliderFloat(s,v,min,max);}
+int bite_drag_float_n(const char* s,float* v,int count){if(count==2)return ImGui::DragFloat2(s,v,0.1f);if(count==3)return ImGui::DragFloat3(s,v,0.1f);if(count==4)return ImGui::DragFloat4(s,v,0.1f);return 0;}
+int bite_color_edit4(const char* s,float* v){return ImGui::ColorEdit4(s,v);}
 int bite_input_text(const char* s,char* data,size_t size){return ImGui::InputText(s,data,size);}
 int bite_checkbox(const char* s,int* value){bool checked=*value!=0;bool changed=ImGui::Checkbox(s,&checked);*value=checked?1:0;return changed;}
 int bite_combo(const char* s,int* current,const char* items){return ImGui::Combo(s,current,items);}
 void bite_next_item_full_width(){ImGui::SetNextItemWidth(-FLT_MIN);}
+void bite_begin_disabled(int disabled){ImGui::BeginDisabled(disabled!=0);}
+void bite_end_disabled(){ImGui::EndDisabled();}
 void bite_image(uint64_t id,float w,float h){ImGui::Image((ImTextureID)(uintptr_t)id,ImVec2(w,h));}
 int bite_image_button(const char* id,uint64_t texture,float w,float h){return ImGui::ImageButton(id,(ImTextureID)(uintptr_t)texture,ImVec2(w,h));}
 void bite_same_line(){ImGui::SameLine();}
@@ -121,6 +129,12 @@ void bite_get_node_position(uint64_t id,float* x,float* y){auto p=ed::GetNodePos
 int bite_node_selected(uint64_t id){return ed::IsNodeSelected(ed::NodeId((uintptr_t)id));}
 void bite_group(float w,float h){ed::Group(ImVec2(w,h));}
 int bite_background_menu(){return ed::ShowBackgroundContextMenu();}
+void bite_canvas_mouse_position(float* x,float* y){auto p=ed::ScreenToCanvas(ImGui::GetMousePos());*x=p.x;*y=p.y;}
+int bite_editor_dragging_selection(){return ImGui::IsMouseDragging(ImGuiMouseButton_Left)&&ed::GetSelectedObjectCount()>0;}
+void bite_open_popup(const char* id){ImGui::OpenPopup(id);}
+int bite_begin_popup(const char* id){return ImGui::BeginPopup(id);}
+void bite_end_popup(){ImGui::EndPopup();}
+void bite_close_popup(){ImGui::CloseCurrentPopup();}
 void bite_navigate(){ed::NavigateToContent(0.0f);}
 int bite_draw_list_count(){return ImGui::GetDrawData()->CmdListsCount;}
 int bite_vertex_count(int i){return ImGui::GetDrawData()->CmdLists[i]->VtxBuffer.Size;}

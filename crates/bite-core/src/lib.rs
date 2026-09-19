@@ -1,5 +1,6 @@
 //! Shared workflow services. Frontends use these APIs rather than implementing
 //! their own graph traversal, parameter resolution, or migration.
+pub mod cli_export;
 pub mod execution;
 pub mod graph;
 pub mod plan;

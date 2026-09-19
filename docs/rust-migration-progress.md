@@ -476,3 +476,43 @@ this satisfies the Phase 9 Windows exit gate. The current interface remains a
 technical functional shell; Electron-level editor organization, interaction
 flow and daily-use behavior are the explicit scope of Phase 10. macOS Phase 9
 execution remains pending under the user's platform policy.
+
+## Continuation 2026-09-19 — Phase 10 editor parity foundation
+
+Phase 10 now has a source-backed parity inventory in
+`docs/native-editor-parity.md`. The native editor implements a bounded 100-step
+undo/redo history, drag and compound transaction boundaries, dirty-state
+restoration, copy/paste/duplicate/delete, endpoint deletion guards, groups,
+ungrouping and comments. Groups retain child-relative positions and deleting a
+group restores absolute child positions. Keyboard commands are suppressed while
+text input owns focus.
+
+The canvas has a searchable right-click creation menu and supports dropping a
+wire on empty canvas, creating a node and connecting its first compatible port
+as one undo operation. Links use their actual wire type for color. Native
+creation now covers multiple inputs and image outputs, Text Output, Flipbook
+Output, comments and all processing definitions with collision-free CLI names.
+The default dock layout gives Workflow and Library a stable left column instead
+of floating Workflow over the canvas.
+
+The generic inspector now implements definition ordering, `visible_when`,
+`enabled_when`, read-only state, `portOnly`, `noPort`, sliders, vectors, colors,
+dropdowns and checkboxes. Convert Format loads the selected format's own
+parameters and visibility rules. Structured controls edit Rename blocks,
+Process As Set suffixes and Text Output port slots. Process As Set outputs track
+the suffix list and remove stale connections safely, while Text Output keeps one
+trailing connection port automatically. Rename live filename preview,
+matched-set preview and richer output-specific inspectors remain.
+
+CLI export moved into `bite-core` and generates escaped PowerShell, Bash and CMD
+scripts plus a companion workflow from the native UI. The current controls
+derive the export filename from the workflow path; native save/open/folder
+dialogs remain to be added.
+
+All 50 Rust tests and strict workspace Clippy pass. The offscreen acceptance
+image is `test-workflows/out/native-phase10-foundation.png`. Remaining Phase 10
+work includes compatibility-filtered/category keyboard creation, OS clipboard,
+comment/group resize acceptance and inline editing, layout persistence, native
+file dialogs, output logs, per-input custom behavior, definition hot reload,
+the update dialog, the remaining custom-inspector previews, and full Windows
+interaction/high-DPI acceptance. macOS Phase 10 acceptance remains pending.
