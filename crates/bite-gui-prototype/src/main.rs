@@ -1,4 +1,5 @@
 //! Phase 8 technical smoke mode plus the Phase 9 functional native GUI.
+mod dialogs;
 mod renderer;
 mod studio;
 use bite_core::execution::ImageHost;
@@ -369,6 +370,27 @@ fn candidate_allowed(
         )
     })
 }
+
+fn copy_selection(studio: &mut Studio, selected: &[String]) {
+    if studio.copy_selection(selected) {
+        if let Some(fragment) = studio.clipboard_json() {
+            if let Err(error) = dialogs::write_clipboard(&fragment) {
+                studio.status = format!("Copied in app; system clipboard failed: {error}");
+            }
+        }
+    }
+}
+
+fn paste_selection(studio: &mut Studio) -> Vec<String> {
+    match dialogs::read_clipboard() {
+        Ok(Some(fragment)) => {
+            studio.import_clipboard_json(&fragment);
+        }
+        Ok(None) => {}
+        Err(error) => studio.status = format!("System clipboard failed: {error}"),
+    }
+    studio.paste()
+}
 impl Demo {
     fn new(renderer: &mut Renderer, scale: f32, technical_demo: bool) -> Result<Self, String> {
         let layout = layout_path();
@@ -577,16 +599,38 @@ impl Demo {
             }
             ui.same_line();
             if ui.button("Open") {
-                if studio.dirty {
-                    *pending_action = Some(PendingAction::Open);
-                } else {
-                    action = Some(PendingAction::Open);
+                match dialogs::open_workflow() {
+                    Ok(Some(path)) => {
+                        *workflow_path = path.to_string_lossy().into_owned();
+                        if studio.dirty {
+                            *pending_action = Some(PendingAction::Open);
+                        } else {
+                            action = Some(PendingAction::Open);
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(error) => studio.status = format!("Open dialog failed: {error}"),
                 }
             }
             ui.same_line();
             if ui.button("Save") {
                 if let Err(error) = studio.save(PathBuf::from(&*workflow_path).as_path()) {
                     studio.status = format!("Save failed: {error}");
+                }
+            }
+            ui.same_line();
+            if ui.button("Save As") {
+                match dialogs::save_file(
+                    PathBuf::from(&*workflow_path).as_path(),
+                    "bite",
+                    "BITE workflow",
+                ) {
+                    Ok(Some(path)) => match studio.save(&path) {
+                        Ok(()) => *workflow_path = path.to_string_lossy().into_owned(),
+                        Err(error) => studio.status = format!("Save failed: {error}"),
+                    },
+                    Ok(None) => {}
+                    Err(error) => studio.status = format!("Save dialog failed: {error}"),
                 }
             }
             let undo_label = if studio.can_undo() {
@@ -607,11 +651,11 @@ impl Demo {
                 *frames = 0;
             }
             if ui.button("Copy") {
-                studio.copy_selection(selected_nodes);
+                copy_selection(studio, selected_nodes);
             }
             ui.same_line();
             if ui.button("Paste") {
-                let pasted = studio.paste();
+                let pasted = paste_selection(studio);
                 if let Some(id) = pasted.first() {
                     *selected = stable_id(&format!("node:{id}"));
                     *frames = 0;
@@ -656,9 +700,15 @@ impl Demo {
             .enumerate()
             {
                 if ui.button(label) {
-                    let path = PathBuf::from(&*workflow_path).with_extension(extension);
-                    if let Err(error) = studio.export_cli(&path, shell) {
-                        studio.status = format!("Export failed: {error}");
+                    let default = PathBuf::from(&*workflow_path).with_extension(extension);
+                    match dialogs::save_file(&default, extension, label) {
+                        Ok(Some(path)) => {
+                            if let Err(error) = studio.export_cli(&path, shell) {
+                                studio.status = format!("Export failed: {error}");
+                            }
+                        }
+                        Ok(None) => {}
+                        Err(error) => studio.status = format!("Export dialog failed: {error}"),
                     }
                 }
                 if index < 2 {
@@ -674,9 +724,23 @@ impl Demo {
             ui.text("Input folder");
             ui.next_item_full_width();
             ui.input_text("##input-folder", input_path);
+            if ui.button("Browse input") {
+                match dialogs::select_folder() {
+                    Ok(Some(path)) => *input_path = path.to_string_lossy().into_owned(),
+                    Ok(None) => {}
+                    Err(error) => studio.status = format!("Folder dialog failed: {error}"),
+                }
+            }
             ui.text("Output folder");
             ui.next_item_full_width();
             ui.input_text("##output-folder", output_path);
+            if ui.button("Browse output") {
+                match dialogs::select_folder() {
+                    Ok(Some(path)) => *output_path = path.to_string_lossy().into_owned(),
+                    Ok(None) => {}
+                    Err(error) => studio.status = format!("Folder dialog failed: {error}"),
+                }
+            }
             if ui.button("Import images") {
                 *import_requested = true;
                 studio.status = "Importing images…".into();
@@ -1375,6 +1439,7 @@ impl Demo {
                         .cloned(),
                 );
                 let mut parameter_changes = Vec::new();
+                let mut dialog_error = None;
                 for name in parameter_names {
                     let Some(value) = params.get(&name).cloned().or_else(|| {
                         definitions
@@ -1449,7 +1514,7 @@ impl Demo {
                                 .unwrap_or_else(|| builtin_options(&name));
                             ui.text(label);
                             ui.next_item_full_width();
-                            if options.is_empty() {
+                            let mut changed = if options.is_empty() {
                                 ui.input_text(&control_id, &mut text)
                                     .then_some(bite_schema::ParamValue::String(text))
                             } else {
@@ -1466,7 +1531,21 @@ impl Demo {
                                 ui.combo(&control_id, &mut selected, &displayed).then(|| {
                                     bite_schema::ParamValue::String(options[selected].clone())
                                 })
+                            };
+                            if name == "folderPath" && ui.button("Browse folder") {
+                                match dialogs::select_folder() {
+                                    Ok(Some(path)) => {
+                                        changed = Some(bite_schema::ParamValue::String(
+                                            path.to_string_lossy().into_owned(),
+                                        ));
+                                    }
+                                    Ok(None) => {}
+                                    Err(error) => {
+                                        dialog_error = Some(error);
+                                    }
+                                }
                             }
+                            changed
                         }
                         bite_schema::ParamValue::Bool(mut value) => ui
                             .checkbox(label, &mut value)
@@ -1730,6 +1809,9 @@ impl Demo {
                         *preview_requested = Some(*selected_image);
                         studio.status = "Parameter changed; refreshing preview…".into();
                     }
+                }
+                if let Some(error) = dialog_error {
+                    studio.status = format!("Folder dialog failed: {error}");
                 }
                 if let Some(values) = resolved_values.get(&node_id) {
                     for (name, value) in values {
@@ -2031,10 +2113,10 @@ impl ApplicationHandler for App {
                                 }
                             }
                             KeyCode::KeyC if s.demo.control_down => {
-                                s.demo.studio.copy_selection(&selection);
+                                copy_selection(&mut s.demo.studio, &selection);
                             }
                             KeyCode::KeyV if s.demo.control_down => {
-                                let pasted = s.demo.studio.paste();
+                                let pasted = paste_selection(&mut s.demo.studio);
                                 select_pasted(pasted);
                             }
                             KeyCode::KeyD if s.demo.control_down => {
@@ -2053,6 +2135,25 @@ impl ApplicationHandler for App {
                                     s.demo.frames = 0;
                                 }
                             }
+                            KeyCode::KeyS if s.demo.control_down && s.demo.shift_down => {
+                                let default = PathBuf::from(&s.demo.workflow_path);
+                                match dialogs::save_file(&default, "bite", "BITE workflow") {
+                                    Ok(Some(path)) => match s.demo.studio.save(&path) {
+                                        Ok(()) => {
+                                            s.demo.workflow_path =
+                                                path.to_string_lossy().into_owned()
+                                        }
+                                        Err(error) => {
+                                            s.demo.studio.status = format!("Save failed: {error}")
+                                        }
+                                    },
+                                    Ok(None) => {}
+                                    Err(error) => {
+                                        s.demo.studio.status =
+                                            format!("Save dialog failed: {error}")
+                                    }
+                                }
+                            }
                             KeyCode::KeyS if s.demo.control_down => {
                                 let path = PathBuf::from(&s.demo.workflow_path);
                                 if let Err(error) = s.demo.studio.save(&path) {
@@ -2060,10 +2161,50 @@ impl ApplicationHandler for App {
                                 }
                             }
                             KeyCode::KeyN if s.demo.control_down => {
-                                s.demo.pending_action = Some(PendingAction::New);
+                                if s.demo.studio.dirty {
+                                    s.demo.pending_action = Some(PendingAction::New);
+                                } else {
+                                    let registry = s.demo.studio.registry.clone();
+                                    s.demo.studio = Studio::blank(registry);
+                                    s.demo.studio.add_input(Position { x: 0.0, y: 100.0 });
+                                    s.demo.studio.add_output(Position { x: 700.0, y: 100.0 });
+                                    s.demo.studio.mark_clean();
+                                    s.demo.workflow_path = "workflow.bite".into();
+                                    s.demo.selected = 0;
+                                    s.demo.selected_nodes.clear();
+                                    s.demo.frames = 0;
+                                }
                             }
                             KeyCode::KeyO if s.demo.control_down => {
-                                s.demo.pending_action = Some(PendingAction::Open);
+                                match dialogs::open_workflow() {
+                                    Ok(Some(path)) => {
+                                        s.demo.workflow_path = path.to_string_lossy().into_owned();
+                                        if s.demo.studio.dirty {
+                                            s.demo.pending_action = Some(PendingAction::Open);
+                                        } else {
+                                            match Studio::open(
+                                                s.demo.studio.registry.clone(),
+                                                &path,
+                                            ) {
+                                                Ok(studio) => {
+                                                    s.demo.studio = studio;
+                                                    s.demo.selected = 0;
+                                                    s.demo.selected_nodes.clear();
+                                                    s.demo.frames = 0;
+                                                }
+                                                Err(error) => {
+                                                    s.demo.studio.status =
+                                                        format!("Open failed: {error}")
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Ok(None) => {}
+                                    Err(error) => {
+                                        s.demo.studio.status =
+                                            format!("Open dialog failed: {error}")
+                                    }
+                                }
                             }
                             KeyCode::Space | KeyCode::Tab if !s.demo.control_down => {
                                 s.demo.open_creation_requested = true;

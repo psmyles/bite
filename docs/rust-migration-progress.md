@@ -521,9 +521,16 @@ or deterministic examples, and Process As Set shows matched/complete set
 counts. Core execution now honors `generateLog` by writing a nonfatal output
 summary next to produced files.
 
-All 51 Rust tests and strict workspace Clippy pass. The offscreen acceptance
+All 52 Rust tests and strict workspace Clippy pass. The offscreen acceptance
 image is `test-workflows/out/native-phase10-foundation.png`. Remaining Phase 10
-work includes OS clipboard exchange, native file dialogs, the update dialog,
-dedicated input/output presentation, richer Text/Flipbook inspectors, and full
-Windows interaction/high-DPI acceptance, including hands-on group containment
-and resize checks. macOS Phase 10 acceptance remains pending.
+work includes the update dialog, dedicated input/output presentation, richer
+Text/Flipbook inspectors, and full Windows interaction/high-DPI acceptance,
+including hands-on group containment and resize checks. macOS Phase 10
+acceptance remains pending.
+
+Windows native dialogs now cover workflow open/save-as, input and output folder
+selection, Folder Path browsing and CLI export destinations. Copy/paste uses a
+versioned JSON graph fragment on the Windows system clipboard while retaining
+the in-process fallback. Fragment round-trip and internal-edge preservation are
+covered by the Rust suite. macOS native dialogs and system clipboard remain
+pending under the platform policy.

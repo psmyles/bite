@@ -204,8 +204,10 @@ dependencies = [
  "bite-schema",
  "png",
  "pollster",
+ "serde",
  "serde_json",
  "wgpu",
+ "windows",
  "winit",
 ]
 

@@ -30,7 +30,7 @@ native control provides the same workflow more clearly.
 | Selection | Click and rubber-band multi-select | Node-editor selection available; multi-selection drives editing commands |
 | Delete | Delete/Backspace; protects final input/output; group deletion ungroups | Implemented |
 | Duplicate | Ctrl+D; excludes workflow endpoint nodes; includes group children | Implemented for selected non-endpoint nodes and internal edges |
-| Copy/paste | Clipboard graph fragment with internal connections | In-process graph clipboard implemented; OS clipboard pending |
+| Copy/paste | Clipboard graph fragment with internal connections | Windows system clipboard plus in-process fallback implemented; macOS system clipboard pending |
 | Undo/redo | Ctrl+Z, Ctrl+Shift+Z/Ctrl+Y; maximum 100 snapshots | Implemented with 100-entry history and redo invalidation |
 | Transaction grouping | Drag and compound mutations create one history entry | Drag and wire-create compound transactions implemented |
 
@@ -67,15 +67,16 @@ native control provides the same workflow more clearly.
 | Process As Set | Creation, dynamic typed ports and suffix editing implemented; matched-set preview pending |
 | Save/open/new and dirty prompts | Implemented with Save and continue, Discard and Cancel |
 | Run, progress and cancellation | Implemented |
-| PowerShell/Bash/CMD CLI export | Core generator and native export controls implemented with companion `.bite` file; save dialog pending |
+| PowerShell/Bash/CMD CLI export | Core generator and native save dialog implemented with companion `.bite` file |
 | Output logs | `generateLog` writes a nonfatal summary beside produced files |
 | Per-input thumbnail size | Editable and used by import; dedicated presentation pass pending |
 | Definition hot reload | Reloads transactionally when the app regains focus; manual reload is also available |
 | Update check/dialog | Pending |
-| File dialogs and file association | Typed paths/drop support exist; native dialogs and association pending |
+| File dialogs and file association | Windows open/save/folder dialogs implemented; file association is Phase 11 and macOS dialogs remain pending |
 
 ## Platform acceptance
 
-- Windows: keyboard focus, context creation, drag/drop, graph persistence,
-  grouping, high DPI, mixed DPI, idle usage and clean-machine checks pending.
+- Windows: automated context creation and graph persistence pass; native dialog,
+  clipboard, keyboard focus, drag/drop, grouping, high DPI, mixed DPI, idle usage
+  and clean-machine interaction checks remain.
 - macOS: all native GUI checks pending under the project platform policy.

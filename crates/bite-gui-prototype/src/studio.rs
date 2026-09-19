@@ -76,7 +76,7 @@ struct EditSnapshot {
     graph: Graph,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 struct Clipboard {
     nodes: Vec<GraphNode>,
     edges: Vec<GraphEdge>,
@@ -770,6 +770,28 @@ impl Studio {
         true
     }
 
+    pub fn clipboard_json(&self) -> Option<String> {
+        (!self.clipboard.nodes.is_empty()).then(|| {
+            "BITE_GRAPH_FRAGMENT_V1\n".to_owned()
+                + &serde_json::to_string(&self.clipboard)
+                    .expect("clipboard serialization cannot fail")
+        })
+    }
+
+    pub fn import_clipboard_json(&mut self, text: &str) -> bool {
+        let Some(json) = text.strip_prefix("BITE_GRAPH_FRAGMENT_V1\n") else {
+            return false;
+        };
+        let Ok(clipboard) = serde_json::from_str::<Clipboard>(json) else {
+            return false;
+        };
+        if clipboard.nodes.is_empty() {
+            return false;
+        }
+        self.clipboard = clipboard;
+        true
+    }
+
     pub fn paste(&mut self) -> Vec<String> {
         if self.clipboard.nodes.is_empty() {
             return Vec::new();
@@ -1278,5 +1300,29 @@ mod tests {
         assert_eq!(slots(&studio, &text), vec!["0", "1"]);
         studio.delete_edge(&edge);
         assert_eq!(slots(&studio, &text), vec!["1"]);
+    }
+
+    #[test]
+    fn clipboard_fragment_round_trips_between_studios() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = Studio::load_registry(&root).unwrap();
+        let mut source = Studio::blank(registry.clone());
+        let resize = source
+            .add_processing("resize", Position { x: 100.0, y: 100.0 })
+            .unwrap();
+        let sharpen = source
+            .add_processing("sharpen", Position { x: 300.0, y: 100.0 })
+            .unwrap();
+        source
+            .connect(&resize, "out:output", &sharpen, "in:input")
+            .unwrap();
+        source.copy_selection(&[resize, sharpen]);
+        let fragment = source.clipboard_json().unwrap();
+
+        let mut target = Studio::blank(registry);
+        assert!(target.import_clipboard_json(&fragment));
+        assert_eq!(target.paste().len(), 2);
+        assert_eq!(target.workflow.graph.edges.len(), 1);
+        assert!(!target.import_clipboard_json("ordinary clipboard text"));
     }
 }
