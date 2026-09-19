@@ -559,3 +559,27 @@ background thread, compares the release tag against the product version and
 shows an Update Available dialog without blocking editor input. Manual checks
 also report the up-to-date and error states. macOS update checking remains
 pending.
+
+## Continuation 2026-09-20 — Electron visual parity in progress
+
+The native editor now treats the checked-in Svelte components and
+`src/renderer/assets/theme.css` as its visual specification. The first shared
+native primitives reproduce the Electron application menu, dark surface and
+field tokens, 150-pixel node cards, colored node headers, typed port labels and
+circular port handles. File/Edit/View/Help commands are exposed through the
+menu bar, while the prototype-only Workflow controls are hidden by default and
+remain available through File > Workflow settings.
+
+The default arrangement now places Library at left, Canvas in the center,
+Inspector above Preview at right, and Filmstrip across Library plus Canvas. A
+versioned layout file prevents saved prototype docks from restoring the obsolete
+arrangement. Library has a filter and category grouping, and an empty Filmstrip
+no longer displays generated placeholder thumbnails. The native color and grid
+tokens now come from the Electron theme rather than generic Dear ImGui defaults.
+
+All 54 Rust tests and strict workspace Clippy pass after this slice. Remaining
+visual work includes replacing the visible docking tab treatment with Electron
+panel headers and gap cards, completing the menu command set, matching filmstrip
+status/selection presentation, and tightening Inspector row layout. A final
+Windows screenshot comparison and interaction pass remains required; macOS stays
+pending under the user's platform policy.

@@ -57,6 +57,7 @@ struct Demo {
     pending_wire: Option<PendingWire>,
     open_creation_requested: bool,
     node_search: String,
+    show_workflow_tools: bool,
     update_receiver: Option<mpsc::Receiver<Result<updates::UpdateInfo, String>>>,
     update_result: Option<Result<updates::UpdateInfo, String>>,
     update_show_all: bool,
@@ -224,7 +225,9 @@ fn layout_path() -> Option<PathBuf> {
     let root = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")));
-    root.map(|root| root.join("BITE/native-layout.ini"))
+    // Bump the persisted layout when the source-backed Electron shell changes.
+    // This prevents obsolete prototype docks from overriding the new default.
+    root.map(|root| root.join("BITE/native-layout-v2.ini"))
 }
 
 fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
@@ -562,6 +565,7 @@ impl Demo {
             pending_wire: None,
             open_creation_requested: false,
             node_search: String::new(),
+            show_workflow_tools: false,
             update_receiver: Some(update_receive),
             update_result: None,
             update_show_all: false,
@@ -793,6 +797,7 @@ impl Demo {
             pending_wire,
             open_creation_requested,
             node_search,
+            show_workflow_tools,
             update_receiver,
             update_result,
             update_show_all,
@@ -848,332 +853,375 @@ impl Demo {
             delta.clamp(0.001, 0.1),
         );
         let mut ui = frame.ui();
-        ui.dockspace();
         let mut action = None;
-        ui.window("Workflow", |ui| {
-            ui.text("Workflow file");
-            ui.next_item_full_width();
-            ui.input_text("##workflow-path", workflow_path);
-            if ui.button("New") {
-                if studio.dirty {
-                    *pending_action = Some(PendingAction::New);
-                } else {
+        ui.main_menu_bar(|ui| {
+            ui.text("Bite");
+            ui.menu("File", |ui| {
+                if ui.menu_item("New", "Ctrl+N", false, true) {
                     action = Some(PendingAction::New);
                 }
-            }
-            ui.same_line();
-            if ui.button("Open") {
-                match dialogs::open_workflow() {
-                    Ok(Some(path)) => {
-                        *workflow_path = path.to_string_lossy().into_owned();
-                        if studio.dirty {
-                            *pending_action = Some(PendingAction::Open);
-                        } else {
+                if ui.menu_item("Open...", "Ctrl+O", false, true) {
+                    match dialogs::open_workflow() {
+                        Ok(Some(path)) => {
+                            *workflow_path = path.to_string_lossy().into_owned();
                             action = Some(PendingAction::Open);
                         }
+                        Ok(None) => {}
+                        Err(error) => studio.status = format!("Open dialog failed: {error}"),
                     }
-                    Ok(None) => {}
-                    Err(error) => studio.status = format!("Open dialog failed: {error}"),
                 }
-            }
-            ui.same_line();
-            if ui.button("Save") {
-                if let Err(error) = studio.save(PathBuf::from(&*workflow_path).as_path()) {
-                    studio.status = format!("Save failed: {error}");
+                if ui.menu_item("Save", "Ctrl+S", false, true) {
+                    if let Err(error) = studio.save(PathBuf::from(&*workflow_path).as_path()) {
+                        studio.status = format!("Save failed: {error}");
+                    }
                 }
-            }
-            ui.same_line();
-            if ui.button("Save As") {
-                match dialogs::save_file(
-                    PathBuf::from(&*workflow_path).as_path(),
-                    "bite",
-                    "BITE workflow",
-                ) {
-                    Ok(Some(path)) => match studio.save(&path) {
-                        Ok(()) => *workflow_path = path.to_string_lossy().into_owned(),
-                        Err(error) => studio.status = format!("Save failed: {error}"),
-                    },
-                    Ok(None) => {}
-                    Err(error) => studio.status = format!("Save dialog failed: {error}"),
+                if ui.menu_item("Workflow settings...", "", *show_workflow_tools, true) {
+                    *show_workflow_tools = !*show_workflow_tools;
                 }
-            }
-            let undo_label = if studio.can_undo() {
-                "Undo"
-            } else {
-                "Undo (empty)"
-            };
-            if ui.button(undo_label) && studio.undo() {
-                *frames = 0;
-            }
-            ui.same_line();
-            let redo_label = if studio.can_redo() {
-                "Redo"
-            } else {
-                "Redo (empty)"
-            };
-            if ui.button(redo_label) && studio.redo() {
-                *frames = 0;
-            }
-            if ui.button("Copy") {
-                copy_selection(studio, selected_nodes);
-            }
-            ui.same_line();
-            if ui.button("Paste") {
-                let pasted = paste_selection(studio);
-                if let Some(id) = pasted.first() {
-                    *selected = stable_id(&format!("node:{id}"));
+            });
+            ui.menu("Edit", |ui| {
+                if ui.menu_item("Undo", "Ctrl+Z", false, studio.can_undo()) && studio.undo() {
                     *frames = 0;
                 }
-            }
-            ui.same_line();
-            if ui.button("Duplicate") {
-                let pasted = studio.duplicate_selection(selected_nodes);
-                if let Some(id) = pasted.first() {
-                    *selected = stable_id(&format!("node:{id}"));
+                if ui.menu_item("Redo", "Ctrl+Y", false, studio.can_redo()) && studio.redo() {
                     *frames = 0;
                 }
-            }
-            ui.same_line();
-            if ui.button("Delete") {
-                let deleting_active = active_input
-                    .as_ref()
-                    .is_some_and(|id| selected_nodes.contains(id));
-                let deleting = selected_nodes.clone();
-                if studio.delete_selection(selected_nodes) {
-                    for id in &deleting {
-                        runtime_paths.remove(id);
-                        input_media.remove(id);
+                if ui.menu_item("Duplicate", "Ctrl+D", false, !selected_nodes.is_empty()) {
+                    let pasted = studio.duplicate_selection(selected_nodes);
+                    if let Some(id) = pasted.first() {
+                        *selected = stable_id(&format!("node:{id}"));
+                        *frames = 0;
                     }
-                    if deleting_active {
-                        *active_input = None;
-                        image_paths.clear();
-                        thumbnails.clear();
-                        *selected_image = 0;
-                        *preview_texture = None;
-                        resolved_values.clear();
-                        *text_preview_receiver = None;
-                        *text_preview_result = None;
-                    }
+                }
+                if ui.menu_item("Delete", "Del", false, !selected_nodes.is_empty()) {
+                    studio.delete_selection(selected_nodes);
                     *selected = 0;
-                    selected_nodes.clear();
                     *frames = 0;
                 }
-            }
-            if ui.button("Group") {
-                if let Some(id) = studio.group_selection(selected_nodes) {
-                    *selected = stable_id(&format!("node:{id}"));
-                    *frames = 0;
+            });
+            ui.menu("View", |ui| {
+                if ui.menu_item("Frame workflow", "Ctrl+0", false, true) {
+                    *frames = 1;
                 }
-            }
-            ui.same_line();
-            if ui.button("Ungroup") && studio.ungroup_selection(selected_nodes) {
-                *selected = 0;
-                *frames = 0;
-            }
-            ui.text("Export CLI script");
-            for (index, (label, extension, shell)) in [
-                (
-                    "PowerShell",
-                    "ps1",
-                    bite_core::cli_export::Shell::PowerShell,
-                ),
-                ("Bash", "sh", bite_core::cli_export::Shell::Bash),
-                ("CMD", "bat", bite_core::cli_export::Shell::Cmd),
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                if ui.button(label) {
-                    let default = PathBuf::from(&*workflow_path).with_extension(extension);
-                    match dialogs::save_file(&default, extension, label) {
+            });
+            ui.menu("Help", |ui| {
+                if ui.menu_item("Check for Updates", "", false, update_receiver.is_none()) {
+                    let (send, receive) = mpsc::channel();
+                    std::thread::spawn(move || {
+                        let _ = send.send(updates::check());
+                    });
+                    *update_show_all = true;
+                    *update_receiver = Some(receive);
+                    *update_result = None;
+                    studio.status = "Checking for updates…".into();
+                }
+            });
+        });
+        ui.dockspace();
+        if *show_workflow_tools {
+            ui.window("Workflow settings", |ui| {
+                ui.text("Workflow file");
+                ui.next_item_full_width();
+                ui.input_text("##workflow-path", workflow_path);
+                if ui.button("New") {
+                    if studio.dirty {
+                        *pending_action = Some(PendingAction::New);
+                    } else {
+                        action = Some(PendingAction::New);
+                    }
+                }
+                ui.same_line();
+                if ui.button("Open") {
+                    match dialogs::open_workflow() {
                         Ok(Some(path)) => {
-                            if let Err(error) = studio.export_cli(&path, shell) {
-                                studio.status = format!("Export failed: {error}");
+                            *workflow_path = path.to_string_lossy().into_owned();
+                            if studio.dirty {
+                                *pending_action = Some(PendingAction::Open);
+                            } else {
+                                action = Some(PendingAction::Open);
                             }
                         }
                         Ok(None) => {}
-                        Err(error) => studio.status = format!("Export dialog failed: {error}"),
+                        Err(error) => studio.status = format!("Open dialog failed: {error}"),
                     }
                 }
-                if index < 2 {
-                    ui.same_line();
+                ui.same_line();
+                if ui.button("Save") {
+                    if let Err(error) = studio.save(PathBuf::from(&*workflow_path).as_path()) {
+                        studio.status = format!("Save failed: {error}");
+                    }
                 }
-            }
-            if ui.button("Reload definitions") {
-                let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-                if let Err(error) = studio.reload_registry(&root) {
-                    studio.status = format!("Definition reload failed: {error}");
-                }
-            }
-            if update_receiver.is_none() && ui.button("Check for updates") {
-                let (send, receive) = mpsc::channel();
-                std::thread::spawn(move || {
-                    let _ = send.send(updates::check());
-                });
-                *update_receiver = Some(receive);
-                *update_result = None;
-                *update_show_all = true;
-                studio.status = "Checking for updates…".into();
-            } else if update_receiver.is_some() {
-                ui.text("Checking for updates…");
-            }
-            ui.text("Input folder");
-            ui.next_item_full_width();
-            ui.input_text("##input-folder", input_path);
-            if ui.button("Browse input") {
-                match dialogs::select_folder() {
-                    Ok(Some(path)) => *input_path = path.to_string_lossy().into_owned(),
-                    Ok(None) => {}
-                    Err(error) => studio.status = format!("Folder dialog failed: {error}"),
-                }
-            }
-            ui.text("Output folder");
-            ui.next_item_full_width();
-            ui.input_text("##output-folder", output_path);
-            if ui.button("Browse output") {
-                match dialogs::select_folder() {
-                    Ok(Some(path)) => *output_path = path.to_string_lossy().into_owned(),
-                    Ok(None) => {}
-                    Err(error) => studio.status = format!("Folder dialog failed: {error}"),
-                }
-            }
-            if ui.button("Import images") {
-                *import_requested = true;
-                studio.status = "Importing images…".into();
-            }
-            if runner.is_none() && ui.button("Run") {
-                let graph = studio.workflow.graph.clone();
-                let registry = studio.registry.clone();
-                let options = studio.run_options_with_overrides(
-                    PathBuf::from(&*input_path).as_path(),
-                    PathBuf::from(&*output_path).as_path(),
-                    runtime_paths,
-                );
-                let cancelled = options.cancelled.clone();
-                let (send, receive) = mpsc::channel();
-                std::thread::spawn(move || {
-                    let mut host = bite_imagemagick::Magick::discover(options.cancelled.clone());
-                    let progress = send.clone();
-                    let result = bite_core::execution::run_workflow(
-                        &graph,
-                        &registry,
-                        &mut host,
-                        &options,
-                        &mut |done, total, file| {
-                            let _ = progress.send(RunEvent::Progress(
-                                done,
-                                total,
-                                file.file_name()
-                                    .unwrap_or_default()
-                                    .to_string_lossy()
-                                    .into_owned(),
-                            ));
+                ui.same_line();
+                if ui.button("Save As") {
+                    match dialogs::save_file(
+                        PathBuf::from(&*workflow_path).as_path(),
+                        "bite",
+                        "BITE workflow",
+                    ) {
+                        Ok(Some(path)) => match studio.save(&path) {
+                            Ok(()) => *workflow_path = path.to_string_lossy().into_owned(),
+                            Err(error) => studio.status = format!("Save failed: {error}"),
                         },
-                    );
-                    let _ = send.send(RunEvent::Complete(result));
-                });
-                *runner = Some(RunState {
-                    cancelled,
-                    events: receive,
-                });
-                studio.status = "Running workflow…".into();
-            } else if let Some(active) = runner.as_ref() {
-                if ui.button("Cancel") {
-                    active.cancelled.store(true, Ordering::Relaxed);
-                    studio.status = "Cancelling…".into();
-                }
-            }
-            ui.text(&studio.status);
-        });
-        let mut dismiss_update = false;
-        let mut copy_update_url = None;
-        if let Some(result) = update_result.as_ref() {
-            ui.window("BITE update", |ui| {
-                match result {
-                    Ok(update) if update.available => {
-                        ui.text(&format!("Update available: {}", update.version));
-                        for line in update.body.lines().take(20) {
-                            ui.text(line);
-                        }
-                        ui.text(&update.url);
-                        if ui.button("Copy release URL") {
-                            copy_update_url = Some(update.url.clone());
-                        }
+                        Ok(None) => {}
+                        Err(error) => studio.status = format!("Save dialog failed: {error}"),
                     }
-                    Ok(update) => {
-                        ui.text(&format!(
-                            "BITE is up to date (latest release: {})",
-                            update.version
-                        ));
-                    }
-                    Err(error) => ui.text(&format!("Update check failed: {error}")),
                 }
-                if ui.button("Dismiss") {
-                    dismiss_update = true;
-                }
-            });
-        }
-        if let Some(url) = copy_update_url {
-            studio.status = match dialogs::write_clipboard(&url) {
-                Ok(()) => "Copied the release URL".into(),
-                Err(error) => format!("Could not copy the release URL: {error}"),
-            };
-        }
-        if dismiss_update {
-            *update_result = None;
-        }
-        if let Some(pending) = *pending_action {
-            ui.window("Unsaved changes", |ui| {
-                ui.text("Save the current workflow before continuing?");
-                if ui.button("Save and continue") {
-                    match studio.save(PathBuf::from(&*workflow_path).as_path()) {
-                        Ok(()) => action = Some(pending),
-                        Err(error) => studio.status = format!("Save failed: {error}"),
-                    }
-                    *pending_action = None;
-                }
-                ui.same_line();
-                if ui.button("Discard") {
-                    action = Some(pending);
-                    *pending_action = None;
-                }
-                ui.same_line();
-                if ui.button("Cancel") {
-                    *pending_action = None;
-                }
-            });
-        }
-        if let Some(action) = action {
-            match action {
-                PendingAction::Exit => *exit_requested = true,
-                PendingAction::New => {
-                    *studio = Studio::blank(studio.registry.clone());
-                    studio.add_input(Position { x: 0.0, y: 100.0 });
-                    studio.add_output(Position { x: 700.0, y: 100.0 });
-                    studio.mark_clean();
-                    *workflow_path = "workflow.bite".into();
-                    runtime_paths.clear();
-                    *active_input = None;
-                    input_media.clear();
-                    image_paths.clear();
-                    thumbnails.clear();
-                    *selected_image = 0;
-                    *preview_texture = None;
-                    resolved_values.clear();
-                    *text_preview_receiver = None;
-                    *text_preview_result = None;
-                    *selected = 0;
-                    selected_nodes.clear();
+                let undo_label = if studio.can_undo() {
+                    "Undo"
+                } else {
+                    "Undo (empty)"
+                };
+                if ui.button(undo_label) && studio.undo() {
                     *frames = 0;
                 }
-                PendingAction::Open => match Studio::open(
-                    studio.registry.clone(),
-                    PathBuf::from(&*workflow_path).as_path(),
-                ) {
-                    Ok(opened) => {
-                        *studio = opened;
+                ui.same_line();
+                let redo_label = if studio.can_redo() {
+                    "Redo"
+                } else {
+                    "Redo (empty)"
+                };
+                if ui.button(redo_label) && studio.redo() {
+                    *frames = 0;
+                }
+                if ui.button("Copy") {
+                    copy_selection(studio, selected_nodes);
+                }
+                ui.same_line();
+                if ui.button("Paste") {
+                    let pasted = paste_selection(studio);
+                    if let Some(id) = pasted.first() {
+                        *selected = stable_id(&format!("node:{id}"));
+                        *frames = 0;
+                    }
+                }
+                ui.same_line();
+                if ui.button("Duplicate") {
+                    let pasted = studio.duplicate_selection(selected_nodes);
+                    if let Some(id) = pasted.first() {
+                        *selected = stable_id(&format!("node:{id}"));
+                        *frames = 0;
+                    }
+                }
+                ui.same_line();
+                if ui.button("Delete") {
+                    let deleting_active = active_input
+                        .as_ref()
+                        .is_some_and(|id| selected_nodes.contains(id));
+                    let deleting = selected_nodes.clone();
+                    if studio.delete_selection(selected_nodes) {
+                        for id in &deleting {
+                            runtime_paths.remove(id);
+                            input_media.remove(id);
+                        }
+                        if deleting_active {
+                            *active_input = None;
+                            image_paths.clear();
+                            thumbnails.clear();
+                            *selected_image = 0;
+                            *preview_texture = None;
+                            resolved_values.clear();
+                            *text_preview_receiver = None;
+                            *text_preview_result = None;
+                        }
                         *selected = 0;
                         selected_nodes.clear();
+                        *frames = 0;
+                    }
+                }
+                if ui.button("Group") {
+                    if let Some(id) = studio.group_selection(selected_nodes) {
+                        *selected = stable_id(&format!("node:{id}"));
+                        *frames = 0;
+                    }
+                }
+                ui.same_line();
+                if ui.button("Ungroup") && studio.ungroup_selection(selected_nodes) {
+                    *selected = 0;
+                    *frames = 0;
+                }
+                ui.text("Export CLI script");
+                for (index, (label, extension, shell)) in [
+                    (
+                        "PowerShell",
+                        "ps1",
+                        bite_core::cli_export::Shell::PowerShell,
+                    ),
+                    ("Bash", "sh", bite_core::cli_export::Shell::Bash),
+                    ("CMD", "bat", bite_core::cli_export::Shell::Cmd),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    if ui.button(label) {
+                        let default = PathBuf::from(&*workflow_path).with_extension(extension);
+                        match dialogs::save_file(&default, extension, label) {
+                            Ok(Some(path)) => {
+                                if let Err(error) = studio.export_cli(&path, shell) {
+                                    studio.status = format!("Export failed: {error}");
+                                }
+                            }
+                            Ok(None) => {}
+                            Err(error) => studio.status = format!("Export dialog failed: {error}"),
+                        }
+                    }
+                    if index < 2 {
+                        ui.same_line();
+                    }
+                }
+                if ui.button("Reload definitions") {
+                    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+                    if let Err(error) = studio.reload_registry(&root) {
+                        studio.status = format!("Definition reload failed: {error}");
+                    }
+                }
+                if update_receiver.is_none() && ui.button("Check for updates") {
+                    let (send, receive) = mpsc::channel();
+                    std::thread::spawn(move || {
+                        let _ = send.send(updates::check());
+                    });
+                    *update_receiver = Some(receive);
+                    *update_result = None;
+                    *update_show_all = true;
+                    studio.status = "Checking for updates…".into();
+                } else if update_receiver.is_some() {
+                    ui.text("Checking for updates…");
+                }
+                ui.text("Input folder");
+                ui.next_item_full_width();
+                ui.input_text("##input-folder", input_path);
+                if ui.button("Browse input") {
+                    match dialogs::select_folder() {
+                        Ok(Some(path)) => *input_path = path.to_string_lossy().into_owned(),
+                        Ok(None) => {}
+                        Err(error) => studio.status = format!("Folder dialog failed: {error}"),
+                    }
+                }
+                ui.text("Output folder");
+                ui.next_item_full_width();
+                ui.input_text("##output-folder", output_path);
+                if ui.button("Browse output") {
+                    match dialogs::select_folder() {
+                        Ok(Some(path)) => *output_path = path.to_string_lossy().into_owned(),
+                        Ok(None) => {}
+                        Err(error) => studio.status = format!("Folder dialog failed: {error}"),
+                    }
+                }
+                if ui.button("Import images") {
+                    *import_requested = true;
+                    studio.status = "Importing images…".into();
+                }
+                if runner.is_none() && ui.button("Run") {
+                    let graph = studio.workflow.graph.clone();
+                    let registry = studio.registry.clone();
+                    let options = studio.run_options_with_overrides(
+                        PathBuf::from(&*input_path).as_path(),
+                        PathBuf::from(&*output_path).as_path(),
+                        runtime_paths,
+                    );
+                    let cancelled = options.cancelled.clone();
+                    let (send, receive) = mpsc::channel();
+                    std::thread::spawn(move || {
+                        let mut host =
+                            bite_imagemagick::Magick::discover(options.cancelled.clone());
+                        let progress = send.clone();
+                        let result = bite_core::execution::run_workflow(
+                            &graph,
+                            &registry,
+                            &mut host,
+                            &options,
+                            &mut |done, total, file| {
+                                let _ = progress.send(RunEvent::Progress(
+                                    done,
+                                    total,
+                                    file.file_name()
+                                        .unwrap_or_default()
+                                        .to_string_lossy()
+                                        .into_owned(),
+                                ));
+                            },
+                        );
+                        let _ = send.send(RunEvent::Complete(result));
+                    });
+                    *runner = Some(RunState {
+                        cancelled,
+                        events: receive,
+                    });
+                    studio.status = "Running workflow…".into();
+                } else if let Some(active) = runner.as_ref() {
+                    if ui.button("Cancel") {
+                        active.cancelled.store(true, Ordering::Relaxed);
+                        studio.status = "Cancelling…".into();
+                    }
+                }
+                ui.text(&studio.status);
+            });
+            let mut dismiss_update = false;
+            let mut copy_update_url = None;
+            if let Some(result) = update_result.as_ref() {
+                ui.window("BITE update", |ui| {
+                    match result {
+                        Ok(update) if update.available => {
+                            ui.text(&format!("Update available: {}", update.version));
+                            for line in update.body.lines().take(20) {
+                                ui.text(line);
+                            }
+                            ui.text(&update.url);
+                            if ui.button("Copy release URL") {
+                                copy_update_url = Some(update.url.clone());
+                            }
+                        }
+                        Ok(update) => {
+                            ui.text(&format!(
+                                "BITE is up to date (latest release: {})",
+                                update.version
+                            ));
+                        }
+                        Err(error) => ui.text(&format!("Update check failed: {error}")),
+                    }
+                    if ui.button("Dismiss") {
+                        dismiss_update = true;
+                    }
+                });
+            }
+            if let Some(url) = copy_update_url {
+                studio.status = match dialogs::write_clipboard(&url) {
+                    Ok(()) => "Copied the release URL".into(),
+                    Err(error) => format!("Could not copy the release URL: {error}"),
+                };
+            }
+            if dismiss_update {
+                *update_result = None;
+            }
+            if let Some(pending) = *pending_action {
+                ui.window("Unsaved changes", |ui| {
+                    ui.text("Save the current workflow before continuing?");
+                    if ui.button("Save and continue") {
+                        match studio.save(PathBuf::from(&*workflow_path).as_path()) {
+                            Ok(()) => action = Some(pending),
+                            Err(error) => studio.status = format!("Save failed: {error}"),
+                        }
+                        *pending_action = None;
+                    }
+                    ui.same_line();
+                    if ui.button("Discard") {
+                        action = Some(pending);
+                        *pending_action = None;
+                    }
+                    ui.same_line();
+                    if ui.button("Cancel") {
+                        *pending_action = None;
+                    }
+                });
+            }
+            if let Some(action) = action {
+                match action {
+                    PendingAction::Exit => *exit_requested = true,
+                    PendingAction::New => {
+                        *studio = Studio::blank(studio.registry.clone());
+                        studio.add_input(Position { x: 0.0, y: 100.0 });
+                        studio.add_output(Position { x: 700.0, y: 100.0 });
+                        studio.mark_clean();
+                        *workflow_path = "workflow.bite".into();
                         runtime_paths.clear();
                         *active_input = None;
                         input_media.clear();
@@ -1184,10 +1232,33 @@ impl Demo {
                         resolved_values.clear();
                         *text_preview_receiver = None;
                         *text_preview_result = None;
+                        *selected = 0;
+                        selected_nodes.clear();
                         *frames = 0;
                     }
-                    Err(error) => studio.status = format!("Open failed: {error}"),
-                },
+                    PendingAction::Open => match Studio::open(
+                        studio.registry.clone(),
+                        PathBuf::from(&*workflow_path).as_path(),
+                    ) {
+                        Ok(opened) => {
+                            *studio = opened;
+                            *selected = 0;
+                            selected_nodes.clear();
+                            runtime_paths.clear();
+                            *active_input = None;
+                            input_media.clear();
+                            image_paths.clear();
+                            thumbnails.clear();
+                            *selected_image = 0;
+                            *preview_texture = None;
+                            resolved_values.clear();
+                            *text_preview_receiver = None;
+                            *text_preview_result = None;
+                            *frames = 0;
+                        }
+                        Err(error) => studio.status = format!("Open failed: {error}"),
+                    },
+                }
             }
         }
         ui.window("Library", |ui| {
@@ -1200,6 +1271,9 @@ impl Demo {
                     ui.text(name);
                 }
             } else {
+                ui.next_item_full_width();
+                ui.input_text("##library-search", node_search);
+                ui.text("Workflow");
                 if ui.button("Input") {
                     studio.add_input(Position { x: 0.0, y: 0.0 });
                 }
@@ -1215,18 +1289,35 @@ impl Demo {
                 if ui.button("Comment") {
                     studio.add_comment(Position { x: 250.0, y: 250.0 });
                 }
-                let definitions: Vec<_> = studio
+                let query = node_search.trim().to_lowercase();
+                let mut definitions: Vec<_> = studio
                     .registry
                     .nodes
                     .values()
+                    .filter(|definition| {
+                        query.is_empty()
+                            || definition.definition.label.to_lowercase().contains(&query)
+                            || definition
+                                .definition
+                                .category
+                                .to_lowercase()
+                                .contains(&query)
+                    })
                     .map(|definition| {
                         (
+                            definition.definition.category.clone(),
                             definition.definition.id.clone(),
                             definition.definition.label.clone(),
                         )
                     })
                     .collect();
-                for (id, label) in definitions {
+                definitions.sort();
+                let mut category = String::new();
+                for (next_category, id, label) in definitions {
+                    if category != next_category {
+                        category = next_category;
+                        ui.text(&category);
+                    }
                     if ui.button(&label) {
                         if let Err(error) =
                             studio.add_processing(&id, Position { x: 300.0, y: 200.0 })
@@ -1326,7 +1417,20 @@ impl Demo {
                         }
                         let (inputs, outputs) = node_ports(node, &studio.registry);
                         ui.node(node_id, |ui| {
-                            ui.text(&node.data.label);
+                            let header = match node.kind {
+                                NodeKind::Builtin(BuiltinNodeKind::Input) => [0.20, 0.42, 0.25],
+                                NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
+                                    [0.48, 0.31, 0.10]
+                                }
+                                NodeKind::Builtin(BuiltinNodeKind::TextOutput) => {
+                                    [0.12, 0.31, 0.50]
+                                }
+                                NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) => {
+                                    [0.35, 0.20, 0.50]
+                                }
+                                _ => [0.24, 0.24, 0.24],
+                            };
+                            ui.node_header(&node.data.label, header);
                             if matches!(
                                 node.kind,
                                 NodeKind::Builtin(
@@ -1355,12 +1459,28 @@ impl Demo {
                             for (handle, label) in &inputs {
                                 let pin = stable_id(&format!("pin:{}:{handle}", node.id));
                                 pins.insert(pin, (node.id.clone(), handle.clone(), false));
-                                ui.pin(pin, false, label);
+                                let color = bite_core::graph::handle_type(
+                                    node,
+                                    handle,
+                                    false,
+                                    &studio.registry,
+                                )
+                                .map(wire_color)
+                                .unwrap_or([1.0, 1.0, 1.0]);
+                                ui.typed_pin(pin, false, label, color);
                             }
                             for (handle, label) in &outputs {
                                 let pin = stable_id(&format!("pin:{}:{handle}", node.id));
                                 pins.insert(pin, (node.id.clone(), handle.clone(), true));
-                                ui.pin(pin, true, label);
+                                let color = bite_core::graph::handle_type(
+                                    node,
+                                    handle,
+                                    true,
+                                    &studio.registry,
+                                )
+                                .map(wire_color)
+                                .unwrap_or([1.0, 1.0, 1.0]);
+                                ui.typed_pin(pin, true, label, color);
                             }
                         });
                         if ui.selected(node_id) {
@@ -2493,11 +2613,7 @@ impl Demo {
             }) {
                 ui.text(&format!("Input: {}", input.data.label));
             }
-            let displayed: Vec<_> = if thumbnails.is_empty() {
-                vec![2; 8]
-            } else {
-                thumbnails.clone()
-            };
+            let displayed = thumbnails.clone();
             if let Some(path) = image_paths.get(*selected_image) {
                 ui.text(&format!("Selected: {}", path.display()));
             }

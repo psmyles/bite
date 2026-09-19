@@ -299,6 +299,35 @@ impl Ui<'_> {
         assert_eq!(self.scope.get(), 0, "dockspace cannot be inside an editor");
         unsafe { sys::bite_dockspace() }
     }
+    pub fn main_menu_bar(&mut self, body: impl FnOnce(&mut Self)) {
+        assert_eq!(self.scope.get(), 0, "menu bar cannot be inside an editor");
+        if unsafe { sys::bite_main_menu_bar_begin() != 0 } {
+            body(self);
+            unsafe { sys::bite_main_menu_bar_end() }
+        }
+    }
+    pub fn menu(&mut self, label: &str, body: impl FnOnce(&mut Self)) {
+        if unsafe { sys::bite_menu_begin(c(label).as_ptr()) != 0 } {
+            body(self);
+            unsafe { sys::bite_menu_end() }
+        }
+    }
+    pub fn menu_item(
+        &mut self,
+        label: &str,
+        shortcut: &str,
+        selected: bool,
+        enabled: bool,
+    ) -> bool {
+        unsafe {
+            sys::bite_menu_item(
+                c(label).as_ptr(),
+                c(shortcut).as_ptr(),
+                selected.into(),
+                enabled.into(),
+            ) != 0
+        }
+    }
     pub fn window(&mut self, title: &str, body: impl FnOnce(&mut Self)) {
         assert_eq!(self.scope.get(), 0, "window cannot be inside an editor");
         let visible = unsafe { sys::bite_begin(c(title).as_ptr()) != 0 };
@@ -405,6 +434,24 @@ impl Ui<'_> {
         }
         let _scope = Scope(sys::bite_node_end);
         body(self);
+    }
+    pub fn node_header(&mut self, text: &str, color: [f32; 3]) {
+        assert_eq!(self.scope.get(), 2, "node header requires a node");
+        unsafe { sys::bite_node_header(c(text).as_ptr(), color[0], color[1], color[2]) }
+    }
+    pub fn typed_pin(&mut self, id: u64, output: bool, label: &str, color: [f32; 3]) {
+        assert_eq!(self.scope.get(), 2, "pin requires a node");
+        assert_ne!(id, 0);
+        unsafe {
+            sys::bite_typed_pin(
+                id,
+                output.into(),
+                c(label).as_ptr(),
+                color[0],
+                color[1],
+                color[2],
+            )
+        }
     }
     pub fn pin(&mut self, id: u64, output: bool, label: &str) {
         assert_eq!(self.scope.get(), 2, "pin requires a node");

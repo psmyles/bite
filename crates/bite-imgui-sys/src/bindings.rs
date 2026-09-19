@@ -92,6 +92,16 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn bite_dockspace();
+    pub fn bite_main_menu_bar_begin() -> ::std::os::raw::c_int;
+    pub fn bite_main_menu_bar_end();
+    pub fn bite_menu_begin(label: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
+    pub fn bite_menu_end();
+    pub fn bite_menu_item(
+        label: *const ::std::os::raw::c_char,
+        shortcut: *const ::std::os::raw::c_char,
+        selected: ::std::os::raw::c_int,
+        enabled: ::std::os::raw::c_int,
+    ) -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
     pub fn bite_begin(title: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
@@ -173,6 +183,15 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn bite_node_end();
+    pub fn bite_node_header(text: *const ::std::os::raw::c_char, r: f32, g: f32, b: f32);
+    pub fn bite_typed_pin(
+        id: u64,
+        output: ::std::os::raw::c_int,
+        label: *const ::std::os::raw::c_char,
+        r: f32,
+        g: f32,
+        b: f32,
+    );
 }
 unsafe extern "C" {
     pub fn bite_pin_begin(id: u64, output: ::std::os::raw::c_int);
