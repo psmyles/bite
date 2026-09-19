@@ -100,6 +100,12 @@ impl Context {
         Self::with_scale(1.0)
     }
     pub fn with_scale(scale: f32) -> Result<Self, String> {
+        Self::with_scale_and_ini(scale, None)
+    }
+    pub fn with_scale_and_ini(
+        scale: f32,
+        ini_path: Option<&std::path::Path>,
+    ) -> Result<Self, String> {
         if !scale.is_finite() || scale <= 0.0 {
             return Err("UI scale must be a positive finite number".into());
         }
@@ -109,7 +115,10 @@ impl Context {
         let font = ui_font_path()
             .and_then(|path| path.to_str().map(c))
             .unwrap_or_else(|| c(""));
-        let raw = unsafe { sys::bite_create(font.as_ptr(), 16.0, scale) };
+        let ini = ini_path
+            .and_then(|path| path.to_str().map(c))
+            .unwrap_or_else(|| c(""));
+        let raw = unsafe { sys::bite_create(font.as_ptr(), 16.0, scale, ini.as_ptr()) };
         if raw.is_null() {
             return Err("ImGui context creation failed".into());
         }
@@ -437,6 +446,14 @@ impl Ui<'_> {
         unsafe {
             sys::bite_set_node_position(id, p[0], p[1]);
         }
+    }
+    pub fn node_size(&mut self, id: u64) -> [f32; 2] {
+        assert!(self.scope.get() > 0 && id != 0, "size requires an editor");
+        let (mut width, mut height) = (0.0, 0.0);
+        unsafe {
+            sys::bite_get_node_size(id, &mut width, &mut height);
+        }
+        [width, height]
     }
     pub fn selected(&mut self, id: u64) -> bool {
         assert!(

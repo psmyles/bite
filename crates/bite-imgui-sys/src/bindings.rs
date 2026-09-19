@@ -42,6 +42,7 @@ unsafe extern "C" {
         font_path: *const ::std::os::raw::c_char,
         font_size: f32,
         ui_scale: f32,
+        ini_path: *const ::std::os::raw::c_char,
     ) -> *mut ::std::os::raw::c_void;
 }
 unsafe extern "C" {
@@ -189,6 +190,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn bite_get_node_position(id: u64, x: *mut f32, y: *mut f32);
+    pub fn bite_get_node_size(id: u64, width: *mut f32, height: *mut f32);
 }
 unsafe extern "C" {
     pub fn bite_node_selected(id: u64) -> ::std::os::raw::c_int;

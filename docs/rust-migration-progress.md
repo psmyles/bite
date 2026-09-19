@@ -502,17 +502,28 @@ parameters and visibility rules. Structured controls edit Rename blocks,
 Process As Set suffixes and Text Output port slots. Process As Set outputs track
 the suffix list and remove stale connections safely, while Text Output keeps one
 trailing connection port automatically. Rename live filename preview,
-matched-set preview and richer output-specific inspectors remain.
+matched-set preview and richer output-specific inspectors were the next gaps.
 
 CLI export moved into `bite-core` and generates escaped PowerShell, Bash and CMD
 scripts plus a companion workflow from the native UI. The current controls
 derive the export filename from the workflow path; native save/open/folder
 dialogs remain to be added.
 
-All 50 Rust tests and strict workspace Clippy pass. The offscreen acceptance
+The creation menu now also opens from Space or Tab, groups definitions by
+category, filters wire-drop results to compatible ports, and auto-connects the
+selection. Definition files reload transactionally when the application regains
+focus, with a manual reload control for immediate feedback. Dock layout now
+persists in the user's application-data directory.
+
+Native groups and comments persist node-editor resize operations; comments can
+edit their body inline. Rename shows live filename results for imported images
+or deterministic examples, and Process As Set shows matched/complete set
+counts. Core execution now honors `generateLog` by writing a nonfatal output
+summary next to produced files.
+
+All 51 Rust tests and strict workspace Clippy pass. The offscreen acceptance
 image is `test-workflows/out/native-phase10-foundation.png`. Remaining Phase 10
-work includes compatibility-filtered/category keyboard creation, OS clipboard,
-comment/group resize acceptance and inline editing, layout persistence, native
-file dialogs, output logs, per-input custom behavior, definition hot reload,
-the update dialog, the remaining custom-inspector previews, and full Windows
-interaction/high-DPI acceptance. macOS Phase 10 acceptance remains pending.
+work includes OS clipboard exchange, native file dialogs, the update dialog,
+dedicated input/output presentation, richer Text/Flipbook inspectors, and full
+Windows interaction/high-DPI acceptance, including hands-on group containment
+and resize checks. macOS Phase 10 acceptance remains pending.

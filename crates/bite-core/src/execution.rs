@@ -16,6 +16,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 pub trait ImageHost {
@@ -356,6 +357,56 @@ fn write_output(
     Ok(())
 }
 
+fn write_output_log(
+    outputs: &[PathBuf],
+    duration: Duration,
+    output_dir: Option<&Path>,
+) -> Result<Option<PathBuf>, String> {
+    let Some(first) = outputs.first() else {
+        return Ok(None);
+    };
+    let directory = output_dir
+        .filter(|path| !path.as_os_str().is_empty())
+        .map(Path::to_owned)
+        .or_else(|| {
+            first
+                .parent()
+                .filter(|path| !path.as_os_str().is_empty())
+                .map(Path::to_owned)
+        })
+        .unwrap_or_else(|| PathBuf::from("."));
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_secs();
+    let path = directory.join(format!("outputlog_{timestamp}.log"));
+    let seconds = duration.as_secs_f64();
+    let average = seconds / outputs.len() as f64;
+    let folder = output_dir
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| "Same as source".into());
+    let mut content = format!(
+        "Bite Output Log\nGenerated: Unix timestamp {timestamp}\n\nDuration:         {seconds:.2}s\nFiles output:     {}\nAvg per file:     {average:.2}s\nOutput folder:    {folder}\n\nFiles:\n",
+        outputs.len()
+    );
+    for output in outputs {
+        let displayed = if output_dir.is_some() {
+            output
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned()
+        } else {
+            output.display().to_string()
+        };
+        content.push_str(&displayed);
+        content.push('\n');
+    }
+    fs::write(&path, content).map_err(|error| error.to_string())?;
+    Ok(Some(path))
+}
+
 pub fn run_workflow(
     g: &Graph,
     registry: &Registry,
@@ -417,6 +468,8 @@ pub fn run_workflow(
             result.skipped += files.len();
             continue;
         }
+        let output_started = Instant::now();
+        let first_output = result.outputs.len();
         let contributors: BTreeSet<_> = output_plan.contributors.iter().cloned().collect();
         let heavy = output_plan
             .operations
@@ -867,7 +920,7 @@ pub fn run_workflow(
             result.outputs.push(out);
         }
         if output.kind == NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) {
-            let out = dest.ok_or("flipbook output path missing")?;
+            let out = dest.clone().ok_or("flipbook output path missing")?;
             let rows = scalar(&atlas_params, "rows", 4.0) as usize;
             let cols = scalar(&atlas_params, "cols", 4.0) as usize;
             if rows == 0 || cols == 0 || rows.saturating_mul(cols) > 65536 {
@@ -926,6 +979,21 @@ pub fn run_workflow(
             result.processed += atlas.len();
             result.outputs.push(out);
         }
+        if bool_param(&raw_output, "generateLog", false) {
+            let new_outputs = &result.outputs[first_output..];
+            let log_dir = match output.kind {
+                NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
+                    dest.as_deref().filter(|path| !path.as_os_str().is_empty())
+                }
+                _ => dest
+                    .as_deref()
+                    .and_then(Path::parent)
+                    .filter(|path| !path.as_os_str().is_empty()),
+            };
+            if let Err(error) = write_output_log(new_outputs, output_started.elapsed(), log_dir) {
+                result.errors.push(format!("Output log: {error}"));
+            }
+        }
     }
     Ok(result)
 }
@@ -983,5 +1051,18 @@ mod tests {
             1,
             "temporary files must be cleaned up"
         );
+    }
+
+    #[test]
+    fn output_log_lists_generated_files_next_to_outputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let outputs = [dir.path().join("a.png"), dir.path().join("b.png")];
+        let log = write_output_log(&outputs, Duration::from_millis(2500), Some(dir.path()))
+            .unwrap()
+            .unwrap();
+        let content = fs::read_to_string(log).unwrap();
+        assert!(content.contains("Duration:         2.50s"));
+        assert!(content.contains("Files output:     2"));
+        assert!(content.contains("a.png\nb.png"));
     }
 }

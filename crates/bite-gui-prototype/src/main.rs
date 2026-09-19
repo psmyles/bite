@@ -6,7 +6,7 @@ use bite_imgui::{Context, Key};
 use bite_schema::{BuiltinNodeKind, NodeKind, ParamType, Position, WidgetType};
 use renderer::Renderer;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     path::PathBuf,
     sync::{atomic::Ordering, mpsc, Arc},
     time::Instant,
@@ -48,6 +48,7 @@ struct Demo {
     exit_requested: bool,
     creation_position: Option<Position>,
     pending_wire: Option<PendingWire>,
+    open_creation_requested: bool,
     node_search: String,
 }
 #[derive(Clone)]
@@ -121,6 +122,23 @@ fn builtin_options(name: &str) -> Vec<String> {
         _ => &[],
     };
     values.iter().map(|value| (*value).into()).collect()
+}
+
+fn layout_path() -> Option<PathBuf> {
+    if let Some(path) = std::env::var_os("BITE_LAYOUT_PATH") {
+        return Some(PathBuf::from(path));
+    }
+    #[cfg(target_os = "windows")]
+    let root = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    #[cfg(target_os = "macos")]
+    let root = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|path| path.join("Library/Application Support"));
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    let root = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")));
+    root.map(|root| root.join("BITE/native-layout.ini"))
 }
 
 fn decode_png(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
@@ -264,9 +282,100 @@ fn node_ports(node: &bite_schema::GraphNode, registry: &bite_core::Registry) -> 
             .unwrap_or_default(),
     }
 }
+
+fn candidate_node(studio: &Studio, kind: NodeKind, definition_id: &str) -> bite_schema::GraphNode {
+    let params = studio
+        .registry
+        .nodes
+        .get(definition_id)
+        .map(|compiled| {
+            compiled
+                .definition
+                .params
+                .iter()
+                .filter_map(|parameter| {
+                    parameter
+                        .default
+                        .clone()
+                        .map(|value| (parameter.name.clone(), value))
+                })
+                .collect()
+        })
+        .unwrap_or_else(|| match kind {
+            NodeKind::Builtin(BuiltinNodeKind::TextOutput) => BTreeMap::from([(
+                "portIds".into(),
+                bite_schema::ParamValue::Structured(bite_schema::StructuredParam::TextSlots {
+                    slots: vec!["0".into()],
+                }),
+            )]),
+            _ => BTreeMap::new(),
+        });
+    bite_schema::GraphNode {
+        id: "candidate".into(),
+        kind,
+        position: Position { x: 0.0, y: 0.0 },
+        parent_id: None,
+        extent: None,
+        width: None,
+        height: None,
+        data: bite_schema::NodeData {
+            label: String::new(),
+            definition_id: definition_id.into(),
+            params,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        },
+    }
+}
+
+fn accepts_pending_wire(
+    studio: &Studio,
+    pending: &PendingWire,
+    candidate: &bite_schema::GraphNode,
+) -> bool {
+    let Some(existing) = studio
+        .workflow
+        .graph
+        .nodes
+        .iter()
+        .find(|node| node.id == pending.node)
+    else {
+        return false;
+    };
+    let Ok(existing_type) =
+        bite_core::graph::handle_type(existing, &pending.handle, pending.output, &studio.registry)
+    else {
+        return false;
+    };
+    let (inputs, outputs) = node_ports(candidate, &studio.registry);
+    let handles = if pending.output { inputs } else { outputs };
+    handles.into_iter().any(|(handle, _)| {
+        bite_core::graph::handle_type(candidate, &handle, !pending.output, &studio.registry)
+            .is_ok_and(|candidate_type| bite_core::graph::compatible(existing_type, candidate_type))
+    })
+}
+
+fn candidate_allowed(
+    studio: &Studio,
+    pending: &Option<PendingWire>,
+    kind: NodeKind,
+    definition_id: &str,
+) -> bool {
+    pending.as_ref().is_none_or(|pending| {
+        accepts_pending_wire(
+            studio,
+            pending,
+            &candidate_node(studio, kind, definition_id),
+        )
+    })
+}
 impl Demo {
     fn new(renderer: &mut Renderer, scale: f32, technical_demo: bool) -> Result<Self, String> {
-        let mut context = Context::with_scale(scale)?;
+        let layout = layout_path();
+        if let Some(parent) = layout.as_deref().and_then(std::path::Path::parent) {
+            std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        }
+        let mut context = Context::with_scale_and_ini(scale, layout.as_deref())?;
         let (w, h, pixels) = context.font_atlas();
         renderer.texture(1, w, h, &pixels);
         context.set_font_texture(1);
@@ -333,6 +442,7 @@ impl Demo {
             exit_requested: false,
             creation_position: None,
             pending_wire: None,
+            open_creation_requested: false,
             node_search: String::new(),
         })
     }
@@ -419,6 +529,7 @@ impl Demo {
             exit_requested,
             creation_position,
             pending_wire,
+            open_creation_requested,
             node_search,
         } = self;
         let mut completed = false;
@@ -552,6 +663,12 @@ impl Demo {
                 }
                 if index < 2 {
                     ui.same_line();
+                }
+            }
+            if ui.button("Reload definitions") {
+                let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+                if let Err(error) = studio.reload_registry(&root) {
+                    studio.status = format!("Definition reload failed: {error}");
                 }
             }
             ui.text("Input folder");
@@ -771,6 +888,7 @@ impl Demo {
                         .collect();
                     let mut pins: BTreeMap<u64, (String, String, bool)> = BTreeMap::new();
                     let mut positions = Vec::new();
+                    let mut inline_changes = Vec::new();
                     let mut current_selection = Vec::new();
                     for node in &nodes {
                         let node_id = stable_id(&format!("node:{}", node.id));
@@ -791,16 +909,29 @@ impl Demo {
                         let (inputs, outputs) = node_ports(node, &studio.registry);
                         ui.node(node_id, |ui| {
                             ui.text(&node.data.label);
-                            if node.kind == NodeKind::Builtin(BuiltinNodeKind::Group) {
+                            if matches!(
+                                node.kind,
+                                NodeKind::Builtin(
+                                    BuiltinNodeKind::Group | BuiltinNodeKind::Comment
+                                )
+                            ) {
                                 ui.group(
                                     node.width.unwrap_or(320.0) as f32,
                                     node.height.unwrap_or(220.0) as f32,
                                 );
-                            } else if node.kind == NodeKind::Builtin(BuiltinNodeKind::Comment) {
+                            }
+                            if node.kind == NodeKind::Builtin(BuiltinNodeKind::Comment) {
                                 if let Some(bite_schema::ParamValue::String(body)) =
                                     node.data.params.get("body")
                                 {
-                                    ui.text(body);
+                                    let mut edited = body.clone();
+                                    ui.next_item_full_width();
+                                    if ui.input_text(
+                                        &format!("##comment-body-{}", node.id),
+                                        &mut edited,
+                                    ) {
+                                        inline_changes.push((node.id.clone(), edited));
+                                    }
                                 }
                             }
                             for (handle, label) in &inputs {
@@ -818,7 +949,12 @@ impl Demo {
                             *selected = node_id;
                             current_selection.push(node.id.clone());
                         }
-                        positions.push((node.id.clone(), ui.position(node_id)));
+                        let size = matches!(
+                            node.kind,
+                            NodeKind::Builtin(BuiltinNodeKind::Group | BuiltinNodeKind::Comment)
+                        )
+                        .then(|| ui.node_size(node_id));
+                        positions.push((node.id.clone(), ui.position(node_id), size));
                     }
                     for edge in &edges {
                         let source =
@@ -889,8 +1025,11 @@ impl Demo {
                             studio.delete_edge(&edge.id);
                         }
                     }
-                    let new_positions: BTreeMap<_, _> = positions.iter().cloned().collect();
-                    for (id, position) in positions {
+                    let new_positions: BTreeMap<_, _> = positions
+                        .iter()
+                        .map(|(id, position, _)| (id.clone(), *position))
+                        .collect();
+                    for (id, position, size) in positions {
                         if let Some(node) = studio
                             .workflow
                             .graph
@@ -911,9 +1050,19 @@ impl Demo {
                                     || node.position.y != f64::from(position[1]);
                                 node.position.x = f64::from(position[0]);
                                 node.position.y = f64::from(position[1]);
+                                if let Some(size) = size {
+                                    let resized = node.width != Some(f64::from(size[0]))
+                                        || node.height != Some(f64::from(size[1]));
+                                    node.width = Some(f64::from(size[0]));
+                                    node.height = Some(f64::from(size[1]));
+                                    studio.dirty |= resized;
+                                }
                                 studio.dirty |= changed;
                             }
                         }
+                    }
+                    for (id, body) in inline_changes {
+                        studio.set_param(&id, "body".into(), bite_schema::ParamValue::String(body));
                     }
                     *selected_nodes = current_selection;
                     if ui.background_menu() {
@@ -923,6 +1072,16 @@ impl Demo {
                             x: f64::from(position[0]),
                             y: f64::from(position[1]),
                         });
+                        open_create = true;
+                    }
+                    if *open_creation_requested {
+                        *pending_wire = None;
+                        let position = ui.canvas_mouse_position();
+                        *creation_position = Some(Position {
+                            x: f64::from(position[0]),
+                            y: f64::from(position[1]),
+                        });
+                        *open_creation_requested = false;
                         open_create = true;
                     }
                     if *frames == 2 {
@@ -943,13 +1102,27 @@ impl Demo {
                     .unwrap_or(Position { x: 300.0, y: 200.0 });
                 let query = node_search.to_lowercase();
                 let mut created = None;
-                if (query.is_empty() || "input".contains(&query)) && ui.button("Input") {
+                if (query.is_empty() || "input".contains(&query))
+                    && candidate_allowed(
+                        studio,
+                        pending_wire,
+                        NodeKind::Builtin(BuiltinNodeKind::Input),
+                        "",
+                    )
+                    && ui.button("Input")
+                {
                     if pending_wire.is_some() {
                         studio.begin_transaction();
                     }
                     created = Some(studio.add_input(position.clone()));
                 }
                 if (query.is_empty() || "image output".contains(&query))
+                    && candidate_allowed(
+                        studio,
+                        pending_wire,
+                        NodeKind::Builtin(BuiltinNodeKind::ImageOutput),
+                        "",
+                    )
                     && ui.button("Image Output")
                 {
                     if pending_wire.is_some() {
@@ -957,7 +1130,14 @@ impl Demo {
                     }
                     created = Some(studio.add_output(position.clone()));
                 }
-                if (query.is_empty() || "text output".contains(&query)) && ui.button("Text Output")
+                if (query.is_empty() || "text output".contains(&query))
+                    && candidate_allowed(
+                        studio,
+                        pending_wire,
+                        NodeKind::Builtin(BuiltinNodeKind::TextOutput),
+                        "",
+                    )
+                    && ui.button("Text Output")
                 {
                     if pending_wire.is_some() {
                         studio.begin_transaction();
@@ -965,6 +1145,12 @@ impl Demo {
                     created = Some(studio.add_text_output(position.clone()));
                 }
                 if (query.is_empty() || "flipbook output".contains(&query))
+                    && candidate_allowed(
+                        studio,
+                        pending_wire,
+                        NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput),
+                        "",
+                    )
                     && ui.button("Flipbook Output")
                 {
                     if pending_wire.is_some() {
@@ -972,34 +1158,50 @@ impl Demo {
                     }
                     created = Some(studio.add_flipbook_output(position.clone()));
                 }
-                if (query.is_empty() || "comment".contains(&query)) && ui.button("Comment") {
+                if pending_wire.is_none()
+                    && (query.is_empty() || "comment".contains(&query))
+                    && ui.button("Comment")
+                {
                     if pending_wire.is_some() {
                         studio.begin_transaction();
                     }
                     created = Some(studio.add_comment(position.clone()));
                 }
-                let definitions: Vec<_> = studio
+                let mut definitions: Vec<_> = studio
                     .registry
                     .nodes
                     .values()
                     .filter(|definition| {
-                        query.is_empty()
+                        (query.is_empty()
                             || definition.definition.label.to_lowercase().contains(&query)
                             || definition.definition.id.to_lowercase().contains(&query)
                             || definition
                                 .definition
                                 .category
                                 .to_lowercase()
-                                .contains(&query)
+                                .contains(&query))
+                            && candidate_allowed(
+                                studio,
+                                pending_wire,
+                                NodeKind::Processing(bite_schema::ProcessingNodeKind::Process),
+                                &definition.definition.id,
+                            )
                     })
                     .map(|definition| {
                         (
+                            definition.definition.category.clone(),
                             definition.definition.id.clone(),
                             definition.definition.label.clone(),
                         )
                     })
                     .collect();
-                for (id, label) in definitions {
+                definitions.sort();
+                let mut category = String::new();
+                for (next_category, id, label) in definitions {
+                    if category != next_category {
+                        category = next_category;
+                        ui.text(&category);
+                    }
                     if ui.button(&label) {
                         if pending_wire.is_some() {
                             studio.begin_transaction();
@@ -1321,6 +1523,53 @@ impl Demo {
                                 suffixes.push(String::new());
                                 changed = true;
                             }
+                            let prefix = params
+                                .get("prefix")
+                                .and_then(|value| match value {
+                                    bite_schema::ParamValue::String(value) => Some(value.as_str()),
+                                    _ => None,
+                                })
+                                .unwrap_or("");
+                            let active: Vec<_> = suffixes
+                                .iter()
+                                .filter(|suffix| !suffix.is_empty())
+                                .collect();
+                            if !active.is_empty() {
+                                let mut groups: BTreeMap<String, BTreeSet<String>> =
+                                    BTreeMap::new();
+                                for path in image_paths.iter() {
+                                    let stem =
+                                        path.file_stem().unwrap_or_default().to_string_lossy();
+                                    let Some(rest) = stem.strip_prefix(prefix) else {
+                                        continue;
+                                    };
+                                    for suffix in &active {
+                                        if let Some(middle) = rest.strip_suffix(suffix.as_str()) {
+                                            groups
+                                                .entry(middle.into())
+                                                .or_default()
+                                                .insert((*suffix).clone());
+                                            break;
+                                        }
+                                    }
+                                }
+                                let complete = groups
+                                    .values()
+                                    .filter(|found| found.len() == active.len())
+                                    .count();
+                                ui.text(&format!(
+                                    "Matched sets: {complete}/{} complete",
+                                    groups.len()
+                                ));
+                                for (middle, found) in groups.iter().take(6) {
+                                    ui.text(&format!(
+                                        "{}{middle}: {}/{}",
+                                        prefix,
+                                        found.len(),
+                                        active.len()
+                                    ));
+                                }
+                            }
                             changed.then_some(bite_schema::ParamValue::Structured(
                                 bite_schema::StructuredParam::SetSuffixes { suffixes },
                             ))
@@ -1417,6 +1666,25 @@ impl Demo {
                                     replace_with: String::new(),
                                 });
                                 changed = true;
+                            }
+                            ui.text("Preview");
+                            let examples = ["photo_001.jpg", "IMG_5432.jpg", "vacation shot.png"];
+                            if image_paths.is_empty() {
+                                for (index, original) in examples.iter().enumerate() {
+                                    ui.text(&format!(
+                                        "{original} -> {}",
+                                        bite_core::execution::rename(original, &blocks, index)
+                                    ));
+                                }
+                            } else {
+                                for (index, path) in image_paths.iter().take(10).enumerate() {
+                                    let original =
+                                        path.file_name().unwrap_or_default().to_string_lossy();
+                                    ui.text(&format!(
+                                        "{original} -> {}",
+                                        bite_core::execution::rename(&original, &blocks, index)
+                                    ));
+                                }
                             }
                             changed.then_some(bite_schema::ParamValue::Structured(
                                 bite_schema::StructuredParam::RenameBlocks { blocks },
@@ -1797,6 +2065,9 @@ impl ApplicationHandler for App {
                             KeyCode::KeyO if s.demo.control_down => {
                                 s.demo.pending_action = Some(PendingAction::Open);
                             }
+                            KeyCode::Space | KeyCode::Tab if !s.demo.control_down => {
+                                s.demo.open_creation_requested = true;
+                            }
                             _ => {}
                         }
                     }
@@ -1809,7 +2080,15 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::Ime(Ime::Commit(text)) => s.demo.context.text_input(&text),
-            WindowEvent::Focused(f) => s.demo.context.focus(f),
+            WindowEvent::Focused(focused) => {
+                s.demo.context.focus(focused);
+                if focused {
+                    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+                    if let Err(error) = s.demo.studio.reload_registry(&root) {
+                        s.demo.studio.status = format!("Definition reload failed: {error}");
+                    }
+                }
+            }
             WindowEvent::DroppedFile(path) => {
                 s.demo.dropped = path.display().to_string();
                 if path.extension().and_then(|extension| extension.to_str()) == Some("bite") {

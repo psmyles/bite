@@ -25,8 +25,8 @@ native control provides the same workflow more clearly.
 | Typed wires | Type-colored ports; invalid links rejected | Implemented with type-colored links and core validation |
 | Single-input replacement | New incoming link replaces the previous link | Complete |
 | Cycle prevention | Link rejected before graph mutation | Complete |
-| Background creation | Right-click, Space or Tab opens searchable categorized menu at cursor | Right-click searchable menu implemented; categories and Space/Tab pending |
-| Wire-drop creation | Menu filters compatible nodes and auto-connects | Auto-connect and one-step undo implemented; compatibility filtering in the menu pending |
+| Background creation | Right-click, Space or Tab opens searchable categorized menu at cursor | Implemented |
+| Wire-drop creation | Menu filters compatible nodes and auto-connects | Implemented with one-step undo |
 | Selection | Click and rubber-band multi-select | Node-editor selection available; multi-selection drives editing commands |
 | Delete | Delete/Backspace; protects final input/output; group deletion ungroups | Implemented |
 | Duplicate | Ctrl+D; excludes workflow endpoint nodes; includes group children | Implemented for selected non-endpoint nodes and internal edges |
@@ -38,10 +38,10 @@ native control provides the same workflow more clearly.
 
 | Requirement | Electron behavior | Native status |
 | --- | --- | --- |
-| Groups | Ctrl+G, named/resizable group, child-relative positions | Creation, persistence and relative positioning implemented; resize/move acceptance pending |
+| Groups | Ctrl+G, named/resizable group, child-relative positions | Creation, resize/move persistence and relative positioning implemented; interactive acceptance pending |
 | Ungroup | Ctrl+Shift+G restores absolute child positions | Implemented |
-| Comments | Editable heading/body and resizable card | Creation and inspector fields implemented; inline editing/resize pending |
-| Panel organization | Resizable library, canvas, inspector/preview and filmstrip | Usable docked default implemented; layout persistence pending |
+| Comments | Editable heading/body and resizable card | Creation, inline body editing and resize persistence implemented |
+| Panel organization | Resizable library, canvas, inspector/preview and filmstrip | Docked default and per-user layout persistence implemented |
 
 ## Inspector
 
@@ -53,8 +53,8 @@ native control provides the same workflow more clearly.
 | Read-only values and live pure-node results | Displayed; read-only presentation needs parity pass |
 | `portOnly` and `noPort` | Implemented in inspector and port generation |
 | Slider, vector and color controls | Implemented |
-| Rename block editor | Text/number/old-name add, edit, reorder and remove implemented; live filename preview pending |
-| Process As Set suffix editor | Add/edit/remove implemented; matched-set preview pending |
+| Rename block editor | Text/number/old-name add, edit, reorder, remove and live preview implemented |
+| Process As Set suffix editor | Add/edit/remove and matched-set preview implemented |
 | Format Convert per-format controls | Active format controls and visibility implemented |
 | Folder Path editor | Path editing implemented; native browse dialog pending |
 
@@ -68,9 +68,9 @@ native control provides the same workflow more clearly.
 | Save/open/new and dirty prompts | Implemented with Save and continue, Discard and Cancel |
 | Run, progress and cancellation | Implemented |
 | PowerShell/Bash/CMD CLI export | Core generator and native export controls implemented with companion `.bite` file; save dialog pending |
-| Output logs | Core support exists; inspector/application wiring pending |
-| Per-input thumbnail size | Stored; custom input inspector behavior pending |
-| Definition hot reload | Pending |
+| Output logs | `generateLog` writes a nonfatal summary beside produced files |
+| Per-input thumbnail size | Editable and used by import; dedicated presentation pass pending |
+| Definition hot reload | Reloads transactionally when the app regains focus; manual reload is also available |
 | Update check/dialog | Pending |
 | File dialogs and file association | Typed paths/drop support exist; native dialogs and association pending |
 

@@ -104,6 +104,16 @@ impl Studio {
         )
     }
 
+    pub fn reload_registry(&mut self, root: &Path) -> Result<(), String> {
+        let registry = Self::load_registry(root)?;
+        bite_core::graph::validate(&self.workflow.graph, &registry)?;
+        let nodes = registry.nodes.len();
+        let formats = registry.formats.len();
+        self.registry = registry;
+        self.status = format!("Reloaded {nodes} node and {formats} format definitions");
+        Ok(())
+    }
+
     pub fn blank(registry: Registry) -> Self {
         let mut studio = Self {
             registry,

@@ -3,9 +3,10 @@
 #include "imgui_internal.h"
 #include "imgui_node_editor.h"
 #include <cstring>
+#include <string>
 
 namespace ed=ax::NodeEditor;
-struct State {ImGuiContext* imgui;ed::EditorContext* editor;};
+struct State {ImGuiContext* imgui;ed::EditorContext* editor;std::string ini;};
 static ImVec4 color(int r,int g,int b,int a=255){return ImVec4(r/255.0f,g/255.0f,b/255.0f,a/255.0f);}
 static void bite_style(){
     ImGui::StyleColorsDark();
@@ -54,9 +55,10 @@ static void bite_node_style(){
     s.Colors[ed::StyleColor_FlowMarker]=color(235,235,235);s.Colors[ed::StyleColor_GroupBg]=color(0,0,0,80);
     s.Colors[ed::StyleColor_GroupBorder]=color(140,140,140,100);
 }
-void* bite_create(const char* font_path,float font_size,float ui_scale){
+void* bite_create(const char* font_path,float font_size,float ui_scale,const char* ini_path){
     auto s=new State;s->imgui=ImGui::CreateContext();auto& io=ImGui::GetIO();
-    io.ConfigFlags|=ImGuiConfigFlags_DockingEnable;io.BackendFlags|=ImGuiBackendFlags_RendererHasVtxOffset;io.IniFilename=nullptr;
+    io.ConfigFlags|=ImGuiConfigFlags_DockingEnable;io.BackendFlags|=ImGuiBackendFlags_RendererHasVtxOffset;
+    if(ini_path&&ini_path[0]){s->ini=ini_path;io.IniFilename=s->ini.c_str();}else{io.IniFilename=nullptr;}
     if(ui_scale<=0)ui_scale=1;io.FontGlobalScale=1/ui_scale;
     if(font_path&&font_path[0]&&font_size>0)io.Fonts->AddFontFromFileTTF(font_path,font_size*ui_scale);
     ed::Config c;c.SettingsFile=nullptr;s->editor=ed::CreateEditor(&c);ed::SetCurrentEditor(s->editor);
@@ -126,6 +128,7 @@ int bite_new_node(uint64_t* pin){int accepted=0;if(ed::BeginCreate()){ed::PinId 
 int bite_deleted_link(uint64_t* id){int accepted=0;if(ed::BeginDelete()){ed::LinkId link;if(ed::QueryDeletedLink(&link)&&ed::AcceptDeletedItem()){*id=link.Get();accepted=1;}}ed::EndDelete();return accepted;}
 void bite_set_node_position(uint64_t id,float x,float y){ed::SetNodePosition(ed::NodeId((uintptr_t)id),ImVec2(x,y));}
 void bite_get_node_position(uint64_t id,float* x,float* y){auto p=ed::GetNodePosition(ed::NodeId((uintptr_t)id));*x=p.x;*y=p.y;}
+void bite_get_node_size(uint64_t id,float* width,float* height){auto s=ed::GetNodeSize(ed::NodeId((uintptr_t)id));*width=s.x;*height=s.y;}
 int bite_node_selected(uint64_t id){return ed::IsNodeSelected(ed::NodeId((uintptr_t)id));}
 void bite_group(float w,float h){ed::Group(ImVec2(w,h));}
 int bite_background_menu(){return ed::ShowBackgroundContextMenu();}
