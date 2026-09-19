@@ -130,6 +130,9 @@ fn analysis_dependencies_are_explicit_and_can_be_replayed() {
     let mut facts = PlanningFacts::default();
     let mut saw_dependency = false;
     for _ in 0..10 {
+        if !facts.captures.is_empty() {
+            facts.seal(&graph, &registry, "").unwrap();
+        }
         let mut metadata = |_: &std::path::Path, _: bool| {
             Ok(bite_expr::Context::from([(
                 "image.name".into(),
@@ -142,9 +145,24 @@ fn analysis_dependencies_are_explicit_and_can_be_replayed() {
             assert!(saw_dependency);
             return;
         }
+        let first_pending = !saw_dependency;
         saw_dependency = true;
         assert!(result.requires_analysis.is_some());
         assert!(result.summary.is_none());
+        assert!(!result.dependencies.is_empty());
+        if first_pending {
+            assert_eq!(
+                result.deferred_outputs.len(),
+                2,
+                "both image and report outputs must remain represented while analysis is pending"
+            );
+        } else {
+            assert!(!result.deferred_outputs.is_empty());
+        }
+        assert!(result
+            .deferred_outputs
+            .iter()
+            .all(|output| !output.depends_on.is_empty() && !output.operations.is_empty()));
         let args = result
             .events
             .into_iter()
@@ -157,6 +175,7 @@ fn analysis_dependencies_are_explicit_and_can_be_replayed() {
             args,
             value: "0.5".into(),
         });
+        facts.seal(&graph, &registry, "").unwrap();
         for invalid in ["NaN", "inf", "-0.1", "1.1", "not a mean"] {
             facts.captures.last_mut().unwrap().value = invalid.into();
             let mut metadata = |_: &std::path::Path, _: bool| {
@@ -165,11 +184,9 @@ fn analysis_dependencies_are_explicit_and_can_be_replayed() {
                     bite_expr::Value::String("image.png".into()),
                 )]))
             };
-            assert!(
-                plan::concrete(&graph, &registry, &options, &facts, &mut metadata)
-                    .unwrap_err()
-                    .contains("Invalid planning mean")
-            );
+            let error =
+                plan::concrete(&graph, &registry, &options, &facts, &mut metadata).unwrap_err();
+            assert!(error.contains("Invalid planning mean"), "{error}");
         }
         facts.captures.last_mut().unwrap().value = "0.5".into();
     }
@@ -518,6 +535,118 @@ fn solid_image_plan_records_the_documented_native_fill() {
             3
         );
     }
+}
+
+#[test]
+fn solid_only_output_uses_the_unique_workflow_input_for_dimensions() {
+    use bite_schema::{BuiltinNodeKind as B, GraphEdge, NodeKind, ParamValue};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let registry = Registry::load(
+        &root.join("node-definitions-v2"),
+        &root.join("format-definitions-v2"),
+    )
+    .unwrap();
+    let mut graph = workflow::load(
+        &fs::read_to_string(root.join("test-workflows/wf-04-channels.bite")).unwrap(),
+        &registry,
+    )
+    .unwrap()
+    .workflow
+    .graph;
+    let input_id = graph
+        .nodes
+        .iter()
+        .find(|node| node.kind == NodeKind::Builtin(B::Input))
+        .unwrap()
+        .id
+        .clone();
+    let output_id = graph
+        .nodes
+        .iter()
+        .find(|node| node.kind == NodeKind::Builtin(B::ImageOutput))
+        .unwrap()
+        .id
+        .clone();
+    let solid = graph
+        .nodes
+        .iter_mut()
+        .find(|node| node.data.definition_id == "value_float")
+        .unwrap();
+    solid.data.definition_id = "solid_image".into();
+    solid.data.params = [
+        ("value".into(), ParamValue::Number(0.25)),
+        ("_enabled".into(), ParamValue::Bool(true)),
+    ]
+    .into();
+    let solid_id = solid.id.clone();
+    graph
+        .nodes
+        .retain(|node| node.id == input_id || node.id == solid_id || node.id == output_id);
+    graph.edges = vec![GraphEdge {
+        id: "solid-output".into(),
+        source: solid_id,
+        source_handle: "out:output".into(),
+        target: output_id,
+        target_handle: "in:input".into(),
+    }];
+
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("input");
+    let output = dir.path().join("output");
+    fs::create_dir(&input).unwrap();
+    let source = input.join("sample.png");
+    fs::write(&source, b"planning only").unwrap();
+    let options = RunOptions {
+        named_paths: [("in".into(), input), ("out".into(), output.clone())].into(),
+        ..RunOptions::default()
+    };
+    let mut metadata = |_: &std::path::Path, _: bool| Ok(bite_expr::Context::new());
+    let result = plan::concrete(
+        &graph,
+        &registry,
+        &options,
+        &PlanningFacts::default(),
+        &mut metadata,
+    )
+    .unwrap();
+    assert!(result.complete);
+    assert_eq!(
+        result.topology.outputs[0].input.as_deref(),
+        Some(input_id.as_str())
+    );
+    assert!(!output.exists());
+    let args = result
+        .events
+        .into_iter()
+        .find_map(|event| match event {
+            PlannedEvent::Output {
+                process_args: Some(args),
+                ..
+            } => Some(args),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(
+        args,
+        [
+            source.to_string_lossy().into_owned(),
+            "-evaluate".into(),
+            "set".into(),
+            "25%".into(),
+            output.join("sample.png").to_string_lossy().into_owned(),
+        ]
+    );
+
+    let mut second = graph
+        .nodes
+        .iter()
+        .find(|node| node.id == input_id)
+        .unwrap()
+        .clone();
+    second.id = "input-2".into();
+    graph.nodes.push(second);
+    let error = plan::build(&graph, &registry).unwrap_err();
+    assert!(error.contains("multiple workflow inputs"));
 }
 
 #[test]

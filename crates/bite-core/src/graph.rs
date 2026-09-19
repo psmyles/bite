@@ -107,7 +107,8 @@ pub fn compatible(a: WireType, b: WireType) -> bool {
 }
 fn param_wire(p: &ParamType) -> Result<WireType, String> {
     Ok(match p {
-        ParamType::Int | ParamType::Float | ParamType::Enum => WireType::Number,
+        ParamType::Int | ParamType::Float => WireType::Number,
+        ParamType::Enum => WireType::String,
         ParamType::Bool => WireType::Bool,
         ParamType::String => WireType::String,
         ParamType::Numeric => WireType::Numeric,

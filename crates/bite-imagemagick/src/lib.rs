@@ -1,19 +1,40 @@
 pub mod header;
+pub mod import;
 use bite_core::execution::ImageHost;
 use bite_expr::{definition::metadata_types, Context, Type, Value};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, VecDeque},
     fs,
     io::Read,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc, Mutex,
     },
     thread,
     time::{Duration, Instant},
 };
+
+#[derive(Debug, Clone, Copy, Default, serde::Serialize)]
+pub struct CacheStats {
+    pub hits: usize,
+    pub misses: usize,
+    pub invalidations: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FileStamp {
+    size: u64,
+    modified_ns: u128,
+}
+
+#[derive(Clone)]
+struct CachedMetadata {
+    stamp: FileStamp,
+    inserted: Instant,
+    value: Context,
+}
 
 pub struct Magick {
     pub binary: PathBuf,
@@ -21,6 +42,9 @@ pub struct Magick {
     pub cancelled: Arc<AtomicBool>,
     pub timeout: Duration,
     pub processes: usize,
+    metadata_cache: BTreeMap<(PathBuf, bool), CachedMetadata>,
+    pub metadata_cache_stats: CacheStats,
+    pub metadata_cache_ttl: Duration,
 }
 
 impl Magick {
@@ -90,7 +114,56 @@ impl Magick {
             cancelled,
             timeout: Duration::from_secs(120),
             processes: 0,
+            metadata_cache: BTreeMap::new(),
+            metadata_cache_stats: CacheStats::default(),
+            metadata_cache_ttl: Duration::from_secs(10 * 60),
         }
+    }
+
+    fn file_stamp(path: &Path) -> Result<FileStamp, String> {
+        let metadata = fs::metadata(path)
+            .map_err(|error| format!("Cannot read metadata for {}: {error}", path.display()))?;
+        let modified_ns = metadata
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
+        Ok(FileStamp {
+            size: metadata.len(),
+            modified_ns,
+        })
+    }
+    pub fn analysis_identity(&self) -> Result<String, String> {
+        let binary = if self.binary.is_file() {
+            self.binary.clone()
+        } else {
+            std::env::var_os("PATH")
+                .into_iter()
+                .flat_map(|value| std::env::split_paths(&value).collect::<Vec<_>>())
+                .flat_map(|directory| {
+                    [
+                        directory.join(&self.binary),
+                        directory.join(format!("{}.exe", self.binary.to_string_lossy())),
+                    ]
+                })
+                .find(|path| path.is_file())
+                .ok_or_else(|| {
+                    format!(
+                        "Cannot locate ImageMagick binary {} for planning provenance",
+                        self.binary.display()
+                    )
+                })?
+        };
+        let bytes = fs::read(&binary)
+            .map_err(|error| format!("Cannot fingerprint {}: {error}", binary.display()))?;
+        let mut a = 0xcbf29ce484222325u64;
+        let mut b = 0x84222325cbf29ce4u64;
+        for byte in bytes {
+            a = (a ^ u64::from(byte)).wrapping_mul(0x100000001b3);
+            b = (b ^ u64::from(byte)).wrapping_mul(0x100000001b3 ^ 0x9e37);
+        }
+        Ok(format!("image-magick:{a:016x}{b:016x}"))
     }
     fn output(&mut self, args: &[String]) -> Result<String, String> {
         if self.cancelled.load(Ordering::Relaxed) {
@@ -161,6 +234,68 @@ impl Magick {
         }
         Ok(String::from_utf8_lossy(&stdout).into_owned())
     }
+
+    fn output_many(
+        &mut self,
+        commands: Vec<Vec<String>>,
+        jobs: usize,
+    ) -> Vec<Result<String, String>> {
+        if jobs <= 1 || commands.len() <= 1 {
+            return commands.iter().map(|args| self.output(args)).collect();
+        }
+        let count = commands.len();
+        let queue = Arc::new(Mutex::new(
+            commands.into_iter().enumerate().collect::<VecDeque<_>>(),
+        ));
+        let results = Arc::new(Mutex::new(
+            (0..count)
+                .map(|_| None)
+                .collect::<Vec<Option<Result<String, String>>>>(),
+        ));
+        let process_count = Arc::new(AtomicUsize::new(0));
+        let binary = self.binary.clone();
+        let environment = self.environment.clone();
+        let cancelled = self.cancelled.clone();
+        let timeout = self.timeout;
+        thread::scope(|scope| {
+            for _ in 0..jobs.min(count) {
+                let queue = queue.clone();
+                let results = results.clone();
+                let process_count = process_count.clone();
+                let binary = binary.clone();
+                let environment = environment.clone();
+                let cancelled = cancelled.clone();
+                scope.spawn(move || {
+                    let mut worker = Magick {
+                        binary,
+                        environment,
+                        cancelled,
+                        timeout,
+                        processes: 0,
+                        metadata_cache: BTreeMap::new(),
+                        metadata_cache_stats: CacheStats::default(),
+                        metadata_cache_ttl: Duration::from_secs(10 * 60),
+                    };
+                    loop {
+                        let Some((index, args)) = queue.lock().unwrap().pop_front() else {
+                            break;
+                        };
+                        let value = worker.output(&args);
+                        results.lock().unwrap()[index] = Some(value);
+                    }
+                    process_count.fetch_add(worker.processes, Ordering::Relaxed);
+                });
+            }
+        });
+        self.processes += process_count.load(Ordering::Relaxed);
+        Arc::try_unwrap(results)
+            .unwrap()
+            .into_inner()
+            .unwrap()
+            .into_iter()
+            .map(|result| result.expect("worker result"))
+            .collect()
+    }
 }
 impl ImageHost for Magick {
     fn run(&mut self, args: &[String]) -> Result<(), String> {
@@ -169,7 +304,82 @@ impl ImageHost for Magick {
     fn capture(&mut self, args: &[String]) -> Result<String, String> {
         self.output(args)
     }
+    fn emit_many(
+        &mut self,
+        operations: Vec<bite_core::execution::OutputOperation>,
+        options: &bite_core::execution::RunOptions,
+        jobs: usize,
+    ) -> Vec<Result<(), String>> {
+        if jobs <= 1 || operations.len() <= 1 {
+            return operations
+                .into_iter()
+                .map(|operation| self.emit(operation, options))
+                .collect();
+        }
+        let count = operations.len();
+        let queue = Arc::new(Mutex::new(
+            operations.into_iter().enumerate().collect::<VecDeque<_>>(),
+        ));
+        let results = Arc::new(Mutex::new(
+            (0..count)
+                .map(|_| None)
+                .collect::<Vec<Option<Result<(), String>>>>(),
+        ));
+        let process_count = Arc::new(AtomicUsize::new(0));
+        let binary = self.binary.clone();
+        let environment = self.environment.clone();
+        let cancelled = self.cancelled.clone();
+        let timeout = self.timeout;
+        thread::scope(|scope| {
+            for _ in 0..jobs.min(count) {
+                let queue = queue.clone();
+                let results = results.clone();
+                let process_count = process_count.clone();
+                let binary = binary.clone();
+                let environment = environment.clone();
+                let cancelled = cancelled.clone();
+                scope.spawn(move || {
+                    let mut worker = Magick {
+                        binary,
+                        environment,
+                        cancelled,
+                        timeout,
+                        processes: 0,
+                        metadata_cache: BTreeMap::new(),
+                        metadata_cache_stats: CacheStats::default(),
+                        metadata_cache_ttl: Duration::from_secs(10 * 60),
+                    };
+                    loop {
+                        let Some((index, operation)) = queue.lock().unwrap().pop_front() else {
+                            break;
+                        };
+                        let value = worker.emit(operation, options);
+                        results.lock().unwrap()[index] = Some(value);
+                    }
+                    process_count.fetch_add(worker.processes, Ordering::Relaxed);
+                });
+            }
+        });
+        self.processes += process_count.load(Ordering::Relaxed);
+        Arc::try_unwrap(results)
+            .unwrap()
+            .into_inner()
+            .unwrap()
+            .into_iter()
+            .map(|result| result.expect("worker result"))
+            .collect()
+    }
     fn metadata(&mut self, path: &Path, heavy: bool) -> Result<Context, String> {
+        let key = (path.to_owned(), heavy);
+        let stamp = Self::file_stamp(path)?;
+        if let Some(cached) = self.metadata_cache.get(&key) {
+            if cached.stamp == stamp && cached.inserted.elapsed() <= self.metadata_cache_ttl {
+                self.metadata_cache_stats.hits += 1;
+                return Ok(cached.value.clone());
+            }
+            self.metadata_cache_stats.invalidations += 1;
+        }
+        self.metadata_cache_stats.misses += 1;
         let mut ctx: Context = metadata_types()
             .into_iter()
             .map(|(k, t)| {
@@ -262,6 +472,14 @@ impl ImageHost for Magick {
                 }
             }
         }
+        self.metadata_cache.insert(
+            key,
+            CachedMetadata {
+                stamp,
+                inserted: Instant::now(),
+                value: ctx.clone(),
+            },
+        );
         Ok(ctx)
     }
 }
@@ -287,6 +505,9 @@ mod process_tests {
             cancelled: Arc::new(AtomicBool::new(false)),
             timeout: Duration::from_secs(5),
             processes: 0,
+            metadata_cache: BTreeMap::new(),
+            metadata_cache_stats: CacheStats::default(),
+            metadata_cache_ttl: Duration::from_secs(10 * 60),
         }
     }
 
@@ -319,5 +540,40 @@ mod process_tests {
             .output(&args)
             .unwrap()
             .contains("space & quote ' ; $()"));
+    }
+
+    #[test]
+    fn metadata_cache_hits_expires_and_invalidates_on_source_change() {
+        let dir = std::env::temp_dir().join(format!(
+            "bite-metadata-cache-{}-{}",
+            std::process::id(),
+            Instant::now().elapsed().as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("fixture.png");
+        let mut png = vec![0; 24];
+        png[..8].copy_from_slice(b"\x89PNG\r\n\x1a\n");
+        png[16..20].copy_from_slice(&32u32.to_be_bytes());
+        png[20..24].copy_from_slice(&16u32.to_be_bytes());
+        fs::write(&path, &png).unwrap();
+        let mut host = fixture("tokens");
+
+        let first = host.metadata(&path, false).unwrap();
+        let second = host.metadata(&path, false).unwrap();
+        assert_eq!(first, second);
+        assert_eq!(host.metadata_cache_stats.hits, 1);
+        assert_eq!(host.metadata_cache_stats.misses, 1);
+
+        host.metadata_cache_ttl = Duration::ZERO;
+        host.metadata(&path, false).unwrap();
+        assert_eq!(host.metadata_cache_stats.invalidations, 1);
+        host.metadata_cache_ttl = Duration::from_secs(60);
+        thread::sleep(Duration::from_millis(10));
+        png[16..20].copy_from_slice(&64u32.to_be_bytes());
+        fs::write(&path, &png).unwrap();
+        let changed = host.metadata(&path, false).unwrap();
+        assert_eq!(changed["image.width"], Value::Int(64));
+        assert_eq!(host.metadata_cache_stats.invalidations, 2);
+        fs::remove_dir_all(dir).unwrap();
     }
 }

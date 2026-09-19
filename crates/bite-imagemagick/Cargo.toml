@@ -7,3 +7,4 @@ license.workspace = true
 [dependencies]
 bite-core.workspace = true
 bite-expr.workspace = true
+serde.workspace = true

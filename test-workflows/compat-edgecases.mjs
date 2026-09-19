@@ -109,6 +109,11 @@ const atlas = path.join(run, 'atlas');
 image(atlas, 'frame1.png', 'red');
 image(atlas, 'frame2.png', 'green');
 image(atlas, 'frame10.png', 'blue');
+const unicodeAtlas = path.join(run, 'unicode-atlas');
+image(unicodeAtlas, 'Ábaco2.png', 'red');
+image(unicodeAtlas, 'abaco10.png', 'green');
+image(unicodeAtlas, 'äbaco1.png', 'blue');
+image(unicodeAtlas, 'Éclair3.png', 'yellow');
 const corrupt = path.join(run, 'corrupt');
 image(corrupt, 'z-good.png', 'red');
 fs.writeFileSync(path.join(corrupt, 'a-bad.png'), 'not an image');
@@ -182,10 +187,19 @@ const cases = [
   ]),
   ['partial-sets', 'wf-06-setmode.bite', { in: partial }],
   ['natural-atlas', 'wf-10-flipbook.bite', { in: atlas }],
+  ['unicode-natural-atlas', 'wf-10-flipbook.bite', { in: unicodeAtlas }],
   [
     'reverse-natural-atlas',
     'wf-10-flipbook.bite',
     { in: atlas },
+    (doc) => {
+      doc.graph.nodes.find((n) => n.type === 'flipbookOutputNode').data.params.sortBy = 'name_desc';
+    },
+  ],
+  [
+    'reverse-unicode-natural-atlas',
+    'wf-10-flipbook.bite',
+    { in: unicodeAtlas },
     (doc) => {
       doc.graph.nodes.find((n) => n.type === 'flipbookOutputNode').data.params.sortBy = 'name_desc';
     },

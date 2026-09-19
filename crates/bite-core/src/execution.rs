@@ -22,6 +22,7 @@ pub trait ImageHost {
     fn continue_after_image_error(&self) -> bool {
         true
     }
+    fn image_error(&mut self, _input: &Path, _output: &str, _error: &str) {}
     fn run(&mut self, args: &[String]) -> Result<(), String>;
     fn capture(&mut self, args: &[String]) -> Result<String, String>;
     fn metadata(&mut self, path: &Path, heavy: bool) -> Result<Context, String>;
@@ -38,6 +39,22 @@ pub trait ImageHost {
                 fs::write(temporary, contents).map_err(|e| e.to_string())
             }
         })
+    }
+    fn emit_many(
+        &mut self,
+        operations: Vec<OutputOperation>,
+        options: &RunOptions,
+        _jobs: usize,
+    ) -> Vec<Result<(), String>> {
+        let mut results = Vec::with_capacity(operations.len());
+        for operation in operations {
+            if options.cancelled.load(Ordering::Relaxed) {
+                results.push(Err("Cancelled".into()));
+            } else {
+                results.push(self.emit(operation, options));
+            }
+        }
+        results
     }
 }
 #[derive(Debug, Clone, serde::Serialize)]
@@ -88,11 +105,26 @@ fn output_args(
     });
     Ok(args)
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct RunOptions {
     pub named_paths: BTreeMap<String, PathBuf>,
     pub overwrite: bool,
     pub cancelled: Arc<AtomicBool>,
+    pub analysis_identity: String,
+    pub jobs: usize,
+}
+impl Default for RunOptions {
+    fn default() -> Self {
+        Self {
+            named_paths: BTreeMap::new(),
+            overwrite: false,
+            cancelled: Arc::new(AtomicBool::new(false)),
+            analysis_identity: String::new(),
+            jobs: std::thread::available_parallelism()
+                .map(|count| (count.get() / 2).clamp(1, 8))
+                .unwrap_or(1),
+        }
+    }
 }
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct BatchResult {
@@ -157,8 +189,45 @@ fn filename(path: &Path) -> String {
 /// leading zeroes) retain input order through Rust's stable sort.
 fn natural_name_cmp(a: &Path, b: &Path) -> std::cmp::Ordering {
     use std::cmp::Ordering;
-    let a = filename(a).to_lowercase();
-    let b = filename(b).to_lowercase();
+    // Electron uses Intl.Collator with sensitivity `base`. Folding the Latin
+    // characters accepted in Windows filenames keeps its case/accent-insensitive
+    // behaviour while leaving stable-sort ties in import order.
+    fn fold_name(path: &Path) -> String {
+        let mut folded = String::new();
+        for c in filename(path).to_lowercase().chars() {
+            let replacement = match c {
+                'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ā' | 'ă' | 'ą' => "a",
+                'æ' => "ae",
+                'ç' | 'ć' | 'ĉ' | 'ċ' | 'č' => "c",
+                'ď' | 'đ' => "d",
+                'è' | 'é' | 'ê' | 'ë' | 'ē' | 'ĕ' | 'ė' | 'ę' | 'ě' => "e",
+                'ĝ' | 'ğ' | 'ġ' | 'ģ' => "g",
+                'ĥ' | 'ħ' => "h",
+                'ì' | 'í' | 'î' | 'ï' | 'ĩ' | 'ī' | 'ĭ' | 'į' | 'ı' => "i",
+                'ĵ' => "j",
+                'ķ' => "k",
+                'ĺ' | 'ļ' | 'ľ' | 'ŀ' | 'ł' => "l",
+                'ñ' | 'ń' | 'ņ' | 'ň' => "n",
+                'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' | 'ō' | 'ŏ' | 'ő' => "o",
+                'œ' => "oe",
+                'ŕ' | 'ŗ' | 'ř' => "r",
+                'ś' | 'ŝ' | 'ş' | 'š' | 'ß' => "s",
+                'ţ' | 'ť' | 'ŧ' => "t",
+                'ù' | 'ú' | 'û' | 'ü' | 'ũ' | 'ū' | 'ŭ' | 'ů' | 'ű' | 'ų' => "u",
+                'ŵ' => "w",
+                'ý' | 'ÿ' | 'ŷ' => "y",
+                'ź' | 'ż' | 'ž' => "z",
+                _ => {
+                    folded.push(c);
+                    continue;
+                }
+            };
+            folded.push_str(replacement);
+        }
+        folded
+    }
+    let a = fold_name(a);
+    let b = fold_name(b);
     let (mut a, mut b) = (a.as_str(), b.as_str());
     while !a.is_empty() && !b.is_empty() {
         if a.as_bytes()[0].is_ascii_digit() && b.as_bytes()[0].is_ascii_digit() {
@@ -417,10 +486,12 @@ pub fn run_workflow(
         let mut atlas = Vec::new();
         let mut claimed_paths = BTreeSet::new();
         let mut atlas_params = raw_output.clone();
+        let mut pending = Vec::new();
         for (index, (file, set_name, set_inputs)) in work.iter().enumerate() {
             if options.cancelled.load(Ordering::Relaxed) {
                 return Err("Cancelled".into());
             }
+            let mut queued = false;
             let item_result = (|| -> Result<(), String> {
                 let metadata = host.metadata(file, heavy)?;
                 let mut resolved = ResolvedParams::new();
@@ -695,9 +766,8 @@ pub fn run_workflow(
                                 output: out.clone(),
                             }
                         };
-                        host.emit(operation, options)?;
-                        result.processed += 1;
-                        result.outputs.push(out);
+                        pending.push((index, file.clone(), out, operation));
+                        queued = true;
                     }
                     NodeKind::Builtin(BuiltinNodeKind::TextOutput) => {
                         if image.is_none() || !bool_param(output_params, "_txo_condition", true) {
@@ -734,6 +804,7 @@ pub fn run_workflow(
                 Ok(())
             })();
             if let Err(error) = item_result {
+                host.image_error(file, &output.id, &error);
                 if options.cancelled.load(Ordering::Relaxed) || !host.continue_after_image_error() {
                     return Err(error);
                 }
@@ -744,9 +815,44 @@ pub fn run_workflow(
                     output.id
                 ));
             }
-            progress(index + 1, work.len(), file);
+            if !queued {
+                progress(index + 1, work.len(), file);
+            }
         }
-        if output.kind == NodeKind::Builtin(BuiltinNodeKind::TextOutput) {
+        if !pending.is_empty() {
+            let operations = pending
+                .iter()
+                .map(|(_, _, _, operation)| operation.clone())
+                .collect();
+            let emitted = host.emit_many(operations, options, options.jobs);
+            for ((index, file, out, _), emitted) in pending.into_iter().zip(emitted) {
+                match emitted {
+                    Ok(()) => {
+                        result.processed += 1;
+                        result.outputs.push(out);
+                    }
+                    Err(error) => {
+                        host.image_error(&file, &output.id, &error);
+                        if options.cancelled.load(Ordering::Relaxed)
+                            || !host.continue_after_image_error()
+                        {
+                            return Err(error);
+                        }
+                        result.failed += 1;
+                        result.errors.push(format!(
+                            "{} (output {}): {error}",
+                            file.display(),
+                            output.id
+                        ));
+                    }
+                }
+                progress(index + 1, work.len(), &file);
+            }
+        }
+        if output.kind == NodeKind::Builtin(BuiltinNodeKind::TextOutput) && !report.is_empty() {
+            if !report.iter().any(|line| !line.trim().is_empty()) {
+                return Err("All values resolved to empty - file not written.".into());
+            }
             let out = dest.clone().ok_or("text output path missing")?;
             if out.as_os_str().is_empty() {
                 return Err("text output path empty".into());
@@ -754,7 +860,7 @@ pub fn run_workflow(
             host.emit(
                 OutputOperation::Text {
                     output: out.clone(),
-                    contents: report.join("\n") + if report.is_empty() { "" } else { "\n" },
+                    contents: report.join("\n") + "\n",
                 },
                 options,
             )?;
@@ -827,6 +933,17 @@ pub fn run_workflow(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn natural_sort_matches_base_sensitive_numeric_collation() {
+        let mut names =
+            ["Ábaco2.png", "abaco10.png", "äbaco1.png", "Éclair3.png"].map(PathBuf::from);
+        names.sort_by(|a, b| natural_name_cmp(a, b));
+        assert_eq!(
+            names.map(|p| p.to_string_lossy().into_owned()),
+            ["äbaco1.png", "Ábaco2.png", "abaco10.png", "Éclair3.png"]
+        );
+    }
 
     #[test]
     fn atomic_outputs_preserve_existing_files_on_failure_cancel_and_skip() {

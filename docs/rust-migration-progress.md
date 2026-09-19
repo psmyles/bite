@@ -25,11 +25,14 @@ usable until parity and cutover gates pass.
 - Phases 5–6: Rust CLI runs all 11 workflows and passes differential output
   checks against the original CLI (lossless AE=0, JPEG/AVIF normalized RMSE
   <=0.005). CLI diagnostics/flags, gates, rename, channels, sets, text and atlas
-  fixtures pass. Atomic output replacement and Ctrl+C cancellation implemented.
-  M2 is NOT complete: concrete planning now shares execution and records analysis dependencies; broader planner goldens and
-  broader multi-input, failure and migration compatibility coverage remains.
-- Phase 7: header readers, operation fusion, per-process thread limits and
-  progress exist. Caches, configurable bounded workers and benchmark gate pending.
+  fixtures pass. Atomic output replacement, Ctrl+C cancellation, deferred plans,
+  provenance-bound planning facts and non-ASCII natural atlas ordering are
+  implemented. **M2 passes on Windows.** macOS M2 execution is pending under
+  the user's platform policy.
+- Phase 7: five-format header readers, operation fusion, per-process thread
+  limits, progress, parallel scanning, metadata/thumbnail caches, batched
+  thumbnails, configurable bounded workers and initial benchmark commands exist.
+  Node comparison, resource/cancellation metrics and the M3 benchmark gate remain.
 - Phase 8: pinned C++ submodules, owned C ABI/bindings, safe Rust wrapper and
   Winit/WGPU prototype compile on Windows. Offscreen rendering of 120 nodes,
   docking, inspector and uploaded preview/filmstrip textures was visually
@@ -58,24 +61,12 @@ A task heartbeat named `Continue BITE Rust migration` resumes work every 15
 minutes when eligible, from this log. Continue substantive implementation; do
 not treat this checkpoint as the completion of the migration.
 
-1. Finish command-planner coverage: `bite plan` now emits concrete per-image
-   arguments and native output operations without spawning magick or writing.
-   Fast-path commands match the original golden. Expand comparisons across all
-   native structures and formats, validate supplied analysis facts, and represent
-   downstream work after unresolved analysis (currently planning pauses there).
-2. Broaden CLI compatibility tests beyond the eleven fixtures: multiple input
-   branches sharing downstream processing, bypass behavior, all v1 shims,
-   parameter-wire coercion/defaults and failure/cancellation behavior. Inspect
-   existing TypeScript before choosing behavior; document deliberate changes.
-   Separate input branches, partial sets, numeric ascending/descending atlas
-   ordering and rename collisions now pass five live Node/Rust differential
-   cases in `test-workflows/compat-edgecases.mjs` (`npm run test:compat`).
-   Locale-sensitive non-ASCII atlas ordering is still unverified.
-3. After M2, implement the remaining performance services and benchmark Node
-   versus Rust on deterministic fixtures and `test_images`.
-4. Complete the independent prototype's interaction/platform glue and Windows
-   acceptance gate before the full GUI. Keep macOS explicitly pending.
-5. Continue phases 9–13 in plan order. No cutover, release or legacy removal has
+1. Implement the remaining Phase 7 performance services: thumbnails and caches,
+   parallel scanning, bounded configurable workers and batched spawning.
+2. Add reproducible import/workflow benchmarks and compare Node versus Rust on
+   deterministic fixtures and `test_images`; record macOS as pending.
+3. Keep the full GUI paused at the user's direction until backend work is done.
+4. Continue phases 9–13 in plan order. No cutover, release or legacy removal has
    occurred. Work is on branch `rust-migration`; changes are not yet committed.
 
 ## Continuation 2026-09-19 — CLI edge cases
@@ -265,3 +256,126 @@ workspace Clippy passes, the 120-node GPU smoke render completes on Vulkan, and
 cleanup warning remains non-fatal. This is prototype polish within the existing
 Phase 8 spike; the full GUI remains gated on M2. macOS font discovery and visual
 acceptance remain pending.
+
+## Continuation 2026-09-19 — solid-only batches, parameter wires, and reports
+
+GUI polish is paused at the user's direction until the remaining migration
+gates are complete.
+
+Closed the solid-only input-selection gap. When a Solid Image is connected
+directly to an output, the planner and executor now use the sole workflow Input
+as the batch and dimension source even though it is not connected by an image
+edge. Missing and ambiguous multiple Inputs produce explicit errors. A concrete
+plan regression verifies the selected input, native fill arguments, output path,
+and the absence of planning writes.
+
+Runtime parameter wires now preserve the compatible legacy Boolean/number
+coercions before expression evaluation, including numeric node inputs and the
+`_enabled` bypass port. Text Output conditions receive the same truthiness
+conversion. Enum parameters are now correctly classified as string wires rather
+than number wires. Coverage also verifies unwired defaults remain active.
+
+Text Output now matches two legacy aggregate cases: a fully filtered batch
+creates no report, while included rows whose values are all empty fail with no
+file written. The earlier Rust path incorrectly created an empty file in both
+cases. An injected flipbook montage failure is also verified as fatal, with an
+existing atlas preserved atomically and no temporary file leaked.
+
+Windows verification: all 35 Rust tests and strict workspace Clippy pass. All
+15 live compatibility cases pass with exact pixels or their documented solid
+fill assertion in `test-workflows/out/compat-Tw7UnD/results.json`. The complete
+11-workflow legacy run is `test-workflows/out/reference-jm97Yx/results.json` and
+the Rust comparison is `test-workflows/out/reference-pfvDyT/results.json`; all
+pass and original goldens remain unchanged. Focused test-runner ESLint passes.
+The repository-wide `npm run lint` still reports three pre-existing renderer
+issues in `RunWorkflowButton.svelte` and `UpdateModal.svelte`.
+
+M2 remains open for complete downstream deferred plans after unresolved
+analysis and authenticated planning facts with file/ImageMagick provenance.
+Locale-sensitive non-ASCII atlas ordering is also unverified. The full GUI
+stays paused; macOS acceptance remains pending.
+
+## Continuation 2026-09-19 — deferred plans and provenance-bound facts
+
+`bite plan` now continues across independent inputs and outputs after missing
+analysis. It returns deduplicated stable dependency IDs and structured
+`deferred_outputs` records containing the blocked input, output, dependency IDs
+and remaining topology operations. Invalid supplied facts remain fatal; no
+placeholder value is used to choose a gate or branch.
+
+Added `bite observe`, which executes only analysis dependencies, iterates until
+the plan is concrete, and writes a versioned facts document. Facts are sealed
+to the workflow plus loaded definition versions, the ImageMagick binary
+contents, and analyzed source files using size, nanosecond modification time
+and a deterministic content digest. `bite plan --facts` rejects missing
+provenance, modified inputs, changed workflow/definitions and a different
+ImageMagick binary.
+
+Windows verification: all 36 Rust tests and strict workspace Clippy pass. An
+end-to-end observation of wf-05 over all 26 `test_images` collected 78 channel
+captures, and replay produced a complete plan without creating its configured
+image-output directory or text report. `git diff --check` passes. Original
+TypeScript goldens and Electron sources remain unchanged. All 15 live
+compatibility cases still pass in
+`test-workflows/out/compat-dNeLZU/results.json`, and focused runner ESLint passes.
+
+The two recorded planning gaps are closed. Remaining M2 acceptance work is the
+locale-sensitive non-ASCII atlas ordering check and final Windows CLI review;
+macOS execution remains recorded as pending. GUI work stays paused.
+
+## Continuation 2026-09-19 — M2 Windows gate complete
+
+Added deterministic accented, mixed-case and numeric atlas fixtures to the live
+Electron/Rust differential suite. The first run exposed a real mismatch because
+Rust compared accented Unicode code points directly while Electron uses base-
+sensitive locale collation. Rust now folds common Latin filename characters to
+their base forms before numeric comparison and retains stable import order for
+collation ties.
+
+Both ascending and descending non-ASCII atlases now match Electron exactly, as
+do the prior 15 compatibility cases. The 17-case result is
+`test-workflows/out/compat-n1ufZy/results.json`; the new focused unit regression
+also passes. This closes M2 on Windows. macOS M2 execution remains explicitly
+pending, and full GUI work remains paused while Phase 7 proceeds.
+
+## Continuation 2026-09-19 — Phase 7 import services and bounded workers
+
+Added parallel deterministic folder scanning and a native thumbnail importer.
+It uses the PNG/JPEG/WEBP/BMP/TGA header fast path, JPEG decode-size hints,
+batched ImageMagick commands, a source-mtime-validated WebP disk cache, and a
+TTL/source-fingerprint-validated memory metadata cache. The execution host now
+also caches workflow metadata with the same expiry and source-change behavior.
+
+Image-output operations run through a bounded worker pool. `bite run --jobs N`
+configures it; the default is half the available hardware threads, clamped to
+one through eight. Atomic staging, deterministic collision assignment, progress,
+per-image failures and cancellation remain intact. Aggregate text and flipbook
+outputs retain their ordered execution path.
+
+Added `bite bench-import` for scan plus cold/warm thumbnail timing and
+`bite bench-workflow` for repeated workflow throughput, ImageMagick process
+counts and metadata cache statistics. On the 26 checked-in `test_images`, a
+128-pixel import used seven batched processes in 1633 ms and the warm pass used
+zero processes in 2.7 ms. The fast-path workflow took 7208 ms with one worker
+and 2433 ms with four workers on this Windows machine (debug build); all 26
+outputs succeeded in both runs. These figures establish the harness rather than
+the release-performance gate.
+
+Windows verification: all 41 Rust tests and strict workspace Clippy pass. The
+17 live Electron/Rust compatibility cases still pass in
+`test-workflows/out/compat-uhcFwP/results.json`, including both non-ASCII atlas
+orders. `git diff --check` passes. Remaining M3 work is an automated Node/Rust
+release benchmark matrix, peak-memory and cancellation-latency measurement,
+large deterministic/real workload runs, and macOS execution (pending).
+
+The first automated release comparison is now available through
+`npm run bench:rust-migration`. On the same 26-image fast-path workload, Node
+completed in 1713/1704 ms and Rust with eight workers in 1895/1918 ms; both
+produced all 26 files. Cold thumbnail import took 1137 ms in Node and 867 ms in
+Rust; warm import took 3.6 ms and 2.2 ms respectively, with Rust spawning zero
+processes on the warm pass. Warm no-work CLI startup was 38–41 ms for Node and
+7–8 ms for Rust. Results are in
+`test-workflows/out/benchmark-2026-09-19T09-28-31-413Z/results.json`. This closes
+the small-workload startup/import/throughput harness item. Peak memory,
+cancellation latency, the approximately 2,000-image workload, and macOS remain
+before M3 can pass.

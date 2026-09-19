@@ -24,6 +24,7 @@
     "test:golden": "vitest run src/tests/migration-golden.test.ts",
     "test:workflows": "vite build --config vite.cli.config.mts && node test-workflows/run-tests.mjs",
     "test:compat": "vite build --config vite.cli.config.mts && cargo build -p bite-cli && node test-workflows/compat-edgecases.mjs",
+    "bench:rust-migration": "vite build --config vite.cli.config.mts && vite build --config test-workflows/vite.benchmark.config.mts && cargo build --release -p bite-cli && node test-workflows/benchmark-performance.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "postinstall": "node scripts/patch-nsis.cjs",

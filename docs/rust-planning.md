@@ -12,18 +12,36 @@ argument tokens targeting the final path. Execution substitutes an adjacent
 temporary path for atomic replacement. Copy and text outputs are separate
 operations, with source paths or report contents instead of process arguments.
 
-`complete: false` means planning stopped at an unresolved analysis dependency.
-The response includes `requires_analysis`, the unresolved event and the full
-symbolic topology. Subsequent concrete events are not yet available. This is
-not an execution failure; consumers must check `complete` rather than treating
-a successful CLI exit as evidence that every command has been resolved.
+`complete: false` means one or more output instances depend on unresolved image
+analysis. The response includes stable dependency IDs in `dependencies` and a
+`deferred_outputs` entry for every currently blocked input/output pair. Each
+entry names its dependencies and the remaining topology operations. Concrete
+commands appear only after their facts are supplied; the planner never invents
+branch values. This is not an execution failure, so consumers must check
+`complete`.
 
 ## Supplying observations
 
-`--facts facts.json` accepts observations obtained separately from the planner:
+Generate observations separately from the read-only planner:
+
+```text
+bite observe workflow.bite --in images --out output --facts-out facts.json
+bite plan workflow.bite --in images --out output --facts facts.json
+```
+
+`observe` runs only the metadata and capture operations requested by planning.
+It iterates until every dependency is resolved, writes the facts document, and
+does not emit workflow outputs. `--facts facts.json` then supplies those
+observations to `plan`:
 
 ```json
 {
+  "schema_version": 1,
+  "provenance": {
+    "plan_digest": "...",
+    "analysis_identity": "image-magick:...",
+    "files": {}
+  },
   "metadata": {
     "D:\\images\\sample.png": {
       "image.name": "sample.png",
@@ -50,10 +68,12 @@ Mean results must be finite numbers between zero and one. Capture arguments
 must match the recorded unresolved event exactly and are never executed by the
 planner. Metadata events identify supplied records with `supplied: true`.
 
-Facts are assertions by the caller. They are not verified against file content,
-mtime or ImageMagick version, and should be refreshed whenever inputs change.
-Automatic observation collection, fingerprint validation, and fully deferred
-downstream plans remain pending.
+Facts are bound to the serialized workflow, the loaded node and format
+definition versions, the ImageMagick binary contents, and every analyzed input
+file. File fingerprints contain size, nanosecond modification time and a
+deterministic content digest. Planning rejects missing provenance, changed
+inputs, changed workflow/definitions and a different ImageMagick binary with a
+specific stale-facts diagnostic.
 
 ## Regression coverage
 
@@ -66,8 +86,9 @@ type deviation in memory; it never changes the original golden files.
 Channel/set plans fuse operations differently from the legacy temporary-file
 pipeline. Exact structural tests cover channel split/negate/constant fill/merge
 and multi-group set processing, including operation order and output naming.
-Deferred work after unresolved analysis and fact provenance are still required
-before the Phase 5 gate can close.
+Unresolved-analysis coverage verifies that independent image and report outputs
+remain represented together and that iterative observation replay resolves to
+the same concrete plan.
 
 Legacy rename compatibility: batch execution applies the first rename in global
 topological order once, even when it is disabled or disconnected from the image
@@ -78,7 +99,9 @@ For image branches originating at different input nodes, legacy batch behavior
 selects one traced input per output and uses its current image for other unseeded
 input streams. The Rust executor preserves this behavior; it does not zip input
 directories. A solid source branch also uses the selected batch image dimensions.
-Solid-only graphs without a traceable input still require input-selection work.
+When a Solid Image reaches an output without an image connection, the planner
+uses the sole workflow Input as its batch and dimension source. It rejects the
+case explicitly when there is no Input or more than one possible Input.
 
 Image execution isolates per-image failures and reports `failed` and `errors` in
 its batch result. The CLI prints diagnostics and the failed count but preserves

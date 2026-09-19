@@ -117,4 +117,24 @@ mod tests {
         w[21..25].copy_from_slice(&(63u32 | (31 << 14)).to_le_bytes());
         assert_eq!(parse(&w, "webp"), Some((64, 32)));
     }
+
+    #[test]
+    fn jpeg_bmp_and_tga_dimensions() {
+        let jpeg = [
+            0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 0, 75, 0, 128, 3, 1, 0x11, 0, 2, 0x11, 0, 3, 0x11, 0,
+        ];
+        assert_eq!(parse(&jpeg, "jpg"), Some((128, 75)));
+
+        let mut bmp = vec![0; 26];
+        bmp[..2].copy_from_slice(b"BM");
+        bmp[18..22].copy_from_slice(&128i32.to_le_bytes());
+        bmp[22..26].copy_from_slice(&(-75i32).to_le_bytes());
+        assert_eq!(parse(&bmp, "bmp"), Some((128, 75)));
+
+        let mut tga = vec![0; 18];
+        tga[2] = 2;
+        tga[12..14].copy_from_slice(&128u16.to_le_bytes());
+        tga[14..16].copy_from_slice(&75u16.to_le_bytes());
+        assert_eq!(parse(&tga, "tga"), Some((128, 75)));
+    }
 }
