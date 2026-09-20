@@ -101,6 +101,12 @@ fn child_working_set(_child: &std::process::Child) -> u64 {
     0
 }
 
+/// How many threads one of `workers` concurrent ImageMagick pipelines should take.
+pub fn thread_share(workers: usize) -> usize {
+    let cores = thread::available_parallelism().map_or(1, |count| count.get());
+    (cores / workers.max(1)).max(1)
+}
+
 impl Magick {
     pub fn discover(cancelled: Arc<AtomicBool>) -> Self {
         let mut candidates = Vec::new();
@@ -419,13 +425,20 @@ impl ImageHost for Magick {
         ));
         let process_count = Arc::new(AtomicUsize::new(0));
         let binary = self.binary.clone();
-        let environment = self.environment.clone();
+        let workers = jobs.min(count).max(1);
+        let mut environment = self.environment.clone();
+        // Each pipeline gets an equal share of the hardware threads. Pinning every one of
+        // them to a single thread leaves most of a machine idle when there are only a few
+        // images to process, and letting each take the whole machine would have them
+        // fighting over it. The total stays at about one thread per core either way.
+        environment.insert("MAGICK_THREAD_LIMIT".into(), thread_share(workers).to_string());
+        let environment = environment;
         let cancelled = self.cancelled.clone();
         let timeout = self.timeout;
         let current_child_memory = self.current_child_memory.clone();
         let peak_child_memory = self.peak_child_memory.clone();
         thread::scope(|scope| {
-            for _ in 0..jobs.min(count) {
+            for _ in 0..workers {
                 let queue = queue.clone();
                 let results = results.clone();
                 let process_count = process_count.clone();

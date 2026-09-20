@@ -73,6 +73,14 @@ cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity-2x test-w
 
 The third argument is the display scale, so the same scenes can be checked at high density.
 
+## Concurrency
+
+A batch runs one ImageMagick pipeline per core and gives each an equal share of the hardware
+threads, so the total stays near one thread per core whether there are two images or two
+hundred. Thumbnail generation is pinned to one thread per process instead, because its
+concurrency is already at the batch level. Header reading and thumbnail decoding run across
+the same job threads.
+
 ## Timing an import
 
 ```

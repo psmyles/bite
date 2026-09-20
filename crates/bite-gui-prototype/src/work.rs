@@ -199,6 +199,53 @@ impl JobHandle {
 }
 
 /// Decodes a portable network graphics image into straight eight-bit pixels.
+/// Decodes a set of cached thumbnails at once, across `jobs` threads, keeping the order.
+///
+/// Reading and decoding is all this does, so it scales with the cores. An entry that is
+/// neither a portable network graphic nor a WebP comes back as an error for the caller to
+/// put through ImageMagick, which the cache's own files never need.
+pub fn decode_many(paths: &[PathBuf], jobs: usize) -> Vec<Result<DecodedImage, String>> {
+    let one = |path: &PathBuf| -> Result<DecodedImage, String> {
+        let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
+        if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
+            return decode_png(&bytes);
+        }
+        if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
+            return decode_webp(&bytes);
+        }
+        Err("not a thumbnail this can decode".into())
+    };
+    let workers = jobs.max(1).min(paths.len());
+    if workers <= 1 {
+        return paths.iter().map(one).collect();
+    }
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let results: Vec<std::sync::Mutex<Option<Result<DecodedImage, String>>>> =
+        paths.iter().map(|_| std::sync::Mutex::new(None)).collect();
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            let next = &next;
+            let results = &results;
+            let one = &one;
+            scope.spawn(move || {
+                loop {
+                    let index = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(path) = paths.get(index) else { break };
+                    *results[index].lock().unwrap() = Some(one(path));
+                }
+            });
+        }
+    });
+    results
+        .into_iter()
+        .map(|slot| {
+            slot.into_inner()
+                .unwrap()
+                .unwrap_or_else(|| Err("not decoded".into()))
+        })
+        .collect()
+}
+
 /// Decodes a WebP thumbnail without leaving the process.
 ///
 /// The thumbnail cache stores WebP, which is a tenth the size of the same picture as a

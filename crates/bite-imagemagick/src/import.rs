@@ -122,6 +122,40 @@ struct CachedInfo {
     format: String,
 }
 
+/// Stamps and measures every file at once, across `jobs` threads, keeping the order.
+///
+/// Each entry is the file's stamp and what its header gave, or the error that stopped it.
+type Probe = Result<(Stamp, Option<(u32, u32, &'static str)>), String>;
+
+fn probe_all(paths: &[PathBuf], jobs: usize) -> Vec<Probe> {
+    let one = |path: &PathBuf| -> Probe {
+        Ok((ThumbnailCache::stamp(path)?, super::header::probe(path)))
+    };
+    let workers = jobs.max(1).min(paths.len());
+    if workers <= 1 {
+        return paths.iter().map(one).collect();
+    }
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let results: Vec<Mutex<Option<Probe>>> = paths.iter().map(|_| Mutex::new(None)).collect();
+    thread::scope(|scope| {
+        for _ in 0..workers {
+            let next = &next;
+            let results = &results;
+            scope.spawn(move || {
+                loop {
+                    let index = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(path) = paths.get(index) else { break };
+                    *results[index].lock().unwrap() = Some(one(path));
+                }
+            });
+        }
+    });
+    results
+        .into_iter()
+        .map(|slot| slot.into_inner().unwrap().unwrap_or(Err("not probed".into())))
+        .collect()
+}
+
 pub struct ThumbnailCache {
     pub directory: PathBuf,
     pub ttl: Duration,
@@ -178,14 +212,17 @@ impl ThumbnailCache {
         fs::create_dir_all(&self.directory).map_err(|error| error.to_string())?;
         let mut items = Vec::with_capacity(paths.len());
         let mut misses = Vec::new();
-        for path in paths {
+        // Reading a header means reading the front of the file, so the whole set is read
+        // at once rather than one after another. The Electron import does the same with a
+        // `Promise.all`, and a folder is mostly waiting on the disk.
+        let probes = probe_all(paths, self.jobs);
+        for (path, probe) in paths.iter().zip(probes) {
             if host.cancelled.load(Ordering::Relaxed) {
                 return Err("Cancelled".into());
             }
-            let stamp = Self::stamp(path)?;
+            let (stamp, header) = probe?;
             // The signature names the format, so a `.jpg` reads as `JPEG` here just as it
             // does when ImageMagick is the one that measured it.
-            let header = super::header::probe(path);
             let format = header.map_or_else(
                 || {
                     path.extension()

@@ -911,3 +911,37 @@ rather than `JPG`, matching both `identify` and Electron's own header path.
 
 `cargo run -p bite-gui-prototype --example import_bench -- <folder>` times a cold and a warm
 import of a folder, which is how the figures above were taken.
+
+### What the Electron pipeline optimizes, and where the native one stands (2026-09-20)
+
+A pass over `src/main/pipeline` to make sure nothing the Electron build learned was lost in
+the port. Taken:
+
+- **A share of the machine per pipeline.** A batch ran at most eight images at once, each
+  pinned to one ImageMagick thread, which left most of a sixteen core machine idle.
+  `batch-pipeline.ts` runs as many pipelines as there are images and divides the hardware
+  threads between them, so the total stays near one thread per core whether it is running
+  two images or two hundred. `emit_many` now does the same, and the default job count is one
+  per core rather than half of them capped at eight.
+- **The whole set of files read at once.** The import read each file's header one after
+  another; `thumbnail-service.ts` reads them all together. Both the header probe and the
+  thumbnail decoding now run across the job threads. A warm folder of twenty six went from
+  0.11 seconds to 0.02 in a development build.
+
+Considered and not taken, with the reason:
+
+- **The node level preview cache.** `preview-pipeline.ts` writes a PNG between every pair of
+  nodes and caches each one against a hash of its input and parameters, so editing the last
+  node of a chain re-runs only that node. It needs that because it spawns one ImageMagick
+  process per node. The native executor composes the whole chain into a single command and
+  runs it once, with no files in between, so there is nothing between nodes to cache and one
+  process to pay for rather than six. The cache that does apply here, of the finished
+  preview against the file and the graph, is the one the preview worker keeps.
+- **The eighty millisecond preview debounce.** The editor coalesces requests to one per
+  frame and the worker drops all but the newest, so a parameter drag costs one render in
+  flight and one queued, however fast it is dragged. The debounce exists to avoid rendering
+  during a drag at all; the native editor renders through it, which is what makes the
+  preview follow a slider.
+
+Still open: the Debug menu's Performance Timers toggle sets a flag that nothing reads.
+Electron's `TimingCollector` is what the figures above would be measured with.

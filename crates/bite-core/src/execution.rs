@@ -121,9 +121,10 @@ impl Default for RunOptions {
             overwrite: false,
             cancelled: Arc::new(AtomicBool::new(false)),
             analysis_identity: String::new(),
-            jobs: std::thread::available_parallelism()
-                .map(|count| (count.get() / 2).clamp(1, 8))
-                .unwrap_or(1),
+            // One pipeline per core, and the host gives each an equal share of the
+            // threads. Half the cores with a single thread each, which is what this was,
+            // left three quarters of a machine idle on a batch.
+            jobs: std::thread::available_parallelism().map_or(1, |count| count.get()),
         }
     }
 }

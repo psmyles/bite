@@ -168,6 +168,10 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
   edited from the inspector.
 - Dragging a node into a group does not re-parent it, which matches Electron.
 - Text Output port reordering is display only; the rows cannot yet be dragged.
+- Debug > Performance Timers toggles a flag that nothing reads yet. Electron's
+  `TimingCollector` records per image header, identify and thumbnail times on an import and
+  per image times on a batch, and writes a summary to the log. The flag and its menu label
+  behave as Electron's do; the measurements behind them are not collected.
 - macOS uses the same in-window menu bar as Windows rather than the system menu.
 
 ## Verification
@@ -181,4 +185,4 @@ cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity
 ```
 
 Each run writes one image per scene: the seed document, a selected node, the creation menu,
-a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.
+a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, a previewing badge, and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.

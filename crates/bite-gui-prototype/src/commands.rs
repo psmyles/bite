@@ -519,13 +519,21 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
     std::thread::spawn(move || {
         let mut magick = Magick::discover(cancelled);
         let mut cache = ThumbnailCache::new(work::cache_directory());
+        let jobs = bite_imagemagick::import::default_jobs();
         let mut thumbnails = Vec::new();
         // Batching keeps the number of spawned processes low.
         for (index, chunk) in paths.chunks(16).enumerate() {
             match cache.load_batch(&mut magick, chunk, size) {
                 Ok(infos) => {
-                    for info in infos {
-                        if let Ok(image) = decode_thumbnail(&mut magick, &info.thumbnail) {
+                    let files: Vec<PathBuf> =
+                        infos.iter().map(|info| info.thumbnail.clone()).collect();
+                    let decoded = work::decode_many(&files, jobs);
+                    for (info, image) in infos.into_iter().zip(decoded) {
+                        // The cache writes WebP, which decodes in process. Anything else
+                        // it ever holds goes the long way round.
+                        let image = image
+                            .or_else(|_| decode_thumbnail(&mut magick, &info.thumbnail));
+                        if let Ok(image) = image {
                             thumbnails.push(work::Thumbnail {
                                 path: info.path.clone(),
                                 image,
