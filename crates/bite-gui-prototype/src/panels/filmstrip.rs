@@ -12,6 +12,10 @@ pub struct Thumbnail {
     pub name: String,
     /// The uploaded texture, or none while the thumbnail is still being generated.
     pub texture: Option<u64>,
+    /// The thumbnail's own measurements, so it can stand in for the preview.
+    pub size: [u32; 2],
+    /// The file it was made from, which the preview overlay describes.
+    pub source: crate::work::SourceImage,
 }
 
 /// The chrome the panel reserves around a thumbnail: the status bar plus the padding.

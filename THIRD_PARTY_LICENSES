@@ -99,6 +99,7 @@ arboard                                                 - MIT or Apache-2.0
 ureq, rustls, webpki-roots                              - MIT or Apache-2.0
 serde, serde_json                                       - MIT or Apache-2.0
 png                                                     - MIT or Apache-2.0
+image-webp                                              - MIT or Apache-2.0
 pollster                                                - MIT or Apache-2.0
 
 

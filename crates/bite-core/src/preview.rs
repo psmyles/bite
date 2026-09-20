@@ -131,7 +131,42 @@ pub fn render(
     image: &Path,
     source: Option<(&str, &str)>,
 ) -> Result<PreviewResult, String> {
-    let metadata = host.metadata(image, true)?;
+    render_from(graph, registry, host, image, image, source)
+}
+
+/// The same, run over `pixels` while every parameter resolves against `measured`.
+///
+/// A preview renders a thumbnail for speed, but a parameter written as a share of the
+/// image's width must still mean a share of the real one, so the two files are given
+/// separately. Passing the same path for both measures what it renders.
+pub fn render_from(
+    graph: &Graph,
+    registry: &Registry,
+    host: &mut dyn ImageHost,
+    pixels: &Path,
+    measured: &Path,
+    source: Option<(&str, &str)>,
+) -> Result<PreviewResult, String> {
+    let image = pixels;
+    // Only a node that asks about the bit depth, the resolution or the EXIF block needs the
+    // file opened; everything else comes from its header. The preview asked for all of it
+    // on every image, which is two more processes for each switch of the filmstrip.
+    let heavy = crate::execution::wants_heavy_metadata(
+        graph
+            .nodes
+            .iter()
+            .filter_map(|node| registry.nodes.get(&node.data.definition_id)),
+    );
+    let mut metadata = host.metadata(measured, heavy)?;
+    // A format the header parser does not read leaves the measurements at nothing, and a
+    // node that asks for them would resolve against zero, so those are worth the processes.
+    let unmeasured = matches!(
+        metadata.get("image.width"),
+        None | Some(bite_expr::Value::Int(0)) | Some(bite_expr::Value::Float(0.0))
+    );
+    if !heavy && unmeasured {
+        metadata = host.metadata(measured, true)?;
+    }
     let mut resolved = ResolvedParams::new();
     let mut values = BTreeMap::new();
     for id in crate::graph::topo_sort(graph)? {

@@ -255,6 +255,17 @@ fn natural_name_cmp(a: &Path, b: &Path) -> std::cmp::Ordering {
     }
     a.len().cmp(&b.len())
 }
+/// Whether any of these definitions asks for something only a full inspection of the file
+/// can answer. Everything else the metadata context carries comes from the header or the
+/// directory entry, so it costs nothing, and asking for the rest means two more processes.
+pub fn wants_heavy_metadata<'a>(
+    definitions: impl Iterator<Item = &'a definition::CompiledDefinition>,
+) -> bool {
+    definitions.flat_map(|d| &d.metadata).any(|key| {
+        key == "image.bit_depth" || key.starts_with("image.dpi_") || key.starts_with("image.exif.")
+    })
+}
+
 pub fn rename(original: &str, blocks: &[RenameBlock], index: usize) -> String {
     if blocks.is_empty() {
         return original.into();
@@ -471,16 +482,12 @@ pub fn run_workflow(
         let output_started = Instant::now();
         let first_output = result.outputs.len();
         let contributors: BTreeSet<_> = output_plan.contributors.iter().cloned().collect();
-        let heavy = output_plan
-            .operations
-            .iter()
-            .filter_map(|o| registry.nodes.get(&o.definition))
-            .flat_map(|d| &d.metadata)
-            .any(|m| {
-                m == "image.bit_depth"
-                    || m.starts_with("image.dpi_")
-                    || m.starts_with("image.exif.")
-            });
+        let heavy = wants_heavy_metadata(
+            output_plan
+                .operations
+                .iter()
+                .filter_map(|o| registry.nodes.get(&o.definition)),
+        );
         let set_node = g
             .nodes
             .iter()

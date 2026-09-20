@@ -183,12 +183,18 @@ impl ThumbnailCache {
                 return Err("Cancelled".into());
             }
             let stamp = Self::stamp(path)?;
-            let header = super::header::dimensions(path);
-            let format = path
-                .extension()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_ascii_uppercase();
+            // The signature names the format, so a `.jpg` reads as `JPEG` here just as it
+            // does when ImageMagick is the one that measured it.
+            let header = super::header::probe(path);
+            let format = header.map_or_else(
+                || {
+                    path.extension()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_ascii_uppercase()
+                },
+                |(_, _, name)| name.to_owned(),
+            );
             let cached = self
                 .metadata
                 .get(path)
@@ -201,7 +207,7 @@ impl ThumbnailCache {
                     self.stats.invalidations += 1;
                 }
                 self.stats.memory_misses += 1;
-                let (width, height) = header.unwrap_or_default();
+                let (width, height) = header.map_or((0, 0), |(w, h, _)| (w, h));
                 (width, height, format)
             };
             let thumbnail = self.thumbnail_path(path, size);
@@ -231,8 +237,11 @@ impl ThumbnailCache {
         }
 
         let mut commands = Vec::new();
+        // Which items each command measures, in the order the command prints them.
+        let mut measured: Vec<Vec<usize>> = Vec::new();
         for chunk in misses.chunks(self.batch_size.max(1)) {
             let mut args = Vec::new();
+            let mut printed = Vec::new();
             for (position, index) in chunk.iter().enumerate() {
                 let item = &items[*index];
                 if matches!(
@@ -245,6 +254,13 @@ impl ThumbnailCache {
                     ]);
                 }
                 args.push(format!("{}[0]", item.path.to_string_lossy()));
+                // A format the header parser does not read is measured here rather than in
+                // a second process of its own, while the picture is already open.
+                if item.width == 0 || item.height == 0 {
+                    args.extend(["-print".into(), "%w %h %m
+".into()]);
+                    printed.push(*index);
+                }
                 args.extend([
                     "-thumbnail".into(),
                     format!("{size}x{size}>"),
@@ -262,9 +278,17 @@ impl ThumbnailCache {
                 }
             }
             commands.push(args);
+            measured.push(printed);
         }
-        for result in host.output_many(commands, self.jobs) {
-            result?;
+        for (command, printed) in host.output_many(commands, self.jobs).into_iter().zip(measured) {
+            let output = command?;
+            for (line, index) in output.lines().zip(printed) {
+                let mut values = line.split_whitespace();
+                let item = &mut items[index];
+                item.width = values.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+                item.height = values.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+                item.format = values.next().unwrap_or("UNKNOWN").to_owned();
+            }
         }
 
         for item in &mut items {

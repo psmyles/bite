@@ -831,6 +831,7 @@ impl Canvas {
             draw_badge(
                 ui,
                 [min[0] + width / 2.0, min[1] - 22.0 * zoom],
+                zoom,
                 "PREVIEWING",
                 theme::BADGE_PREVIEW_COLOR,
                 None,
@@ -840,6 +841,7 @@ impl Canvas {
             draw_badge(
                 ui,
                 [min[0] + width / 2.0, min[1] - 22.0 * zoom],
+                zoom,
                 "PROCESSING",
                 theme::BADGE_PROCESSING_COLOR,
                 context.running_file.as_deref(),
@@ -1483,10 +1485,20 @@ fn resize_minimum(placed: &[Placed], id: &str) -> (f32, f32) {
     }
 }
 
-fn draw_badge(ui: &Ui, centre: Vec2, text: &str, color: Color, subtitle: Option<&str>) {
-    let list = ui.draw_list();
-    let size = controls::measure_tracked(ui, theme::face::BADGE, text, 0.08 * 11.0);
-    let padding = [7.0, 2.0];
+/// `letter-spacing: 0.08em` on the badge, in pixels at the badge's own size.
+const BADGE_TRACKING: f32 = 0.08 * theme::FONT_SIZE_XS as f32;
+
+fn draw_badge(
+    ui: &Ui,
+    centre: Vec2,
+    zoom: f32,
+    text: &str,
+    color: Color,
+    subtitle: Option<&str>,
+) {
+    let list = ui.draw_list().scaled(zoom);
+    let size = controls::measure_tracked_scaled(ui, theme::face::BADGE, zoom, text, BADGE_TRACKING);
+    let padding = [7.0 * zoom, 2.0 * zoom];
     let min = [
         centre[0] - size[0] / 2.0 - padding[0],
         centre[1] - size[1] / 2.0 - padding[1],
@@ -1495,24 +1507,26 @@ fn draw_badge(ui: &Ui, centre: Vec2, text: &str, color: Color, subtitle: Option<
         centre[0] + size[0] / 2.0 + padding[0],
         centre[1] + size[1] / 2.0 + padding[1],
     ];
-    list.rect(min, max, theme::BG.with_alpha(0.85), 3.0, Rounding::All);
-    list.rect_outline(min, max, color, 3.0, Rounding::All, 1.0);
-    controls::draw_tracked_text(
+    list.rect(min, max, theme::BG.with_alpha(0.85), 3.0 * zoom, Rounding::All);
+    list.rect_outline(min, max, color, 3.0 * zoom, Rounding::All, 1.0 * zoom);
+    controls::draw_tracked_text_scaled(
         ui,
         [min[0] + padding[0], min[1] + padding[1]],
         color,
         theme::face::BADGE,
+        zoom,
         text,
-        0.08 * 11.0,
+        BADGE_TRACKING,
     );
     if let Some(subtitle) = subtitle {
-        controls::draw_ellipsized(
+        controls::draw_ellipsized_scaled(
             ui,
-            [centre[0] - 90.0, min[1] - 13.0],
+            [centre[0] - 90.0 * zoom, min[1] - 13.0 * zoom],
             theme::TEXT.with_alpha(0.75),
             theme::face::TINY_MONO,
+            zoom,
             subtitle,
-            180.0,
+            180.0 * zoom,
         );
     }
 }

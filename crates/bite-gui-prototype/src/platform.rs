@@ -375,6 +375,9 @@ fn upload_font_atlas(state: &mut State) {
 /// Uploads whatever decoded images arrived since the last frame.
 fn upload_pending(state: &mut State) {
     let pending = std::mem::take(&mut state.editor.pending_uploads);
+    let had_thumbnails = pending
+        .iter()
+        .any(|(key, _)| key.starts_with("thumbnail:"));
     for (key, image) in pending {
         if image.width == 0 || image.height == 0 {
             continue;
@@ -422,21 +425,31 @@ fn upload_pending(state: &mut State) {
                     .unwrap_or("")
                     .to_string();
                 if let Some(branch) = state.editor.branches.get_mut(node) {
+                    let source = branch.preview_source;
                     branch.preview = Some(crate::panels::preview::PreviewImage {
                         texture: Some(id),
-                        width: image.width,
-                        height: image.height,
+                        width: source.width.max(1),
+                        height: source.height.max(1),
                         name,
                         format,
-                        bytes: image.bytes,
+                        bytes: source.bytes,
+                        pixels: [image.width, image.height],
                     });
                 }
             }
         }
     }
+    if had_thumbnails {
+        // The strip now has a texture to stand in with until the first render lands.
+        state.editor.seed_preview_from_thumbnail();
+    }
 }
 
-/// Starts a preview render for the selected image on a background thread.
+/// Hands the selected image to the preview worker.
+///
+/// With nothing to process the panel shows the thumbnail the filmstrip already holds, which
+/// is the image Electron's pipeline returns when the graph has no nodes. That costs nothing
+/// and switches with the pointer; anything with a chain in it goes to the worker.
 fn refresh_preview(state: &mut State) {
     let editor = &mut state.editor;
     let Some(node) = editor.active_input.clone() else {
@@ -449,60 +462,28 @@ fn refresh_preview(state: &mut State) {
     let Some(path) = branch.paths.get(index).cloned() else {
         return;
     };
-    let graph = editor.studio.workflow.graph.clone();
-    let registry = editor.studio.registry.clone();
-    let handle = editor.jobs.handle();
-    let target = editor.effective_preview_node();
-
-    std::thread::spawn(move || {
-        let mut magick = bite_imagemagick::Magick::discover(Arc::new(
-            std::sync::atomic::AtomicBool::new(false),
-        ));
-        let source = target.as_deref().map(|id| (id, "out:output"));
-        match bite_core::preview::render(&graph, &registry, &mut magick, &path, source) {
-            Ok(result) => match work::decode_png(&result.png) {
-                Ok(image) => handle.send(work::Message::PreviewFinished {
-                    node,
-                    index,
-                    image,
-                    resolved: result
-                        .resolved_values
-                        .into_iter()
-                        .map(|(id, context)| {
-                            (
-                                id,
-                                context
-                                    .into_iter()
-                                    .map(|(name, value)| (name, param_from_value(value)))
-                                    .collect(),
-                            )
-                        })
-                        .collect(),
-                }),
-                Err(error) => handle.send(work::Message::PreviewFailed(error)),
-            },
-            Err(error) => handle.send(work::Message::PreviewFailed(error)),
-        }
+    let Some(target) = editor.effective_preview_node() else {
+        editor.show_thumbnail_as_preview();
+        return;
+    };
+    editor.jobs.submit_preview(work::PreviewJob {
+        graph: editor.studio.workflow.graph.clone(),
+        registry: Arc::new(editor.studio.registry.clone()),
+        path,
+        node: node.clone(),
+        index,
+        thumbnail_size: commands::thumbnail_size(editor, &node),
+        target,
     });
-}
-
-/// Converts a computed expression value back into a stored parameter.
-fn param_from_value(value: bite_expr::Value) -> bite_schema::ParamValue {
-    use bite_schema::ParamValue;
-    match value {
-        bite_expr::Value::Null => ParamValue::Null,
-        bite_expr::Value::Bool(value) => ParamValue::Bool(value),
-        bite_expr::Value::Int(value) => ParamValue::Int(value),
-        bite_expr::Value::Float(value) => ParamValue::Number(value),
-        bite_expr::Value::String(value) => ParamValue::String(value),
-        bite_expr::Value::Vector(values) => ParamValue::Vector(values),
-    }
 }
 
 /// Keeps the elapsed time on the progress dialogs moving.
 fn update_progress(state: &mut State) {
     if let Some(run) = &state.editor.run {
         state.editor.progress.elapsed_seconds = run.started.elapsed().as_secs_f32();
+    }
+    if let Some(started) = state.editor.import_started {
+        state.editor.progress.elapsed_seconds = started.elapsed().as_secs_f32();
     }
 }
 

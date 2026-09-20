@@ -404,7 +404,22 @@ pub fn draw_tracked_text(
     text: &str,
     tracking: f32,
 ) {
-    let list = ui.draw_list();
+    draw_tracked_text_scaled(ui, position, color, face, 1.0, text, tracking)
+}
+
+/// The same, with every face size multiplied by `scale`, for canvas content that zooms.
+pub fn draw_tracked_text_scaled(
+    ui: &Ui,
+    position: Vec2,
+    color: Color,
+    face: Face,
+    scale: f32,
+    text: &str,
+    tracking: f32,
+) {
+    let list = ui.draw_list().scaled(scale);
+    // The spacing is part of the type, so it zooms with it.
+    let tracking = tracking * scale;
     if tracking.abs() < 0.01 {
         list.text_with_face(position, color, face, text);
         return;
@@ -429,9 +444,14 @@ pub fn measure_scaled(ui: &Ui, face: Face, scale: f32, text: &str) -> Vec2 {
 }
 
 pub fn measure_tracked(ui: &Ui, face: Face, text: &str, tracking: f32) -> Vec2 {
-    let base = measure(ui, face, text);
+    measure_tracked_scaled(ui, face, 1.0, text, tracking)
+}
+
+/// The same, with the face size and the spacing both multiplied by `scale`.
+pub fn measure_tracked_scaled(ui: &Ui, face: Face, scale: f32, text: &str, tracking: f32) -> Vec2 {
+    let base = measure_scaled(ui, face, scale, text);
     let count = text.chars().count() as f32;
-    [base[0] + tracking * count.max(1.0), base[1]]
+    [base[0] + tracking * scale * count.max(1.0), base[1]]
 }
 
 /// Draws text truncated with an ellipsis so that it fits `width`.

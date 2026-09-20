@@ -36,7 +36,10 @@ the specification, and the parity inventory lives in `docs/native-editor-parity.
 Atkinson Hyperlegible Next and JetBrains Mono are embedded in the executable at every size
 and weight the stylesheet uses. Each face is rasterized so that its em equals the size the
 token names, because that is what a stylesheet's `font-size` means, while Dear ImGui's own
-size parameter is the distance from ascender to descender. A platform font is merged into the text-entry sizes so that
+size parameter is the distance from ascender to descender. Dear ImGui truncates that
+parameter, so the atlas is built at the nearest whole pixel and drawn at the exact one, and
+horizontal snapping is off: a string then measures the width the stylesheet gives it rather
+than a few per cent more. A platform font is merged into the text-entry sizes so that
 text typed through an input method renders. The atlas is rasterized at the display scale and
 rebuilt when the scale changes.
 
@@ -45,7 +48,9 @@ rebuilt when the scale changes.
 The loop waits when nothing is happening, with a short redraw burst after input so layout and
 hover states settle. Imports, previews, text previews, workflow runs and the update check run
 on background threads and wake the loop when they have something to report, so progress
-appears without the pointer moving.
+appears without the pointer moving. Previews go to one long lived worker that keeps its
+ImageMagick session, its thumbnail cache and its recent results, and renders only the newest
+request; with no chain to run, the thumbnail the filmstrip holds is shown directly.
 
 ## Running
 
@@ -58,7 +63,7 @@ cargo run -p bite-gui-prototype -- workflow.bite
 
 The capture mode renders fixed scenes without opening a window, for side-by-side comparison
 with Electron. It writes one image per scene: the seed document, a selected node, the creation
-menu, a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, and every dialog.
+menu, a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, a previewing badge, and every dialog.
 
 ```
 cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity
@@ -67,6 +72,15 @@ cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity-2x test-w
 ```
 
 The third argument is the display scale, so the same scenes can be checked at high density.
+
+## Timing an import
+
+```
+cargo run -p bite-gui-prototype --example import_bench -- <folder of images>
+```
+
+It reports a cold pass, which makes the thumbnails, and a warm one, which should cost only
+the reads and the decoding.
 
 ## Environment
 

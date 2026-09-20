@@ -9,11 +9,15 @@ use bite_imgui::{MouseCursor, Rounding, Ui, Vec2, WindowFlags};
 #[derive(Clone, Debug, Default)]
 pub struct PreviewImage {
     pub texture: Option<u64>,
+    /// The measurements of the file on disk, which the overlay reports.
     pub width: u32,
     pub height: u32,
     pub name: String,
     pub format: String,
     pub bytes: u64,
+    /// The size of the rendered image itself, which the letterbox is laid out from. The
+    /// chain runs over a thumbnail, and a crop in it can change the shape.
+    pub pixels: [u32; 2],
 }
 
 /// Fits `content` inside `available` without cropping, as `object-fit: contain` does.
@@ -142,7 +146,10 @@ pub fn draw(ui: &mut Ui, rect: Rect, image: Option<&PreviewImage>, show_info: bo
         };
 
         if let Some(texture) = image.texture {
-            let fitted = contain([image.width as f32, image.height as f32], area);
+            let fitted = contain(
+                [image.pixels[0] as f32, image.pixels[1] as f32],
+                area,
+            );
             let min = [
                 area_min[0] + (area[0] - fitted[0]) / 2.0,
                 area_min[1] + (area[1] - fitted[1]) / 2.0,
@@ -225,7 +232,9 @@ mod tests {
             name: "shot.png".into(),
             format: "png".into(),
             bytes: 2048,
+            pixels: [256, 144],
         };
+        // The overlay describes the file, not the thumbnail the preview was rendered from.
         assert_eq!(meta_line(&image), "PNG · 1920 x 1080 · 2.0 KB");
     }
 }

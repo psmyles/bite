@@ -834,3 +834,80 @@ the Compare node's operator list by driving the pointer, beside the `menu` scene
 
 Two capture scenes were added: `wire-menu`, which drops a wire from the seed Input's image
 port, and `tooltip`, which rests the pointer on a library entry past the delay.
+
+### Import timing, text metrics and the preview pipeline (2026-09-20)
+
+- **The import dialog always reported `0.0 sec`.** Only a workflow run advanced the elapsed
+  clock; an import never started one. The editor now stamps the moment an import begins and
+  freezes the figure when it ends, and the completion line pluralizes the count and formats
+  the duration as `ImportProgressModal.svelte` does, minutes included.
+- **Text measured a few per cent wide.** Two causes, both in the atlas. `PixelSnapH` rounded
+  every advance to a whole pixel, and the size a face was drawn at was the rounded pixel
+  height rather than the exact one, which put an eleven pixel em out by almost five per cent.
+  The atlas is still built at a whole pixel, because Dear ImGui truncates the size it is
+  given, but each face now carries a `Scale` that brings it back to the exact height, and
+  snapping is off. `PREVIEWING` measured 71 pixels where the stylesheet gives it 65.6; it
+  measures 65.6 now. The badge was also drawn at a fixed size while the cards around it
+  zoomed, so its chrome, its type and its letter spacing all follow the zoom.
+- **The preview only worked with a connected graph.** Electron picks a preview target on its
+  own when the user has chosen none: the node feeding an output, or the end of the chain,
+  walking back past bypassed nodes. That is implemented, and when a workflow has no
+  processing node at all the Input stands in, so the selected image appears on its own. A
+  double click still sets an explicit choice.
+- **Switching images felt slow.** The native preview rendered the original file through the
+  chain every time. `preview-pipeline.ts` runs it over the cached import thumbnail instead
+  and resolves parameters against the original's metadata, so `preview::render_from` takes
+  the two files separately and the editor passes the thumbnail. The overlay reports the
+  original's measurements, which travel beside the rendered image, and the thumbnail is put
+  in the panel as a stand-in until the first render lands.
+
+A `previewing` capture scene wires a processing node between the seed's Input and Image
+Output, so the badge is in the parity set.
+
+### The preview worker (2026-09-20)
+
+Rendering over the thumbnail was not enough: every switch still felt slow, because each one
+spawned a thread that built a new ImageMagick session and a new thumbnail cache and threw
+both away. The session caches what it has measured, so a fresh one meant paying for the same
+two `identify` processes on every visit to an image.
+
+- **One long lived worker** now does every preview, keeping its session and its thumbnail
+  cache between them. Requests queue, and only the newest is rendered: the ones behind it are
+  for images the filmstrip has already moved off.
+- **A rendered preview is kept**, keyed by the file, the node it renders up to, and the shape
+  and parameters of the graph, so going back to an image costs nothing. Positions are not
+  part of the key, as they are not part of the key `Preview.svelte` re-renders on. The last
+  twenty four are held.
+- **Nothing to process, nothing to run.** With no chain, Electron's pipeline returns the
+  downscaled file itself. The panel now shows the thumbnail the filmstrip already holds, on
+  the interface thread, with no ImageMagick at all: switching is as immediate as the pointer.
+
+### Import and metadata costs (2026-09-20)
+
+Re-importing a folder already in the cache took a second where Electron takes none, and
+every preview opened the source file twice over. Four costs, all of them process spawns:
+
+- **Every cached thumbnail went back through ImageMagick.** The cache stores WebP, which is
+  a tenth the size of the same picture as a portable network graphic, and the browser decodes
+  those for nothing. Here each one was converted to a PNG in a process of its own before it
+  could be decoded: twenty six images, twenty six spawns. `image-webp` decodes them in
+  process instead. A folder of twenty six re-imports in 0.03 seconds where it took 1.1.
+- **Dependencies were unoptimized in a development build.** The same folder took 0.41 seconds
+  with a debug decoder against 0.03 with a release one. `profile.dev.package."*"` now builds
+  third party code with optimizations while our own crates stay as they were, which brings a
+  development build to 0.11.
+- **The preview always asked for the full inspection of the file**, which is two more
+  `identify` processes on every switch of the filmstrip. Definitions already record which
+  metadata keys they reference, and the batch executor already used that to decide; the
+  preview now shares the same predicate, so the file is only opened when a node asks about
+  its bit depth, its resolution or its EXIF block. A format whose header cannot be read
+  still gets the full treatment, so nothing resolves against a measurement of zero.
+- **A format the header parser does not read cost an `identify` of its own.** That
+  measurement now rides along with the thumbnail command, as `thumbnail-service.ts` does,
+  so a folder of TIFFs is one process per batch rather than two per image.
+
+The header parser also names the format from the signature now, so a `.jpg` reads as `JPEG`
+rather than `JPG`, matching both `identify` and Electron's own header path.
+
+`cargo run -p bite-gui-prototype --example import_bench -- <folder>` times a cold and a warm
+import of a folder, which is how the figures above were taken.

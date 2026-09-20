@@ -124,6 +124,19 @@ impl Progress {
     }
 }
 
+/// Formats how long an import took, the way the completion line reports it: tenths of a
+/// second on their own below a minute, and whole minutes beside them above one.
+pub fn format_import_duration(seconds: f32) -> String {
+    if seconds < 60.0 {
+        return format!("{seconds:.1} sec");
+    }
+    let minutes = (seconds / 60.0).floor();
+    let rest = seconds - minutes * 60.0;
+    let minutes = minutes as i64;
+    let word = if minutes == 1 { "minute" } else { "minutes" };
+    format!("{minutes} {word} {rest:.1} sec")
+}
+
 /// Formats an elapsed time the way the progress and summary dialogs show it.
 pub fn format_elapsed(seconds: f32) -> String {
     if seconds < 60.0 {
@@ -1027,8 +1040,10 @@ fn import_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
             );
             ui.dummy([inner, 56.0]);
             let text = format!(
-                "Imported {} image(s) in {:.1} sec",
-                progress.total, progress.elapsed_seconds
+                "Imported {} {} in {}",
+                progress.total,
+                if progress.total == 1 { "image" } else { "images" },
+                format_import_duration(progress.elapsed_seconds)
             );
             let size = controls::measure(ui, theme::face::VALUE, &text);
             ui.draw_list().text_with_face(
@@ -1083,6 +1098,15 @@ mod tests {
             confirm_message(PendingAction::Exit),
             "You have unsaved changes. Exit anyway?"
         );
+    }
+
+    #[test]
+    fn an_import_reports_tenths_below_a_minute_and_minutes_above_one() {
+        assert_eq!(format_import_duration(0.04), "0.0 sec");
+        assert_eq!(format_import_duration(2.36), "2.4 sec");
+        assert_eq!(format_import_duration(59.94), "59.9 sec");
+        assert_eq!(format_import_duration(60.0), "1 minute 0.0 sec");
+        assert_eq!(format_import_duration(135.5), "2 minutes 15.5 sec");
     }
 
     #[test]

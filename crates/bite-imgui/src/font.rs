@@ -257,17 +257,18 @@ impl Fonts {
         let mut heights = Vec::with_capacity(faces.len());
         for face in &faces {
             let data = face.data();
-            // Dear ImGui truncates the size it is given and snaps each advance to a whole
-            // pixel, so the request is rounded to a whole physical pixel first. The logical
-            // size kept beside it is then an exact `1 / scale` of what was rasterized, which
-            // leaves the glyphs unresampled.
-            let physical =
-                (f32::from(face.size) * em_to_pixel_height(data) * scale).round().max(1.0);
-            heights.push(physical / scale);
+            // The height that draws an em of exactly the size the stylesheet names, and the
+            // whole physical pixel the atlas is rasterized at. Dear ImGui truncates the size
+            // it is given, so the atlas can only be built at a whole number; rounding there
+            // and drawing at the exact height instead leaves the em right to the pixel, where
+            // taking the rounded height for both put it out by up to five per cent.
+            let exact = f32::from(face.size) * em_to_pixel_height(data);
+            let physical = (exact * scale).round().max(1.0);
+            heights.push(exact);
             let mut config = unsafe { *sys::ImFontConfig_ImFontConfig() };
             // The atlas must not free memory that Rust owns.
             config.FontDataOwnedByAtlas = false;
-            config.PixelSnapH = true;
+            config.PixelSnapH = false;
             let handle = unsafe {
                 sys::ImFontAtlas_AddFontFromMemoryTTF(
                     atlas,
@@ -282,7 +283,7 @@ impl Fonts {
                 let mut merge = unsafe { *sys::ImFontConfig_ImFontConfig() };
                 merge.FontDataOwnedByAtlas = false;
                 merge.MergeMode = true;
-                merge.PixelSnapH = true;
+                merge.PixelSnapH = false;
                 unsafe {
                     let ranges = sys::ImFontAtlas_GetGlyphRangesChineseSimplifiedCommon(atlas);
                     sys::ImFontAtlas_AddFontFromMemoryTTF(
@@ -298,6 +299,12 @@ impl Fonts {
                         ranges,
                     );
                 }
+            }
+            // Dear ImGui sizes its own widget text from the atlas size, which is the rounded
+            // one. This factor brings that back to the exact height, so a menu row and a
+            // label painted through a draw list are the same size.
+            if !handle.is_null() {
+                unsafe { (*handle).Scale = exact * scale / physical };
             }
             handles.push(handle);
         }

@@ -41,6 +41,9 @@ pub enum Scene {
     WireMenu,
     /// A library entry's description tooltip, which must wrap rather than run off the edge.
     Tooltip,
+    /// A processing node between the Input and the Image Output, which the preview follows
+    /// on its own and marks with the PREVIEWING badge.
+    Previewing,
 }
 
 impl Scene {
@@ -64,6 +67,7 @@ impl Scene {
             "dropdown" => Self::Dropdown,
             "wire-menu" => Self::WireMenu,
             "tooltip" => Self::Tooltip,
+            "previewing" => Self::Previewing,
             _ => return None,
         })
     }
@@ -87,6 +91,7 @@ impl Scene {
             Self::Dropdown => "dropdown",
             Self::WireMenu => "wire-menu",
             Self::Tooltip => "tooltip",
+            Self::Previewing => "previewing",
         }
     }
 
@@ -110,6 +115,7 @@ impl Scene {
             Self::Dropdown,
             Self::WireMenu,
             Self::Tooltip,
+            Self::Previewing,
         ]
     }
 }
@@ -185,6 +191,37 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
             }
         }
         Scene::Tooltip => {}
+        Scene::Previewing => {
+            // The seed's Input and Image Output with a processing node wired between them.
+            let graph = &editor.studio.workflow.graph;
+            let input = graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    node.kind == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::Input)
+                })
+                .map(|node| node.id.clone());
+            let output = graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    node.kind
+                        == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::ImageOutput)
+                })
+                .map(|node| node.id.clone());
+            let middle = editor
+                .studio
+                .add_processing("grayscale", bite_schema::Position { x: 360.0, y: 190.0 })
+                .ok();
+            if let (Some(input), Some(output), Some(middle)) = (input, output, middle) {
+                let _ = editor
+                    .studio
+                    .connect(&input, "out:output", &middle, "in:input");
+                let _ = editor
+                    .studio
+                    .connect(&middle, "out:output", &output, "in:input");
+            }
+        }
         Scene::ConfirmPrompt => {
             editor.modal = crate::modals::Modal::Confirm {
                 message: crate::modals::confirm_message(crate::modals::PendingAction::New),
@@ -477,6 +514,7 @@ mod tests {
         assert!(scenes.contains(&Scene::Seed));
         assert!(scenes.contains(&Scene::CreateMenu));
         assert!(scenes.contains(&Scene::BatchSummary));
-        assert_eq!(scenes.len(), 17);
+        assert!(scenes.contains(&Scene::Previewing));
+        assert_eq!(scenes.len(), 18);
     }
 }

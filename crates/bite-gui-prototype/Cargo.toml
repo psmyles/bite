@@ -19,3 +19,4 @@ png = "0.18"
 rfd = { version = "0.15.4", default-features = false, features = ["xdg-portal", "tokio"] }
 arboard = "3.6.1"
 ureq = "2.12.1"
+image-webp = "0.2"

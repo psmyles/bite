@@ -9,7 +9,7 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Area | Electron source | Native status |
 | --- | --- | --- |
 | Interface library | Browser layout and CSS | Dear ImGui through full generated cimgui bindings; the hand-written C shim and the node editor add-on are removed |
-| Fonts | `assets/fonts.css` | Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and weight `theme.css` asks for, with a platform fallback merged in for text fields so input methods render. Each face is rasterized so its em equals the token's pixel size, which is what `font-size` means; Dear ImGui's own parameter is the ascender-to-descender distance instead |
+| Fonts | `assets/fonts.css` | Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and weight `theme.css` asks for, with a platform fallback merged in for text fields so input methods render. Each face is rasterized so its em equals the token's pixel size, which is what `font-size` means; Dear ImGui's own parameter is the ascender-to-descender distance instead. The atlas is built at the nearest whole pixel and drawn at the exact one, and advances are left unsnapped, so a measured string is the width the stylesheet gives it |
 | Menu dropdowns | `MenuBar.svelte` | Rows padded five pixels above and below with the accelerator on the right, inside a dropdown padded four pixels above its first row and below its last |
 | Inspector dropdowns | `Dropdown.svelte` | The open list gives each row the five by ten padding `.dd-item` names, pads four pixels top and bottom, and scrolls after eight rows |
 | Design tokens | `assets/theme.css` | Transcribed into `crates/bite-gui-prototype/src/theme.rs`; drawing code reads tokens, never literals |
@@ -39,6 +39,7 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Snap to grid | None | Matches: no snapping |
 | Double click a node | Toggles the preview target, excluding endpoints, comments and disabled nodes | Implemented |
 | Selecting a node | Does not change the preview target | Implemented: only a double click sets it |
+| Preview target with nothing chosen | The node feeding an output, or the end of the chain | Implemented, with the Input itself standing in when no processing node is wired, so the selected image always shows |
 | Double click empty canvas | Resets zoom to one, keeping the pan | Implemented |
 | Right click | Creation menu on empty canvas and on a group; nothing on an ordinary node | Implemented |
 | Typed wires | Type-colored, validated before the graph changes | Implemented through `bite_core::graph::validate` |
@@ -97,7 +98,7 @@ hands-on confirmation; items marked missing are not implemented yet.
 | --- | --- |
 | Node Library | Filter, pinned Workflow section hidden while searching, collapsible categories forced open during a search, drag to canvas, hover descriptions, both empty states |
 | Inspector | Header with the node name, the full dispatch table, and the run action in a bordered footer |
-| Preview | Letterboxed on black, Info toggle defaulting to on, gradient overlay with the name and `FORMAT · W x H · size`, both empty states |
+| Preview | Letterboxed on black, Info toggle defaulting to on, gradient overlay with the name and `FORMAT · W x H · size`, both empty states. The chain runs over the cached thumbnail while the overlay measures the original, as `preview-pipeline.ts` does, and the thumbnail stands in until the first render arrives |
 | Filmstrip | Status count shown at every count including none; thumbnail size derived from panel height, horizontal scrolling with a vertical wheel, virtualized with overscan, selection border, status count, clickable empty prompt |
 
 ## Inspector
@@ -133,7 +134,7 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
 | Run Workflow | Ready count, per-node rows with round and square markers, `Run N nodes` |
 | Batch progress | Large counter, six-pixel bar, percentage and elapsed time, cancel, error state |
 | Batch summary | Processed, skipped and failed statistics, total time, error list, open output folder |
-| Import progress | Progress and completed states with the tick badge |
+| Import progress | Progress and completed states with the tick badge, the completed line naming how long the import took. Cached thumbnails decode in process, so re-importing a folder costs no ImageMagick at all |
 | About | Description, version, dependency table |
 | Credits | Library and font sections with licenses and links |
 | Update | Checking, available, up to date and failed states |
@@ -150,7 +151,7 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
 | Update check | Silent at startup unless newer; every state from the menu; cross-platform |
 | Logging | Session banner, 1000-entry buffer, same file format |
 | Cache | Temporary folder, clear action, startup pruning with the same rules |
-| Background work | Import, preview, text preview, run and update check all run off the interface thread and wake the event loop |
+| Background work | Import, preview, text preview, run and update check all run off the interface thread and wake the event loop. Previews go to one long lived worker that keeps its ImageMagick session, its thumbnail cache and its last two dozen results, and renders only the newest request |
 | Drag and drop | A workflow file opens, a folder becomes the scan folder, an image imports |
 | Fullscreen | Implemented |
 

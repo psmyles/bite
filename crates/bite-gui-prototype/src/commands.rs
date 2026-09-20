@@ -508,6 +508,7 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
     let cancelled = editor.jobs.import_cancelled.clone();
     let node_id = node.to_string();
     editor.modal = modals::Modal::ImportProgress;
+    editor.import_started = Some(std::time::Instant::now());
     editor.progress = modals::Progress {
         completed: 0,
         total: paths.len(),
@@ -528,6 +529,11 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
                             thumbnails.push(work::Thumbnail {
                                 path: info.path.clone(),
                                 image,
+                                source: work::SourceImage {
+                                    width: info.width,
+                                    height: info.height,
+                                    bytes: info.size_bytes,
+                                },
                             });
                         }
                     }
@@ -561,6 +567,10 @@ fn decode_thumbnail(magick: &mut Magick, path: &Path) -> Result<work::DecodedIma
     if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
         return work::decode_png(&bytes);
     }
+    // The cache writes WebP, which decodes here rather than through another process.
+    if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
+        return work::decode_webp(&bytes);
+    }
     let converted = path.with_extension("decoded.png");
     bite_core::execution::ImageHost::run(
         magick,
@@ -575,7 +585,7 @@ fn decode_thumbnail(magick: &mut Magick, path: &Path) -> Result<work::DecodedIma
 }
 
 /// The thumbnail size configured on an Input node.
-fn thumbnail_size(editor: &Editor, node: &str) -> u32 {
+pub fn thumbnail_size(editor: &Editor, node: &str) -> u32 {
     editor
         .studio
         .workflow
@@ -799,10 +809,13 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
                         &thumbnail.path.to_string_lossy(),
                     ),
                     texture: None,
+                    size: [thumbnail.image.width, thumbnail.image.height],
+                    source: thumbnail.source,
                 })
                 .collect();
             branch.selected = if branch.paths.is_empty() { None } else { Some(0) };
             editor.progress.completed = editor.progress.total;
+            editor.finish_import_timing();
             editor.pending_uploads = thumbnails
                 .into_iter()
                 .enumerate()
@@ -811,6 +824,7 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
             editor.request_preview();
         }
         work::Message::ImportFailed { error, .. } => {
+            editor.finish_import_timing();
             editor.modal = modals::Modal::Message {
                 title: "Bite".into(),
                 body: format!("Failed to import images:\n{error}"),
@@ -820,8 +834,10 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
             node,
             index,
             image,
+            source,
             resolved,
         } => {
+            editor.branches.entry(node.clone()).or_default().preview_source = source;
             editor.resolved = resolved
                 .into_iter()
                 .map(|(id, params)| (id, params.into_iter().collect()))

@@ -1,16 +1,38 @@
 //! Bounded header reader ported from the legacy fast path.
 use std::{io::Read, path::Path};
 pub fn dimensions(path: &Path) -> Option<(u32, u32)> {
+    probe(path).map(|(width, height, _)| (width, height))
+}
+
+/// Measures and names a file from its opening bytes, reading it once.
+pub fn probe(path: &Path) -> Option<(u32, u32, &'static str)> {
     let mut data = Vec::new();
     std::fs::File::open(path)
         .ok()?
         .take(131072)
         .read_to_end(&mut data)
         .ok()?;
-    parse(
-        &data,
-        path.extension().and_then(|s| s.to_str()).unwrap_or(""),
-    )
+    let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+    let (width, height) = parse(&data, extension)?;
+    Some((width, height, format(&data, extension)?))
+}
+
+/// The name a signature gives a format, spelled as `identify` spells it, so that a file
+/// reads the same whether it was measured here or by ImageMagick. A `.jpg` is `JPEG`.
+pub fn format(b: &[u8], extension: &str) -> Option<&'static str> {
+    if b.starts_with(b"\x89PNG\r\n\x1a\n") {
+        Some("PNG")
+    } else if b.starts_with(b"BM") {
+        Some("BMP")
+    } else if b.starts_with(b"RIFF") && b.get(8..12) == Some(b"WEBP") {
+        Some("WEBP")
+    } else if b.starts_with(b"\xff\xd8") {
+        Some("JPEG")
+    } else if ["tga", "targa"].contains(&extension.to_lowercase().as_str()) {
+        Some("TGA")
+    } else {
+        None
+    }
 }
 pub fn parse(b: &[u8], extension: &str) -> Option<(u32, u32)> {
     let be32 = |i| {
@@ -103,6 +125,16 @@ mod tests {
             assert_eq!(parse(&bytes, "tga"), None);
         }
     }
+    #[test]
+    fn a_signature_names_the_format_the_way_identify_does() {
+        assert_eq!(format(b"\x89PNG\r\n\x1a\n", "png"), Some("PNG"));
+        // A `.jpg` is a JPEG, which is what the file list and the overlay report.
+        assert_eq!(format(b"\xff\xd8\xff\xe0", "jpg"), Some("JPEG"));
+        assert_eq!(format(b"RIFF\0\0\0\0WEBP", "webp"), Some("WEBP"));
+        assert_eq!(format(b"\0\0\x02", "tga"), Some("TGA"));
+        assert_eq!(format(b"II*\0", "tif"), None);
+    }
+
     #[test]
     fn png_and_webp() {
         let mut p = vec![0; 24];

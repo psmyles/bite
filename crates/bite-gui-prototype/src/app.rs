@@ -2,7 +2,7 @@
 use crate::{
     canvas::{
         state::{PendingWire, WireEnd},
-        view::{Action, Canvas, CanvasContext},
+        view::{Action, Canvas, CanvasContext, node_enabled},
     },
     create_menu, dialogs, menu, modals, panels, persist, shell, studio, theme, work,
 };
@@ -22,6 +22,9 @@ pub struct Branch {
     pub thumbnails: Vec<panels::filmstrip::Thumbnail>,
     pub selected: Option<usize>,
     pub preview: Option<panels::preview::PreviewImage>,
+    /// The file the last preview was made from. The render runs on a thumbnail, so the
+    /// overlay takes its measurements from here rather than from the rendered image.
+    pub preview_source: work::SourceImage,
     pub scroll: f32,
 }
 
@@ -47,6 +50,9 @@ pub struct Editor {
 
     pub modal: modals::Modal,
     pub progress: modals::Progress,
+    /// When the running import began, so the dialog can report how long it took. It is
+    /// cleared once the import ends, which freezes the time the completion line shows.
+    pub import_started: Option<std::time::Instant>,
     pub status: String,
     pub timers_enabled: bool,
 
@@ -123,6 +129,7 @@ impl Editor {
             show_preview_info: true,
             modal: modals::Modal::None,
             progress: modals::Progress::default(),
+            import_started: None,
             status: String::new(),
             timers_enabled: false,
             run: None,
@@ -459,20 +466,184 @@ impl Editor {
             .find(|entry| entry.id == payload)
     }
 
+    /// Stops the import clock, leaving the completion line reporting the time it took.
+    pub fn finish_import_timing(&mut self) {
+        if let Some(started) = self.import_started.take() {
+            self.progress.elapsed_seconds = started.elapsed().as_secs_f32();
+        }
+    }
+
     /// Marks the preview as needing a refresh on the next idle moment.
     pub fn request_preview(&mut self) {
         self.jobs.request_preview();
     }
 
-    /// The node the preview should follow. A workflow endpoint or a comment is never a
-    /// preview target, so the selection only counts when it can produce an image.
+    /// Puts the selected thumbnail in the preview panel while nothing has been rendered
+    /// there yet, so an imported image appears at once rather than after the first render.
+    /// `Preview.svelte` seeds the same stand-in, and leaves a rendered image in place.
+    pub fn seed_preview_from_thumbnail(&mut self) {
+        if self.active_branch().is_some_and(|branch| branch.preview.is_some()) {
+            return;
+        }
+        self.show_thumbnail_as_preview();
+    }
+
+    /// Puts the selected thumbnail in the preview panel, replacing whatever is there.
+    ///
+    /// This is what the panel shows when no chain processes the image: Electron's pipeline
+    /// returns the same downscaled file when the preview graph has no nodes in it.
+    pub fn show_thumbnail_as_preview(&mut self) {
+        let Some(branch) = self.active_branch_mut() else {
+            return;
+        };
+        let Some(thumbnail) = branch
+            .selected
+            .and_then(|index| branch.thumbnails.get(index))
+            .filter(|thumbnail| thumbnail.texture.is_some())
+        else {
+            return;
+        };
+        branch.preview = Some(panels::preview::PreviewImage {
+            texture: thumbnail.texture,
+            width: thumbnail.source.width.max(1),
+            height: thumbnail.source.height.max(1),
+            name: thumbnail.name.clone(),
+            format: thumbnail
+                .path
+                .rsplit_once('.')
+                .map(|(_, extension)| extension.to_string())
+                .unwrap_or_default(),
+            bytes: thumbnail.source.bytes,
+            pixels: thumbnail.size,
+        });
+    }
+
     /// The node the preview renders through.
     ///
-    /// Only a double click sets this, as in Electron. Selecting a node must not retarget
-    /// the preview: a node that produces no image would leave the panel empty and move the
-    /// PREVIEWING badge onto a card that is merely selected.
+    /// Only a double click sets the choice, as in Electron. Selecting a node must not
+    /// retarget the preview: a node that produces no image would leave the panel empty and
+    /// move the PREVIEWING badge onto a card that is merely selected. With no choice made,
+    /// the last processing node in the chain stands in, so a freshly opened workflow
+    /// previews without being asked to.
     pub fn effective_preview_node(&self) -> Option<String> {
-        self.preview_node.clone()
+        let graph = &self.studio.workflow.graph;
+        let registry = &self.studio.registry;
+        let chosen = self.preview_node.as_ref().and_then(|id| {
+            let node = graph.nodes.iter().find(|node| node.id == *id)?;
+            let previewable = matches!(node.kind, NodeKind::Processing(_))
+                && crate::canvas::view::node_enabled(node, graph, registry);
+            previewable.then(|| id.clone())
+        });
+        chosen.or_else(|| self.auto_preview_node())
+    }
+
+    /// The node the preview falls back to: the end of the chain the outputs are fed from,
+    /// or the last processing node reachable from an Input when nothing is wired to an
+    /// output. `Preview.svelte` picks the same node and paints its badge from it.
+    fn auto_preview_node(&self) -> Option<String> {
+        let graph = &self.studio.workflow.graph;
+        let registry = &self.studio.registry;
+        let is_output = |id: &str| {
+            graph.nodes.iter().any(|node| {
+                node.id == id
+                    && matches!(
+                        node.kind,
+                        NodeKind::Builtin(
+                            BuiltinNodeKind::ImageOutput
+                                | BuiltinNodeKind::TextOutput
+                                | BuiltinNodeKind::FlipbookOutput
+                        )
+                    )
+            })
+        };
+
+        // Everything an Input can reach, following edges forward.
+        let mut reachable: Vec<String> = graph
+            .nodes
+            .iter()
+            .filter(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::Input))
+            .map(|node| node.id.clone())
+            .collect();
+        let mut index = 0;
+        while index < reachable.len() {
+            let id = reachable[index].clone();
+            index += 1;
+            for edge in &graph.edges {
+                if edge.source == id && !reachable.contains(&edge.target) {
+                    reachable.push(edge.target.clone());
+                }
+            }
+        }
+
+        let enabled = |id: &str| {
+            graph
+                .nodes
+                .iter()
+                .find(|node| node.id == id)
+                .is_some_and(|node| node_enabled(node, graph, registry))
+        };
+        let processing = |id: &str| {
+            graph
+                .nodes
+                .iter()
+                .any(|node| node.id == id && matches!(node.kind, NodeKind::Processing(_)))
+        };
+
+        // What an output is fed from, when anything is.
+        let feeding = graph.edges.iter().find(|edge| {
+            is_output(&edge.target)
+                && edge.target_handle.starts_with("in:")
+                && reachable.contains(&edge.source)
+                && processing(&edge.source)
+        });
+        if let Some(edge) = feeding {
+            if enabled(&edge.source) {
+                return Some(edge.source.clone());
+            }
+            if let Some(earlier) = self.non_bypassed_predecessor(&edge.source) {
+                return Some(earlier);
+            }
+        }
+
+        // Otherwise the last processing node that nothing else processes after.
+        let candidates: Vec<&String> = reachable
+            .iter()
+            .filter(|id| processing(id) && enabled(id))
+            .collect();
+        let terminal = candidates.iter().rev().find(|id| {
+            !graph.edges.iter().any(|edge| {
+                edge.source == ***id
+                    && reachable.contains(&edge.target)
+                    && !is_output(&edge.target)
+            })
+        });
+        terminal
+            .or_else(|| candidates.last())
+            .map(|id| (*id).clone())
+    }
+
+    /// Walks back from a bypassed node to the nearest active one feeding its image input.
+    fn non_bypassed_predecessor(&self, from: &str) -> Option<String> {
+        let graph = &self.studio.workflow.graph;
+        let registry = &self.studio.registry;
+        let mut current = from.to_string();
+        // The chain is finite, and the guard stops a cycle from spinning here.
+        for _ in 0..graph.nodes.len() {
+            let edge = graph
+                .edges
+                .iter()
+                .find(|edge| edge.target == current && edge.target_handle.starts_with("in:"))?;
+            let node = graph
+                .nodes
+                .iter()
+                .find(|node| node.id == edge.source)
+                .filter(|node| matches!(node.kind, NodeKind::Processing(_)))?;
+            if node_enabled(node, graph, registry) {
+                return Some(node.id.clone());
+            }
+            current = node.id.clone();
+        }
+        None
     }
 }
 
@@ -677,6 +848,7 @@ fn handle_filmstrip(editor: &mut Editor, outcome: panels::filmstrip::Outcome) {
             if let Some(branch) = editor.active_branch_mut() {
                 branch.selected = Some(index);
             }
+            editor.seed_preview_from_thumbnail();
             editor.request_preview();
         }
         panels::filmstrip::Outcome::RequestImport => {
@@ -728,6 +900,7 @@ fn handle_modal(editor: &mut Editor, outcome: modals::Outcome) {
         }
         modals::Outcome::CancelImport => {
             editor.jobs.cancel_import();
+            editor.import_started = None;
             editor.modal = modals::Modal::None;
         }
         modals::Outcome::OpenOutputFolder(path) => {
@@ -831,10 +1004,10 @@ mod tests {
         assert!(first >= 2);
     }
 
-    #[test]
-    fn the_title_marks_unsaved_edits_and_names_the_file() {
+    /// An editor over the seeded workflow, for the checks that only read the graph.
+    fn bare_editor() -> Editor {
         let registry = bite_core::Registry::default();
-        let mut editor = Editor {
+        Editor {
             studio: studio::Studio::seeded(registry),
             canvas: Canvas::default(),
             library: Default::default(),
@@ -851,6 +1024,7 @@ mod tests {
             show_preview_info: true,
             modal: modals::Modal::None,
             progress: Default::default(),
+            import_started: None,
             status: String::new(),
             timers_enabled: false,
             run: None,
@@ -862,12 +1036,112 @@ mod tests {
             textures: Vec::new(),
             next_texture: 2,
             pending_uploads: Vec::new(),
-        };
+        }
+    }
+
+    #[test]
+    fn the_title_marks_unsaved_edits_and_names_the_file() {
+        let mut editor = bare_editor();
         editor.studio.dirty = false;
         assert_eq!(editor.title(), "Untitled - Bite");
         editor.studio.dirty = true;
         assert_eq!(editor.title(), "*Untitled - Bite");
         editor.studio.path = Some(PathBuf::from("/tmp/my-workflow.bite"));
         assert_eq!(editor.title(), "*my-workflow - Bite");
+    }
+    /// Adds a processing node with no parameters, for the preview target checks.
+    fn process_node(id: &str) -> bite_schema::GraphNode {
+        bite_schema::GraphNode {
+            id: id.into(),
+            kind: NodeKind::Processing(bite_schema::ProcessingNodeKind::Process),
+            position: Position { x: 0.0, y: 0.0 },
+            parent_id: None,
+            extent: None,
+            width: None,
+            height: None,
+            data: bite_schema::NodeData {
+                label: id.into(),
+                definition_id: "grayscale".into(),
+                params: Default::default(),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+            },
+        }
+    }
+
+    fn image_edge(id: &str, source: &str, target: &str) -> bite_schema::GraphEdge {
+        bite_schema::GraphEdge {
+            id: id.into(),
+            source: source.into(),
+            source_handle: "out:output".into(),
+            target: target.into(),
+            target_handle: "in:input".into(),
+        }
+    }
+
+    /// An Input, two processing nodes and an Image Output, wired in a line.
+    fn chained_editor() -> Editor {
+        let mut editor = bare_editor();
+        let graph = &mut editor.studio.workflow.graph;
+        let input = graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::Input))
+            .map(|node| node.id.clone())
+            .expect("the seed has an Input");
+        let output = graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::ImageOutput))
+            .map(|node| node.id.clone())
+            .expect("the seed has an Image Output");
+        graph.nodes.push(process_node("first"));
+        graph.nodes.push(process_node("second"));
+        graph.edges.push(image_edge("e1", &input, "first"));
+        graph.edges.push(image_edge("e2", "first", "second"));
+        graph.edges.push(image_edge("e3", "second", &output));
+        editor
+    }
+
+    #[test]
+    fn the_preview_follows_the_node_feeding_the_output_when_nothing_is_chosen() {
+        let editor = chained_editor();
+        assert_eq!(editor.effective_preview_node().as_deref(), Some("second"));
+    }
+
+    #[test]
+    fn a_chosen_node_beats_the_one_feeding_the_output() {
+        let mut editor = chained_editor();
+        editor.preview_node = Some("first".into());
+        assert_eq!(editor.effective_preview_node().as_deref(), Some("first"));
+    }
+
+    #[test]
+    fn a_bypassed_node_hands_the_preview_back_to_the_one_before_it() {
+        let mut editor = chained_editor();
+        let graph = &mut editor.studio.workflow.graph;
+        let node = graph
+            .nodes
+            .iter_mut()
+            .find(|node| node.id == "second")
+            .unwrap();
+        node.data
+            .params
+            .insert("_enabled".into(), ParamValue::Bool(false));
+        assert_eq!(editor.effective_preview_node().as_deref(), Some("first"));
+    }
+
+    #[test]
+    fn with_nothing_wired_to_an_output_the_end_of_the_chain_previews() {
+        let mut editor = chained_editor();
+        editor.studio.workflow.graph.edges.retain(|edge| edge.id != "e3");
+        assert_eq!(editor.effective_preview_node().as_deref(), Some("second"));
+    }
+
+    #[test]
+    fn a_workflow_without_processing_previews_through_nothing() {
+        // The panel then renders the selected image itself, as the Electron preview does.
+        let editor = bare_editor();
+        assert_eq!(editor.effective_preview_node(), None);
     }
 }
