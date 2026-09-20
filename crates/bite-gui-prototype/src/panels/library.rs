@@ -83,6 +83,14 @@ pub fn matches(entry: &Entry, query: &str) -> bool {
 }
 
 /// Groups matching entries by category, with both levels sorted by label.
+/// Orders two names the way `localeCompare` does: by case-insensitive text, so `Filters`,
+/// `Format` and `FX` fall in that order rather than having `FX` jump ahead on its capital.
+fn locale_compare(left: &str, right: &str) -> std::cmp::Ordering {
+    left.to_lowercase()
+        .cmp(&right.to_lowercase())
+        .then_with(|| left.cmp(right))
+}
+
 pub fn grouped(entries: &[Entry], query: &str) -> Vec<(String, Vec<Entry>)> {
     let mut categories: std::collections::BTreeMap<String, Vec<Entry>> = Default::default();
     for entry in entries.iter().filter(|entry| matches(entry, query)) {
@@ -93,9 +101,9 @@ pub fn grouped(entries: &[Entry], query: &str) -> Vec<(String, Vec<Entry>)> {
     }
     let mut out: Vec<(String, Vec<Entry>)> = categories.into_iter().collect();
     for (_, items) in &mut out {
-        items.sort_by(|a, b| a.label.cmp(&b.label));
+        items.sort_by(|a, b| locale_compare(&a.label, &b.label));
     }
-    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out.sort_by(|a, b| locale_compare(&a.0, &b.0));
     out
 }
 
@@ -353,6 +361,15 @@ pub fn draw_tooltip(ui: &mut Ui, text: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn categories_sort_the_way_locale_compare_does() {
+        // A capital letter must not jump ahead of a lower-case one: `FX` belongs after
+        // `Format`, which a plain byte comparison gets wrong.
+        let mut names = vec!["FX", "Filters", "Format", "Color"];
+        names.sort_by(|a, b| locale_compare(a, b));
+        assert_eq!(names, vec!["Color", "Filters", "Format", "FX"]);
+    }
 
     fn entry(label: &str, category: &str, aliases: &[&str]) -> Entry {
         Entry {

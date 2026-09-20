@@ -494,6 +494,17 @@ pub fn canvas_context<'a>(
         preview_node: editor.effective_preview_node(),
         running_node: editor.run.as_ref().and_then(|run| run.node.clone()),
         running_file: editor.run.as_ref().and_then(|run| run.file.clone()),
+        menu_wire: editor
+            .create_menu
+            .open
+            .then(|| {
+                editor
+                    .create_menu
+                    .pending
+                    .clone()
+                    .map(|pending| (pending, editor.create_menu.position))
+            })
+            .flatten(),
         delta,
     }
 }

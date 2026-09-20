@@ -27,6 +27,9 @@ pub struct CanvasContext<'a> {
     pub preview_node: Option<String>,
     pub running_node: Option<String>,
     pub running_file: Option<String>,
+    /// A wire dropped on empty canvas, still held while the creation menu chooses what to
+    /// attach it to. Electron keeps the line on screen until the menu closes.
+    pub menu_wire: Option<(PendingWire, Vec2)>,
     pub delta: f32,
 }
 
@@ -151,7 +154,7 @@ impl Canvas {
             for node in placed.iter().filter(|node| !node.is_group) {
                 self.draw_node(ui, rect, node, context);
             }
-            self.draw_pending_wire(ui, rect);
+            self.draw_pending_wire(ui, rect, context);
             self.draw_rubber_band(ui, rect);
 
             actions.extend(self.handle_input(ui, rect, graph, &placed, context));
@@ -365,12 +368,17 @@ impl Canvas {
         }
     }
 
-    fn draw_pending_wire(&self, ui: &Ui, rect: Rect) {
-        let Gesture::Connecting(pending) = &self.state.gesture else {
-            return;
+    fn draw_pending_wire(&self, ui: &Ui, rect: Rect, context: &CanvasContext) {
+        // While the creation menu is choosing a node for a dropped wire, the line stays
+        // anchored at the drop point rather than following the pointer.
+        let (pending, to) = match &self.state.gesture {
+            Gesture::Connecting(pending) => (pending, ui.mouse_position()),
+            _ => match &context.menu_wire {
+                Some((pending, target)) => (pending, self.screen(rect, *target)),
+                None => return,
+            },
         };
         let from = self.screen(rect, pending.origin);
-        let to = ui.mouse_position();
         let (from, to) = if pending.end == WireEnd::Source {
             (from, to)
         } else {

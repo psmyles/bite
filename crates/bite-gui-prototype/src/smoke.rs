@@ -36,6 +36,11 @@ pub enum Scene {
     Menu,
     /// An inspector dropdown held open, for checking its row spacing.
     Dropdown,
+    /// The creation menu opened by a wire dropped on empty canvas, which keeps the line on
+    /// screen and offers only nodes the wire can reach.
+    WireMenu,
+    /// A library entry's description tooltip, which must wrap rather than run off the edge.
+    Tooltip,
 }
 
 impl Scene {
@@ -57,6 +62,8 @@ impl Scene {
             "cards" => Self::Cards,
             "menu" => Self::Menu,
             "dropdown" => Self::Dropdown,
+            "wire-menu" => Self::WireMenu,
+            "tooltip" => Self::Tooltip,
             _ => return None,
         })
     }
@@ -78,6 +85,8 @@ impl Scene {
             Self::Cards => "cards",
             Self::Menu => "menu",
             Self::Dropdown => "dropdown",
+            Self::WireMenu => "wire-menu",
+            Self::Tooltip => "tooltip",
         }
     }
 
@@ -99,6 +108,8 @@ impl Scene {
             Self::Cards,
             Self::Menu,
             Self::Dropdown,
+            Self::WireMenu,
+            Self::Tooltip,
         ]
     }
 }
@@ -108,6 +119,9 @@ const MENU_POINTER: [f32; 2] = [96.0, 15.0];
 
 /// Where the pointer rests to hold the inspector's list open for its capture.
 const DROPDOWN_POINTER: [f32; 2] = [1450.0, 180.0];
+
+/// Where the pointer rests on a library entry to raise its tooltip.
+const TOOLTIP_POINTER: [f32; 2] = [80.0, 271.0];
 
 /// Arranges the editor for a scene.
 fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
@@ -145,6 +159,32 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
             editor.create_menu.open_at([120.0, 120.0], None);
             editor.create_menu.can_group = true;
         }
+        Scene::WireMenu => {
+            // A wire dragged off the seed Input's image port and dropped on empty canvas.
+            let source = editor
+                .studio
+                .workflow
+                .graph
+                .nodes
+                .iter()
+                .find(|node| node.kind == bite_schema::NodeKind::Builtin(
+                    bite_schema::BuiltinNodeKind::Input
+                ))
+                .map(|node| (node.id.clone(), [node.position.x as f32, node.position.y as f32]));
+            if let Some((id, position)) = source {
+                editor.create_menu.open_at(
+                    [position[0] + 90.0, position[1] + 210.0],
+                    Some(crate::canvas::state::PendingWire {
+                        node: id,
+                        handle: "out:output".into(),
+                        end: crate::canvas::state::WireEnd::Source,
+                        origin: [position[0] + 190.0, position[1] + 43.0],
+                        wire: bite_core::graph::WireType::Image,
+                    }),
+                );
+            }
+        }
+        Scene::Tooltip => {}
         Scene::ConfirmPrompt => {
             editor.modal = crate::modals::Modal::Confirm {
                 message: crate::modals::confirm_message(crate::modals::PendingAction::New),
@@ -299,7 +339,13 @@ pub fn capture(
     // A few frames let hover states, layout and the settle burst reach a steady state.
     let logical = [size.0 as f32, size.1 as f32];
     let mut data = Vec::new();
-    for frame in 0..6 {
+    // A tooltip only appears once the pointer has rested past its delay.
+    let frames = if scene == Scene::Tooltip { 24 } else { 6 };
+    for frame in 0..frames {
+        if scene == Scene::Tooltip {
+            // The pointer rests on a library entry for longer than the tooltip's delay.
+            context.mouse_position(TOOLTIP_POINTER[0], TOOLTIP_POINTER[1]);
+        }
         if scene == Scene::Dropdown {
             context.mouse_position(DROPDOWN_POINTER[0], DROPDOWN_POINTER[1]);
             context.mouse_button(bite_imgui::MouseButton::Left, frame == 1);
@@ -431,6 +477,6 @@ mod tests {
         assert!(scenes.contains(&Scene::Seed));
         assert!(scenes.contains(&Scene::CreateMenu));
         assert!(scenes.contains(&Scene::BatchSummary));
-        assert_eq!(scenes.len(), 15);
+        assert_eq!(scenes.len(), 17);
     }
 }

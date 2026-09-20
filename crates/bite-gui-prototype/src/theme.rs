@@ -281,6 +281,14 @@ pub const CTX_SHADOW: Color = Color([0.0, 0.0, 0.0, 0.65]);
 pub const CTX_WIDTH: f32 = 200.0;
 pub const CTX_SUB_WIDTH: f32 = 190.0;
 pub const CTX_MAX_HEIGHT: f32 = 420.0;
+/// One row in the creation menu, its flyout and its action list.
+pub const CTX_ROW_HEIGHT: f32 = 26.0;
+/// The padding above the search field and below the last row.
+pub const CTX_PADDING_Y: f32 = 4.0;
+/// The gap between the search field and the first row.
+pub const CTX_SEARCH_GAP: f32 = 4.0;
+/// The creation menu's search field, which is shorter than an inspector's.
+pub const CTX_SEARCH_HEIGHT: f32 = 26.0;
 pub const CTX_SEARCH_BG: Color = TEXT_FIELD_BG;
 pub const CTX_TEXT: Color = Color::rgb(0xc8, 0xc8, 0xc8);
 pub const CTX_TEXT_MUTED: Color = TEXT;

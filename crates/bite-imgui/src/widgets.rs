@@ -415,7 +415,9 @@ impl Ui<'_> {
     /// which is itself derived from the content, so the text collapses to one glyph a line.
     /// Naming the width breaks that circle.
     pub fn text_wrapped_at(&mut self, text: &str, width: f32) {
-        let wrap = self.cursor_screen_position()[0] + width;
+        // The wrap position is window-local, not a screen coordinate. Passing a screen x
+        // puts it far beyond the window and nothing ever wraps.
+        let wrap = self.cursor_position()[0] + width;
         unsafe {
             sys::igPushTextWrapPos(wrap);
             sys::igTextUnformatted(c(text).as_ptr(), std::ptr::null());

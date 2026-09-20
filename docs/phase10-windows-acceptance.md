@@ -28,8 +28,9 @@ stays usable throughout. Keep both applications open side by side for the visual
 - [ ] Dragging from a port snaps to a compatible port within about twenty pixels.
 - [ ] An invalid connection is rejected and the status line explains why.
 - [ ] Connecting to an input that already has a wire replaces the old one.
-- [ ] Dropping a wire on empty canvas opens a filtered menu; choosing a node creates and
-      connects it, and one undo removes both.
+- [ ] Dropping a wire on empty canvas opens a filtered menu, the wire stays drawn from its
+      port to the menu while it is open, and choosing a node creates and connects it, with
+      one undo removing both.
 - [ ] The bypass tick in a card header toggles the node and dims the card.
 - [ ] Fit View frames every node, and clicking it neither pans the canvas nor clears the
       selection.
@@ -47,7 +48,9 @@ stays usable throughout. Keep both applications open side by side for the visual
 ## Creation menu and library
 
 - [ ] Right click, Space and Tab each open the menu at the pointer.
-- [ ] With no search text the menu browses by category and each category opens a flyout.
+- [ ] With no search text the menu browses by category and each category opens a flyout, the
+      panel is no taller than its rows, and a flyout does not repeat its category on each row.
+- [ ] Categories read Filters, Format, FX in that order rather than FX first.
 - [ ] Typing filters to a flat list with the category on the right, and no match reads
       `No matching nodes.`
 - [ ] Up and down move the highlight without wrapping; Enter creates; Escape closes.
@@ -60,7 +63,7 @@ stays usable throughout. Keep both applications open side by side for the visual
       category into its flyout and click an entry there.
 - [ ] Library categories collapse and expand, and a search forces them all open.
 - [ ] Hovering a library entry or a menu result shows its description after a short delay,
-      wrapped as a paragraph rather than one character a line.
+      wrapped as a paragraph a few lines deep rather than one character or one long line.
 
 ## File and application flow
 
@@ -147,10 +150,10 @@ stays usable throughout. Keep both applications open side by side for the visual
 
 ## Automated evidence already recorded
 
-The Rust workspace passes 193 tests and strict Clippy with no warnings. The offscreen capture
+The Rust workspace passes 194 tests and strict Clippy with no warnings. The offscreen capture
 mode renders the seed document, a selected node, the creation menu, a comment card, a slider
-row, a colour row, a column of process cards, an open menu, an open inspector list and every dialog at both 1x
-and 2x scale:
+row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip
+and every dialog at both 1x and 2x scale:
 
 ```powershell
 cargo run --offline -p bite-gui-prototype -- --capture test-workflows\out\parity

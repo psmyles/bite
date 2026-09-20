@@ -44,7 +44,7 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Typed wires | Type-colored, validated before the graph changes | Implemented through `bite_core::graph::validate` |
 | Single input replacement | A new wire replaces the previous one on that handle | Implemented |
 | Cycle rejection | Rejected before mutation | Implemented |
-| Wire drop on empty canvas | Filtered creation menu, auto-connect, one undo entry | Implemented |
+| Wire drop on empty canvas | Filtered creation menu, auto-connect, one undo entry | Implemented, with the dropped wire still drawn from its port to the menu until the menu closes |
 | Port snapping | Twenty pixel radius, scaled by zoom | Implemented |
 | Edge selection and deletion | Click to select, Delete to remove | Implemented with a six-pixel curve hit test |
 | Wire geometry | Cubic bezier, two pixels, three plus a glow when selected | Implemented |
@@ -82,14 +82,14 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Requirement | Native status |
 | --- | --- |
 | Triggers | Right click, Space, Tab, and a dropped wire |
-| Placement | Centred on the cursor, or anchored at the drop point for a wire |
+| Placement | Centred on the cursor, or anchored at the drop point for a wire; the panel is only as tall as its rows |
 | Search | Case-insensitive substring over label, category and aliases |
-| Browse mode | Categories with hover flyouts, all sorted by name |
+| Browse mode | Categories with hover flyouts, all sorted by name | Sorted as `localeCompare` sorts, so `FX` follows `Format` rather than jumping ahead on its capital; a flyout lists one category, so its name is not repeated on every row |
 | Keyboard | Up and down move without wrapping; Enter selects; Escape closes |
 | Wire filtering | Compatible candidates only, with the parameter type aliases |
 | Auto-connect | First matching handle, as one undo entry |
 | Group actions | Group Selection and Ungroup rows with their shortcuts |
-| Tooltips | Descriptions after 200 milliseconds |
+| Tooltips | Descriptions after 200 milliseconds, wrapped at the 320 pixels `NodeLibrary.svelte` reserves |
 
 ## Panels
 
@@ -180,4 +180,4 @@ cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity
 ```
 
 Each run writes one image per scene: the seed document, a selected node, the creation menu,
-a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.
+a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.

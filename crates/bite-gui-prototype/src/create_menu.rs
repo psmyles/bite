@@ -117,9 +117,20 @@ impl CreateMenu {
         let space_below = viewport_size[1] - anchor[1];
         let space_above = anchor[1];
         let flip_up = space_above > space_below;
-        let max_height = theme::CTX_MAX_HEIGHT
-            .min(if flip_up { space_above } else { space_below } - 16.0)
-            .max(120.0);
+        // The panel is only as tall as its rows, up to what the ceiling and the space on
+        // screen allow; a fixed height would leave a gap below the last row.
+        let rows = if searching {
+            flat.len().max(1)
+        } else {
+            groups.len().max(1)
+        };
+        let content = theme::CTX_PADDING_Y * 2.0
+            + theme::CTX_SEARCH_HEIGHT
+            + theme::CTX_SEARCH_GAP
+            + rows as f32 * theme::CTX_ROW_HEIGHT
+            + self.action_height();
+        let room = (if flip_up { space_above } else { space_below }) - 16.0;
+        let max_height = content.min(theme::CTX_MAX_HEIGHT).min(room).max(120.0);
         let left = anchor[0].min(viewport_size[0] - theme::CTX_WIDTH - 8.0).max(0.0);
         let top = if flip_up {
             (anchor[1] - max_height).max(0.0)
@@ -217,7 +228,7 @@ impl CreateMenu {
             self.focus_search = false;
         }
         controls::search_input(ui, "create-search", &mut self.query, "Search", width - 12.0);
-        ui.dummy([width, 4.0]);
+        ui.dummy([width, theme::CTX_SEARCH_GAP]);
 
         // Arrow keys move the highlight without wrapping, as the Svelte menu does.
         let count = if searching { flat.len() } else { groups.len() };
@@ -263,7 +274,7 @@ impl CreateMenu {
                     return;
                 }
                 for (index, entry) in flat.iter().enumerate() {
-                    if self.result_row(ui, entry, index == self.active_index, width, delta) {
+                    if self.result_row(ui, entry, index == self.active_index, width, delta, true) {
                         outcome = Some(Outcome::Create(entry.clone()));
                     }
                 }
@@ -308,7 +319,7 @@ impl CreateMenu {
         if rows == 0 {
             0.0
         } else {
-            rows as f32 * 26.0 + 2.0
+            rows as f32 * theme::CTX_ROW_HEIGHT + 2.0
         }
     }
 
@@ -320,8 +331,9 @@ impl CreateMenu {
         active: bool,
         width: f32,
         delta: f32,
+        show_category: bool,
     ) -> bool {
-        let height = 26.0;
+        let height = theme::CTX_ROW_HEIGHT;
         let origin = ui.cursor_screen_position();
         let clicked = ui.invisible_button(&format!("##result-{}", entry.id), [width, height]);
         let hovered = ui.item_hovered();
@@ -338,21 +350,31 @@ impl CreateMenu {
                 Rounding::None,
             );
         }
-        let category_size = list.measure(theme::face::SMALL_MONO, &entry.category);
-        controls::draw_ellipsized(
+        let category_size = if show_category {
+            list.measure(theme::face::SMALL_MONO, &entry.category)
+        } else {
+            [0.0, 0.0]
+        };
+        controls::draw_in_row(
             ui,
-            [origin[0] + 12.0, origin[1] + 5.0],
+            origin[0] + 12.0,
+            origin[1],
+            height,
             theme::CTX_TEXT,
             theme::face::BODY,
             &entry.label,
-            width - 30.0 - category_size[0],
         );
-        list.text_with_face(
-            [origin[0] + width - 10.0 - category_size[0], origin[1] + 6.0],
-            theme::CTX_TEXT_MUTED.with_alpha(0.85),
-            theme::face::SMALL_MONO,
-            &entry.category,
-        );
+        if show_category {
+            controls::draw_in_row(
+                ui,
+                origin[0] + width - 10.0 - category_size[0],
+                origin[1],
+                height,
+                theme::CTX_TEXT_MUTED.with_alpha(0.85),
+                theme::face::SMALL_MONO,
+                &entry.category,
+            );
+        }
         if !entry.description.is_empty()
             && self
                 .tooltip
@@ -373,7 +395,7 @@ impl CreateMenu {
         width: f32,
         delta: f32,
     ) -> Option<Entry> {
-        let height = 26.0;
+        let height = theme::CTX_ROW_HEIGHT;
         let origin = ui.cursor_screen_position();
         ui.invisible_button(&format!("##cat-{category}"), [width, height]);
         let hovered = ui.item_hovered();
@@ -413,7 +435,9 @@ impl CreateMenu {
         }
         let mut chosen = None;
         let sub_left = origin[0] + width + 4.0;
-        let sub_height = (entries.len() as f32 * 26.0 + 8.0).min(theme::CTX_MAX_HEIGHT);
+        let sub_height = (entries.len() as f32 * theme::CTX_ROW_HEIGHT
+            + theme::CTX_PADDING_Y * 2.0)
+            .min(theme::CTX_MAX_HEIGHT);
         self.sub_rect = Some((
             [sub_left, origin[1]],
             [sub_left + theme::CTX_SUB_WIDTH, origin[1] + sub_height],
@@ -445,7 +469,8 @@ impl CreateMenu {
                     |ui| {
                         ui.window_with(&format!("##sub-{category}"), flags, |ui| {
                             for entry in entries {
-                                if self.result_row(ui, entry, false, theme::CTX_SUB_WIDTH, delta) {
+                                // The flyout lists one category, so its name is not repeated.
+                                if self.result_row(ui, entry, false, theme::CTX_SUB_WIDTH, delta, false) {
                                     chosen = Some(entry.clone());
                                 }
                             }
@@ -458,7 +483,7 @@ impl CreateMenu {
     }
 
     fn action_row(&mut self, ui: &mut Ui, label: &str, shortcut: &str, width: f32) -> bool {
-        let height = 26.0;
+        let height = theme::CTX_ROW_HEIGHT;
         let origin = ui.cursor_screen_position();
         let clicked = ui.invisible_button(&format!("##action-{label}"), [width, height]);
         let hovered = ui.item_hovered();

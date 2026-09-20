@@ -813,3 +813,24 @@ options stacked line against line.
 `Ui` gained `begin_combo`, `end_combo` and `set_next_window_size_constraints` so the list can
 be styled on its own terms rather than the closed control's. A `dropdown` capture scene opens
 the Compare node's operator list by driving the pointer, beside the `menu` scene.
+
+### Wire-drop menu, category order and tooltip wrapping (2026-09-20)
+
+- **The dropped wire vanished.** The line was drawn only while the connect gesture was live,
+  so opening the creation menu erased it and left no sign of what the new node would attach
+  to. The canvas now also draws it from the port to the drop point for as long as the menu
+  holds a pending wire, which is what Electron does. The filtering by wire type was already
+  correct; the missing line was what made it look otherwise.
+- **Categories sorted by byte value.** `FX` came before `Filters` and `Format` because a
+  capital `X` sorts below a lower-case `i`. Electron sorts with `localeCompare`, so the
+  comparison is case-insensitive now, in both the creation menu and the library panel.
+- **A flyout repeated its category on every row.** The flyout lists one category, so the name
+  is drawn only in the flat search results, as in the Svelte menu.
+- **The menu panel was a fixed height**, leaving an empty band below the last row. It is now
+  measured from its rows and clamped by the ceiling and the room on screen.
+- **Tooltips ran off in one long line.** The earlier fix passed a screen coordinate to
+  `PushTextWrapPos`, which takes a window-local one, so the wrap position landed far beyond
+  the window and nothing wrapped. Descriptions wrap at 320 pixels now.
+
+Two capture scenes were added: `wire-menu`, which drops a wire from the seed Input's image
+port, and `tooltip`, which rests the pointer on a library entry past the delay.

@@ -58,7 +58,7 @@ cargo run -p bite-gui-prototype -- workflow.bite
 
 The capture mode renders fixed scenes without opening a window, for side-by-side comparison
 with Electron. It writes one image per scene: the seed document, a selected node, the creation
-menu, a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, and every dialog.
+menu, a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, and every dialog.
 
 ```
 cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity
