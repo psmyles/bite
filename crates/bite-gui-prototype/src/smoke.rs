@@ -24,6 +24,18 @@ pub enum Scene {
     Credits,
     /// The update dialog reporting a newer release.
     Update,
+    /// A comment card, whose heading and body are drawn on the canvas.
+    Comment,
+    /// A node with a slider parameter selected, so the inspector shows the slider row.
+    Slider,
+    /// A node with a colour parameter selected, so the inspector shows the swatch row.
+    Color,
+    /// A column of process cards, for checking card widths, rows and ports.
+    Cards,
+    /// A menu bar dropdown held open, for checking its row spacing.
+    Menu,
+    /// An inspector dropdown held open, for checking its row spacing.
+    Dropdown,
 }
 
 impl Scene {
@@ -39,6 +51,12 @@ impl Scene {
             "about" => Self::About,
             "credits" => Self::Credits,
             "update" => Self::Update,
+            "comment" => Self::Comment,
+            "slider" => Self::Slider,
+            "color" => Self::Color,
+            "cards" => Self::Cards,
+            "menu" => Self::Menu,
+            "dropdown" => Self::Dropdown,
             _ => return None,
         })
     }
@@ -54,6 +72,12 @@ impl Scene {
             Self::About => "about",
             Self::Credits => "credits",
             Self::Update => "update",
+            Self::Comment => "comment",
+            Self::Slider => "slider",
+            Self::Color => "color",
+            Self::Cards => "cards",
+            Self::Menu => "menu",
+            Self::Dropdown => "dropdown",
         }
     }
 
@@ -69,9 +93,21 @@ impl Scene {
             Self::About,
             Self::Credits,
             Self::Update,
+            Self::Comment,
+            Self::Slider,
+            Self::Color,
+            Self::Cards,
+            Self::Menu,
+            Self::Dropdown,
         ]
     }
 }
+
+/// Where the pointer rests to hold the File menu open for its capture.
+const MENU_POINTER: [f32; 2] = [96.0, 15.0];
+
+/// Where the pointer rests to hold the inspector's list open for its capture.
+const DROPDOWN_POINTER: [f32; 2] = [1450.0, 180.0];
 
 /// Arranges the editor for a scene.
 fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
@@ -153,6 +189,59 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
                 ],
             };
         }
+        Scene::Comment => {
+            let id = editor.studio.add_comment(bite_schema::Position {
+                x: 120.0,
+                y: 360.0,
+            });
+            editor.studio.set_param(
+                &id,
+                "heading".into(),
+                bite_schema::ParamValue::String("Release checklist".into()),
+            );
+            editor.studio.set_param(
+                &id,
+                "body".into(),
+                bite_schema::ParamValue::String(
+                    "Resize to 2048, strip metadata, then convert to WEBP before the                      flipbook is built."
+                        .into(),
+                ),
+            );
+        }
+        Scene::Slider | Scene::Color | Scene::Dropdown => {
+            // Sharpen carries two sliders, Tint a colour and a slider, Compare a list.
+            let definition = match scene {
+                Scene::Slider => "sharpen",
+                Scene::Color => "tint",
+                _ => "logic_comparison",
+            };
+            let position = bite_schema::Position { x: 320.0, y: 360.0 };
+            if let Ok(id) = editor.studio.add_processing(definition, position) {
+                editor.canvas.state.select_only([id.clone()]);
+                editor.selected_node = Some(id);
+            }
+        }
+        Scene::Cards => {
+            // Cards whose labels, rows and ports each exercise a different layout rule:
+            // a long header, an enum-only definition, a channel count and a computed row.
+            let definitions = [
+                "premultiply-alpha",
+                "channel_split",
+                "brightness_contrast",
+                "channel_merge",
+                "outline",
+                "format_convert",
+            ];
+            for (index, definition) in definitions.iter().enumerate() {
+                let position = bite_schema::Position {
+                    x: 120.0,
+                    y: 40.0 + index as f64 * 130.0,
+                };
+                let _ = editor.studio.add_processing(definition, position);
+            }
+            editor.canvas.state.viewport.y = -20.0;
+        }
+        Scene::Menu => {}
         Scene::Credits => editor.modal = crate::modals::Modal::Credits,
         Scene::Update => {
             editor.modal = crate::modals::Modal::Update(crate::modals::UpdateState::Available {
@@ -210,7 +299,17 @@ pub fn capture(
     // A few frames let hover states, layout and the settle burst reach a steady state.
     let logical = [size.0 as f32, size.1 as f32];
     let mut data = Vec::new();
-    for _ in 0..4 {
+    for frame in 0..6 {
+        if scene == Scene::Dropdown {
+            context.mouse_position(DROPDOWN_POINTER[0], DROPDOWN_POINTER[1]);
+            context.mouse_button(bite_imgui::MouseButton::Left, frame == 1);
+        }
+        if scene == Scene::Menu {
+            // The dropdown is opened the way a person opens it, by pointing at the bar and
+            // pressing. It stays open for the rest of the frames.
+            context.mouse_position(MENU_POINTER[0], MENU_POINTER[1]);
+            context.mouse_button(bite_imgui::MouseButton::Left, frame == 1);
+        }
         data = app::draw_frame(&mut editor, &mut context, logical, scale, 1.0 / 60.0);
     }
     renderer.render(&view, &data, physical.0, physical.1, scale);
@@ -332,6 +431,6 @@ mod tests {
         assert!(scenes.contains(&Scene::Seed));
         assert!(scenes.contains(&Scene::CreateMenu));
         assert!(scenes.contains(&Scene::BatchSummary));
-        assert_eq!(scenes.len(), 9);
+        assert_eq!(scenes.len(), 15);
     }
 }

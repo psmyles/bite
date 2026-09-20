@@ -272,6 +272,12 @@ pub fn dropdown(
                 StyleVar::PopupRounding(theme::INPUT_RADIUS),
                 StyleVar::PopupBorderSize(theme::INPUT_BORDER_WIDTH),
                 StyleVar::ItemSpacing([0.0, 0.0]),
+                // `.dd-list` pads its rows; without this the open list's own window would
+                // take the zero padding above, leaving the first row against the border.
+                StyleVar::WindowPadding([
+                    theme::DROPDOWN_ITEM_PADDING_X,
+                    theme::DROPDOWN_LIST_PADDING_Y,
+                ]),
             ],
             |ui| {
                 ui.with_colors(
@@ -288,7 +294,7 @@ pub fn dropdown(
                     ],
                     |ui| {
                         ui.with_face(theme::face::BODY, |ui| {
-                            ui.combo(&format!("##{id}"), current, labels)
+                            dropdown_list(ui, id, current, labels, index)
                         })
                     },
                 )
@@ -312,6 +318,46 @@ pub fn dropdown(
         theme::INPUT_BORDER_WIDTH,
     );
     let _ = index;
+    changed
+}
+
+/// The open list of a dropdown.
+///
+/// A row's height is its text alone, so without vertical spacing the options sit line
+/// against line. Dear ImGui grows a row's highlight into half the spacing on each side,
+/// which is the padding `.dd-item` gives it.
+fn dropdown_list(
+    ui: &mut Ui,
+    id: &str,
+    current: &mut usize,
+    labels: &[String],
+    index: usize,
+) -> bool {
+    let mut changed = false;
+    // Each row is given its own height rather than leaning on item spacing: the list window
+    // sizes itself from its content, and a row whose height is only its text would leave the
+    // options stacked line against line.
+    let row = ui.calc_text_size("Ag")[1] + theme::DROPDOWN_ITEM_PADDING_Y * 2.0;
+    // Left to itself a combo caps its list at eight of Dear ImGui's rows, which is shorter
+    // than eight of these and would cut the list off partway down a row.
+    let visible = labels.len().min(theme::DROPDOWN_VISIBLE_ROWS) as f32;
+    ui.set_next_window_size_constraints(
+        [0.0, 0.0],
+        [f32::MAX, visible * row + theme::DROPDOWN_LIST_PADDING_Y * 2.0],
+    );
+    if ui.begin_combo(&format!("##{id}"), &labels[index]) {
+        for (position, label) in labels.iter().enumerate() {
+            let selected = position == index;
+            if ui.selectable_sized(label, selected, [0.0, row]) {
+                *current = position;
+                changed = true;
+            }
+            if selected {
+                ui.set_item_default_focus();
+            }
+        }
+        ui.end_combo();
+    }
     changed
 }
 
@@ -374,7 +420,12 @@ pub fn draw_tracked_text(
 
 /// The width of `text` in `face`, including letter spacing when given.
 pub fn measure(ui: &Ui, face: Face, text: &str) -> Vec2 {
-    ui.draw_list().measure(face, text)
+    measure_scaled(ui, face, 1.0, text)
+}
+
+/// Measures without a draw list, so it is safe before any window has begun.
+pub fn measure_scaled(ui: &Ui, face: Face, scale: f32, text: &str) -> Vec2 {
+    ui.fonts().measure(face, scale, text)
 }
 
 pub fn measure_tracked(ui: &Ui, face: Face, text: &str, tracking: f32) -> Vec2 {
@@ -385,7 +436,20 @@ pub fn measure_tracked(ui: &Ui, face: Face, text: &str, tracking: f32) -> Vec2 {
 
 /// Draws text truncated with an ellipsis so that it fits `width`.
 pub fn draw_ellipsized(ui: &Ui, position: Vec2, color: Color, face: Face, text: &str, width: f32) {
-    let list = ui.draw_list();
+    draw_ellipsized_scaled(ui, position, color, face, 1.0, text, width)
+}
+
+/// The same, with every face size multiplied by `scale`, for canvas content that zooms.
+pub fn draw_ellipsized_scaled(
+    ui: &Ui,
+    position: Vec2,
+    color: Color,
+    face: Face,
+    scale: f32,
+    text: &str,
+    width: f32,
+) {
+    let list = ui.draw_list().scaled(scale);
     if list.measure(face, text)[0] <= width {
         list.text_with_face(position, color, face, text);
         return;
@@ -495,16 +559,144 @@ pub fn badge(ui: &mut Ui, text: &str, color: Color) {
     let width = size[0] + 6.0;
     let height = 14.0;
     let origin = ui.cursor_screen_position();
+    // The label beside it is centred on its own line, so the badge is centred to match.
+    let line = ui.calc_text_size("Ag")[1].max(height);
+    let top = origin[1] + (line - height) / 2.0;
     let list = ui.draw_list();
-    let max = [origin[0] + width, origin[1] + height];
-    list.rect_outline(origin, max, color, 3.0, Rounding::All, 1.0);
+    let max = [origin[0] + width, top + height];
+    list.rect_outline([origin[0], top], max, color, 3.0, Rounding::All, 1.0);
     list.text_with_face(
-        [origin[0] + 3.0, origin[1] + (height - size[1]) / 2.0],
+        [origin[0] + 3.0, top + (height - size[1]) / 2.0],
         color,
         face,
         text,
     );
-    ui.dummy([width, height]);
+    ui.dummy([width, line]);
+}
+
+/// The slider from `InspectorParamEditor.svelte`: a three pixel track with a round accent
+/// thumb, and no value printed on the track. ImGui's own slider draws a grab rectangle with
+/// the number inside it, which is a different control.
+///
+/// `height` is the row height the track centres itself in, so the slider lines up with the
+/// number box beside it.
+pub fn slider(
+    ui: &mut Ui,
+    id: &str,
+    value: &mut f32,
+    min: f32,
+    max: f32,
+    width: f32,
+    height: f32,
+) -> bool {
+    let origin = ui.cursor_screen_position();
+    let clicked = ui.invisible_button(&format!("##{id}-slider"), [width, height]);
+    let active = ui.item_active();
+    let hovered = ui.item_hovered();
+    if hovered || active {
+        ui.set_mouse_cursor(MouseCursor::Hand);
+    }
+
+    let mut changed = clicked;
+    if active {
+        let fraction = slider_fraction(ui.mouse_position()[0] - origin[0], width);
+        let next = min + fraction * (max - min);
+        if (next - *value).abs() > f32::EPSILON {
+            *value = next;
+            changed = true;
+        }
+    }
+
+    let span = (max - min).abs().max(f32::EPSILON);
+    let fraction = ((*value - min) / span).clamp(0.0, 1.0);
+    let centre_y = origin[1] + height / 2.0;
+    let track_top = centre_y - theme::SLIDER_TRACK_HEIGHT / 2.0;
+    let list = ui.draw_list();
+    list.rect(
+        [origin[0], track_top],
+        [
+            origin[0] + width,
+            track_top + theme::SLIDER_TRACK_HEIGHT,
+        ],
+        theme::BORDER.mix(theme::SLIDER_TRACK_MIX, theme::PANEL_BG),
+        theme::SLIDER_TRACK_RADIUS,
+        Rounding::All,
+    );
+    let half = theme::SLIDER_THUMB_SIZE / 2.0;
+    let thumb_x = origin[0] + half + fraction * (width - theme::SLIDER_THUMB_SIZE).max(0.0);
+    list.circle(
+        [thumb_x, centre_y],
+        half,
+        theme::ACCENT,
+    );
+    changed
+}
+
+/// A colour row: a full-width swatch that opens the picker, sized like the other controls.
+///
+/// ImGui's inline editor packs four drag fields into the row instead, which is illegible at
+/// an inspector's width.
+pub fn color_row(ui: &mut Ui, id: &str, value: &mut [f32; 4], width: f32) -> bool {
+    let origin = ui.cursor_screen_position();
+    let max = [origin[0] + width, origin[1] + theme::INPUT_HEIGHT];
+    let opened = ui.color_button(&format!("##{id}-swatch"), Color(*value), [
+        width,
+        theme::INPUT_HEIGHT,
+    ]);
+    ui.draw_list().rect_outline(
+        origin,
+        max,
+        if ui.item_hovered() {
+            theme::ACCENT
+        } else {
+            theme::BORDER
+        },
+        theme::INPUT_RADIUS,
+        Rounding::All,
+        theme::INPUT_BORDER_WIDTH,
+    );
+    let popup = format!("##{id}-picker");
+    if opened {
+        ui.open_popup(&popup);
+    }
+    let mut changed = false;
+    ui.popup(&popup, |ui| {
+        changed = ui.color_picker4(&format!("##{id}-wheel"), value);
+    });
+    changed
+}
+
+/// Draws `text` centred vertically in a row `height` tall whose top edge is `top`.
+///
+/// Faces differ in line height, so two faces sharing a row cannot both sit at a fixed
+/// offset from its top; centring each one against the row keeps them on the same line.
+pub fn draw_in_row(
+    ui: &Ui,
+    x: f32,
+    top: f32,
+    height: f32,
+    color: Color,
+    face: Face,
+    text: &str,
+) {
+    let list = ui.draw_list();
+    let line = list.measure(face, text)[1];
+    list.text_with_face([x, top + (height - line) / 2.0], color, face, text);
+}
+
+/// The x a right-aligned run of `text` starts at, given the row's right edge.
+pub fn right_aligned(ui: &Ui, right: f32, face: Face, text: &str) -> f32 {
+    right - measure(ui, face, text)[0]
+}
+
+/// Where along the track a pointer `offset` pixels into it falls.
+///
+/// The thumb's centre travels between the inset ends, so the usable span is the track width
+/// less one thumb; without the inset the thumb would hang off both ends.
+pub fn slider_fraction(offset: f32, width: f32) -> f32 {
+    let half = theme::SLIDER_THUMB_SIZE / 2.0;
+    let travel = (width - theme::SLIDER_THUMB_SIZE).max(1.0);
+    ((offset - half) / travel).clamp(0.0, 1.0)
 }
 
 /// Tracks how long the pointer has rested on the last item, for the delayed tooltips.
@@ -551,6 +743,24 @@ pub fn clicked_in(ui: &Ui, min: Vec2, max: Vec2) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_slider_track_is_inset_by_half_a_thumb_at_each_end() {
+        let width = 112.0;
+        assert_eq!(slider_fraction(theme::SLIDER_THUMB_SIZE / 2.0, width), 0.0);
+        assert_eq!(
+            slider_fraction(width - theme::SLIDER_THUMB_SIZE / 2.0, width),
+            1.0
+        );
+        let middle = slider_fraction(width / 2.0, width);
+        assert!((middle - 0.5).abs() < 0.001, "midpoint was {middle}");
+    }
+
+    #[test]
+    fn the_slider_clamps_a_pointer_dragged_past_either_end() {
+        assert_eq!(slider_fraction(-40.0, 100.0), 0.0);
+        assert_eq!(slider_fraction(400.0, 100.0), 1.0);
+    }
 
     #[test]
     fn point_containment_includes_the_edges() {

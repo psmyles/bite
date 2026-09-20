@@ -158,6 +158,44 @@ fn fallback_font() -> Option<Vec<u8>> {
         .and_then(|path| std::fs::read(path).ok())
 }
 
+/// The factor between a face's CSS pixel size and the size Dear ImGui must be asked for.
+///
+/// `ImFontConfig::SizePixels` is fed to `stbtt_ScaleForPixelHeight`, which scales the font so
+/// that ascender minus descender equals that many pixels. A stylesheet's `font-size` is the em
+/// size instead. The two differ by `(ascender - descender) / unitsPerEm`, which is 1.32 for
+/// JetBrains Mono: asking for twelve there would draw an em of nine, three quarters of the
+/// size the stylesheet asked for. Multiplying by this factor makes the em come out right.
+fn em_to_pixel_height(data: &[u8]) -> f32 {
+    fn u16_at(data: &[u8], offset: usize) -> Option<u16> {
+        let bytes = data.get(offset..offset + 2)?;
+        Some(u16::from_be_bytes([bytes[0], bytes[1]]))
+    }
+    fn i16_at(data: &[u8], offset: usize) -> Option<i16> {
+        u16_at(data, offset).map(|value| value as i16)
+    }
+    fn table(data: &[u8], tag: &[u8; 4]) -> Option<usize> {
+        let count = usize::from(u16_at(data, 4)?);
+        (0..count).find_map(|index| {
+            let record = 12 + index * 16;
+            (data.get(record..record + 4)? == tag).then(|| {
+                let bytes = data.get(record + 8..record + 12)?;
+                Some(u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize)
+            })?
+        })
+    }
+
+    let parsed = (|| {
+        let units_per_em = f32::from(u16_at(data, table(data, b"head")? + 18)?);
+        let horizontal = table(data, b"hhea")?;
+        let ascender = f32::from(i16_at(data, horizontal + 4)?);
+        let descender = f32::from(i16_at(data, horizontal + 6)?);
+        let height = ascender - descender;
+        (units_per_em > 0.0 && height > 0.0).then_some(height / units_per_em)
+    })();
+    // A font whose tables cannot be read is rasterized as Dear ImGui would have done.
+    parsed.unwrap_or(1.0)
+}
+
 /// Handle to one face inside the current atlas.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct FontId(pub(crate) usize);
@@ -166,20 +204,66 @@ pub struct FontId(pub(crate) usize);
 pub struct Fonts {
     pub(crate) faces: Vec<Face>,
     pub(crate) handles: Vec<*mut sys::ImFont>,
+    /// The size each face was asked for, in logical pixels. This is the face's CSS size
+    /// corrected by [`em_to_pixel_height`], and it is what drawing and measuring must use.
+    pub(crate) heights: Vec<f32>,
+
     scale: f32,
     /// Held for as long as the atlas keeps a pointer into it.
     _fallback: Option<Vec<u8>>,
 }
 
 impl Fonts {
+    /// The logical pixel size a face is drawn at, which is its CSS size corrected so the em
+    /// comes out right.
+    pub(crate) fn height(&self, id: FontId) -> f32 {
+        self.heights.get(id.0).copied().unwrap_or_default()
+    }
+
+    /// Measures `text` in `face` at `scale` times its size.
+    ///
+    /// This goes straight to the font, so it works before any window has begun. Measuring
+    /// through a draw list would need a current window, and asking for one outside a frame's
+    /// windows leaves the context in a state that shows up as stray popups and clipped text.
+    pub fn measure(&self, face: Face, scale: f32, text: &str) -> [f32; 2] {
+        let id = self.id(face);
+        let Some(handle) = self.handles.get(id.0).copied().filter(|h| !h.is_null()) else {
+            return [0.0, 0.0];
+        };
+        let size = self.heights.get(id.0).copied().unwrap_or_default() * scale;
+        let text = std::ffi::CString::new(text).unwrap_or_default();
+        let mut out = sys::ImVec2::default();
+        unsafe {
+            sys::ImFont_CalcTextSizeA(
+                &mut out,
+                handle,
+                size,
+                f32::MAX,
+                0.0,
+                text.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null_mut(),
+            )
+        };
+        [out.x, out.y]
+    }
+
     /// Rebuilds the atlas at `scale`, rasterizing every face at its physical size.
     pub(crate) fn build(faces: Vec<Face>, scale: f32) -> Self {
         let atlas = unsafe { (*sys::igGetIO()).Fonts };
         unsafe { sys::ImFontAtlas_Clear(atlas) };
         let fallback = fallback_font();
         let mut handles = Vec::with_capacity(faces.len());
+        let mut heights = Vec::with_capacity(faces.len());
         for face in &faces {
             let data = face.data();
+            // Dear ImGui truncates the size it is given and snaps each advance to a whole
+            // pixel, so the request is rounded to a whole physical pixel first. The logical
+            // size kept beside it is then an exact `1 / scale` of what was rasterized, which
+            // leaves the glyphs unresampled.
+            let physical =
+                (f32::from(face.size) * em_to_pixel_height(data) * scale).round().max(1.0);
+            heights.push(physical / scale);
             let mut config = unsafe { *sys::ImFontConfig_ImFontConfig() };
             // The atlas must not free memory that Rust owns.
             config.FontDataOwnedByAtlas = false;
@@ -189,7 +273,7 @@ impl Fonts {
                     atlas,
                     data.as_ptr() as *mut _,
                     data.len() as i32,
-                    f32::from(face.size) * scale,
+                    physical,
                     &config,
                     std::ptr::null(),
                 )
@@ -205,7 +289,11 @@ impl Fonts {
                         atlas,
                         bytes.as_ptr() as *mut _,
                         bytes.len() as i32,
-                        f32::from(face.size) * scale,
+                        // The fallback is corrected against its own metrics, so its em
+                        // matches the face it merges into.
+                        (f32::from(face.size) * em_to_pixel_height(bytes) * scale)
+                            .round()
+                            .max(1.0),
                         &merge,
                         ranges,
                     );
@@ -216,6 +304,7 @@ impl Fonts {
         Self {
             faces,
             handles,
+            heights,
             scale,
             _fallback: fallback,
         }

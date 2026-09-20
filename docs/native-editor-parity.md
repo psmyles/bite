@@ -9,7 +9,9 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Area | Electron source | Native status |
 | --- | --- | --- |
 | Interface library | Browser layout and CSS | Dear ImGui through full generated cimgui bindings; the hand-written C shim and the node editor add-on are removed |
-| Fonts | `assets/fonts.css` | Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and weight `theme.css` asks for, with a platform fallback merged in for text fields so input methods render |
+| Fonts | `assets/fonts.css` | Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and weight `theme.css` asks for, with a platform fallback merged in for text fields so input methods render. Each face is rasterized so its em equals the token's pixel size, which is what `font-size` means; Dear ImGui's own parameter is the ascender-to-descender distance instead |
+| Menu dropdowns | `MenuBar.svelte` | Rows padded five pixels above and below with the accelerator on the right, inside a dropdown padded four pixels above its first row and below its last |
+| Inspector dropdowns | `Dropdown.svelte` | The open list gives each row the five by ten padding `.dd-item` names, pads four pixels top and bottom, and scrolls after eight rows |
 | Design tokens | `assets/theme.css` | Transcribed into `crates/bite-gui-prototype/src/theme.rs`; drawing code reads tokens, never literals |
 | Canvas | `@xyflow/svelte` | A Rust-owned canvas drawn on ImGui draw lists, so gestures and visuals are not constrained by an add-on |
 | Panels | `App.svelte` | Fixed three-column shell with invisible six-pixel drag gaps; docking is removed |
@@ -36,6 +38,7 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Drag threshold | One pixel before a move counts | Implemented |
 | Snap to grid | None | Matches: no snapping |
 | Double click a node | Toggles the preview target, excluding endpoints, comments and disabled nodes | Implemented |
+| Selecting a node | Does not change the preview target | Implemented: only a double click sets it |
 | Double click empty canvas | Resets zoom to one, keeping the pan | Implemented |
 | Right click | Creation menu on empty canvas and on a group; nothing on an ordinary node | Implemented |
 | Typed wires | Type-colored, validated before the graph changes | Implemented through `bite_core::graph::validate` |
@@ -56,7 +59,9 @@ hands-on confirmation; items marked missing are not implemented yet.
 
 | Requirement | Native status |
 | --- | --- |
-| Card width | 150 for process and compare cards, 190 for the built-in workflow cards, 210 for comments |
+| Card width | 150 for process and compare cards, 190 for the built-in workflow cards, 210 for comments, each a floor: the card grows to fit its header, rows and footer as the browser element shrink-wraps, up to a 320 ceiling |
+| Enum parameters | Neither a body row nor a port, matching the `type !== 'enum'` filter in `nodeEditorHelpers.ts` |
+| Channel count | A definition with a `channels` parameter shows only that many image inputs, from the node's value or the definition default |
 | Layout arithmetic | Header 28, port rows 20 with 5 padding, parameter rows 22 with 4 padding, one-pixel separators, footer 22, transcribed from `ProcessNode.svelte` |
 | Header tints | 18 percent accent mix per built-in kind, 20 percent for Process As Set, plain for process cards |
 | Ports | Ten-pixel circles in the wire color with a two-pixel border and monospaced labels |
@@ -69,6 +74,8 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Selection | White ring, two pixels |
 | Bypassed appearance | The card dims to 45 percent |
 | Groups and comments | Group frame with a floating label band; comment in the sticky-note palette |
+| Comment text | Heading at fourteen pixels bold and body at fourteen pixels, wrapped to the card and clipped at its lower edge |
+| Text at zoom | Every label on a card is drawn at the zoom level, so wording keeps its proportion to the card |
 
 ## Creation menu
 
@@ -91,7 +98,7 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Node Library | Filter, pinned Workflow section hidden while searching, collapsible categories forced open during a search, drag to canvas, hover descriptions, both empty states |
 | Inspector | Header with the node name, the full dispatch table, and the run action in a bordered footer |
 | Preview | Letterboxed on black, Info toggle defaulting to on, gradient overlay with the name and `FORMAT · W x H · size`, both empty states |
-| Filmstrip | Thumbnail size derived from panel height, horizontal scrolling with a vertical wheel, virtualized with overscan, selection border, status count, clickable empty prompt |
+| Filmstrip | Status count shown at every count including none; thumbnail size derived from panel height, horizontal scrolling with a vertical wheel, virtualized with overscan, selection border, status count, clickable empty prompt |
 
 ## Inspector
 
@@ -103,6 +110,8 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Wired rows | The source value replaces the control |
 | Computed rows | The live value from the preview run |
 | Widgets | Slider with its numeric box, number, text, dropdown, checkbox, color and vector |
+| Slider | Three pixel track, twelve pixel round accent thumb, centred against the number box; not ImGui's own slider, which prints the value on the track |
+| Color | Full-width swatch opening a picker. Deviation: Electron draws the saturation square, hue bar and channel sliders inline in the row |
 | `visible_when` | Evaluated from the node's parameters |
 | Input | Naming, thumbnail size, folder card, subfolder toggle, ten format chips with at least one enforced, scan count, import, individual images, loaded file list |
 | Image Output | Naming, output path with browse, overwrite, set naming when Process As Set is upstream, log toggle |
@@ -147,6 +156,9 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
 
 ## Still to do
 
+- The minimap is removed. A Fit View control beside the zoom reading replaces it, which is a
+  deliberate deviation: the minimap was unreliable and the framing action is what it was used
+  for.
 - The log viewer opens the file in the platform viewer rather than drawing the Electron log
   window, so the level filters and the `[tag]` highlight are not reproduced.
 - The interface showcase window is not implemented; the capture scenes cover the same ground
@@ -168,4 +180,4 @@ cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity
 ```
 
 Each run writes one image per scene: the seed document, a selected node, the creation menu,
-and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.
+a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.

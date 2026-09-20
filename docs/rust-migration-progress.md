@@ -676,3 +676,140 @@ the interface showcase, inline comment editing on the canvas, dragging Text Outp
 reorder them, and the macOS system menu. The hands-on checklist in
 `docs/phase10-windows-acceptance.md` has been rewritten around the new gestures and is the
 remaining M4 gate; macOS acceptance stays pending under the platform policy.
+
+## Native editor: correction pass after first hands-on use (2026-09-20)
+
+The first interactive session with the rewritten editor found eleven faults. Each is fixed
+and, where it could be, covered by a test or a capture scene.
+
+Wrapper gaps that caused visible faults:
+
+- Hover tooltips rendered one character a line. `text_wrapped` pushes a wrap position of
+  zero, which means "the window's right edge"; in an auto-sized tooltip that edge is itself
+  derived from the content, so the text collapsed. `Ui::text_wrapped_at` names the width
+  instead, and the tooltip uses the 320 pixels `NodeLibrary.svelte` reserves for it.
+- Dragging a library entry onto the canvas did nothing. `BeginDragDropTarget` binds to the
+  last item, and a panel that paints itself has no such item, so the drop was never seen.
+  `Ui::drag_target_rect` wraps `BeginDragDropTargetCustom` and names the canvas rectangle.
+- Card text did not scale with the zoom, so labels overflowed their cards away from 100%.
+  `DrawListRef::scaled` multiplies every face size, and the node, group, comment, port, row
+  and badge painters all draw through a scaled list.
+
+Editor faults:
+
+- A comment's heading and body were never painted; only the sticky-note shape was. Both are
+  drawn now at the fourteen pixel sizes `CommentNode.svelte` uses, wrapped to the card.
+- Selecting a node retargeted the preview. That moved the PREVIEWING badge onto whatever was
+  selected and, when the selection produced no image, left the preview panel empty, which is
+  why a filmstrip selection appeared to do nothing. Only a double click sets the target now,
+  as in Electron.
+- The creation menu forced the first category's flyout open and closed a flyout as soon as
+  the pointer left its row, so no entry in any flyout could be reached. The open category is
+  explicit state that outlives the row hover.
+- The menu's search field never took the keyboard: the window carried `NoNav`, which makes
+  ImGui skip it when placing focus. The flag is gone and the window takes focus on the frame
+  it opens.
+- A created node was centred using a guessed card width and a fixed 58 pixel height, which
+  put it somewhere the pointer had not been. The card's corner now lands on the pointer, for
+  both a library drop and a menu choice.
+- The minimap is removed at the user's request. A Fit View control sits beside the zoom
+  reading, and the canvas ignores gestures inside it.
+- The inspector slider was ImGui's own, which prints the value on the track. It is now the
+  three pixel track and twelve pixel round thumb from `InspectorParamEditor.svelte`, level
+  with its number box. The colour parameter was ImGui's inline editor, four drag fields in a
+  250 pixel panel; it is a full-width swatch that opens a picker.
+- Every per-role face was re-checked against `theme.css`. One discrepancy surfaced:
+  `--text-thumb-name-size` says ten pixels but `Filmstrip.svelte` overrides it with
+  `--font-size-xs`, so the rendered size is eleven. The native editor follows the component,
+  and the token now carries a note saying why. Badges also gained the six pixel gap and the
+  vertical centring `.param-label` gives them.
+
+Three capture scenes were added, for the comment card, a slider row and a colour row, so the
+next visual comparison covers them. The workspace is at 186 tests and strict Clippy is clean.
+The hands-on checklist in `docs/phase10-windows-acceptance.md` gained the items these faults
+would have been caught by.
+
+### Card layout and ports, from the second side-by-side (2026-09-20)
+
+A screenshot of the two editors beside each other showed node cards that were too narrow and
+carried ports Electron does not draw. Three rules were missing.
+
+- **Cards did not grow.** `card_width` returned a constant per node kind. In the browser a
+  node is an absolutely positioned element, so it shrink-wraps to its content and
+  `--node-min-width` is only a floor; every longer label was being cut instead. The card is
+  now measured against its header, port rows, parameter rows, output slots and footer, with
+  the header's twelve pixel inset, or thirty-four when it carries the bypass tick. A 320
+  pixel ceiling keeps one long value from stretching a card across the canvas.
+- **Enum parameters appeared as rows and ports.** `nodeEditorHelpers.ts` filters
+  `type !== 'enum'` when it builds `paramDefs`, so a list-valued parameter belongs to the
+  inspector alone. That is why Electron's Premultiply Alpha and Convert Format cards carry
+  nothing but their image ports.
+- **The channel count did not trim the inputs.** A definition with a `channels` parameter
+  shows only that many image inputs, taken from the node's value and falling back to the
+  definition default, which is why Merge Channels has no alpha port at three.
+
+Measuring text for the card width exposed a second fault. `controls::measure` went through
+`GetWindowDrawList`, and card measurement happens before the canvas window begins; asking
+for a draw list outside a window left the context in a state that drew a stray menu popup
+over the library and clipped unrelated text. Measurement now goes straight to the font
+through `Fonts::measure`, which needs no window.
+
+The filmstrip status bar also hid its count when empty; Electron's `countLabel` shows
+`0 images`, so the bar no longer goes blank.
+
+A `cards` capture scene draws a column of the definitions that exercise each rule. The
+workspace is at 193 tests.
+
+### Font sizing and menu rows (2026-09-20)
+
+Node card text was still noticeably smaller than Electron's, and the menu dropdowns had no
+room between their rows.
+
+**The em.** `ImFontConfig::SizePixels` is fed to `stbtt_ScaleForPixelHeight`, which scales a
+font so that ascender minus descender equals that many pixels. A stylesheet's `font-size` is
+the em size. The two differ by `(ascender - descender) / unitsPerEm`, which the bundled fonts
+report as 1.32 for JetBrains Mono and 0.957 for Atkinson Hyperlegible Next. Passing the
+token's number straight through therefore drew monospaced text at about three quarters of the
+size the stylesheet asked for, while interface text came out four percent large. That is
+exactly why the panels looked right and only the node cards, which are monospaced throughout,
+looked small. Each face now reads `head` and `hhea` from its own file and rasterizes at
+`size * (ascender - descender) / unitsPerEm`, rounded to a whole physical pixel so glyphs are
+not resampled, with the logical size kept beside it for drawing and measuring. A test asserts
+that JetBrains Mono advances six tenths of its token size, which it did not before.
+
+**Menu rows.** A menu row's height is its text and nothing else, so with no vertical item
+spacing the rows sat line against line. Dear ImGui grows a row's highlight into half the item
+spacing on each side, so the five pixels `.dropdown li button` pads with are set as ten
+pixels of spacing, and the dropdown carries the twelve by four padding `.dropdown` gives it.
+
+**A dangling shortcut.** `Ui::menu_item` built the accelerator's `CString` inside the `if`
+that chose between it and a null pointer, so it was dropped at the end of that block and Dear
+ImGui was handed freed memory. Every accelerator was missing from every dropdown as a result.
+
+Faces differ in line height, so two of them sharing a row can no longer both sit at a fixed
+offset from its top. `controls::draw_in_row` centres each against the row instead, and the
+Credits table uses it.
+
+A `menu` capture scene holds a dropdown open by driving the pointer, so the row spacing and
+the accelerators are visible in the capture set.
+
+### Popup padding (2026-09-20)
+
+Two follow-ons from the menu spacing work, both the same shape: a row in a Dear ImGui popup
+is as tall as its text and nothing more, so a list built from plain rows arrives with its
+options stacked line against line.
+
+- A menu dropdown had no room above its first row or below its last. Dear ImGui places the
+  first row's text at the window padding and only grows its highlight into half the item
+  spacing above it, so the window padding now carries the row's five pixels as well as the
+  dropdown's four.
+- The inspector's dropdowns were still collapsed, because `controls::dropdown` pushed a zero
+  item spacing that the open list inherited. The list now gives each row an explicit height
+  of the label plus the five pixel padding `.dd-item` names, rather than leaning on item
+  spacing, which also lets the list size itself correctly. A combo otherwise caps its list at
+  eight of Dear ImGui's own rows, which is shorter than eight of these and cut the last option
+  in half, so the height constraint is set from the caller's row height instead.
+
+`Ui` gained `begin_combo`, `end_combo` and `set_next_window_size_constraints` so the list can
+be styled on its own terms rather than the closed control's. A `dropdown` capture scene opens
+the Compare node's operator list by driving the pointer, beside the `menu` scene.

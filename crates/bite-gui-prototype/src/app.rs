@@ -393,19 +393,11 @@ impl Editor {
         position: Vec2,
         pending: Option<PendingWire>,
     ) {
-        let centred = pending.is_none();
-        let card_width = if payload.ends_with("Node") { 190.0 } else { 150.0 };
-        let card_height = 58.0;
-        let place = if centred {
-            Position {
-                x: f64::from(position[0] - card_width / 2.0),
-                y: f64::from(position[1] - card_height / 2.0),
-            }
-        } else {
-            Position {
-                x: f64::from(position[0]),
-                y: f64::from(position[1]),
-            }
+        // The card's corner lands under the pointer. Centring would need the height before
+        // the node exists, and guessing it puts the card somewhere the pointer never was.
+        let place = Position {
+            x: f64::from(position[0]),
+            y: f64::from(position[1]),
         };
 
         self.studio.begin_transaction();
@@ -474,31 +466,13 @@ impl Editor {
 
     /// The node the preview should follow. A workflow endpoint or a comment is never a
     /// preview target, so the selection only counts when it can produce an image.
+    /// The node the preview renders through.
+    ///
+    /// Only a double click sets this, as in Electron. Selecting a node must not retarget
+    /// the preview: a node that produces no image would leave the panel empty and move the
+    /// PREVIEWING badge onto a card that is merely selected.
     pub fn effective_preview_node(&self) -> Option<String> {
-        if let Some(explicit) = &self.preview_node {
-            return Some(explicit.clone());
-        }
-        let selected = self.selected_node.as_ref()?;
-        let node = self
-            .studio
-            .workflow
-            .graph
-            .nodes
-            .iter()
-            .find(|node| node.id == *selected)?;
-        let excluded = matches!(
-            node.kind,
-            NodeKind::Builtin(
-                BuiltinNodeKind::Input
-                    | BuiltinNodeKind::ImageOutput
-                    | BuiltinNodeKind::TextOutput
-                    | BuiltinNodeKind::FlipbookOutput
-                    | BuiltinNodeKind::Comment
-                    | BuiltinNodeKind::Group
-                    | BuiltinNodeKind::FolderPath
-            )
-        );
-        (!excluded).then(|| selected.clone())
+        self.preview_node.clone()
     }
 }
 

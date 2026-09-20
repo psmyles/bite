@@ -102,6 +102,11 @@ impl Ui<'_> {
         unsafe { sys::igSetNextWindowPos(v(position), sys::ImGuiCond_Always, v([0.0, 0.0])) }
     }
 
+    /// Focuses the next window, so a field inside it can take the keyboard.
+    pub fn set_next_window_focus(&mut self) {
+        unsafe { sys::igSetNextWindowFocus() }
+    }
+
     pub fn set_next_window_size(&mut self, size: Vec2) {
         unsafe { sys::igSetNextWindowSize(v(size), sys::ImGuiCond_Always) }
     }
@@ -182,18 +187,15 @@ impl Ui<'_> {
     }
 
     pub fn menu_item(&mut self, label: &str, shortcut: &str, selected: bool, enabled: bool) -> bool {
-        unsafe {
-            sys::igMenuItem_Bool(
-                c(label).as_ptr(),
-                if shortcut.is_empty() {
-                    std::ptr::null()
-                } else {
-                    c(shortcut).as_ptr()
-                },
-                selected,
-                enabled,
-            )
-        }
+        let label = c(label);
+        // The shortcut string has to outlive the call. Building it inside the argument would
+        // drop it at the end of the block that made it, leaving Dear ImGui a dangling pointer
+        // and the accelerator missing from the row.
+        let shortcut = (!shortcut.is_empty()).then(|| c(shortcut));
+        let shortcut = shortcut
+            .as_ref()
+            .map_or(std::ptr::null(), |text| text.as_ptr());
+        unsafe { sys::igMenuItem_Bool(label.as_ptr(), shortcut, selected, enabled) }
     }
 
     pub fn separator(&mut self) {
@@ -407,6 +409,20 @@ impl Ui<'_> {
         }
     }
 
+    /// Wraps at `width` from the current cursor.
+    ///
+    /// A plain `text_wrapped` inside an auto-sized window wraps at the window's own edge,
+    /// which is itself derived from the content, so the text collapses to one glyph a line.
+    /// Naming the width breaks that circle.
+    pub fn text_wrapped_at(&mut self, text: &str, width: f32) {
+        let wrap = self.cursor_screen_position()[0] + width;
+        unsafe {
+            sys::igPushTextWrapPos(wrap);
+            sys::igTextUnformatted(c(text).as_ptr(), std::ptr::null());
+            sys::igPopTextWrapPos();
+        }
+    }
+
     /// Draws text clipped to `width`, appending an ellipsis when it does not fit.
     pub fn text_ellipsized(&mut self, text: &str, width: f32) {
         let full = self.calc_text_size(text);
@@ -547,8 +563,23 @@ impl Ui<'_> {
             sys::igColorEdit4(
                 c(label).as_ptr(),
                 values.as_mut_ptr(),
+                // Without this the editor packs four drag fields into the row, which is
+                // unreadable at an inspector's width. A swatch opens the picker instead.
                 sys::ImGuiColorEditFlags_AlphaBar
-                    | sys::ImGuiColorEditFlags_AlphaPreviewHalf,
+                    | sys::ImGuiColorEditFlags_AlphaPreviewHalf
+                    | sys::ImGuiColorEditFlags_NoInputs,
+            )
+        }
+    }
+
+    /// The full picker, for use inside a popup opened from a swatch.
+    pub fn color_picker4(&mut self, label: &str, values: &mut [f32; 4]) -> bool {
+        unsafe {
+            sys::igColorPicker4(
+                c(label).as_ptr(),
+                values.as_mut_ptr(),
+                sys::ImGuiColorEditFlags_AlphaBar,
+                std::ptr::null(),
             )
         }
     }
@@ -636,6 +667,31 @@ impl Ui<'_> {
     // -- Combos ----------------------------------------------------------------------
 
     /// A drop-down list. Returns true when the selection changed.
+    /// Bounds the next window's size. A combo uses this in place of its own cap, which is
+    /// eight rows of Dear ImGui's row height rather than eight of the caller's.
+    pub fn set_next_window_size_constraints(&mut self, min: Vec2, max: Vec2) {
+        unsafe {
+            sys::igSetNextWindowSizeConstraints(
+                v(min),
+                v(max),
+                None,
+                std::ptr::null_mut(),
+            )
+        }
+    }
+
+    /// Opens a combo's list. The caller draws the rows and calls [`Ui::end_combo`], which
+    /// lets it style the list on its own terms rather than the closed control's.
+    pub fn begin_combo(&mut self, label: &str, preview: &str) -> bool {
+        let label = c(label);
+        let preview = c(preview);
+        unsafe { sys::igBeginCombo(label.as_ptr(), preview.as_ptr(), 0) }
+    }
+
+    pub fn end_combo(&mut self) {
+        unsafe { sys::igEndCombo() }
+    }
+
     pub fn combo(&mut self, label: &str, current: &mut usize, items: &[String]) -> bool {
         if items.is_empty() {
             return false;
@@ -716,6 +772,36 @@ impl Ui<'_> {
             }
             preview(self);
             unsafe { sys::igEndDragDropSource() };
+        }
+    }
+
+    /// Accepts a payload of `kind` dropped anywhere inside `min`..`max`.
+    ///
+    /// The plain target binds to the last item; a panel that draws itself has no such item,
+    /// so the rectangle is named directly.
+    pub fn drag_target_rect(&mut self, kind: &str, min: Vec2, max: Vec2, id: &str) -> Option<String> {
+        let bb = sys::ImRect {
+            Min: v(min),
+            Max: v(max),
+        };
+        let id = unsafe { sys::igGetID_Str(c(id).as_ptr()) };
+        let mut result = None;
+        if unsafe { sys::igBeginDragDropTargetCustom(bb, id) } {
+            result = self.accept_payload(kind);
+            unsafe { sys::igEndDragDropTarget() };
+        }
+        result
+    }
+
+    fn accept_payload(&mut self, kind: &str) -> Option<String> {
+        let payload = unsafe { sys::igAcceptDragDropPayload(c(kind).as_ptr(), 0) };
+        if payload.is_null() {
+            return None;
+        }
+        unsafe {
+            let length = (*payload).DataSize.max(0) as usize;
+            let bytes = std::slice::from_raw_parts((*payload).Data as *const u8, length);
+            Some(String::from_utf8_lossy(bytes).into_owned())
         }
     }
 

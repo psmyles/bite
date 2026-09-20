@@ -983,8 +983,7 @@ fn flipbook_output_node(
             values.get(3).copied().unwrap_or(1.0) as f32,
         ];
         ui.disabled(wired, |ui| {
-            ui.set_next_item_width(width - 24.0);
-            if ui.color_edit4("##bg-color", &mut rgba) {
+            if controls::color_row(ui, "bg-color", &mut rgba, width - 24.0) {
                 edits.push(Edit::SetParam {
                     node: node.id.clone(),
                     name: "bgColor".into(),

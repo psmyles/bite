@@ -25,6 +25,8 @@ pub fn thumbnail_size(height: f32) -> f32 {
 }
 
 /// The count line the status bar shows.
+///
+/// Electron shows this at every count, including none, so the bar never goes blank.
 pub fn status_text(count: usize) -> String {
     match count {
         1 => "1 image".to_string(),
@@ -163,16 +165,15 @@ pub fn draw(
             theme::BORDER.mix(40.0, bite_imgui::Color::TRANSPARENT),
             1.0,
         );
-        if !thumbnails.is_empty() {
-            let text = status_text(thumbnails.len());
-            let size = list.measure(theme::face::SMALL_MONO, &text);
-            list.text_with_face(
-                [rect.min[0] + 10.0, status_top + (status_height - size[1]) / 2.0],
-                theme::TEXT_BRIGHT.with_alpha(0.5),
-                theme::face::SMALL_MONO,
-                &text,
-            );
-        }
+        // The count shows even at zero, as `countLabel` does.
+        let text = status_text(thumbnails.len());
+        let size = list.measure(theme::face::SMALL_MONO, &text);
+        list.text_with_face(
+            [rect.min[0] + 10.0, status_top + (status_height - size[1]) / 2.0],
+            theme::TEXT_BRIGHT.with_alpha(0.5),
+            theme::face::SMALL_MONO,
+            &text,
+        );
     });
     outcome
 }

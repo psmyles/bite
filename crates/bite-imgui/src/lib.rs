@@ -357,6 +357,22 @@ mod tests {
                 let list = ui.draw_list();
                 let measured = list.measure(Face::mono(11), "output-image-1");
                 assert!(measured[0] > 0.0);
+
+                // The rendered em must equal the size the stylesheet names.
+                // `ImFontConfig::SizePixels` is the distance from ascender to descender, not
+                // the em, and the two differ by a third for JetBrains Mono. Asking Dear ImGui
+                // for the stylesheet's number directly drew monospaced text at three quarters
+                // of its intended size. JetBrains Mono advances six hundred units on a
+                // thousand unit em.
+                const MONO_ADVANCE: f32 = 0.6;
+                for size in [11u16, 12, 13] {
+                    let width = list.measure(Face::mono(size), "MMMMMMMMMM")[0] / 10.0;
+                    let ratio = width / f32::from(size);
+                    assert!(
+                        (ratio - MONO_ADVANCE).abs() < 0.05,
+                        "mono {size} advanced {ratio:.3} of its size, wanted {MONO_ADVANCE}"
+                    );
+                }
             });
             data = frame.render();
         }

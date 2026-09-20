@@ -339,8 +339,9 @@ pub fn draw_tooltip(ui: &mut Ui, text: &str) {
                 |ui| {
                     ui.tooltip(|ui| {
                         ui.with_face(theme::face::LABEL, |ui| {
-                            ui.set_next_item_width(320.0);
-                            ui.text_wrapped(text);
+                            // The width is named explicitly: an auto-sized tooltip has no
+                            // edge to wrap against until its content has been measured.
+                            ui.text_wrapped_at(text, theme::TOOLTIP_WIDTH);
                         });
                     })
                 },

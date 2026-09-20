@@ -34,7 +34,9 @@ the specification, and the parity inventory lives in `docs/native-editor-parity.
 ## Fonts
 
 Atkinson Hyperlegible Next and JetBrains Mono are embedded in the executable at every size
-and weight the stylesheet uses. A platform font is merged into the text-entry sizes so that
+and weight the stylesheet uses. Each face is rasterized so that its em equals the size the
+token names, because that is what a stylesheet's `font-size` means, while Dear ImGui's own
+size parameter is the distance from ascender to descender. A platform font is merged into the text-entry sizes so that
 text typed through an input method renders. The atlas is rasterized at the display scale and
 rebuilt when the scale changes.
 
@@ -56,7 +58,7 @@ cargo run -p bite-gui-prototype -- workflow.bite
 
 The capture mode renders fixed scenes without opening a window, for side-by-side comparison
 with Electron. It writes one image per scene: the seed document, a selected node, the creation
-menu, and every dialog.
+menu, a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, and every dialog.
 
 ```
 cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity
@@ -78,5 +80,5 @@ The third argument is the display scale, so the same scenes can be checked at hi
 The hands-on checklist is `docs/phase10-windows-acceptance.md`. The known gaps are listed
 under "Still to do" in `docs/native-editor-parity.md`: the log viewer window, the interface
 showcase, inline comment editing on the canvas, dragging Text Output ports to reorder them,
-and the macOS system menu. macOS acceptance is pending under the project platform policy,
+and the macOS system menu. The minimap is deliberately absent; a Fit View control replaces it. macOS acceptance is pending under the project platform policy,
 although dialogs, the clipboard, the update check and fonts are now cross-platform.

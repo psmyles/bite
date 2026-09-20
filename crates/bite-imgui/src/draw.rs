@@ -26,6 +26,8 @@ impl Rounding {
 pub struct DrawListRef<'ui> {
     raw: *mut sys::ImDrawList,
     fonts: &'ui crate::Fonts,
+    /// Multiplies every face size, so canvas content can track a zoom level.
+    text_scale: f32,
 }
 
 impl DrawListRef<'_> {
@@ -130,6 +132,18 @@ impl DrawListRef<'_> {
 
     /// Draws text in a specific face without disturbing the surrounding font stack.
     pub fn text_with_face(&self, position: Vec2, color: Color, face: Face, text: &str) {
+        self.text_scaled(position, color, face, self.text_scale, text)
+    }
+
+    /// Draws text at `scale` times the face's size, for content that zooms with a canvas.
+    pub fn text_scaled(
+        &self,
+        position: Vec2,
+        color: Color,
+        face: Face,
+        scale: f32,
+        text: &str,
+    ) {
         let id = self.fonts.id(face);
         let Some(handle) = self.fonts.handles.get(id.0).copied() else {
             return self.text(position, color, text);
@@ -139,7 +153,10 @@ impl DrawListRef<'_> {
         }
         let text = c(text);
         // The atlas is rasterized at the physical size, so ask for the logical size here.
-        let size = f32::from(self.fonts.faces[id.0].size);
+        let size = self.fonts.height(id) * scale;
+        if size < 1.0 {
+            return;
+        }
         unsafe {
             sys::ImDrawList_AddText_FontPtr(
                 self.raw,
@@ -233,6 +250,7 @@ impl<'ui> Ui<'ui> {
         DrawListRef {
             raw: unsafe { sys::igGetWindowDrawList() },
             fonts: self.fonts,
+            text_scale: 1.0,
         }
     }
 
@@ -241,6 +259,7 @@ impl<'ui> Ui<'ui> {
         DrawListRef {
             raw: unsafe { sys::igGetForegroundDrawList_ViewportPtr(std::ptr::null_mut()) },
             fonts: self.fonts,
+            text_scale: 1.0,
         }
     }
 
@@ -249,6 +268,7 @@ impl<'ui> Ui<'ui> {
         DrawListRef {
             raw: unsafe { sys::igGetBackgroundDrawList(std::ptr::null_mut()) },
             fonts: self.fonts,
+            text_scale: 1.0,
         }
     }
 }
@@ -257,25 +277,24 @@ impl<'ui> Ui<'ui> {
 impl DrawListRef<'_> {
     /// Measures text in a specific face, matching what [`DrawListRef::text_with_face`] draws.
     pub fn measure(&self, face: Face, text: &str) -> Vec2 {
-        let id = self.fonts.id(face);
-        let Some(handle) = self.fonts.handles.get(id.0).copied().filter(|h| !h.is_null()) else {
-            return [0.0, 0.0];
-        };
-        let size = f32::from(self.fonts.faces[id.0].size);
-        let text = c(text);
-        let mut out = sys::ImVec2::default();
-        unsafe {
-            sys::ImFont_CalcTextSizeA(
-                &mut out,
-                handle,
-                size,
-                f32::MAX,
-                0.0,
-                text.as_ptr(),
-                std::ptr::null(),
-                std::ptr::null_mut(),
-            )
-        };
-        [out.x, out.y]
+        self.measure_scaled(face, self.text_scale, text)
+    }
+
+    /// The same list with every face scaled by `factor`.
+    pub fn scaled(self, factor: f32) -> Self {
+        Self {
+            text_scale: factor,
+            ..self
+        }
+    }
+
+    /// The factor this list applies to face sizes.
+    pub fn text_scale(&self) -> f32 {
+        self.text_scale
+    }
+
+    /// Measures text as `text_scaled` would draw it.
+    pub fn measure_scaled(&self, face: Face, scale: f32, text: &str) -> Vec2 {
+        self.fonts.measure(face, scale, text)
     }
 }

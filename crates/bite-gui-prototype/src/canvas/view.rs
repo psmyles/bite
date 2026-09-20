@@ -84,6 +84,8 @@ struct Placed {
     enabled: bool,
     is_group: bool,
     is_comment: bool,
+    /// A comment's own heading and body, which are drawn rather than laid out as rows.
+    note: Option<(String, String)>,
 }
 
 impl Placed {
@@ -120,7 +122,7 @@ impl Canvas {
         context: &CanvasContext,
     ) -> Vec<Action> {
         let mut actions = Vec::new();
-        let placed = self.measure_nodes(graph, context);
+        let placed = self.measure_nodes(ui, graph, context);
 
         ui.set_next_window_position(rect.min);
         ui.set_next_window_size(rect.size());
@@ -164,7 +166,10 @@ impl Canvas {
     }
 
     /// Measures every node once, resolving group-relative positions to absolute ones.
-    fn measure_nodes(&self, graph: &Graph, context: &CanvasContext) -> Vec<Placed> {
+    fn measure_nodes(&self, ui: &Ui, graph: &Graph, context: &CanvasContext) -> Vec<Placed> {
+        // Cards grow to fit their labels, so measurement needs the font metrics.
+        let measure_text =
+            |face: bite_imgui::Face, text: &str| controls::measure(ui, face, text)[0];
         let positions: BTreeMap<&str, Vec2> = graph
             .nodes
             .iter()
@@ -217,6 +222,7 @@ impl Canvas {
                             visible: &visible,
                             footer: footer_text(node, context),
                             enabled_wired,
+                            measure_text: &measure_text,
                         },
                     )
                 };
@@ -229,6 +235,13 @@ impl Canvas {
                     enabled: node_enabled(node, graph, context.registry),
                     is_group: node.kind == NodeKind::Builtin(BuiltinNodeKind::Group),
                     is_comment: node.kind == NodeKind::Builtin(BuiltinNodeKind::Comment),
+                    note: (node.kind == NodeKind::Builtin(BuiltinNodeKind::Comment)).then(|| {
+                        let text = |name: &str| match node.data.params.get(name) {
+                            Some(ParamValue::String(value)) => value.clone(),
+                            _ => String::new(),
+                        };
+                        (text("heading"), text("body"))
+                    }),
                 }
             })
             .collect()
@@ -397,7 +410,8 @@ impl Canvas {
     }
 
     fn draw_group(&self, ui: &Ui, rect: Rect, node: &Placed, _context: &CanvasContext) {
-        let list = ui.draw_list();
+        let zoom = self.state.viewport.zoom;
+        let list = ui.draw_list().scaled(zoom);
         let min = self.screen(rect, node.position);
         let max = self.screen(
             rect,
@@ -448,7 +462,7 @@ impl Canvas {
         );
         if zoom > 0.4 {
             let text_height = list.measure(theme::face::NODE_HEAD, &node.label)[1];
-            controls::draw_ellipsized(
+            controls::draw_ellipsized_scaled(
                 ui,
                 [
                     band_min[0] + 12.0 * zoom,
@@ -456,6 +470,7 @@ impl Canvas {
                 ],
                 theme::NODE_TEXT,
                 theme::face::NODE_HEAD,
+                zoom,
                 &node.label,
                 (max[0] - min[0] - 24.0 * zoom).max(10.0),
             );
@@ -466,8 +481,8 @@ impl Canvas {
         if node.is_comment {
             return self.draw_comment(ui, rect, node);
         }
-        let list = ui.draw_list();
         let zoom = self.state.viewport.zoom;
+        let list = ui.draw_list().scaled(zoom);
         let min = self.screen(rect, node.position);
         let max = self.screen(
             rect,
@@ -517,7 +532,7 @@ impl Canvas {
             };
             let available = (max[0] - min[0] - inset * 2.0).max(10.0);
             let centred = min[0] + inset + (available - text_size[0]).max(0.0) / 2.0;
-            controls::draw_ellipsized(
+            controls::draw_ellipsized_scaled(
                 ui,
                 [
                     centred,
@@ -525,6 +540,7 @@ impl Canvas {
                 ],
                 theme::NODE_TEXT.fade(alpha),
                 theme::face::NODE_HEAD,
+                zoom,
                 &node.label,
                 available,
             );
@@ -545,7 +561,7 @@ impl Canvas {
             if zoom > 0.35 {
                 let y = max[1] - theme::NODE_FOOTER_H * zoom;
                 let size = list.measure(theme::face::SMALL_MONO, footer);
-                controls::draw_ellipsized(
+                controls::draw_ellipsized_scaled(
                     ui,
                     [
                         min[0] + theme::NODE_ROW_INSET * zoom,
@@ -553,6 +569,7 @@ impl Canvas {
                     ],
                     theme::TEXT.fade(alpha),
                     theme::face::SMALL_MONO,
+                    zoom,
                     footer,
                     (max[0] - min[0] - theme::NODE_ROW_INSET * 2.0 * zoom).max(10.0),
                 );
@@ -587,8 +604,8 @@ impl Canvas {
     }
 
     fn draw_rows(&self, ui: &Ui, rect: Rect, node: &Placed, alpha: f32) {
-        let list = ui.draw_list();
         let zoom = self.state.viewport.zoom;
+        let list = ui.draw_list().scaled(zoom);
         let left = self.screen(rect, node.position)[0];
         let right = left + node.card.width * zoom;
         let inset = theme::NODE_ROW_INSET * zoom;
@@ -659,11 +676,12 @@ impl Canvas {
                         .as_ref()
                         .map(|text| list.measure(theme::face::PORT_TAG, text)[0] + 6.0 * zoom)
                         .unwrap_or(0.0);
-                    controls::draw_ellipsized(
+                    controls::draw_ellipsized_scaled(
                         ui,
                         [x, y + (height - size[1]) / 2.0],
                         wire::color(*wire_type).fade(alpha),
                         theme::face::PORT_TAG,
+                        zoom,
                         label,
                         (right - inset - x - value_width).max(8.0),
                     );
@@ -735,8 +753,8 @@ impl Canvas {
     }
 
     fn draw_ports(&self, ui: &Ui, rect: Rect, node: &Placed, alpha: f32) {
-        let list = ui.draw_list();
         let zoom = self.state.viewport.zoom;
+        let list = ui.draw_list().scaled(zoom);
         let radius = theme::HANDLE_SIZE / 2.0 * zoom;
         for port in &node.card.ports {
             let Some(centre) = self.port_position(rect, node, &port.handle) else {
@@ -762,7 +780,7 @@ impl Canvas {
     }
 
     fn draw_bypass_tick(&self, ui: &Ui, min: Vec2, node: &Placed, zoom: f32) {
-        let list = ui.draw_list();
+        let list = ui.draw_list().scaled(zoom);
         let size = 14.0 * zoom;
         let origin = [
             min[0] + theme::NODE_ROW_INSET * zoom,
@@ -822,8 +840,8 @@ impl Canvas {
     }
 
     fn draw_comment(&self, ui: &Ui, rect: Rect, node: &Placed) {
-        let list = ui.draw_list();
         let zoom = self.state.viewport.zoom;
+        let list = ui.draw_list().scaled(zoom);
         let min = self.screen(rect, node.position);
         let max = self.screen(
             rect,
@@ -865,19 +883,109 @@ impl Canvas {
                 2.0,
             );
         }
+
+        // The sticky note's own wording, at the padding `CommentNode.svelte` uses.
+        let Some((heading, body)) = &node.note else {
+            return;
+        };
+        if zoom <= 0.35 {
+            return;
+        }
+        let inner = (max[0] - min[0] - 20.0 * zoom).max(10.0);
+        if !heading.is_empty() {
+            controls::draw_ellipsized_scaled(
+                ui,
+                [min[0] + 10.0 * zoom, min[1] + 7.0 * zoom],
+                theme::COMMENT_TEXT,
+                theme::face::COMMENT_HEADING,
+                zoom,
+                heading,
+                inner,
+            );
+        }
+        let (text, color) = if body.is_empty() {
+            ("Double click to edit", theme::COMMENT_TEXT_BODY.with_alpha(0.55))
+        } else {
+            (body.as_str(), theme::COMMENT_TEXT_BODY)
+        };
+        let line_height = list.measure(theme::face::COMMENT_BODY, "Ag")[1];
+        let mut y = header_bottom + 8.0 * zoom;
+        let measure = |candidate: &str| list.measure(theme::face::COMMENT_BODY, candidate)[0];
+        for line in wrap_lines(measure, text, inner) {
+            if y + line_height > max[1] {
+                break;
+            }
+            list.text_with_face(
+                [min[0] + 10.0 * zoom, y],
+                color,
+                theme::face::COMMENT_BODY,
+                &line,
+            );
+            y += line_height;
+        }
     }
 
-    /// The zoom label, controls and minimap, which sit above the canvas content.
+    /// The fit control's rectangle, which both the drawing and the gestures need: a click
+    /// on the button must not also pan the canvas or clear the selection.
+    fn fit_button_rect(&self, ui: &Ui, rect: Rect) -> (Vec2, Vec2) {
+        let width = ui.draw_list().measure(theme::face::BODY, FIT_LABEL)[0] + 24.0;
+        let height = theme::FIT_BUTTON_HEIGHT;
+        let min = [
+            rect.max[0] - width - 10.0,
+            rect.max[1] - height - theme::ZOOM_LABEL_BOTTOM,
+        ];
+        (min, [min[0] + width, min[1] + height])
+    }
+
+    /// The zoom reading and the fit button, which sit above the canvas content.
     fn draw_overlays(&mut self, ui: &mut Ui, rect: Rect, placed: &[Placed]) {
-        self.draw_minimap(ui, rect, placed);
-        let text = format!("{}%", self.state.viewport.zoom_percent());
+        let label = FIT_LABEL;
+        let (min, max) = self.fit_button_rect(ui, rect);
         let list = ui.draw_list();
-        let size = list.measure(theme::face::ZOOM_LABEL, &text);
-        let centre = rect.max[0] - 10.0 - theme::MINIMAP_WIDTH / 2.0;
+        let label_size = list.measure(theme::face::BODY, label);
+        let width = max[0] - min[0];
+        let height = max[1] - min[1];
+
+        let hovered = rect.contains(ui.mouse_position())
+            && controls::point_in(ui.mouse_position(), min, max);
+        let alpha = if hovered { 1.0 } else { theme::OVERLAY_OPACITY };
+        if hovered {
+            ui.set_mouse_cursor(bite_imgui::MouseCursor::Hand);
+        }
+        list.rect(
+            min,
+            max,
+            theme::PANEL_HEADER_BG.with_alpha(0.9 * alpha),
+            theme::PANEL_RADIUS,
+            Rounding::All,
+        );
+        list.rect_outline(
+            min,
+            max,
+            theme::BORDER.with_alpha(alpha),
+            theme::PANEL_RADIUS,
+            Rounding::All,
+            1.0,
+        );
         list.text_with_face(
             [
-                centre - size[0] / 2.0,
-                rect.max[1] - theme::ZOOM_LABEL_BOTTOM - size[1],
+                min[0] + (width - label_size[0]) / 2.0,
+                min[1] + (height - label_size[1]) / 2.0,
+            ],
+            theme::TEXT_BRIGHT.with_alpha(alpha),
+            theme::face::BODY,
+            label,
+        );
+        if hovered && ui.mouse_clicked(bite_imgui::MouseButton::Left) {
+            self.fit_view(rect, placed);
+        }
+
+        let text = format!("{}%", self.state.viewport.zoom_percent());
+        let size = list.measure(theme::face::ZOOM_LABEL, &text);
+        list.text_with_face(
+            [
+                min[0] - 12.0 - size[0],
+                min[1] + (height - size[1]) / 2.0,
             ],
             theme::ZOOM_LABEL_COLOR,
             theme::face::ZOOM_LABEL,
@@ -885,28 +993,8 @@ impl Canvas {
         );
     }
 
-    fn draw_minimap(&self, ui: &Ui, rect: Rect, placed: &[Placed]) {
-        if placed.is_empty() {
-            return;
-        }
-        let list = ui.draw_list();
-        let width = theme::MINIMAP_WIDTH;
-        let height = theme::MINIMAP_HEIGHT;
-        let min = [
-            rect.max[0] - width - 10.0,
-            rect.max[1] - height - theme::ZOOM_LABEL_BOTTOM - 16.0,
-        ];
-        let max = [min[0] + width, min[1] + height];
-        let hovered = controls::point_in(ui.mouse_position(), min, max);
-        let alpha = if hovered { 1.0 } else { theme::OVERLAY_OPACITY };
-        list.rect(
-            min,
-            max,
-            theme::PANEL_HEADER_BG.with_alpha(0.85 * alpha),
-            theme::MINIMAP_RADIUS,
-            Rounding::All,
-        );
-
+    /// Frames every node in the canvas, as the Electron fit-view control does.
+    fn fit_view(&mut self, rect: Rect, placed: &[Placed]) {
         let mut bounds: Option<Bounds> = None;
         for node in placed {
             bounds = Some(match bounds {
@@ -914,51 +1002,17 @@ impl Canvas {
                 None => node.bounds(),
             });
         }
-        let Some(bounds) = bounds else { return };
-        let span = [
-            (bounds.max[0] - bounds.min[0]).max(1.0),
-            (bounds.max[1] - bounds.min[1]).max(1.0),
-        ];
-        let pad = 8.0;
-        let scale = ((width - pad * 2.0) / span[0]).min((height - pad * 2.0) / span[1]);
-        let project = |point: Vec2| {
-            [
-                min[0] + pad + (point[0] - bounds.min[0]) * scale,
-                min[1] + pad + (point[1] - bounds.min[1]) * scale,
-            ]
-        };
-        for node in placed {
-            let node_bounds = node.bounds();
-            let colour = if node.is_comment {
-                theme::COMMENT_HEADER_BG
-            } else if node.is_group {
-                theme::GROUP_BORDER
-            } else {
-                header_color(&node.kind, &node.label)
-            };
-            list.rect(
-                project(node_bounds.min),
-                project(node_bounds.max),
-                colour.with_alpha(alpha),
-                5.0 * scale.min(1.0),
-                Rounding::All,
-            );
-        }
-        // The viewport mask shows which part of the graph the canvas is showing.
-        let view_min = self.graph_point(rect, rect.min);
-        let view_max = self.graph_point(rect, rect.max);
-        list.rect_outline(
-            project(view_min),
-            project(view_max),
-            theme::TEXT_BRIGHT.with_alpha(0.6 * alpha),
-            2.0,
-            Rounding::All,
-            1.0,
+        self.state.viewport = Viewport::fit(
+            bounds.map(|bounds| (bounds.min, bounds.max)),
+            rect.size(),
+            theme::FIT_VIEW_PADDING,
         );
     }
 
     fn accept_drop(&self, ui: &mut Ui, rect: Rect) -> Option<Action> {
-        let payload = ui.drag_target("bite-node")?;
+        // The canvas paints itself rather than placing an item, so the target names the
+        // rectangle. The node lands where the pointer released it.
+        let payload = ui.drag_target_rect("bite-node", rect.min, rect.max, "##canvas-drop")?;
         let position = self.graph_point(rect, ui.mouse_position());
         Some(Action::DropDefinition { payload, position })
     }
@@ -974,7 +1028,10 @@ impl Canvas {
     ) -> Vec<Action> {
         let mut actions = Vec::new();
         let pointer = ui.mouse_position();
-        let inside = rect.contains(pointer) && ui.window_hovered();
+        let (fit_min, fit_max) = self.fit_button_rect(ui, rect);
+        let inside = rect.contains(pointer)
+            && ui.window_hovered()
+            && !controls::point_in(pointer, fit_min, fit_max);
         if inside {
             self.state.last_pointer = self.graph_point(rect, pointer);
         }
@@ -1609,8 +1666,64 @@ pub fn node_enabled(node: &GraphNode, graph: &Graph, _registry: &Registry) -> bo
     )
 }
 
+/// The fit control's wording, shared by its rectangle and its drawing.
+const FIT_LABEL: &str = "Fit View";
+
+/// Breaks `text` into lines no wider than `width`, honouring the newlines it already has.
+///
+/// `measure` reports the drawn width of a candidate line. ImGui's own wrapping is relative
+/// to the window, which a card drawn straight onto the draw list has no part of.
+fn wrap_lines(measure: impl Fn(&str) -> f32, text: &str, width: f32) -> Vec<String> {
+    let mut lines = Vec::new();
+    for paragraph in text.lines() {
+        let mut current = String::new();
+        for word in paragraph.split_whitespace() {
+            let candidate = if current.is_empty() {
+                word.to_string()
+            } else {
+                format!("{current} {word}")
+            };
+            // A single word wider than the line still has to go somewhere.
+            if measure(&candidate) <= width || current.is_empty() {
+                current = candidate;
+            } else {
+                lines.push(std::mem::take(&mut current));
+                current = word.to_string();
+            }
+        }
+        lines.push(current);
+    }
+    lines
+}
+
 #[cfg(test)]
 mod tests {
+    use super::wrap_lines;
+
+    /// A stand-in for the font: every character is two units wide.
+    fn measure(text: &str) -> f32 {
+        text.chars().count() as f32 * 2.0
+    }
+
+    #[test]
+    fn a_note_body_wraps_at_the_card_width() {
+        let lines = wrap_lines(measure, "one two three four", 14.0);
+        assert_eq!(lines, vec!["one two", "three", "four"]);
+    }
+
+    #[test]
+    fn a_note_body_keeps_the_line_breaks_it_was_given() {
+        let lines = wrap_lines(measure, "first
+second", 100.0);
+        assert_eq!(lines, vec!["first", "second"]);
+    }
+
+    #[test]
+    fn a_word_wider_than_the_card_still_gets_its_own_line() {
+        let lines = wrap_lines(measure, "ok disproportionately ok", 8.0);
+        assert_eq!(lines, vec!["ok", "disproportionately", "ok"]);
+    }
+
     use super::*;
     use bite_schema::{NodeData, Position};
 

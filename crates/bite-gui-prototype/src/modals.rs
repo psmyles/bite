@@ -468,9 +468,11 @@ fn credits(ui: &mut Ui) -> Option<Outcome> {
                 if hovered {
                     ui.set_mouse_cursor(bite_imgui::MouseCursor::Hand);
                 }
-                let list = ui.draw_list();
-                list.text_with_face(
-                    [row[0], row[1] + 4.0],
+                controls::draw_in_row(
+                    ui,
+                    row[0],
+                    row[1],
+                    20.0,
                     if hovered {
                         theme::TEXT_BRIGHT
                     } else {
@@ -479,13 +481,16 @@ fn credits(ui: &mut Ui) -> Option<Outcome> {
                     theme::face::BODY,
                     name,
                 );
-                let size = list.measure(theme::face::SMALL_MONO, license);
-                list.text_with_face(
-                    [row[0] + inner - size[0], row[1] + 5.0],
+                controls::draw_in_row(
+                    ui,
+                    controls::right_aligned(ui, row[0] + inner, theme::face::SMALL_MONO, license),
+                    row[1],
+                    20.0,
                     theme::CTX_TEXT_MUTED,
                     theme::face::SMALL_MONO,
                     license,
                 );
+                let list = ui.draw_list();
                 list.line(
                     [row[0], row[1] + 20.0],
                     [row[0] + inner, row[1] + 20.0],

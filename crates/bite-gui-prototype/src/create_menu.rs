@@ -35,6 +35,13 @@ pub struct CreateMenu {
     pub can_group: bool,
     pub can_ungroup: bool,
     tooltip: controls::HoverTimer,
+    /// The category whose flyout is showing. It outlives the hover on the row itself, so
+    /// the pointer can travel into the flyout without it closing on the way.
+    open_category: Option<String>,
+    /// Last frame's flyout rectangle, which counts as part of its category for hovering.
+    sub_rect: Option<(Vec2, Vec2)>,
+    /// Set when the keyboard, rather than the pointer, chose the open category.
+    focus_search_pending: bool,
 }
 
 impl Default for CreateMenu {
@@ -49,11 +56,19 @@ impl Default for CreateMenu {
             can_group: false,
             can_ungroup: false,
             tooltip: controls::HoverTimer::default(),
+            open_category: None,
+            sub_rect: None,
+            focus_search_pending: false,
         }
     }
 }
 
 impl CreateMenu {
+    /// The category whose flyout is open, if any.
+    pub fn open_category(&self) -> Option<&str> {
+        self.open_category.as_deref()
+    }
+
     /// Opens the menu at a graph position, optionally completing a dropped wire.
     pub fn open_at(&mut self, position: Vec2, pending: Option<PendingWire>) {
         self.open = true;
@@ -61,14 +76,20 @@ impl CreateMenu {
         self.position = position;
         self.pending = pending;
         self.focus_search = true;
+        self.focus_search_pending = true;
         self.active_index = 0;
         self.tooltip.reset();
+        self.open_category = None;
+        self.sub_rect = None;
     }
 
     pub fn close(&mut self) {
         self.open = false;
         self.pending = None;
         self.query.clear();
+        self.open_category = None;
+        self.sub_rect = None;
+        self.focus_search_pending = false;
     }
 
     /// Draws the menu at `anchor`, a screen position. Returns an outcome when it closes.
@@ -109,18 +130,28 @@ impl CreateMenu {
         let mut outcome = None;
         // A click anywhere outside the panel dismisses the menu, as its backdrop does.
         let pointer = ui.mouse_position();
-        let outside = pointer[0] < left
-            || pointer[0] > left + theme::CTX_WIDTH + theme::CTX_SUB_WIDTH + 8.0
-            || pointer[1] < top
-            || pointer[1] > top + max_height;
-        if outside && ui.mouse_clicked(bite_imgui::MouseButton::Left) {
+        let in_panel = pointer[0] >= left
+            && pointer[0] <= left + theme::CTX_WIDTH
+            && pointer[1] >= top
+            && pointer[1] <= top + max_height;
+        // A flyout can hang below the panel, so it is tested as its own rectangle.
+        let in_flyout = self
+            .sub_rect
+            .is_some_and(|(min, max)| controls::point_in(pointer, min, max));
+        if !in_panel && !in_flyout && ui.mouse_clicked(bite_imgui::MouseButton::Left) {
             self.close();
             return Some(Outcome::Dismissed);
         }
 
         ui.set_next_window_position([left, top]);
         ui.set_next_window_size([theme::CTX_WIDTH, max_height]);
-        // The menu must draw above the panels, so it keeps the default stacking.
+        if self.focus_search_pending {
+            // The search field can only take the keyboard once its window holds focus.
+            ui.set_next_window_focus();
+            self.focus_search_pending = false;
+        }
+        // The menu must draw above the panels, so it keeps the default stacking. Keyboard
+        // navigation stays on, because the search field is focused through it.
         let flags = bite_imgui::WindowFlags {
             no_title_bar: true,
             no_resize: true,
@@ -128,7 +159,6 @@ impl CreateMenu {
             no_collapse: true,
             no_saved_settings: true,
             no_scrollbar: true,
-            no_nav: true,
             ..bite_imgui::WindowFlags::default()
         };
 
@@ -192,15 +222,34 @@ impl CreateMenu {
         // Arrow keys move the highlight without wrapping, as the Svelte menu does.
         let count = if searching { flat.len() } else { groups.len() };
         if count > 0 {
+            let mut moved = false;
             if ui.key_pressed(Key::Down) {
                 self.active_index = (self.active_index + 1).min(count - 1);
+                moved = true;
             }
             if ui.key_pressed(Key::Up) {
                 self.active_index = self.active_index.saturating_sub(1);
+                moved = true;
             }
+            // Browsing by keyboard opens the highlighted category's flyout, so the arrow
+            // keys show the same thing the pointer would.
+            if moved && !searching {
+                self.open_category = groups
+                    .get(self.active_index)
+                    .map(|(category, _)| category.clone());
+            }
+        }
+        if !searching && ui.key_pressed(Key::Right) {
+            self.open_category = groups
+                .get(self.active_index)
+                .map(|(category, _)| category.clone());
+        }
+        if !searching && ui.key_pressed(Key::Left) {
+            self.open_category = None;
         }
 
         let mut outcome = None;
+        self.sub_rect = None;
         let body_height = (ui.content_region_available()[1] - self.action_height()).max(40.0);
         ui.child("create-list", [width, body_height], false, |ui| {
             if searching {
@@ -354,16 +403,23 @@ impl CreateMenu {
             ">",
         );
 
-        if !(hovered || active) {
+        // Pointing at a row opens its flyout; the flyout then stays open until another
+        // row is pointed at, so the pointer can cross the gap between them.
+        if hovered {
+            self.open_category = Some(category.to_string());
+        }
+        if self.open_category.as_deref() != Some(category) {
             return None;
         }
         let mut chosen = None;
         let sub_left = origin[0] + width + 4.0;
+        let sub_height = (entries.len() as f32 * 26.0 + 8.0).min(theme::CTX_MAX_HEIGHT);
+        self.sub_rect = Some((
+            [sub_left, origin[1]],
+            [sub_left + theme::CTX_SUB_WIDTH, origin[1] + sub_height],
+        ));
         ui.set_next_window_position([sub_left, origin[1]]);
-        ui.set_next_window_size([
-            theme::CTX_SUB_WIDTH,
-            (entries.len() as f32 * 26.0 + 8.0).min(theme::CTX_MAX_HEIGHT),
-        ]);
+        ui.set_next_window_size([theme::CTX_SUB_WIDTH, sub_height]);
         let flags = bite_imgui::WindowFlags {
             no_title_bar: true,
             no_resize: true,
@@ -688,6 +744,30 @@ mod tests {
         assert!(menu.query.is_empty());
         assert_eq!(menu.active_index, 0);
         assert_eq!(menu.position, [10.0, 20.0]);
+    }
+
+    #[test]
+    fn no_category_flyout_is_open_until_one_is_pointed_at() {
+        let mut menu = CreateMenu {
+            open_category: Some("Color".into()),
+            active_index: 3,
+            ..CreateMenu::default()
+        };
+        menu.open_at([0.0, 0.0], None);
+        // The highlight starts on the first row, but its flyout must stay shut: an open
+        // flyout would cover the rows below it before the pointer had chosen anything.
+        assert_eq!(menu.open_category(), None);
+        assert_eq!(menu.active_index, 0);
+    }
+
+    #[test]
+    fn closing_the_menu_forgets_the_open_flyout() {
+        let mut menu = CreateMenu::default();
+        menu.open_at([0.0, 0.0], None);
+        menu.open_category = Some("Filters".into());
+        menu.close();
+        assert_eq!(menu.open_category(), None);
+        assert!(menu.sub_rect.is_none());
     }
 
     #[test]

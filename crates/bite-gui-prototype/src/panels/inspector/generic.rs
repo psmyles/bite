@@ -172,7 +172,8 @@ pub fn row(
     ui.group(|ui| {
         let header_origin = ui.cursor_screen_position();
         controls::row_label(ui, &definition.label);
-        ui.same_line();
+        // `.param-label` sets a six pixel gap between the label and its badge.
+        ui.same_line_at(0.0, theme::INSPECTOR_LABEL_GAP);
         match state {
             RowState::Wired => {
                 controls::badge(ui, "wired", theme::PORT_COLOR_NUMBER);
@@ -276,8 +277,16 @@ fn control(
             let min = definition.min.unwrap_or(0.0) as f32;
             let max = definition.max.unwrap_or(100.0) as f32;
             let slider_width = width - theme::SLIDER_VAL_WIDTH - theme::SLIDER_WRAP_GAP;
-            ui.set_next_item_width(slider_width);
-            if ui.slider_float(&format!("##{}", definition.name), &mut value, min, max) {
+            // The track centres itself in the number box's height, so the two line up.
+            if controls::slider(
+                ui,
+                &definition.name,
+                &mut value,
+                min,
+                max,
+                slider_width,
+                theme::INPUT_HEIGHT,
+            ) {
                 emit(number_value(definition, value));
             }
             ui.same_line_at(0.0, theme::SLIDER_WRAP_GAP);
@@ -307,9 +316,8 @@ fn control(
                 value[2] as f32,
                 value.get(3).copied().unwrap_or(1.0) as f32,
             ];
-            ui.set_next_item_width(width);
-            if ui.color_edit4(&format!("##{}", definition.name), &mut rgba) {
-                value = rgba.iter().map(|component| *component as f64).collect();
+            if controls::color_row(ui, &definition.name, &mut rgba, width) {
+                value = rgba.iter().map(|component| f64::from(*component)).collect();
                 emit(ParamValue::Vector(value));
             }
         }
@@ -332,10 +340,9 @@ fn control(
                     value[2] as f32,
                     value.get(3).copied().unwrap_or(1.0) as f32,
                 ];
-                ui.set_next_item_width(width);
-                if ui.color_edit4(&format!("##{}", definition.name), &mut rgba) {
+                if controls::color_row(ui, &definition.name, &mut rgba, width) {
                     emit(ParamValue::Vector(
-                        rgba.iter().map(|component| *component as f64).collect(),
+                        rgba.iter().map(|component| f64::from(*component)).collect(),
                     ));
                 }
             }

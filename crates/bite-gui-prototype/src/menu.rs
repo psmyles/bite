@@ -76,7 +76,24 @@ pub fn draw(
                     ui.main_menu_bar(|ui| {
                         draw_brand(ui);
                         ui.with_face(theme::face::BODY, |ui| {
-                            command = menus(ui, timers_enabled, show_developer_items);
+                            // A dropdown's own padding and row spacing, from
+                            // `.dropdown` and `.dropdown li button`. Without the vertical
+                            // spacing the rows sit line against line, because a menu row's
+                            // height is its text and nothing else; Dear ImGui grows the
+                            // highlight into half the spacing on each side, which is the
+                            // five pixels the stylesheet pads with.
+                            ui.with_style(
+                                &[
+                                    StyleVar::WindowPadding(theme::MENU_DROPDOWN_PADDING),
+                                    StyleVar::ItemSpacing([
+                                        theme::MENU_ITEM_GAP,
+                                        theme::MENU_ITEM_PADDING_Y * 2.0,
+                                    ]),
+                                ],
+                                |ui| {
+                                    command = menus(ui, timers_enabled, show_developer_items);
+                                },
+                            );
                         });
                         draw_title(ui, title);
                     });

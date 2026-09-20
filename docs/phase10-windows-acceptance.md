@@ -22,6 +22,7 @@ stays usable throughout. Keep both applications open side by side for the visual
 - [ ] A child of a group cannot be dragged outside the group frame.
 - [ ] Double clicking a processing node moves the Previewing badge; double clicking an Input,
       an output, a comment or a bypassed node does nothing.
+- [ ] Merely selecting a node never moves the Previewing badge and never blanks the preview.
 - [ ] Double clicking empty canvas resets the zoom to 100% without changing the pan.
 - [ ] Clicking a wire selects it, Delete removes it, and the selected wire is thicker and glows.
 - [ ] Dragging from a port snaps to a compatible port within about twenty pixels.
@@ -30,6 +31,18 @@ stays usable throughout. Keep both applications open side by side for the visual
 - [ ] Dropping a wire on empty canvas opens a filtered menu; choosing a node creates and
       connects it, and one undo removes both.
 - [ ] The bypass tick in a card header toggles the node and dims the card.
+- [ ] Fit View frames every node, and clicking it neither pans the canvas nor clears the
+      selection.
+- [ ] Zoom to 50% and to 200% and confirm every card label scales with its card and stays
+      inside it.
+- [ ] A comment shows its heading and body on the card, wrapped to the card's width, with
+      `Double click to edit` in place of an empty body.
+- [ ] A card with a long name, such as Brightness / Contrast or Premultiply Alpha, is wide
+      enough to show it whole rather than cutting it.
+- [ ] Premultiply Alpha and Convert Format show no parameter row, because their only
+      parameter is a list.
+- [ ] Merge Channels shows three image inputs at the default channel count and four when it
+      is set to four.
 
 ## Creation menu and library
 
@@ -40,9 +53,14 @@ stays usable throughout. Keep both applications open side by side for the visual
 - [ ] Up and down move the highlight without wrapping; Enter creates; Escape closes.
 - [ ] Clicking outside the menu closes it without creating anything.
 - [ ] Group Selection and Ungroup appear only when the selection allows them.
-- [ ] Dragging a library entry onto the canvas creates it centred on the drop point.
+- [ ] Dragging a library entry onto the canvas creates it with its corner at the drop point.
+- [ ] A node chosen from the creation menu appears where the menu was opened.
+- [ ] The search field has the keyboard as soon as the menu opens, so typing filters at once.
+- [ ] No flyout is open until a category is pointed at, and the pointer can travel from the
+      category into its flyout and click an entry there.
 - [ ] Library categories collapse and expand, and a search forces them all open.
-- [ ] Hovering a library entry or a menu result shows its description after a short delay.
+- [ ] Hovering a library entry or a menu result shows its description after a short delay,
+      wrapped as a paragraph rather than one character a line.
 
 ## File and application flow
 
@@ -74,6 +92,9 @@ stays usable throughout. Keep both applications open side by side for the visual
 - [ ] Enter non-Latin text through an input method in a comment body and a text parameter, then
       save, reopen and confirm it is unchanged.
 - [ ] Every menu accelerator does the same thing as its menu item.
+- [ ] Every dropdown row shows its accelerator on the right, with room above and below the
+      label rather than line against line, and the menu has room above its first row and
+      below its last.
 
 ## Media and panels
 
@@ -83,9 +104,11 @@ stays usable throughout. Keep both applications open side by side for the visual
 - [ ] Import a folder and confirm the progress dialog counts up and can be cancelled.
 - [ ] Give two Input branches different folders, switch between them, and confirm each restores
       its own filmstrip, selection and preview.
-- [ ] Select several filmstrip items and confirm the preview follows the current selection.
+- [ ] Select several filmstrip items and confirm the preview follows the current selection,
+      both with and without a node double clicked as the preview target.
 - [ ] Scroll the filmstrip with a vertical wheel gesture and confirm it moves sideways.
 - [ ] Resize the filmstrip and confirm the thumbnails grow and shrink with the panel.
+- [ ] The filmstrip status bar reads `0 images` when empty.
 - [ ] The Info toggle shows and hides the preview overlay, and the overlay reports the file
       name, format, dimensions and size.
 - [ ] Drag each splitter to both limits and confirm the clamps and the cursor shapes.
@@ -95,6 +118,11 @@ stays usable throughout. Keep both applications open side by side for the visual
 ## Inspector
 
 - [ ] Each control type edits its parameter and the card updates immediately.
+- [ ] A slider is a thin track with a round thumb, level with its number box, and the number
+      appears only in that box.
+- [ ] A colour row is a full-width swatch that opens a picker.
+- [ ] An open dropdown spaces its options as the menus do and shows them all, scrolling only
+      once there are more than eight.
 - [ ] The reset control appears only when a value differs from its default, and the row does
       not shift when it is hidden.
 - [ ] A wired parameter shows the source value instead of a control.
@@ -119,9 +147,10 @@ stays usable throughout. Keep both applications open side by side for the visual
 
 ## Automated evidence already recorded
 
-The Rust workspace passes 177 tests and strict Clippy with no warnings. The offscreen capture
-mode renders the seed document, a selected node, the creation menu and every dialog at both
-1x and 2x scale:
+The Rust workspace passes 193 tests and strict Clippy with no warnings. The offscreen capture
+mode renders the seed document, a selected node, the creation menu, a comment card, a slider
+row, a colour row, a column of process cards, an open menu, an open inspector list and every dialog at both 1x
+and 2x scale:
 
 ```powershell
 cargo run --offline -p bite-gui-prototype -- --capture test-workflows\out\parity

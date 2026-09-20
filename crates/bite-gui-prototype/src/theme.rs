@@ -97,6 +97,13 @@ pub const MODAL_CLOSE_BTN_RADIUS: f32 = 4.0;
 pub const DROPDOWN_BG: Color = Color::rgb(0x2e, 0x2e, 0x2e);
 pub const DROPDOWN_HOVER_BG: Color = Color::rgb(0x38, 0x38, 0x38);
 pub const DROPDOWN_ACTIVE_BG: Color = Color::rgb(0x48, 0x48, 0x48);
+/// `.dd-item` pads five pixels above and below its label and ten to each side.
+pub const DROPDOWN_ITEM_PADDING_Y: f32 = 5.0;
+pub const DROPDOWN_ITEM_PADDING_X: f32 = 10.0;
+/// The open list's own padding, above the first row and below the last.
+pub const DROPDOWN_LIST_PADDING_Y: f32 = 4.0;
+/// How many rows the list shows before it scrolls.
+pub const DROPDOWN_VISIBLE_ROWS: usize = 8;
 
 // -- Type sizes ----------------------------------------------------------------------
 
@@ -122,6 +129,8 @@ pub mod face {
     pub const NODE_HEAD: Face = Face::mono(FONT_SIZE_SM);
     pub const PORT_TAG: Face = Face::mono(FONT_SIZE_XS);
     pub const ZOOM_LABEL: Face = Face::mono(FONT_SIZE_MD);
+    /// `Filmstrip.svelte` overrides `--text-thumb-name-size` with `--font-size-xs`, so the
+    /// rendered size is eleven pixels and not the ten the token names.
     pub const THUMB_NAME: Face = Face::ui(FONT_SIZE_XS);
     pub const BODY: Face = Face::ui(FONT_SIZE_BASE);
     pub const LABEL: Face = Face::ui(FONT_SIZE_SM);
@@ -147,6 +156,19 @@ pub const NODE_MIN_WIDTH: f32 = 150.0;
 /// The built-in workflow cards are wider than process cards.
 pub const NODE_WORKFLOW_WIDTH: f32 = 190.0;
 pub const NODE_COMMENT_MIN_WIDTH: f32 = 210.0;
+/// A card grows to fit its content, so these are the paddings that content sits inside.
+/// `.node-head` pads twelve pixels a side, or thirty-four when it carries the bypass tick.
+pub const NODE_HEAD_INSET: f32 = 12.0;
+pub const NODE_HEAD_TOGGLE_INSET: f32 = 34.0;
+/// The least space left between a row's left and right halves, which `space-between` would
+/// otherwise let close to nothing.
+pub const NODE_ROW_MIN_GAP: f32 = 12.0;
+/// `.param-value` pads six pixels away from the name beside it.
+pub const NODE_VALUE_GAP: f32 = 6.0;
+pub const NODE_SWATCH_SIZE: f32 = 20.0;
+/// The ceiling a card label is ellipsized against, so one long value cannot stretch a card
+/// across the canvas.
+pub const NODE_MAX_WIDTH: f32 = 320.0;
 pub const NODE_SELECTED_RING: Color = Color([1.0, 1.0, 1.0, 0.8]);
 pub const NODE_SHADOW: Color = Color([0.0, 0.0, 0.0, 1.0]);
 
@@ -206,10 +228,28 @@ pub const DUPLICATE_OFFSET: f32 = 20.0;
 
 pub const LIBRARY_ITEM_HOVER_BG: Color = Color::rgb(0x3a, 0x3a, 0x3a);
 pub const LIBRARY_SEARCH_RADIUS: f32 = 4.0;
-pub const MINIMAP_WIDTH: f32 = 200.0;
-pub const MINIMAP_HEIGHT: f32 = 150.0;
-pub const MINIMAP_RADIUS: f32 = 8.0;
 pub const OVERLAY_OPACITY: f32 = 0.35;
+/// The hover tooltip's wrapping width, from `NodeLibrary.svelte`'s placement arithmetic.
+pub const TOOLTIP_WIDTH: f32 = 320.0;
+
+// -- Menu bar dropdowns, from `MenuBar.svelte` ---------------------------------------
+
+/// `.dropdown li button` pads five pixels above and below its label.
+pub const MENU_ITEM_PADDING_Y: f32 = 5.0;
+/// `.dropdown` pads four pixels above its first row and below its last.
+pub const MENU_DROPDOWN_PADDING_Y: f32 = 4.0;
+/// The window padding the dropdown is given.
+///
+/// The twelve is the row's own horizontal padding. The vertical figure carries the row's
+/// padding as well as the dropdown's, because Dear ImGui places the first row's text at the
+/// window padding and only grows its highlight into half the item spacing above it.
+pub const MENU_DROPDOWN_PADDING: [f32; 2] =
+    [12.0, MENU_DROPDOWN_PADDING_Y + MENU_ITEM_PADDING_Y];
+/// The gap the row leaves between its label and its shortcut.
+pub const MENU_ITEM_GAP: f32 = 8.0;
+/// The fit-view control that stands in for the Electron minimap.
+pub const FIT_BUTTON_HEIGHT: f32 = 26.0;
+pub const FIT_VIEW_PADDING: f32 = 48.0;
 pub const SHADOW_POPOVER: Color = Color([0.0, 0.0, 0.0, 0.4]);
 pub const DISABLED_OPACITY: f32 = 0.4;
 
@@ -254,6 +294,8 @@ pub const TOOLTIP_DELAY_NODE: f32 = 1.0;
 // -- Inspector and sliders -----------------------------------------------------------
 
 pub const INSPECTOR_PARAM_GAP: f32 = 5.0;
+/// The gap `.param-label` puts between the label and its badge.
+pub const INSPECTOR_LABEL_GAP: f32 = 6.0;
 pub const INSPECTOR_PARAM_PADDING: [f32; 2] = [12.0, 7.0];
 pub const INSPECTOR_ROW_BORDER_MIX: f32 = 25.0;
 pub const SLIDER_WRAP_GAP: f32 = 8.0;
