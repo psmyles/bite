@@ -31,10 +31,28 @@ pub const ACCENT: Color = TEXT;
 
 // -- Scrollbars ----------------------------------------------------------------------
 
-pub const SCROLLBAR_WIDTH: f32 = 5.0;
-pub const SCROLLBAR_RADIUS: f32 = 3.0;
+/// The visible bar, a pixel over the stylesheet's five.
+pub const SCROLLBAR_THUMB_WIDTH: f32 = 6.0;
+/// The track the bar is drawn in, which is not what is seen.
+///
+/// Dear ImGui insets its grab inside the track by `trunc((width - 2) / 2)` on each side,
+/// capped at three, so every track from eight pixels up draws a bar six pixels narrower
+/// than itself. Asking for the stylesheet's five drew a three pixel bar, and asking for
+/// nine drew exactly the same three.
+pub const SCROLLBAR_WIDTH: f32 = SCROLLBAR_THUMB_WIDTH + 6.0;
+pub const SCROLLBAR_RADIUS: f32 = SCROLLBAR_THUMB_WIDTH / 2.0;
 pub const SCROLLBAR_THUMB: Color = BORDER;
 pub const SCROLLBAR_THUMB_HOVER: Color = TEXT;
+
+// -- Inspector text roles --------------------------------------------------------------
+
+/// A name for something below or beside it: a section title, a parameter label. Every one
+/// of these is `--text-bright` at six tenths in the stylesheet.
+pub const INSPECTOR_LABEL: Color = Color([1.0, 1.0, 1.0, 0.6]);
+/// Something the row says in its own right: a field's contents, a dropdown's choice, the
+/// wording beside a checkbox. These take the bright text at full strength, so that they do
+/// not read as another heading.
+pub const INSPECTOR_VALUE: Color = TEXT_BRIGHT;
 
 // -- Semantic status -----------------------------------------------------------------
 
@@ -46,6 +64,31 @@ pub const COLOR_ERROR: Color = Color::rgb(0xf8, 0x71, 0x71);
 pub const COLOR_ERROR_TEXT: Color = Color::rgb(0xff, 0x90, 0x90);
 pub const COLOR_ERROR_BG: Color = Color([1.0, 80.0 / 255.0, 80.0 / 255.0, 0.06]);
 pub const COLOR_ERROR_BORDER: Color = Color::rgb(0x7a, 0x20, 0x20);
+/// The log window's own palette, from `public/log-viewer.html`. It is darker and flatter
+/// than the editor's, because it is a reading surface rather than a working one.
+pub mod log {
+    use super::Color;
+    pub const TOOLBAR_BG: Color = Color::rgb(0x1e, 0x1e, 0x1e);
+    pub const TOOLBAR_BORDER: Color = Color::rgb(0x2e, 0x2e, 0x2e);
+    pub const LABEL: Color = Color::rgb(0x66, 0x66, 0x66);
+    pub const ROW_HOVER: Color = Color::rgb(0x1c, 0x1c, 0x1c);
+    pub const TIMESTAMP: Color = Color::rgb(0x77, 0x77, 0x77);
+    pub const INFO: Color = Color::rgb(0xe0, 0xe0, 0xe0);
+    pub const INFO_BADGE: Color = Color::rgb(0x77, 0x77, 0x77);
+    pub const WARNING: Color = Color::rgb(0xf0, 0xc0, 0x40);
+    pub const ERROR: Color = Color::rgb(0xe0, 0x5a, 0x5a);
+    /// The `[tag]` a message opens with.
+    pub const TAG: Color = Color::rgb(0x02, 0xcc, 0xff);
+    /// The width the level badge column reserves.
+    pub const BADGE_WIDTH: f32 = 36.0;
+    pub const ROW_PADDING_X: f32 = 14.0;
+    pub const COLUMN_GAP: f32 = 10.0;
+    /// How close to the bottom the view must be to keep following new lines.
+    pub const FOLLOW_MARGIN: f32 = 40.0;
+    /// `line-height: 1.55` on a row, which is what keeps the lines apart.
+    pub const LINE_HEIGHT: f32 = 1.55;
+}
+
 pub const COLOR_WARNING: Color = Color::rgb(0xf5, 0x9e, 0x0b);
 pub const COLOR_WARNING_TEXT: Color = Color::rgb(0xfb, 0xbf, 0x24);
 pub const COLOR_DANGER: Color = Color::rgb(0xc0, 0x39, 0x2b);
@@ -228,6 +271,8 @@ pub const DUPLICATE_OFFSET: f32 = 20.0;
 
 pub const LIBRARY_ITEM_HOVER_BG: Color = Color::rgb(0x3a, 0x3a, 0x3a);
 pub const LIBRARY_SEARCH_RADIUS: f32 = 4.0;
+/// The box `.collapse-icon` reserves for the minus and plus, which it centres them in.
+pub const LIBRARY_COLLAPSE_ICON_WIDTH: f32 = 10.0;
 pub const OVERLAY_OPACITY: f32 = 0.35;
 /// The hover tooltip's wrapping width, from `NodeLibrary.svelte`'s placement arithmetic.
 pub const TOOLTIP_WIDTH: f32 = 320.0;
@@ -450,6 +495,34 @@ pub fn apply_base_style() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Dear ImGui insets the grab inside the track, capped at three pixels a side, so the
+    /// bar that is actually seen is the track less six. This is the arithmetic that made
+    /// five and nine draw the same three pixel bar.
+    fn imgui_grab_width(track: f32) -> f32 {
+        let inset = ((track - 2.0) / 2.0).trunc().clamp(0.0, 3.0);
+        track - inset * 2.0
+    }
+
+    #[test]
+    fn a_label_and_a_value_are_told_apart_in_the_inspector() {
+        // A checkbox row was drawn in the label colour, which made its wording read as a
+        // section title rather than as the thing the row says.
+        assert_ne!(INSPECTOR_LABEL, INSPECTOR_VALUE);
+        assert_eq!(INSPECTOR_VALUE, TEXT_BRIGHT);
+        // The difference is opacity, as the stylesheet makes it: the same white, dimmed.
+        assert_eq!(INSPECTOR_LABEL.0[..3], INSPECTOR_VALUE.0[..3]);
+        assert_eq!(INSPECTOR_LABEL.0[3], 0.6);
+    }
+
+    #[test]
+    fn the_scrollbar_track_is_wide_enough_to_draw_the_bar_it_names() {
+        assert_eq!(imgui_grab_width(SCROLLBAR_WIDTH), SCROLLBAR_THUMB_WIDTH);
+        // What the stylesheet's own number would have drawn, and what widening it to nine
+        // drew: the same bar, which is why the first attempt changed nothing.
+        assert_eq!(imgui_grab_width(5.0), 3.0);
+        assert_eq!(imgui_grab_width(9.0), 3.0);
+    }
 
     #[test]
     fn node_header_tints_match_the_stylesheet_percentages() {

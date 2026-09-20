@@ -28,8 +28,9 @@ the specification, and the parity inventory lives in `docs/native-editor-parity.
 - `bite-gui-prototype` is the editor: a winit window, an owned wgpu renderer, and the modules
   that mirror the Electron renderer. `theme.rs` transcribes `src/renderer/assets/theme.css`,
   `shell.rs` reproduces the panel layout from `App.svelte`, `canvas/` is the node canvas,
-  `panels/` holds the four panels, `modals.rs` holds the dialogs, and `commands.rs` carries
-  the menu and inspector actions.
+  `panels/` holds the four panels, `color_picker.rs` is the inline colour editor from
+  `ColorPicker.svelte` with the conversions ported from `colorConversions.ts`, `modals.rs`
+  holds the dialogs, and `commands.rs` carries the menu and inspector actions.
 
 ## Fonts
 
@@ -63,7 +64,7 @@ cargo run -p bite-gui-prototype -- workflow.bite
 
 The capture mode renders fixed scenes without opening a window, for side-by-side comparison
 with Electron. It writes one image per scene: the seed document, a selected node, the creation
-menu, a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, a previewing badge, and every dialog.
+menu, a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, a previewing badge, the log window, the interface showcase, a folder path, an output inspector, the Resize inspector, the Rename inspector, and every dialog.
 
 ```
 cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity
@@ -100,7 +101,6 @@ the reads and the decoding.
 ## Remaining work
 
 The hands-on checklist is `docs/phase10-windows-acceptance.md`. The known gaps are listed
-under "Still to do" in `docs/native-editor-parity.md`: the log viewer window, the interface
-showcase, inline comment editing on the canvas, dragging Text Output ports to reorder them,
-and the macOS system menu. The minimap is deliberately absent; a Fit View control replaces it. macOS acceptance is pending under the project platform policy,
+under "Still to do" in `docs/native-editor-parity.md`: inline comment editing on the canvas,
+dragging Text Output ports to reorder them, and the macOS system menu. The minimap is deliberately absent; a Fit View control replaces it. macOS acceptance is pending under the project platform policy,
 although dialogs, the clipboard, the update check and fonts are now cross-platform.

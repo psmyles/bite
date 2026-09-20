@@ -97,6 +97,9 @@ pub struct InspectorContext<'a> {
     pub resolved: Option<&'a std::collections::BTreeMap<String, ParamValue>>,
     /// File names imported for the selected Input branch, for the previews.
     pub image_names: &'a [String],
+    /// The pixel size of the filmstrip's selected image, which the Resize preview works
+    /// its output dimensions out from. Nothing selected means no preview, as in Electron.
+    pub selected_image: Option<[u32; 2]>,
     /// The per-node run folder overrides.
     pub runtime_paths: &'a std::collections::BTreeMap<String, String>,
     /// True while a batch is running, which disables the run action.
@@ -118,6 +121,8 @@ pub struct InspectorState {
     pub text_preview: Vec<String>,
     pub text_preview_pending: bool,
     pub tooltip: controls::HoverTimer,
+    /// One picker's mode and hue per colour parameter, which outlive the frame that drew it.
+    pub pickers: crate::color_picker::States,
 }
 
 impl InspectorState {

@@ -169,6 +169,10 @@ impl ApplicationHandler<Wake> for App {
                 self.draw(event_loop);
                 return;
             }
+            // Moving the window needs no new frame: the compositor carries the one already
+            // presented. Drawing on every move instead put a frame that waits for the
+            // vertical blank inside the drag loop, which is what made dragging stutter.
+            WindowEvent::Moved(_) => return,
             _ => {}
         }
         if let Some(state) = &mut self.state {

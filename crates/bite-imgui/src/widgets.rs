@@ -131,6 +131,21 @@ impl Ui<'_> {
         self.window_with(title, WindowFlags::default(), body);
     }
 
+    /// A window with a close button in its title bar, which clears `open` when pressed.
+    pub fn window_closable(
+        &mut self,
+        title: &str,
+        flags: WindowFlags,
+        open: &mut bool,
+        body: impl FnOnce(&mut Self),
+    ) {
+        let visible = unsafe { sys::igBegin(c(title).as_ptr(), open, flags.raw()) };
+        let _guard = Guard(|| unsafe { sys::igEnd() });
+        if visible {
+            body(self);
+        }
+    }
+
     pub fn window_with(
         &mut self,
         title: &str,
@@ -373,6 +388,11 @@ impl Ui<'_> {
 
     pub fn set_scroll_y(&mut self, value: f32) {
         unsafe { sys::igSetScrollY_Float(value) }
+    }
+
+    /// How far the window can scroll down, for a view that follows its newest line.
+    pub fn scroll_max_y(&self) -> f32 {
+        unsafe { sys::igGetScrollMaxY() }
     }
 
     pub fn scroll_x(&self) -> f32 {

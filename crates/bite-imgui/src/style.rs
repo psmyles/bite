@@ -61,14 +61,29 @@ impl Color {
     }
 
     /// Reproduces the stylesheet's `color-mix(in srgb, self percent%, other)`.
+    ///
+    /// CSS mixes the two colors with their alpha already multiplied in and then divides the
+    /// result back out, so a mix with `transparent` keeps the first color's hue and only
+    /// thins it. Blending the channels straight instead would drag them towards
+    /// transparent's black: white thirty per cent of the way to transparent came out a dark
+    /// grey at thirty per cent opacity rather than white at thirty per cent, which over the
+    /// button background read 43 where the browser read 96.
     pub fn mix(self, percent: f32, other: Self) -> Self {
         let weight = (percent / 100.0).clamp(0.0, 1.0);
-        let blend = |a: f32, b: f32| a * weight + b * (1.0 - weight);
+        let (mine, theirs) = (self.0[3] * weight, other.0[3] * (1.0 - weight));
+        let alpha = mine + theirs;
+        let blend = |a: f32, b: f32| {
+            if alpha <= 0.0 {
+                0.0
+            } else {
+                (a * mine + b * theirs) / alpha
+            }
+        };
         Self([
             blend(self.0[0], other.0[0]),
             blend(self.0[1], other.0[1]),
             blend(self.0[2], other.0[2]),
-            blend(self.0[3], other.0[3]),
+            alpha,
         ])
     }
 
@@ -97,6 +112,9 @@ pub enum StyleColor {
     Text,
     TextDisabled,
     WindowBg,
+    TitleBg,
+    TitleBgActive,
+    TitleBgCollapsed,
     ChildBg,
     PopupBg,
     Border,
@@ -129,6 +147,9 @@ impl StyleColor {
             Self::Text => sys::ImGuiCol_Text,
             Self::TextDisabled => sys::ImGuiCol_TextDisabled,
             Self::WindowBg => sys::ImGuiCol_WindowBg,
+            Self::TitleBg => sys::ImGuiCol_TitleBg,
+            Self::TitleBgActive => sys::ImGuiCol_TitleBgActive,
+            Self::TitleBgCollapsed => sys::ImGuiCol_TitleBgCollapsed,
             Self::ChildBg => sys::ImGuiCol_ChildBg,
             Self::PopupBg => sys::ImGuiCol_PopupBg,
             Self::Border => sys::ImGuiCol_Border,
@@ -382,6 +403,23 @@ mod tests {
         for (actual, want) in mixed.0.iter().zip(expected.iter()) {
             assert!((actual - want).abs() < 1e-5);
         }
+    }
+
+    #[test]
+    fn mixing_with_transparent_thins_a_color_without_darkening_it() {
+        // color-mix(in srgb, #ffffff 30%, transparent) is white at three tenths, not a grey.
+        let mixed = Color::rgb(255, 255, 255).mix(30.0, Color::TRANSPARENT);
+        assert!((mixed.0[0] - 1.0).abs() < 1e-5);
+        assert!((mixed.0[3] - 0.3).abs() < 1e-5);
+        // Over the disabled button's background that draws the browser's ninety-six.
+        let over = mixed.0[0] * 0.3 + (0x1c as f32 / 255.0) * 0.7;
+        assert_eq!((over * 255.0).round() as u8, 96);
+    }
+
+    #[test]
+    fn mixing_two_transparents_stays_transparent() {
+        let mixed = Color::TRANSPARENT.mix(50.0, Color::TRANSPARENT);
+        assert_eq!(mixed, Color::TRANSPARENT);
     }
 
     #[test]

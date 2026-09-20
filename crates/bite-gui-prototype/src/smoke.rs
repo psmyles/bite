@@ -44,6 +44,21 @@ pub enum Scene {
     /// A processing node between the Input and the Image Output, which the preview follows
     /// on its own and marks with the PREVIEWING badge.
     Previewing,
+    /// The Debug menu's log window, over a fixed set of lines.
+    LogWindow,
+    /// The Debug menu's interface showcase.
+    Showcase,
+    /// A Folder Path node selected, so the inspector shows its browse row.
+    FolderPath,
+    /// An Image Output node selected, which is the inspector with a section title, a text
+    /// field, two lists and a checkbox row all in one panel.
+    OutputInspector,
+    /// The Resize inspector, whose rows are its own rather than the definition's: two
+    /// dimensions sharing a unit and the computed preview at the end.
+    ResizeInspector,
+    /// The Rename inspector with one block of each kind, for the badges, the compact
+    /// fields and the preview table's columns.
+    RenameInspector,
 }
 
 impl Scene {
@@ -68,6 +83,12 @@ impl Scene {
             "wire-menu" => Self::WireMenu,
             "tooltip" => Self::Tooltip,
             "previewing" => Self::Previewing,
+            "log-window" => Self::LogWindow,
+            "showcase" => Self::Showcase,
+            "folder-path" => Self::FolderPath,
+            "output-inspector" => Self::OutputInspector,
+            "resize-inspector" => Self::ResizeInspector,
+            "rename-inspector" => Self::RenameInspector,
             _ => return None,
         })
     }
@@ -92,6 +113,12 @@ impl Scene {
             Self::WireMenu => "wire-menu",
             Self::Tooltip => "tooltip",
             Self::Previewing => "previewing",
+            Self::LogWindow => "log-window",
+            Self::Showcase => "showcase",
+            Self::FolderPath => "folder-path",
+            Self::OutputInspector => "output-inspector",
+            Self::ResizeInspector => "resize-inspector",
+            Self::RenameInspector => "rename-inspector",
         }
     }
 
@@ -116,6 +143,12 @@ impl Scene {
             Self::WireMenu,
             Self::Tooltip,
             Self::Previewing,
+            Self::LogWindow,
+            Self::Showcase,
+            Self::FolderPath,
+            Self::OutputInspector,
+            Self::ResizeInspector,
+            Self::RenameInspector,
         ]
     }
 }
@@ -188,6 +221,87 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
                         wire: bite_core::graph::WireType::Image,
                     }),
                 );
+            }
+        }
+        Scene::LogWindow => {
+            // Lines of each level, one with a tag and one a session banner, so the colors
+            // and the columns can all be checked at once.
+            editor.log_window.seed(
+                [
+                    "--- Session 2026-09-20T09:00:00Z ---",
+                    "09:00:00.120 [INFO] Editor started",
+                    "09:00:01.044 [INFO] [magick] spawn: input.png -> preview.png (7 args)",
+                    "09:00:01.356 [INFO] [timings] Preview - 3 node(s) in 312ms, 1 magick process(es)",
+                    "09:00:04.870 [WARN] [magick] timed out after 30000ms: scan_042.tif",
+                    "09:00:05.001 [ERROR] corrupted_scan.jpg: decode error - unsupported colour space",
+                ]
+                .into_iter()
+                .map(crate::log_window::parse)
+                .collect(),
+            );
+        }
+        Scene::Showcase => editor.showcase.open = true,
+        Scene::OutputInspector => {
+            let target = editor
+                .studio
+                .workflow
+                .graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    node.kind
+                        == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::ImageOutput)
+                })
+                .map(|node| node.id.clone());
+            if let Some(target) = target {
+                editor.canvas.state.select_only([target.clone()]);
+                editor.selected_node = Some(target);
+                editor.sync_active_input();
+            }
+        }
+        Scene::ResizeInspector | Scene::RenameInspector => {
+            let definition = if scene == Scene::ResizeInspector {
+                "resize"
+            } else {
+                "rename"
+            };
+            let position = bite_schema::Position { x: 340.0, y: 340.0 };
+            if let Ok(id) = editor.studio.add_processing(definition, position) {
+                if scene == Scene::RenameInspector {
+                    // One block of each kind, so every badge and field shape is on screen.
+                    editor.studio.set_param(
+                        &id,
+                        "blocks".into(),
+                        bite_schema::ParamValue::Structured(
+                            bite_schema::StructuredParam::RenameBlocks {
+                                blocks: vec![
+                                    bite_schema::RenameBlock::Oldname {
+                                        find: "IMG".into(),
+                                        replace_with: "shot".into(),
+                                    },
+                                    bite_schema::RenameBlock::Text {
+                                        value: "_final".into(),
+                                    },
+                                    bite_schema::RenameBlock::Number {
+                                        start: 1.0,
+                                        pad: 3.0,
+                                    },
+                                ],
+                            },
+                        ),
+                    );
+                }
+                editor.canvas.state.select_only([id.clone()]);
+                editor.selected_node = Some(id);
+            }
+        }
+        Scene::FolderPath => {
+            if let Ok(id) = editor
+                .studio
+                .add_processing("folderpath", bite_schema::Position { x: 360.0, y: 190.0 })
+            {
+                editor.canvas.state.select_only([id.clone()]);
+                editor.selected_node = Some(id);
             }
         }
         Scene::Tooltip => {}
@@ -515,6 +629,8 @@ mod tests {
         assert!(scenes.contains(&Scene::CreateMenu));
         assert!(scenes.contains(&Scene::BatchSummary));
         assert!(scenes.contains(&Scene::Previewing));
-        assert_eq!(scenes.len(), 18);
+        assert!(scenes.contains(&Scene::LogWindow));
+        assert!(scenes.contains(&Scene::ResizeInspector));
+        assert_eq!(scenes.len(), 24);
     }
 }

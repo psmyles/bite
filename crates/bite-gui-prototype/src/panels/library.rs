@@ -252,16 +252,29 @@ fn category_row(ui: &mut Ui, label: &str, open: bool, width: f32) -> bool {
     } else {
         theme::TEXT_BRIGHT
     };
+    // `.category-label` centres its glyph and its text on the row, and `.collapse-icon`
+    // centres the glyph again inside a ten pixel box, with the panel gap after it.
+    let glyph = if open { "-" } else { "+" };
+    let glyph_face = theme::face::VALUE;
+    let glyph_size = controls::measure(ui, glyph_face, glyph);
+    let label_size = controls::measure(ui, theme::face::CATEGORY_LABEL, label);
+    let icon_left = origin[0] + 12.0;
     let list = ui.draw_list();
     list.text_with_face(
-        [origin[0] + 12.0, origin[1] + 4.0],
+        [
+            icon_left + (theme::LIBRARY_COLLAPSE_ICON_WIDTH - glyph_size[0]) / 2.0,
+            origin[1] + (height - glyph_size[1]) / 2.0,
+        ],
         colour,
-        theme::face::SMALL_MONO,
-        if open { "-" } else { "+" },
+        glyph_face,
+        glyph,
     );
     controls::draw_tracked_text(
         ui,
-        [origin[0] + 12.0 + 16.0, origin[1] + 3.0],
+        [
+            icon_left + theme::LIBRARY_COLLAPSE_ICON_WIDTH + theme::PANEL_GAP,
+            origin[1] + (height - label_size[1]) / 2.0,
+        ],
         colour,
         theme::face::CATEGORY_LABEL,
         label,

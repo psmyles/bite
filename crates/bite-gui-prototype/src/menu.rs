@@ -74,7 +74,6 @@ pub fn draw(
                 ],
                 |ui| {
                     ui.main_menu_bar(|ui| {
-                        draw_brand(ui);
                         ui.with_face(theme::face::BODY, |ui| {
                             // A dropdown's own padding and row spacing, from
                             // `.dropdown` and `.dropdown li button`. Without the vertical
@@ -102,27 +101,6 @@ pub fn draw(
         },
     );
     command
-}
-
-/// The application name at the left of the bar, in bold with wide letter spacing.
-fn draw_brand(ui: &mut Ui) {
-    let origin = ui.cursor_screen_position();
-    let face = bite_imgui::Face::ui_weight(theme::FONT_SIZE_BASE, bite_imgui::Weight::Bold);
-    let tracking = 0.05 * f32::from(theme::FONT_SIZE_BASE);
-    let size = controls::measure_tracked(ui, face, "Bite", tracking);
-    controls::draw_tracked_text(
-        ui,
-        [
-            origin[0] + 4.0,
-            origin[1] + (MENU_BAR_HEIGHT - size[1]) / 2.0,
-        ],
-        theme::TEXT_BRIGHT,
-        face,
-        "Bite",
-        tracking,
-    );
-    ui.dummy([size[0] + 14.0, MENU_BAR_HEIGHT]);
-    ui.same_line();
 }
 
 /// The current document title, shown at the right of the bar in muted monospace.

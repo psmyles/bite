@@ -945,3 +945,146 @@ Considered and not taken, with the reason:
 
 Still open: the Debug menu's Performance Timers toggle sets a flag that nothing reads.
 Electron's `TimingCollector` is what the figures above would be measured with.
+
+### The three Debug windows (2026-09-20)
+
+- **Performance Timers** now has something behind it. An import reports its total, its time
+  per image and how many of its thumbnails were already cached; a preview reports its time,
+  the size of its chain and whether the worker reused a result; a run reports what it
+  processed, skipped and failed. Each also reports the number of ImageMagick processes it
+  took, which is the number worth watching here: Electron spawns one per image and one per
+  node, so it times each of those, while the native pipeline composes a chain into a single
+  command. The flag is global rather than a field on the editor, because the work that
+  reports is on background threads. Everything goes to the session log, where the log window
+  shows it.
+- **View Log** opens a window in the editor rather than handing the file to the platform.
+  It has the level filters, the timestamp, badge and message columns, the `[tag]` highlight
+  in `#02ccff` and the following of the newest line that `public/log-viewer.html` has. It
+  reads the log file rather than the ring buffer, so earlier sessions are in it, and it
+  re-reads only what has been appended since it last looked. Clear hides what is there, as
+  the Electron viewer's does, rather than emptying the file; an Open File button still hands
+  it to the platform.
+- **Show All UI Elements** draws the type scale, the palette, the port colours and every
+  control in one window, seeded with the values `Showcase.svelte` opens with. The dialogs are
+  not redrawn there: its buttons open the real ones, which is the only way to be sure they
+  still match.
+
+Both windows wear the editor's own chrome through `controls::debug_window`, because Dear
+ImGui's default title bar is blue and reads as a different program. `StyleColor` gained the
+title bar entries and `Ui` gained `window_closable` and `scroll_max_y` for them. Two capture
+scenes, `log-window` and `showcase`, cover the result.
+
+### Eight reported defects (2026-09-20)
+
+- **The first category of the creation menu was always lit.** The keyboard highlight started
+  at row zero; `NodeContextMenu.svelte` starts it at minus one, so nothing is lit until an
+  arrow key is pressed. It is an `Option` now, and Enter with nothing highlighted takes a
+  lone search result, as the Svelte menu does.
+- **The filmstrip had a vertical scrollbar.** A thumbnail was sized by taking Electron's
+  fifty two pixels of chrome off the panel, which does not cover the horizontal scrollbar
+  Dear ImGui lays out inside the strip. The chrome is now added up from its parts, that
+  scrollbar included, so an item is exactly as tall as the strip. A thumbnail is smaller at
+  a given panel height than Electron's by the width of that scrollbar.
+- **Scrollbars were too thin.** Dear ImGui insets its grab inside the track by
+  `trunc((width - 2) / 2)` on each side, capped at three, so the bar that is seen is the
+  track less six for any track from eight pixels up. The stylesheet's five drew a three
+  pixel bar; widening the track to nine drew exactly the same three, which is why the first
+  attempt changed nothing. The track is the bar plus six now, for a six pixel bar, and the
+  arithmetic is in a test so it is not tuned by eye again.
+- **A Folder Path node had no folder picker.** Its inspector had one all along; the node
+  never reached it. Every node created from a definition was made an ordinary processing
+  node, so a Folder Path was not a `folderPathNode` and fell through to the generic
+  parameter editor. `Studio::node_kind` now gives the three definitions that have cards of
+  their own the kinds they are saved as, which also restores the Process As Set and Compare
+  inspectors and their cards.
+- **The wordmark is gone from the menu bar**, which now starts at File.
+- **Dragging the window stuttered.** Every move event asked for a frame, so a present that
+  waits for the vertical blank sat inside the drag loop. Moving the window needs no new
+  frame; the compositor carries the one already presented.
+- **Text in a field sat low.** The frame padding was guessed from the token's pixel size,
+  but Dear ImGui sizes a frame as the current font's line height plus twice its padding, and
+  a line height is the em times the ascender-to-descender distance, not the em. It is
+  measured from the face now, so a field is exactly its token height with the text centred.
+- **The library's plus and minus were small and off centre.** `.collapse-icon` is twelve
+  pixel mono centred in a ten pixel box, with the panel gap after it, and the row centres
+  both the glyph and the label. All of that was eyeballed offsets; it is measured now.
+
+A `folder-path` capture scene covers the card and the inspector that were wrong.
+
+### Two text roles in the inspector (2026-09-20)
+
+A checkbox row's wording was drawn in the label colour, so `Generate .log file` read as
+another section title rather than as the thing its row says. The stylesheet gives
+`.log-toggle` and `.checkbox-label` the bright text at full strength, with no opacity;
+only `.section-title` and `.param-label` take it at six tenths.
+
+The two roles are named now, `INSPECTOR_LABEL` and `INSPECTOR_VALUE`, and every label in the
+inspectors goes through one of them rather than repeating the literal. A test asserts they
+differ, which is the class of mistake rather than the one instance.
+
+Checked across the inspectors by sampling a capture: section titles come out around 150 and
+field contents, dropdown choices and checkbox wording around 245, against Electron's 161 and
+255 for the same panel. An `output-inspector` capture scene holds the panel that has a
+section title, a text field, two lists and a checkbox row all at once.
+
+### Mixing with transparent, the colour picker, and the inspectors it turned up (2026-09-20)
+
+**`color-mix` with `transparent` was mixing the wrong thing.** CSS multiplies each colour by
+its own alpha before interpolating and divides the result back out, so
+`color-mix(in srgb, white 30%, transparent)` is white at three tenths. `Color::mix` blended
+the channels straight, which dragged them towards transparent's black and gave a dark grey
+at three tenths instead. Over the disabled button's background that drew 43 where the
+browser drew 96 — the Run Workflow button, and about twenty other places that all mix with
+`transparent`: every primary and danger border, the inspector's row separators, the
+filmstrip's rule, the slider track, the run dialog's tinted rows and the node cards' bypass
+tick, whose amber wash had been all but invisible. One fix in `bite-imgui` corrects them
+all; a test pins the white case and the ninety-six it draws.
+
+**The colour picker was Dear ImGui's, not the editor's.** `ColorPicker.svelte` is a
+saturation square, a hue bar, a mode drop-down, a ramped slider and number box per channel,
+an alpha row and a hex row, laid out inline in the inspector; ours was a swatch that opened
+ImGui's built-in wheel. `color_picker.rs` draws the Svelte one, with the conversions ported
+from `colorConversions.ts` so RGB 0-1, RGB 0-255, HSV, LAB and CMYK read the same numbers.
+
+Two things the port needed that the draw list does not give:
+
+- Gradient fills take no corner radius, so a ramp drawn inside a rounded box spills into the
+  corners. Each corner is painted back to the surface behind it with a fan of triangles
+  between the square corner and the arc the fill should have followed.
+- The hue and saturation are kept beside the colour rather than derived from it each frame.
+  Black and white have no hue of their own, so dragging the square to the bottom edge and
+  back would otherwise come up red. The Svelte component holds them the same way, and a test
+  covers it.
+
+**The Tint node's red default was drawn as black.** Electron stores a `color-picker`
+parameter as a hex string and a `vector`-widget colour as four numbers; we read both as
+vectors, so `#ff0000` came back as transparent black, and editing one wrote a vector the
+pipeline would not have understood. The two shapes have separate arms now.
+
+Auditing the rest of `Inspector*.svelte` against ours, by listing every string each component
+can put on screen and checking it exists on this side:
+
+- **Resize had no inspector of its own.** It ran the generic parameter editor, which gave it
+  the definition's raw option names, sliders where the component has number boxes, no `%`
+  or `px` unit, no disabled computed dimension and no Resize Preview. It is written out now:
+  the aspect ratio drives whichever dimension the anchor does not, and the preview says what
+  the selected image would come out as. The arithmetic is in `resize_preview` with tests
+  rather than in the drawing code.
+- **A rename block could not be removed.** The row had no delete control at all. It has the
+  cross now, along with the six-dot grab handle, the filled `.block-badge` tags, the compact
+  `.field-input` fields the blocks use rather than the thirty-pixel ones, the `start`/`pad`
+  sub-labels with the zero-padded preview beside them, and the subtle mono add bar.
+- The rename preview gained its `ORIGINAL` / `NEW NAME` column heads, counts files rather
+  than `file(s)`, and puts an unchanged name in dim text rather than a faded accent.
+- The text preview has two empty states, not one: with images loaded, nothing to show means
+  no port is wired.
+- The comment body carries its `Notes...` placeholder, drawn where the first line starts
+  because a multiline field takes no hint.
+- The `...` browse buttons and the two delete controls carry the tooltips their `title`
+  attributes give them, using Dear ImGui's own hover delay rather than another timer.
+
+Not carried over: the Input folder button's `Choosing...` label. The native folder dialog
+blocks, so no frame is drawn while it is open and the state cannot be seen.
+
+`resize-inspector` and `rename-inspector` capture scenes were added, bringing the set to
+twenty-four.

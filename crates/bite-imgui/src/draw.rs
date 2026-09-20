@@ -85,6 +85,21 @@ impl DrawListRef<'_> {
         }
     }
 
+    /// A rectangle whose fill runs from `left` to `right`, as the colour picker's ramps do.
+    pub fn rect_gradient_x(&self, min: Vec2, max: Vec2, left: Color, right: Color) {
+        unsafe {
+            sys::ImDrawList_AddRectFilledMultiColor(
+                self.raw,
+                v(min),
+                v(max),
+                left.packed(),
+                right.packed(),
+                right.packed(),
+                left.packed(),
+            )
+        }
+    }
+
     pub fn circle(&self, center: Vec2, radius: f32, color: Color) {
         unsafe { sys::ImDrawList_AddCircleFilled(self.raw, v(center), radius, color.packed(), 0) }
     }

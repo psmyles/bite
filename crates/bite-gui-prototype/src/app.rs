@@ -49,6 +49,10 @@ pub struct Editor {
     pub show_preview_info: bool,
 
     pub modal: modals::Modal,
+    /// The Debug menu's log window, which reads the session log file.
+    pub log_window: crate::log_window::LogWindow,
+    /// The Debug menu's interface showcase.
+    pub showcase: crate::showcase::Showcase,
     pub progress: modals::Progress,
     /// When the running import began, so the dialog can report how long it took. It is
     /// cleared once the import ends, which freezes the time the completion line shows.
@@ -128,6 +132,8 @@ impl Editor {
             preview_node: None,
             show_preview_info: true,
             modal: modals::Modal::None,
+            log_window: Default::default(),
+            showcase: Default::default(),
             progress: modals::Progress::default(),
             import_started: None,
             status: String::new(),
@@ -167,6 +173,12 @@ impl Editor {
     fn active_branch_mut(&mut self) -> Option<&mut Branch> {
         let id = self.active_input.clone()?;
         Some(self.branches.entry(id).or_default())
+    }
+
+    /// The filmstrip entry the active branch has selected, if any.
+    pub fn selected_thumbnail(&self) -> Option<&panels::filmstrip::Thumbnail> {
+        let branch = self.active_branch()?;
+        branch.thumbnails.get(branch.selected?)
     }
 
     /// The file names of the active branch, for the inspector previews.
@@ -798,6 +810,19 @@ pub fn draw_frame(
         handle_create_menu(editor, outcome);
     }
 
+    // The debug windows sit above the panels and below the modals, which are exclusive.
+    if crate::log_window::draw(&mut ui, &mut editor.log_window) {
+        if let Some(path) = crate::logging::log_path() {
+            let _ = dialogs::open_path(&path);
+        }
+    }
+
+    if let Some(crate::showcase::Outcome::Show(modal)) =
+        crate::showcase::draw(&mut ui, &mut editor.showcase)
+    {
+        editor.modal = modal;
+    }
+
     if let Some(outcome) = modals::draw(&mut ui, &editor.modal, &editor.progress, size) {
         handle_modal(editor, outcome);
     }
@@ -830,6 +855,9 @@ fn draw_inspector(editor: &mut Editor, ui: &mut bite_imgui::Ui, rect: shell::Rec
             .as_ref()
             .and_then(|id| editor.resolved.get(id)),
         image_names: &names,
+        selected_image: editor.selected_thumbnail().map(|thumbnail| {
+            [thumbnail.source.width, thumbnail.source.height]
+        }),
         runtime_paths: &editor.runtime_paths,
         running: editor.run.is_some(),
         run_ready: ready > 0,
@@ -1023,6 +1051,8 @@ mod tests {
             preview_node: None,
             show_preview_info: true,
             modal: modals::Modal::None,
+            log_window: Default::default(),
+            showcase: Default::default(),
             progress: Default::default(),
             import_started: None,
             status: String::new(),

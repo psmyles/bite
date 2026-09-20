@@ -18,8 +18,22 @@ pub struct Thumbnail {
     pub source: crate::work::SourceImage,
 }
 
-/// The chrome the panel reserves around a thumbnail: the status bar plus the padding.
-pub const CHROME: f32 = 52.0;
+/// The status bar along the bottom, which reports the count.
+pub const STATUS_HEIGHT: f32 = 24.0;
+/// The strip's own inset inside the panel, above it and below it.
+const STRIP_INSET: f32 = 9.0;
+/// The file name under a thumbnail.
+const LABEL_HEIGHT: f32 = 14.0;
+/// The padding an item keeps around its thumbnail and its name.
+const ITEM_PADDING: f32 = 9.0;
+
+/// The chrome the panel reserves around a thumbnail.
+///
+/// Everything that is not the thumbnail itself is counted here, the horizontal scrollbar
+/// included: it takes its height out of the strip, and a thumbnail sized without it
+/// overflows by exactly that much and raises a vertical scrollbar beside it.
+pub const CHROME: f32 =
+    STATUS_HEIGHT + STRIP_INSET + LABEL_HEIGHT + ITEM_PADDING + theme::SCROLLBAR_WIDTH;
 /// The gap between items, which the stride adds to the thumbnail size.
 pub const ITEM_GAP: f32 = 12.0;
 
@@ -83,7 +97,7 @@ pub fn draw(
             Rounding::All,
         );
 
-        let status_height = 24.0;
+        let status_height = STATUS_HEIGHT;
         let strip_height = (rect.height() - status_height).max(1.0);
         let size = thumbnail_size(rect.height());
         let stride = size + ITEM_GAP;
@@ -184,8 +198,8 @@ pub fn draw(
 
 /// One thumbnail with its file name beneath it.
 fn item(ui: &mut Ui, thumbnail: &Thumbnail, size: f32, selected: bool) -> bool {
-    let label_height = 14.0;
-    let total = [size + 6.0, size + label_height + 9.0];
+    let label_height = LABEL_HEIGHT;
+    let total = [size + 6.0, size + label_height + ITEM_PADDING];
     let origin = ui.cursor_screen_position();
     let clicked = ui.invisible_button(&format!("##thumb-{}", thumbnail.path), total);
     let hovered = ui.item_hovered();
@@ -271,8 +285,8 @@ mod tests {
     #[test]
     fn the_thumbnail_size_follows_the_panel_height() {
         // The default panel is one hundred and twenty pixels tall.
-        assert_eq!(thumbnail_size(120.0), 68.0);
-        assert_eq!(thumbnail_size(220.0), 168.0);
+        assert_eq!(thumbnail_size(120.0), 120.0 - CHROME);
+        assert_eq!(thumbnail_size(220.0), 220.0 - CHROME);
     }
 
     #[test]

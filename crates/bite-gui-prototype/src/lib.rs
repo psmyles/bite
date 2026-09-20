@@ -1,10 +1,12 @@
 //! The native BITE editor. Modules mirror the Electron renderer they reproduce.
 pub mod app;
 pub mod canvas;
+pub mod color_picker;
 pub mod commands;
 pub mod controls;
 pub mod create_menu;
 pub mod dialogs;
+pub mod log_window;
 pub mod logging;
 pub mod menu;
 pub mod modals;
@@ -13,8 +15,10 @@ pub mod persist;
 pub mod platform;
 pub mod renderer;
 pub mod shell;
+pub mod showcase;
 pub mod smoke;
 pub mod studio;
 pub mod theme;
+pub mod timings;
 pub mod updates;
 pub mod work;

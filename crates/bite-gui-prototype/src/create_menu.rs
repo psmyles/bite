@@ -31,7 +31,9 @@ pub struct CreateMenu {
     pub pending: Option<PendingWire>,
     /// Set on the frame the menu opens so the search field can take focus once.
     focus_search: bool,
-    active_index: usize,
+    /// The row the keyboard has moved to, or nothing while none has been chosen. The
+    /// Svelte menu starts at minus one, so no row is lit until an arrow key is pressed.
+    active_index: Option<usize>,
     pub can_group: bool,
     pub can_ungroup: bool,
     tooltip: controls::HoverTimer,
@@ -52,7 +54,7 @@ impl Default for CreateMenu {
             position: [0.0, 0.0],
             pending: None,
             focus_search: false,
-            active_index: 0,
+            active_index: None,
             can_group: false,
             can_ungroup: false,
             tooltip: controls::HoverTimer::default(),
@@ -77,7 +79,7 @@ impl CreateMenu {
         self.pending = pending;
         self.focus_search = true;
         self.focus_search_pending = true;
-        self.active_index = 0;
+        self.active_index = None;
         self.tooltip.reset();
         self.open_category = None;
         self.sub_rect = None;
@@ -235,24 +237,30 @@ impl CreateMenu {
         if count > 0 {
             let mut moved = false;
             if ui.key_pressed(Key::Down) {
-                self.active_index = (self.active_index + 1).min(count - 1);
+                // The first press lands on the first row rather than the second.
+                self.active_index = Some(match self.active_index {
+                    Some(index) => (index + 1).min(count - 1),
+                    None => 0,
+                });
                 moved = true;
             }
             if ui.key_pressed(Key::Up) {
-                self.active_index = self.active_index.saturating_sub(1);
+                self.active_index = Some(self.active_index.map_or(0, |index| index.saturating_sub(1)));
                 moved = true;
             }
             // Browsing by keyboard opens the highlighted category's flyout, so the arrow
             // keys show the same thing the pointer would.
             if moved && !searching {
-                self.open_category = groups
-                    .get(self.active_index)
+                self.open_category = self
+                    .active_index
+                    .and_then(|index| groups.get(index))
                     .map(|(category, _)| category.clone());
             }
         }
         if !searching && ui.key_pressed(Key::Right) {
-            self.open_category = groups
-                .get(self.active_index)
+            self.open_category = self
+                .active_index
+                .and_then(|index| groups.get(index))
                 .map(|(category, _)| category.clone());
         }
         if !searching && ui.key_pressed(Key::Left) {
@@ -274,19 +282,30 @@ impl CreateMenu {
                     return;
                 }
                 for (index, entry) in flat.iter().enumerate() {
-                    if self.result_row(ui, entry, index == self.active_index, width, delta, true) {
+                    if self.result_row(ui, entry, Some(index) == self.active_index, width, delta, true)
+                    {
                         outcome = Some(Outcome::Create(entry.clone()));
                     }
                 }
                 if ui.key_pressed(Key::Enter) {
-                    if let Some(entry) = flat.get(self.active_index) {
+                    // With nothing highlighted, Enter takes a lone result, as the Svelte
+                    // menu does, and otherwise waits for a choice.
+                    let chosen = self.active_index.or((flat.len() == 1).then_some(0));
+                    if let Some(entry) = chosen.and_then(|index| flat.get(index)) {
                         outcome = Some(Outcome::Create(entry.clone()));
                     }
                 }
             } else {
                 for (index, (category, entries)) in groups.iter().enumerate() {
                     if let Some(entry) =
-                        self.category_row(ui, category, entries, index == self.active_index, width, delta)
+                        self.category_row(
+                            ui,
+                            category,
+                            entries,
+                            Some(index) == self.active_index,
+                            width,
+                            delta,
+                        )
                     {
                         outcome = Some(Outcome::Create(entry));
                     }
@@ -761,13 +780,13 @@ mod tests {
     fn opening_the_menu_resets_its_search_and_highlight() {
         let mut menu = CreateMenu {
             query: "old".into(),
-            active_index: 4,
+            active_index: Some(4),
             ..CreateMenu::default()
         };
         menu.open_at([10.0, 20.0], None);
         assert!(menu.open);
         assert!(menu.query.is_empty());
-        assert_eq!(menu.active_index, 0);
+        assert_eq!(menu.active_index, None);
         assert_eq!(menu.position, [10.0, 20.0]);
     }
 
@@ -775,14 +794,14 @@ mod tests {
     fn no_category_flyout_is_open_until_one_is_pointed_at() {
         let mut menu = CreateMenu {
             open_category: Some("Color".into()),
-            active_index: 3,
+            active_index: Some(3),
             ..CreateMenu::default()
         };
         menu.open_at([0.0, 0.0], None);
-        // The highlight starts on the first row, but its flyout must stay shut: an open
-        // flyout would cover the rows below it before the pointer had chosen anything.
+        // Nothing is lit and no flyout is open: the menu waits for the pointer or an
+        // arrow key before it shows anything.
         assert_eq!(menu.open_category(), None);
-        assert_eq!(menu.active_index, 0);
+        assert_eq!(menu.active_index, None);
     }
 
     #[test]

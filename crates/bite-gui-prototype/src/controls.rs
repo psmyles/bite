@@ -77,6 +77,70 @@ pub fn button_full(ui: &mut Ui, label: &str, kind: ButtonKind, enabled: bool) ->
     button(ui, label, kind, width, enabled)
 }
 
+/// A floating window for the Debug menu, dressed in the editor's own colors.
+///
+/// Dear ImGui's default chrome is blue and rounded, which reads as a different program; the
+/// panels' header colour and border put these windows in the same one.
+pub fn debug_window(
+    ui: &mut Ui,
+    title: &str,
+    size: Vec2,
+    open: &mut bool,
+    body: impl FnOnce(&mut Ui),
+) {
+    ui.set_next_window_size_once(size);
+    let flags = bite_imgui::WindowFlags {
+        no_collapse: true,
+        no_saved_settings: true,
+        ..bite_imgui::WindowFlags::default()
+    };
+    ui.with_style(
+        &[
+            StyleVar::WindowRounding(theme::PANEL_RADIUS),
+            StyleVar::WindowBorderSize(1.0),
+            StyleVar::WindowPadding([10.0, 8.0]),
+        ],
+        |ui| {
+            ui.with_colors(
+                &[
+                    (StyleColor::WindowBg, theme::BG),
+                    (StyleColor::TitleBg, theme::PANEL_HEADER_BG),
+                    (StyleColor::TitleBgActive, theme::PANEL_HEADER_BG),
+                    (StyleColor::TitleBgCollapsed, theme::PANEL_HEADER_BG),
+                    (StyleColor::Border, theme::BORDER.mix(50.0, Color::TRANSPARENT)),
+                    (StyleColor::Text, theme::TEXT_BRIGHT),
+                    (StyleColor::Header, theme::PANEL_HEADER_BG),
+                    (StyleColor::HeaderHovered, theme::NODE_HEAD_BG),
+                    (StyleColor::HeaderActive, theme::NODE_HEAD_BG),
+                    (StyleColor::CheckMark, theme::ACCENT),
+                    // A field or a button has to read as one against the window's own
+                    // background, which the text field colour is too close to.
+                    (StyleColor::FrameBg, theme::DROPDOWN_BG),
+                    (StyleColor::FrameBgHovered, theme::NODE_HEAD_BG),
+                    (StyleColor::FrameBgActive, theme::NODE_HEAD_BG),
+                    (StyleColor::Button, theme::DROPDOWN_BG),
+                    (StyleColor::ButtonHovered, theme::NODE_HEAD_BG),
+                    (StyleColor::ButtonActive, theme::NODE_HEAD_BG),
+                ],
+                |ui| {
+                    ui.with_face(theme::face::LABEL, |ui| {
+                        ui.window_closable(title, flags, open, body)
+                    })
+                },
+            )
+        },
+    );
+}
+
+/// The vertical frame padding that centres `face` inside a control `height` tall.
+///
+/// Dear ImGui sizes a frame as the current font's line height plus twice its padding, so a
+/// padding guessed from the token's pixel size leaves the text off centre: the line height
+/// of a face is its em times the distance from its ascender to its descender, not the em.
+fn frame_padding_y(ui: &Ui, face: Face, height: f32) -> f32 {
+    ((height - measure(ui, face, "Ag")[1]) / 2.0).max(0.0)
+}
+
 /// Draws a text field with the stylesheet's two-pixel border and monospaced value.
 pub fn text_input(ui: &mut Ui, id: &str, value: &mut String, hint: &str, width: f32) -> bool {
     text_input_with(ui, id, value, hint, width, InputFlags::default())
@@ -113,7 +177,7 @@ pub fn text_input_with(
             StyleVar::FrameBorderSize(0.0),
             StyleVar::FramePadding([
                 theme::INPUT_PADDING_X,
-                (theme::INPUT_HEIGHT - 12.0) / 2.0,
+                frame_padding_y(ui, theme::face::VALUE, theme::INPUT_HEIGHT),
             ]),
         ],
         |ui| {
@@ -170,7 +234,7 @@ pub fn search_input(ui: &mut Ui, id: &str, value: &mut String, hint: &str, width
         &[
             StyleVar::FrameRounding(theme::LIBRARY_SEARCH_RADIUS),
             StyleVar::FrameBorderSize(0.0),
-            StyleVar::FramePadding([10.0, (height - 13.0) / 2.0]),
+            StyleVar::FramePadding([10.0, frame_padding_y(ui, theme::face::SEARCH, height)]),
         ],
         |ui| {
             ui.with_colors(
@@ -267,7 +331,7 @@ pub fn dropdown(
                 StyleVar::FrameBorderSize(0.0),
                 StyleVar::FramePadding([
                     theme::INPUT_PADDING_X,
-                    (theme::INPUT_HEIGHT - 13.0) / 2.0,
+                    frame_padding_y(ui, theme::face::BODY, theme::INPUT_HEIGHT),
                 ]),
                 StyleVar::PopupRounding(theme::INPUT_RADIUS),
                 StyleVar::PopupBorderSize(theme::INPUT_BORDER_WIDTH),
@@ -494,7 +558,7 @@ pub fn draw_ellipsized_scaled(
 pub fn row_label(ui: &mut Ui, text: &str) {
     ui.with_face(theme::face::LABEL, |ui| {
         ui.with_colors(
-            &[(StyleColor::Text, theme::TEXT_BRIGHT.with_alpha(0.6))],
+            &[(StyleColor::Text, theme::INSPECTOR_LABEL)],
             |ui| ui.text(text),
         )
     });
@@ -649,40 +713,6 @@ pub fn slider(
         half,
         theme::ACCENT,
     );
-    changed
-}
-
-/// A colour row: a full-width swatch that opens the picker, sized like the other controls.
-///
-/// ImGui's inline editor packs four drag fields into the row instead, which is illegible at
-/// an inspector's width.
-pub fn color_row(ui: &mut Ui, id: &str, value: &mut [f32; 4], width: f32) -> bool {
-    let origin = ui.cursor_screen_position();
-    let max = [origin[0] + width, origin[1] + theme::INPUT_HEIGHT];
-    let opened = ui.color_button(&format!("##{id}-swatch"), Color(*value), [
-        width,
-        theme::INPUT_HEIGHT,
-    ]);
-    ui.draw_list().rect_outline(
-        origin,
-        max,
-        if ui.item_hovered() {
-            theme::ACCENT
-        } else {
-            theme::BORDER
-        },
-        theme::INPUT_RADIUS,
-        Rounding::All,
-        theme::INPUT_BORDER_WIDTH,
-    );
-    let popup = format!("##{id}-picker");
-    if opened {
-        ui.open_popup(&popup);
-    }
-    let mut changed = false;
-    ui.popup(&popup, |ui| {
-        changed = ui.color_picker4(&format!("##{id}-wheel"), value);
-    });
     changed
 }
 

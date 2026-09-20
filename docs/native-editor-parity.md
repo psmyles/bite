@@ -97,9 +97,9 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Panel | Native status |
 | --- | --- |
 | Node Library | Filter, pinned Workflow section hidden while searching, collapsible categories forced open during a search, drag to canvas, hover descriptions, both empty states |
-| Inspector | Header with the node name, the full dispatch table, and the run action in a bordered footer |
+| Inspector | Header with the node name, the full dispatch table, and the run action in a bordered footer. Two text roles: a name for something takes the bright text at six tenths, and a value, a choice or a checkbox's wording takes it at full |
 | Preview | Letterboxed on black, Info toggle defaulting to on, gradient overlay with the name and `FORMAT · W x H · size`, both empty states. The chain runs over the cached thumbnail while the overlay measures the original, as `preview-pipeline.ts` does, and the thumbnail stands in until the first render arrives |
-| Filmstrip | Status count shown at every count including none; thumbnail size derived from panel height, horizontal scrolling with a vertical wheel, virtualized with overscan, selection border, status count, clickable empty prompt |
+| Filmstrip | Thumbnails sized so an item fits the strip exactly, the horizontal scrollbar counted; status count shown at every count including none; thumbnail size derived from panel height, horizontal scrolling with a vertical wheel, virtualized with overscan, selection border, status count, clickable empty prompt |
 
 ## Inspector
 
@@ -112,14 +112,15 @@ hands-on confirmation; items marked missing are not implemented yet.
 | Computed rows | The live value from the preview run |
 | Widgets | Slider with its numeric box, number, text, dropdown, checkbox, color and vector |
 | Slider | Three pixel track, twelve pixel round accent thumb, centred against the number box; not ImGui's own slider, which prints the value on the track |
-| Color | Full-width swatch opening a picker. Deviation: Electron draws the saturation square, hue bar and channel sliders inline in the row |
+| Color | The inline picker from `ColorPicker.svelte`: saturation square, hue bar, mode drop-down over RGB 0-1, RGB 0-255, HSV, LAB and CMYK, a ramped slider and number box per channel, alpha and hex. A `color-picker` parameter is a hex string and a `vector` one is four numbers; the two are not interchangeable |
 | `visible_when` | Evaluated from the node's parameters |
 | Input | Naming, thumbnail size, folder card, subfolder toggle, ten format chips with at least one enforced, scan count, import, individual images, loaded file list |
 | Image Output | Naming, output path with browse, overwrite, set naming when Process As Set is upstream, log toggle |
 | Text Output | Output file, overwrite, separator with a custom field, port order, log toggle, processing source, generated preview with all five titles |
 | Flipbook Output | Output file, overwrite, grid fields, sort order, background color with its wired badge, atlas summary, log toggle |
 | Process As Set | Prefix with its wired state, suffix rows, add and remove, matched sets with per-slot markers |
-| Rename | Text, number and old-name blocks with their badges, add bar, preview table with example names |
+| Rename | Text, number and old-name blocks with their filled badges, grab handle and delete cross, the compact `.field-input` fields, the `start`/`pad` sub-labels with the padded preview, the tinted add bar, and the preview table with its column heads and example names |
+| Resize | Mode, preserve aspect, anchor, the two dimensions sharing a unit with the anchored one shown rather than edited, resolution, filter, and the Resize Preview section once an image is selected |
 | Format Convert | The chosen format's own parameters, and the no-options message |
 | Folder Path, Comment, Group | Implemented |
 
@@ -145,6 +146,9 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
 | Requirement | Native status |
 | --- | --- |
 | Menu | File, Edit, View, Debug and Help with the Electron labels, accelerators and separators; developer items only in a debug build |
+| Performance Timers | Import, preview and batch timings recorded into the session log while the toggle is on. Electron counts a process per image, so it times each one; the native pipeline composes a chain into one command, so the count of processes is reported beside the times |
+| View Log | A window inside the editor with the level filters, the timestamp, badge and message columns, the `[tag]` highlight and following of the newest line. It reads the log file, so earlier sessions are in it too, and Clear hides what is there rather than emptying the file |
+| Show All UI Elements | The type scale, the palette, the port colours and every control in one window, seeded as `Showcase.svelte` seeds them, with buttons that open the real dialogs |
 | Shortcuts | Every accelerator plus the canvas editing keys |
 | File dialogs | Open, save, folders, images and export destinations on every platform |
 | Clipboard | System clipboard on every platform |
@@ -160,18 +164,20 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
 - The minimap is removed. A Fit View control beside the zoom reading replaces it, which is a
   deliberate deviation: the minimap was unreliable and the framing action is what it was used
   for.
-- The log viewer opens the file in the platform viewer rather than drawing the Electron log
-  window, so the level filters and the `[tag]` highlight are not reproduced.
-- The interface showcase window is not implemented; the capture scenes cover the same ground
-  for comparison purposes.
 - Inline editing of a comment's heading and body on the canvas is not implemented; both are
   edited from the inspector.
 - Dragging a node into a group does not re-parent it, which matches Electron.
 - Text Output port reordering is display only; the rows cannot yet be dragged.
-- Debug > Performance Timers toggles a flag that nothing reads yet. Electron's
-  `TimingCollector` records per image header, identify and thumbnail times on an import and
-  per image times on a batch, and writes a summary to the log. The flag and its menu label
-  behave as Electron's do; the measurements behind them are not collected.
+- Scrollbar bars are six pixels rather than the stylesheet's five, and their track is twelve:
+  Dear ImGui insets the grab inside the track by up to three pixels a side, so the track has
+  to be the bar plus six.
+- The menu bar has no wordmark; it starts at File.
+- A number box in the colour picker ranges its text left; Electron's `.ch-num` ranges it
+  right, which Dear ImGui's text field has no setting for.
+- The Input folder button never shows `Choosing...`. The native folder dialog blocks, so no
+  frame is drawn while it is open.
+- Rename blocks and Text Output ports both draw their grab handle but cannot yet be dragged
+  to reorder.
 - macOS uses the same in-window menu bar as Windows rather than the system menu.
 
 ## Verification
@@ -185,4 +191,4 @@ cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity
 ```
 
 Each run writes one image per scene: the seed document, a selected node, the creation menu,
-a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, a previewing badge, and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.
+a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, a previewing badge, the log window, the interface showcase, a folder path, an output inspector, the Resize inspector, the Rename inspector, and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.

@@ -3,7 +3,7 @@
 //! Each row puts its label above a full-width control, with badges for wired and computed
 //! parameters and a reset control that keeps its space when the value is already default.
 use super::{Edit, InspectorContext};
-use crate::{controls, theme};
+use crate::{color_picker, controls, theme};
 use bite_imgui::{Rounding, StyleColor, Ui};
 use bite_schema::{GraphNode, ParamDefinition, ParamType, ParamValue, WidgetType};
 
@@ -113,6 +113,7 @@ pub fn draw(
     width: f32,
     node: &GraphNode,
     context: &InspectorContext,
+    pickers: &mut color_picker::States,
 ) -> Vec<Edit> {
     let mut edits = Vec::new();
     let Some(entry) = context.registry.nodes.get(&node.data.definition_id) else {
@@ -138,7 +139,7 @@ pub fn draw(
         return edits;
     }
     for definition in visible {
-        edits.extend(row(ui, width, node, definition, has_executor, context));
+        edits.extend(row(ui, width, node, definition, has_executor, context, pickers));
     }
     edits
 }
@@ -149,6 +150,7 @@ fn indent(ui: &mut Ui) {
 }
 
 /// One parameter row.
+#[allow(clippy::too_many_arguments)]
 pub fn row(
     ui: &mut Ui,
     width: f32,
@@ -156,6 +158,7 @@ pub fn row(
     definition: &ParamDefinition,
     has_executor: bool,
     context: &InspectorContext,
+    pickers: &mut color_picker::States,
 ) -> Vec<Edit> {
     let mut edits = Vec::new();
     let state = row_state(definition, node, context.graph, has_executor);
@@ -244,7 +247,7 @@ pub fn row(
         }
         RowState::Editable => {
             if definition.widget != Some(WidgetType::Checkbox) {
-                edits.extend(control(ui, content_width, node, definition, stored));
+                edits.extend(control(ui, content_width, node, definition, stored, pickers));
             }
         }
     }
@@ -261,6 +264,7 @@ fn control(
     node: &GraphNode,
     definition: &ParamDefinition,
     stored: Option<&ParamValue>,
+    pickers: &mut color_picker::States,
 ) -> Vec<Edit> {
     let mut edits = Vec::new();
     let mut emit = |value: ParamValue| {
@@ -306,19 +310,51 @@ fn control(
         Some(WidgetType::Dropdown) => {
             edits.extend(dropdown(ui, width, node, definition, stored));
         }
-        Some(WidgetType::ColorPicker) | Some(WidgetType::Vector)
-            if definition.kind == ParamType::Color =>
-        {
-            let mut value = vector_of(stored, 4);
+        // The two colour shapes are not interchangeable: a `color-picker` parameter is
+        // stored as a hex string and has no alpha of its own, a `vector` one as four
+        // numbers. Reading a `#ff0000` as a vector came back as transparent black, which
+        // is how the Tint node's red default was drawn as nothing at all.
+        Some(WidgetType::ColorPicker) => {
+            let text = match stored {
+                Some(ParamValue::String(text)) => text.clone(),
+                _ => hex_default(definition),
+            };
+            let parsed = color_picker::from_hex(&text).unwrap_or([0.0, 0.0, 0.0]);
+            let mut rgba = [parsed[0], parsed[1], parsed[2], 1.0];
+            if color_picker::draw(
+                ui,
+                &definition.name,
+                &mut rgba,
+                width,
+                false,
+                pickers,
+                theme::PANEL_BG,
+            ) {
+                emit(ParamValue::String(color_picker::to_hex([
+                    rgba[0], rgba[1], rgba[2],
+                ])));
+            }
+        }
+        Some(WidgetType::Vector) if definition.kind == ParamType::Color => {
+            let value = vector_of(stored, 4);
             let mut rgba = [
                 value[0] as f32,
                 value[1] as f32,
                 value[2] as f32,
                 value.get(3).copied().unwrap_or(1.0) as f32,
             ];
-            if controls::color_row(ui, &definition.name, &mut rgba, width) {
-                value = rgba.iter().map(|component| f64::from(*component)).collect();
-                emit(ParamValue::Vector(value));
+            if color_picker::draw(
+                ui,
+                &definition.name,
+                &mut rgba,
+                width,
+                false,
+                pickers,
+                theme::PANEL_BG,
+            ) {
+                emit(ParamValue::Vector(
+                    rgba.iter().map(|component| f64::from(*component)).collect(),
+                ));
             }
         }
         Some(WidgetType::Vector) => {
@@ -330,20 +366,6 @@ fn control(
                 let mut value = matches!(stored, Some(ParamValue::Bool(true)));
                 if controls::checkbox(ui, &definition.name, &mut value) {
                     emit(ParamValue::Bool(value));
-                }
-            }
-            ParamType::Color => {
-                let value = vector_of(stored, 4);
-                let mut rgba = [
-                    value[0] as f32,
-                    value[1] as f32,
-                    value[2] as f32,
-                    value.get(3).copied().unwrap_or(1.0) as f32,
-                ];
-                if controls::color_row(ui, &definition.name, &mut rgba, width) {
-                    emit(ParamValue::Vector(
-                        rgba.iter().map(|component| f64::from(*component)).collect(),
-                    ));
                 }
             }
             ParamType::Vector2 | ParamType::Vector3 | ParamType::Vector4 => {
@@ -474,6 +496,14 @@ pub fn number_of(value: Option<&ParamValue>) -> Option<f32> {
         ParamValue::Int(value) => Some(*value as f32),
         ParamValue::Number(value) => Some(*value as f32),
         _ => None,
+    }
+}
+
+/// The hex a `color-picker` parameter falls back to, which `hexToRgba` reads as black.
+fn hex_default(definition: &ParamDefinition) -> String {
+    match definition.default.as_ref() {
+        Some(ParamValue::String(text)) => text.clone(),
+        _ => "#000000".into(),
     }
 }
 

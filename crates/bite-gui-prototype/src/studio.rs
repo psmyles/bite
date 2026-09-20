@@ -347,6 +347,21 @@ impl Studio {
         true
     }
 
+/// The kind a definition makes.
+///
+/// Most make an ordinary processing node, but three have a card and an inspector of their
+/// own and are recorded as such in a saved file. Creating one of those as an ordinary node
+/// left it with the generic parameter editor: a Folder Path had no button to pick a folder
+/// with, and a Process As Set none of its suffix rows.
+fn node_kind(definition: &str) -> NodeKind {
+    match definition {
+        "folderpath" => NodeKind::Builtin(BuiltinNodeKind::FolderPath),
+        "process_as_set" => NodeKind::Processing(ProcessingNodeKind::SetInput),
+        "logic_comparison" => NodeKind::Processing(ProcessingNodeKind::Compare),
+        _ => NodeKind::Processing(ProcessingNodeKind::Process),
+    }
+}
+
     pub fn add_processing(
         &mut self,
         definition: &str,
@@ -373,7 +388,7 @@ impl Studio {
         self.checkpoint();
         self.workflow.graph.nodes.push(GraphNode {
             id: id.clone(),
-            kind: NodeKind::Processing(ProcessingNodeKind::Process),
+            kind: Self::node_kind(definition),
             position,
             parent_id: None,
             extent: None,
@@ -1074,6 +1089,26 @@ impl Studio {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_definitions_with_their_own_cards_are_created_as_those_kinds() {
+        assert_eq!(
+            Studio::node_kind("folderpath"),
+            NodeKind::Builtin(BuiltinNodeKind::FolderPath)
+        );
+        assert_eq!(
+            Studio::node_kind("process_as_set"),
+            NodeKind::Processing(ProcessingNodeKind::SetInput)
+        );
+        assert_eq!(
+            Studio::node_kind("logic_comparison"),
+            NodeKind::Processing(ProcessingNodeKind::Compare)
+        );
+        assert_eq!(
+            Studio::node_kind("grayscale"),
+            NodeKind::Processing(ProcessingNodeKind::Process)
+        );
+    }
 
     #[test]
     fn creates_saves_and_reopens_primary_workflow() {

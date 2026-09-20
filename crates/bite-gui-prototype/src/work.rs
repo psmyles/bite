@@ -346,11 +346,19 @@ fn preview_worker(jobs: &Receiver<PreviewJob>, handle: &JobHandle) {
             job = newer;
         }
         let key = preview_key(&job);
+        let started = std::time::Instant::now();
+        let before = magick.processes;
         if let Some(index) = rendered.iter().position(|(cached, _)| *cached == key) {
             // Going back to an image whose chain has not changed since costs nothing.
             let entry = rendered.remove(index);
             handle.send(entry.1.message(&job));
             rendered.push(entry);
+            crate::timings::report_preview(crate::timings::Preview {
+                nodes: job.graph.nodes.len(),
+                reused: true,
+                processes: 0,
+                milliseconds: started.elapsed().as_millis(),
+            });
             continue;
         }
         match render_preview(&mut magick, &mut cache, &job) {
@@ -360,6 +368,12 @@ fn preview_worker(jobs: &Receiver<PreviewJob>, handle: &JobHandle) {
                 if rendered.len() > PREVIEW_CACHE_LIMIT {
                     rendered.remove(0);
                 }
+                crate::timings::report_preview(crate::timings::Preview {
+                    nodes: job.graph.nodes.len(),
+                    reused: false,
+                    processes: magick.processes - before,
+                    milliseconds: started.elapsed().as_millis(),
+                });
             }
             Err(error) => handle.send(Message::PreviewFailed(error)),
         }

@@ -207,6 +207,17 @@ impl Ui<'_> {
         }
     }
 
+    /// Hover test that only reports once the pointer has rested, for tooltips that stand
+    /// in for a `title` attribute. The delay is not shared with neighbouring items, so
+    /// moving along a row of buttons waits again at each one, as a browser does.
+    pub fn item_hovered_after_delay(&self) -> bool {
+        unsafe {
+            sys::igIsItemHovered(
+                sys::ImGuiHoveredFlags_DelayNormal | sys::ImGuiHoveredFlags_NoSharedDelay,
+            )
+        }
+    }
+
     pub fn item_active(&self) -> bool {
         unsafe { sys::igIsItemActive() }
     }

@@ -82,6 +82,7 @@ pub fn run(editor: &mut Editor, command: menu::Command) {
         C::ToggleFullScreen => editor.fullscreen = !editor.fullscreen,
         C::TogglePerformanceTimers => {
             editor.timers_enabled = !editor.timers_enabled;
+            crate::timings::set_enabled(editor.timers_enabled);
             editor.status = if editor.timers_enabled {
                 "Performance timers enabled".into()
             } else {
@@ -89,12 +90,10 @@ pub fn run(editor: &mut Editor, command: menu::Command) {
             };
         }
         C::ViewLog => {
-            let path = crate::logging::log_path();
-            match path {
-                Some(path) => {
-                    let _ = dialogs::open_path(&path);
-                }
-                None => editor.status = "No log file is available".into(),
+            if crate::logging::log_path().is_some() {
+                editor.log_window.show();
+            } else {
+                editor.status = "No log file is available".into();
             }
         }
         C::OpenTempFolder => {
@@ -108,9 +107,7 @@ pub fn run(editor: &mut Editor, command: menu::Command) {
                 Err(error) => editor.status = error,
             }
         }
-        C::ShowAllUiElements => {
-            editor.status = "The interface showcase opens from the Debug menu".into();
-        }
+        C::ShowAllUiElements => editor.showcase.open = true,
         C::About => {
             editor.modal = modals::Modal::About {
                 versions: about_versions(),
@@ -517,6 +514,7 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
     };
 
     std::thread::spawn(move || {
+        let started = std::time::Instant::now();
         let mut magick = Magick::discover(cancelled);
         let mut cache = ThumbnailCache::new(work::cache_directory());
         let jobs = bite_imagemagick::import::default_jobs();
@@ -560,6 +558,13 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
                 total: paths.len(),
             });
         }
+        crate::timings::report_import(crate::timings::Import {
+            images: paths.len(),
+            cached: cache.stats.disk_hits,
+            generated: cache.stats.disk_misses,
+            processes: magick.processes,
+            milliseconds: started.elapsed().as_millis(),
+        });
         handle.send(work::Message::ImportFinished {
             node: node_id,
             paths,
@@ -762,6 +767,7 @@ pub fn start_run(editor: &mut Editor) {
     editor.modal = modals::Modal::BatchProgress;
 
     std::thread::spawn(move || {
+        let started = std::time::Instant::now();
         let mut magick = Magick::discover(options.cancelled.clone());
         let reporter = handle.clone();
         let result = bite_core::execution::run_workflow(
@@ -782,7 +788,16 @@ pub fn start_run(editor: &mut Editor) {
             },
         );
         match result {
-            Ok(batch) => handle.send(work::Message::RunFinished(Box::new(batch))),
+            Ok(batch) => {
+                crate::timings::report_run(crate::timings::Run {
+                    processed: batch.processed,
+                    skipped: batch.skipped,
+                    failed: batch.failed,
+                    processes: magick.processes,
+                    milliseconds: started.elapsed().as_millis(),
+                });
+                handle.send(work::Message::RunFinished(Box::new(batch)))
+            }
             Err(error) => handle.send(work::Message::RunFailed(error)),
         }
     });
