@@ -328,6 +328,9 @@ impl Ui<'_> {
             ) != 0
         }
     }
+    pub fn separator(&mut self) {
+        unsafe { sys::bite_separator() }
+    }
     pub fn window(&mut self, title: &str, body: impl FnOnce(&mut Self)) {
         assert_eq!(self.scope.get(), 0, "window cannot be inside an editor");
         let visible = unsafe { sys::bite_begin(c(title).as_ptr()) != 0 };
@@ -347,6 +350,23 @@ impl Ui<'_> {
     }
     pub fn selectable(&mut self, text: &str) -> bool {
         unsafe { sys::bite_selectable(c(text).as_ptr()) != 0 }
+    }
+    pub fn selectable_drag_source(
+        &mut self,
+        label: &str,
+        payload_type: &str,
+        payload: &str,
+    ) -> bool {
+        unsafe {
+            sys::bite_selectable_drag_source(
+                c(label).as_ptr(),
+                c(payload_type).as_ptr(),
+                c(payload).as_ptr(),
+            ) != 0
+        }
+    }
+    pub fn collapsing_header(&mut self, label: &str, default_open: bool) -> bool {
+        unsafe { sys::bite_collapsing_header(c(label).as_ptr(), default_open.into()) != 0 }
     }
     pub fn drag_float(&mut self, label: &str, value: &mut f32) -> bool {
         unsafe { sys::bite_drag_float(c(label).as_ptr(), value) != 0 }
@@ -376,6 +396,9 @@ impl Ui<'_> {
             *text = String::from_utf8_lossy(&bytes[..len]).into_owned();
         }
         changed
+    }
+    pub fn set_keyboard_focus_here(&mut self) {
+        unsafe { sys::bite_set_keyboard_focus_here() }
     }
     pub fn checkbox(&mut self, label: &str, value: &mut bool) -> bool {
         let mut raw = i32::from(*value);
@@ -568,6 +591,20 @@ impl Ui<'_> {
     pub fn dragging_selection(&mut self) -> bool {
         assert_eq!(self.scope.get(), 1, "drag state requires an editor");
         unsafe { sys::bite_editor_dragging_selection() != 0 }
+    }
+    pub fn accept_drag_drop_string(&mut self, payload_type: &str) -> Option<String> {
+        let mut bytes = vec![0u8; 4096];
+        (unsafe {
+            sys::bite_accept_drag_drop_string(
+                c(payload_type).as_ptr(),
+                bytes.as_mut_ptr().cast(),
+                bytes.len(),
+            )
+        } != 0)
+            .then(|| {
+                let len = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
+                String::from_utf8_lossy(&bytes[..len]).into_owned()
+            })
     }
     pub fn open_popup(&mut self, id: &str) {
         assert_eq!(self.scope.get(), 0, "popup must be outside an editor");

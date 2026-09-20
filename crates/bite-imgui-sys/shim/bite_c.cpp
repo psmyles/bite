@@ -46,7 +46,7 @@ static void bite_node_style(){
     s.GroupRounding=6;s.GroupBorderWidth=1;
     s.Colors[ed::StyleColor_Bg]=color(20,20,20);s.Colors[ed::StyleColor_Grid]=color(32,32,32);
     s.Colors[ed::StyleColor_NodeBg]=color(33,33,33);s.Colors[ed::StyleColor_NodeBorder]=color(88,88,88);
-    s.Colors[ed::StyleColor_HovNodeBorder]=color(32,130,185);s.Colors[ed::StyleColor_SelNodeBorder]=color(24,110,160);
+    s.Colors[ed::StyleColor_HovNodeBorder]=color(32,130,185);s.Colors[ed::StyleColor_SelNodeBorder]=color(255,255,255);
     s.Colors[ed::StyleColor_NodeSelRect]=color(24,110,160,50);s.Colors[ed::StyleColor_NodeSelRectBorder]=color(32,130,185,180);
     s.Colors[ed::StyleColor_HovLinkBorder]=color(32,130,185);s.Colors[ed::StyleColor_SelLinkBorder]=color(32,130,185);
     s.Colors[ed::StyleColor_HighlightLinkBorder]=color(32,130,185);s.Colors[ed::StyleColor_LinkSelRect]=color(24,110,160,50);
@@ -61,7 +61,7 @@ void* bite_create(const char* font_path,float font_size,float ui_scale,const cha
     if(ini_path&&ini_path[0]){s->ini=ini_path;io.IniFilename=s->ini.c_str();}else{io.IniFilename=nullptr;}
     if(ui_scale<=0)ui_scale=1;io.FontGlobalScale=1/ui_scale;
     if(font_path&&font_path[0]&&font_size>0)io.Fonts->AddFontFromFileTTF(font_path,font_size*ui_scale);
-    ed::Config c;c.SettingsFile=nullptr;s->editor=ed::CreateEditor(&c);ed::SetCurrentEditor(s->editor);
+    ed::Config c;c.SettingsFile=nullptr;c.NavigateButtonIndex=0;c.SelectButtonIndex=2;s->editor=ed::CreateEditor(&c);ed::SetCurrentEditor(s->editor);
     bite_style();bite_node_style();return s;
 }
 void bite_destroy(void* context){auto s=(State*)context;ed::DestroyEditor(s->editor);ImGui::DestroyContext(s->imgui);delete s;}
@@ -109,6 +109,7 @@ void bite_main_menu_bar_end(){ImGui::EndMainMenuBar();}
 int bite_menu_begin(const char* label){return ImGui::BeginMenu(label);}
 void bite_menu_end(){ImGui::EndMenu();}
 int bite_menu_item(const char* label,const char* shortcut,int selected,int enabled){return ImGui::MenuItem(label,shortcut,selected!=0,enabled!=0);}
+void bite_separator(){ImGui::Separator();}
 int bite_begin(const char* s){return ImGui::Begin(s);}
 void bite_end(){ImGui::End();}
 void bite_text(const char* s){ImGui::TextUnformatted(s);}
@@ -121,11 +122,26 @@ void bite_panel_header(const char* text){
 }
 int bite_button(const char* s){return ImGui::Button(s);}
 int bite_selectable(const char* s){return ImGui::Selectable(s);}
+int bite_selectable_drag_source(const char* label,const char* type,const char* payload){
+    int clicked=ImGui::Selectable(label);
+    if(ImGui::BeginDragDropSource()){
+        ImGui::SetDragDropPayload(type,payload,strlen(payload)+1);
+        ImGui::TextUnformatted(label);
+        ImGui::EndDragDropSource();
+    }
+    return clicked;
+}
+int bite_collapsing_header(const char* label,int default_open){
+    ImGuiTreeNodeFlags flags=ImGuiTreeNodeFlags_SpanAvailWidth;
+    if(default_open) flags|=ImGuiTreeNodeFlags_DefaultOpen;
+    return ImGui::CollapsingHeader(label,flags);
+}
 int bite_drag_float(const char* s,float* v){return ImGui::DragFloat(s,v,0.1f);}
 int bite_slider_float(const char* s,float* v,float min,float max){return ImGui::SliderFloat(s,v,min,max);}
 int bite_drag_float_n(const char* s,float* v,int count){if(count==2)return ImGui::DragFloat2(s,v,0.1f);if(count==3)return ImGui::DragFloat3(s,v,0.1f);if(count==4)return ImGui::DragFloat4(s,v,0.1f);return 0;}
 int bite_color_edit4(const char* s,float* v){return ImGui::ColorEdit4(s,v);}
 int bite_input_text(const char* s,char* data,size_t size){return ImGui::InputText(s,data,size);}
+void bite_set_keyboard_focus_here(){ImGui::SetKeyboardFocusHere();}
 int bite_checkbox(const char* s,int* value){bool checked=*value!=0;bool changed=ImGui::Checkbox(s,&checked);*value=checked?1:0;return changed;}
 int bite_combo(const char* s,int* current,const char* items){return ImGui::Combo(s,current,items);}
 void bite_next_item_full_width(){ImGui::SetNextItemWidth(-FLT_MIN);}
@@ -196,6 +212,24 @@ void bite_group(float w,float h){ed::Group(ImVec2(w,h));}
 int bite_background_menu(){return ed::ShowBackgroundContextMenu();}
 void bite_canvas_mouse_position(float* x,float* y){auto p=ed::ScreenToCanvas(ImGui::GetMousePos());*x=p.x;*y=p.y;}
 int bite_editor_dragging_selection(){return ImGui::IsMouseDragging(ImGuiMouseButton_Left)&&ed::GetSelectedObjectCount()>0;}
+int bite_accept_drag_drop_string(const char* type,char* data,size_t size){
+    if(!data||size==0)return 0;
+    auto* window=ImGui::GetCurrentWindow();
+    const ImGuiID id=window->GetID(type);
+    const ImRect target(window->InnerRect.Min,window->InnerRect.Max);
+    int accepted=0;
+    if(ImGui::BeginDragDropTargetCustom(target,id)){
+        if(const ImGuiPayload* payload=ImGui::AcceptDragDropPayload(type)){
+            const size_t count=payload->DataSize>0?(size_t)payload->DataSize:0;
+            const size_t copy=count<size?count:size-1;
+            memcpy(data,payload->Data,copy);
+            data[copy]=0;
+            accepted=1;
+        }
+        ImGui::EndDragDropTarget();
+    }
+    return accepted;
+}
 void bite_open_popup(const char* id){ImGui::OpenPopup(id);}
 int bite_begin_popup(const char* id){return ImGui::BeginPopup(id);}
 void bite_end_popup(){ImGui::EndPopup();}

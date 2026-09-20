@@ -102,6 +102,7 @@ unsafe extern "C" {
         selected: ::std::os::raw::c_int,
         enabled: ::std::os::raw::c_int,
     ) -> ::std::os::raw::c_int;
+    pub fn bite_separator();
 }
 unsafe extern "C" {
     pub fn bite_begin(title: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
@@ -116,6 +117,15 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn bite_button(text: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
     pub fn bite_selectable(text: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
+    pub fn bite_selectable_drag_source(
+        label: *const ::std::os::raw::c_char,
+        type_: *const ::std::os::raw::c_char,
+        payload: *const ::std::os::raw::c_char,
+    ) -> ::std::os::raw::c_int;
+    pub fn bite_collapsing_header(
+        label: *const ::std::os::raw::c_char,
+        default_open: ::std::os::raw::c_int,
+    ) -> ::std::os::raw::c_int;
 }
 unsafe extern "C" {
     pub fn bite_drag_float(
@@ -129,6 +139,7 @@ unsafe extern "C" {
         data: *mut ::std::os::raw::c_char,
         size: usize,
     ) -> ::std::os::raw::c_int;
+    pub fn bite_set_keyboard_focus_here();
     pub fn bite_slider_float(
         label: *const ::std::os::raw::c_char,
         value: *mut f32,
@@ -240,6 +251,11 @@ unsafe extern "C" {
     pub fn bite_background_menu() -> ::std::os::raw::c_int;
     pub fn bite_canvas_mouse_position(x: *mut f32, y: *mut f32);
     pub fn bite_editor_dragging_selection() -> ::std::os::raw::c_int;
+    pub fn bite_accept_drag_drop_string(
+        type_: *const ::std::os::raw::c_char,
+        data: *mut ::std::os::raw::c_char,
+        size: usize,
+    ) -> ::std::os::raw::c_int;
     pub fn bite_open_popup(id: *const ::std::os::raw::c_char);
     pub fn bite_begin_popup(id: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
     pub fn bite_end_popup();

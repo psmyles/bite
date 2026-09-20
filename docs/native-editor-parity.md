@@ -74,6 +74,35 @@ native control provides the same workflow more clearly.
 | Update check/dialog | Windows HTTPS GitHub release check and update dialog implemented; macOS pending |
 | File dialogs and file association | Windows workflow, CLI export, Folder Path, image-output folder, Text Output and Flipbook dialogs implemented; file association is Phase 11 and macOS dialogs remain pending |
 
+## Electron menu and interaction parity pass
+
+Inventory source of truth:
+
+- `electron/main.ts` top-level menu labels are `File`, `Edit`, `View`, `Debug`, and `Help`.
+- `File` contains New, Run Workflow, Open Workflow, Save Workflow, Save Workflow As, Export CLI Script (PowerShell, Bash, Windows Command Prompt), and Exit.
+- `Edit` contains Undo, Redo, Cut, Copy, Paste, Duplicate, Delete, and Select All.
+- `View` contains Actual Size, Zoom In, Zoom Out, and Toggle Full Screen.
+- `Debug` contains Performance Timers, View Log, Open Temp Folder, Clear Cache, and dev-only UI Showcase.
+- `Help` contains About, Documentation, Report a bug, Credits, and Check for Updates.
+
+Current native changes:
+
+- Native menu layout now mirrors Electron menu labels and shortcut text through `ui::menu`.
+- Shortcut alignment delegates to `ImGui::MenuItem` instead of hand-spaced text.
+- Library rendering moved to `ui::library`, with searchable collapsible sections and node drag sources.
+- Canvas accepts dragged library payloads and creates nodes at the canvas drop position.
+- Empty-canvas left drag now pans the node editor instead of starting the selection rectangle.
+- Selected node border uses an obvious white outline.
+- Create-node popup focuses the search field immediately.
+- Context-menu node creation centers ordinary nodes on the cursor; wire-drop creation keeps the drop point as the anchor.
+
+Still pending for exact parity:
+
+- Native `Debug` commands for log window, temp folder, cache clearing, UI showcase, and fullscreen need platform wiring.
+- Native zoom menu commands currently report guidance rather than invoking node-editor zoom APIs.
+- Native Select All updates selection state but does not yet push the selection into the node-editor visual selection model.
+- The native workflow settings panel remains available as a Debug menu utility until the Electron-style Run Workflow dialog/settings flow is fully ported.
+
 ## Platform acceptance
 
 - Windows: automated context creation, graph persistence, font-atlas rebuild,
