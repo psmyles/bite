@@ -84,6 +84,14 @@ cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity-wf test-w
 cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity-2x test-workflows/wf-05-meanlogic.bite 2
 ```
 
+A release build is a Windows GUI-subsystem binary, so it opens no console of its own (see
+`main.rs`). Run from a terminal it attaches to that terminal and prints as usual, but the shell
+does not wait for it - to get the exit code from a script, wait for the process explicitly:
+
+```powershell
+Start-Process target\release\bite-gui.exe -ArgumentList '--capture', out -NoNewWindow -Wait
+```
+
 The third argument is the display scale, so the same scenes can be checked at high density.
 
 ## Concurrency
