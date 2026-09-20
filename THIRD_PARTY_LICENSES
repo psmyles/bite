@@ -65,6 +65,44 @@ projects and via Homebrew.
 
 
 --------------------------------------------------------------------------------
+FONTS EMBEDDED IN THE NATIVE BUILD
+--------------------------------------------------------------------------------
+
+The native editor embeds these fonts in its executable
+(crates/bite-imgui/fonts/). Both are licensed under the SIL Open Font License,
+Version 1.1, which permits bundling and redistribution with software:
+
+  Atkinson Hyperlegible Next  (Regular, SemiBold, Bold)
+  Copyright Braille Institute of America, Inc.
+  https://www.brailleinstitute.org/freefont/
+
+  JetBrains Mono  (Regular, SemiBold, Bold)
+  Copyright JetBrains s.r.o.
+  https://github.com/JetBrains/JetBrainsMono
+
+  https://openfontlicense.org
+
+Neither font is modified. The same two families are used by the Electron build
+through src/renderer/assets/fonts.css.
+
+
+--------------------------------------------------------------------------------
+RUST CRATES USED BY THE NATIVE BUILD
+--------------------------------------------------------------------------------
+
+Dear ImGui  (vendored, crates/bite-imgui-sys/vendor/)   - MIT
+cimgui      (vendored, crates/bite-imgui-sys/vendor/)   - MIT
+wgpu                                                    - MIT or Apache-2.0
+winit                                                   - Apache-2.0
+rfd                                                     - MIT
+arboard                                                 - MIT or Apache-2.0
+ureq, rustls, webpki-roots                              - MIT or Apache-2.0
+serde, serde_json                                       - MIT or Apache-2.0
+png                                                     - MIT or Apache-2.0
+pollster                                                - MIT or Apache-2.0
+
+
+--------------------------------------------------------------------------------
 NPM PACKAGES  (MIT License)
 --------------------------------------------------------------------------------
 

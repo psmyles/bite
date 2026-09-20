@@ -1,112 +1,171 @@
 # Native editor parity inventory
 
-This is the Phase 10 implementation and acceptance checklist. The Electron
-application is the behavioral reference; visual details may change when the
-native control provides the same workflow more clearly.
+The Electron application is the specification. Each row names the Electron source that
+defines the behavior and what the native editor now does. Items marked pending still need
+hands-on confirmation; items marked missing are not implemented yet.
 
-## Reference surfaces inspected
+## Foundations
 
-- `src/renderer/App.svelte`: application shell, resizable panels, persistence,
-  dirty-state prompts, menus, CLI export and update flow.
-- `src/renderer/nodeEditor/NodeEditor.svelte`: graph gestures, creation menu,
-  grouping, history, keyboard commands, drag/drop and connection flow.
-- `src/renderer/nodeEditor/NodeContextMenu.svelte`: searchable/category node
-  creation, keyboard navigation, wire filtering and group actions.
-- `src/renderer/nodeEditor/undoRedoManager.ts` and `graphTransforms.ts`:
-  transaction boundaries, deletion, duplication and CLI-name allocation.
-- `src/renderer/components/Inspector*.svelte`: generic and custom inspectors.
-- `src/renderer/stores/graph.svelte.ts`: dirty tracking, workflow-node guards,
-  selection, viewport and live computed values.
+| Area | Electron source | Native status |
+| --- | --- | --- |
+| Interface library | Browser layout and CSS | Dear ImGui through full generated cimgui bindings; the hand-written C shim and the node editor add-on are removed |
+| Fonts | `assets/fonts.css` | Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and weight `theme.css` asks for, with a platform fallback merged in for text fields so input methods render |
+| Design tokens | `assets/theme.css` | Transcribed into `crates/bite-gui-prototype/src/theme.rs`; drawing code reads tokens, never literals |
+| Canvas | `@xyflow/svelte` | A Rust-owned canvas drawn on ImGui draw lists, so gestures and visuals are not constrained by an add-on |
+| Panels | `App.svelte` | Fixed three-column shell with invisible six-pixel drag gaps; docking is removed |
 
-## Graph and editing behavior
+## Shell and layout
+
+| Requirement | Native status |
+| --- | --- |
+| Panel arrangement and sizes | Left 220 (160–400), right 280 (200–480), filmstrip 120 (80–220), inspector 0.65 (0.30–0.80) of the right column, all from the tokens |
+| Splitters | The gap is the hit target, with the column and row resize cursors and the same clamps, including the inverted right and filmstrip drags |
+| Inspector and preview split | A fraction of the right column, so it rescales with the window |
+| Window title | `*name - Bite`, `Untitled - Bite` |
+| Panel headers | 36 pixels, header background, 13 pixel semi-bold with the stylesheet's letter spacing |
+| Window bounds and panel sizes persist | Implemented, and recorded as a deliberate improvement: Electron persists nothing |
+
+## Graph and editing
 
 | Requirement | Electron behavior | Native status |
 | --- | --- | --- |
-| Typed wires | Type-colored ports; invalid links rejected | Implemented with type-colored links and core validation |
-| Single-input replacement | New incoming link replaces the previous link | Complete |
-| Cycle prevention | Link rejected before graph mutation | Complete |
-| Background creation | Right-click, Space or Tab opens searchable categorized menu at cursor | Implemented |
-| Wire-drop creation | Menu filters compatible nodes and auto-connects | Implemented with one-step undo |
-| Selection | Click and rubber-band multi-select | Node-editor selection available; multi-selection drives editing commands |
-| Delete | Delete/Backspace; protects final input/output; group deletion ungroups | Implemented |
-| Duplicate | Ctrl+D; excludes workflow endpoint nodes; includes group children | Implemented for selected non-endpoint nodes and internal edges |
-| Copy/paste | Clipboard graph fragment with internal connections | Windows system clipboard plus in-process fallback implemented; macOS system clipboard pending |
-| Undo/redo | Ctrl+Z, Ctrl+Shift+Z/Ctrl+Y; maximum 100 snapshots | Implemented with 100-entry history and redo invalidation |
-| Transaction grouping | Drag and compound mutations create one history entry | Drag and wire-create compound transactions implemented |
+| Pan | Left or middle drag on empty canvas | Implemented |
+| Zoom | Wheel, clamped 0.5 to 2.0, about the pointer | Implemented |
+| Rubber band | Shift and drag, selecting anything it touches | Implemented |
+| Multiple selection | Platform modifier adds and removes | Implemented |
+| Drag threshold | One pixel before a move counts | Implemented |
+| Snap to grid | None | Matches: no snapping |
+| Double click a node | Toggles the preview target, excluding endpoints, comments and disabled nodes | Implemented |
+| Double click empty canvas | Resets zoom to one, keeping the pan | Implemented |
+| Right click | Creation menu on empty canvas and on a group; nothing on an ordinary node | Implemented |
+| Typed wires | Type-colored, validated before the graph changes | Implemented through `bite_core::graph::validate` |
+| Single input replacement | A new wire replaces the previous one on that handle | Implemented |
+| Cycle rejection | Rejected before mutation | Implemented |
+| Wire drop on empty canvas | Filtered creation menu, auto-connect, one undo entry | Implemented |
+| Port snapping | Twenty pixel radius, scaled by zoom | Implemented |
+| Edge selection and deletion | Click to select, Delete to remove | Implemented with a six-pixel curve hit test |
+| Wire geometry | Cubic bezier, two pixels, three plus a glow when selected | Implemented |
+| Wire color after reopening a file | Electron loses it and draws grey | Deviation: the native editor always derives the color from the source handle |
+| Undo and redo | 100 entries, drag and compound transactions | Implemented |
+| Parameter edits are undoable | Electron does not record them | Deviation: the native editor records them |
+| Copy, paste, duplicate, delete | Endpoint guards, group children included | Implemented, with the system clipboard on every platform |
+| Groups and comments | Create, resize, move, ungroup, delete restores absolute positions | Implemented |
+| Shortcut suppression while typing | Electron guards only Delete | Deviation: every shortcut stands down while a field has focus |
 
-## Organization
+## Node cards
 
-| Requirement | Electron behavior | Native status |
-| --- | --- | --- |
-| Groups | Ctrl+G, named/resizable group, child-relative positions | Creation, resize/move persistence and relative positioning implemented; interactive acceptance pending |
-| Ungroup | Ctrl+Shift+G restores absolute child positions | Implemented |
-| Comments | Editable heading/body and resizable card | Creation, inline body editing and resize persistence implemented |
-| Panel organization | Resizable library, canvas, inspector/preview and filmstrip | Docked default and per-user layout persistence implemented |
+| Requirement | Native status |
+| --- | --- |
+| Card width | 150 for process and compare cards, 190 for the built-in workflow cards, 210 for comments |
+| Layout arithmetic | Header 28, port rows 20 with 5 padding, parameter rows 22 with 4 padding, one-pixel separators, footer 22, transcribed from `ProcessNode.svelte` |
+| Header tints | 18 percent accent mix per built-in kind, 20 percent for Process As Set, plain for process cards |
+| Ports | Ten-pixel circles in the wire color with a two-pixel border and monospaced labels |
+| Inline values | Shown only when they differ from the definition default, with the same rounding and truncation rules |
+| Computed rows | Value left, label right |
+| Output slots | Right-aligned; combined slots show only their label |
+| Bypass tick | 14 pixels in the header, hidden when the port is wired, with the same truthiness rule |
+| Footers | Image counts, output paths, atlas grid, folder basename, matched set counts |
+| Badges | Previewing in neon green, Processing in amber with the current file beneath |
+| Selection | White ring, two pixels |
+| Bypassed appearance | The card dims to 45 percent |
+| Groups and comments | Group frame with a floating label band; comment in the sticky-note palette |
+
+## Creation menu
+
+| Requirement | Native status |
+| --- | --- |
+| Triggers | Right click, Space, Tab, and a dropped wire |
+| Placement | Centred on the cursor, or anchored at the drop point for a wire |
+| Search | Case-insensitive substring over label, category and aliases |
+| Browse mode | Categories with hover flyouts, all sorted by name |
+| Keyboard | Up and down move without wrapping; Enter selects; Escape closes |
+| Wire filtering | Compatible candidates only, with the parameter type aliases |
+| Auto-connect | First matching handle, as one undo entry |
+| Group actions | Group Selection and Ungroup rows with their shortcuts |
+| Tooltips | Descriptions after 200 milliseconds |
+
+## Panels
+
+| Panel | Native status |
+| --- | --- |
+| Node Library | Filter, pinned Workflow section hidden while searching, collapsible categories forced open during a search, drag to canvas, hover descriptions, both empty states |
+| Inspector | Header with the node name, the full dispatch table, and the run action in a bordered footer |
+| Preview | Letterboxed on black, Info toggle defaulting to on, gradient overlay with the name and `FORMAT · W x H · size`, both empty states |
+| Filmstrip | Thumbnail size derived from panel height, horizontal scrolling with a vertical wheel, virtualized with overscan, selection border, status count, clickable empty prompt |
 
 ## Inspector
 
 | Requirement | Native status |
 | --- | --- |
-| Number, text, dropdown and checkbox | Implemented |
-| `visible_when` | Implemented |
-| `enabled_when` | Implemented |
-| Read-only values and live pure-node results | Displayed; read-only presentation needs parity pass |
-| `portOnly` and `noPort` | Implemented in inspector and port generation |
-| Slider, vector and color controls | Implemented |
-| Rename block editor | Text/number/old-name add, edit, reorder, remove and live preview implemented |
-| Process As Set suffix editor | Add/edit/remove and matched-set preview implemented |
-| Format Convert per-format controls | Active format controls and visibility implemented |
-| Folder Path editor | Path editing implemented; native browse dialog pending |
+| Row layout | Label above a full-width control, 7 by 12 padding, 25 percent row border |
+| Badges | `wired` in cyan, `out` in muted white |
+| Reset control | Keeps its space when the value is already default |
+| Wired rows | The source value replaces the control |
+| Computed rows | The live value from the preview run |
+| Widgets | Slider with its numeric box, number, text, dropdown, checkbox, color and vector |
+| `visible_when` | Evaluated from the node's parameters |
+| Input | Naming, thumbnail size, folder card, subfolder toggle, ten format chips with at least one enforced, scan count, import, individual images, loaded file list |
+| Image Output | Naming, output path with browse, overwrite, set naming when Process As Set is upstream, log toggle |
+| Text Output | Output file, overwrite, separator with a custom field, port order, log toggle, processing source, generated preview with all five titles |
+| Flipbook Output | Output file, overwrite, grid fields, sort order, background color with its wired badge, atlas summary, log toggle |
+| Process As Set | Prefix with its wired state, suffix rows, add and remove, matched sets with per-slot markers |
+| Rename | Text, number and old-name blocks with their badges, add bar, preview table with example names |
+| Format Convert | The chosen format's own parameters, and the no-options message |
+| Folder Path, Comment, Group | Implemented |
 
-## Workflow and application behavior
+## Dialogs
+
+Every dialog uses the shared chrome: a dimmed backdrop that also blocks input, a panel with
+a two-pixel border and eight-pixel radius, a titled header, and a right-aligned footer.
+
+| Dialog | Native status |
+| --- | --- |
+| Unsaved changes | Title `Bite`, the three exact messages, Cancel before OK |
+| Run Workflow | Ready count, per-node rows with round and square markers, `Run N nodes` |
+| Batch progress | Large counter, six-pixel bar, percentage and elapsed time, cancel, error state |
+| Batch summary | Processed, skipped and failed statistics, total time, error list, open output folder |
+| Import progress | Progress and completed states with the tick badge |
+| About | Description, version, dependency table |
+| Credits | Library and font sections with licenses and links |
+| Update | Checking, available, up to date and failed states |
+| Incompatible version | Both message variants and the releases link |
+
+## Application
 
 | Requirement | Native status |
 | --- | --- |
-| Multiple inputs and image outputs with CLI names | Implemented with collision-free defaults, independent per-node run folders and separate filmstrip/preview state for each Input branch |
-| Text and flipbook outputs | Dedicated output-file dialogs, labelled separators/sort modes, ordered Text ports, exact generated-text preview and Flipbook atlas/capacity summary implemented |
-| Process As Set | Creation, dynamic typed ports, suffix editing and matched/complete set preview implemented |
-| Save/open/new and dirty prompts | Implemented with Save and continue, Discard and Cancel |
-| Run, progress and cancellation | Implemented |
-| PowerShell/Bash/CMD CLI export | Core generator and native save dialog implemented with companion `.bite` file |
-| Output logs | `generateLog` writes a nonfatal summary beside produced files |
-| Per-input thumbnail size | Editable and used when importing for the selected Input node |
-| Definition hot reload | Reloads transactionally when the app regains focus; manual reload is also available |
-| Update check/dialog | Windows HTTPS GitHub release check and update dialog implemented; macOS pending |
-| File dialogs and file association | Windows workflow, CLI export, Folder Path, image-output folder, Text Output and Flipbook dialogs implemented; file association is Phase 11 and macOS dialogs remain pending |
+| Menu | File, Edit, View, Debug and Help with the Electron labels, accelerators and separators; developer items only in a debug build |
+| Shortcuts | Every accelerator plus the canvas editing keys |
+| File dialogs | Open, save, folders, images and export destinations on every platform |
+| Clipboard | System clipboard on every platform |
+| Update check | Silent at startup unless newer; every state from the menu; cross-platform |
+| Logging | Session banner, 1000-entry buffer, same file format |
+| Cache | Temporary folder, clear action, startup pruning with the same rules |
+| Background work | Import, preview, text preview, run and update check all run off the interface thread and wake the event loop |
+| Drag and drop | A workflow file opens, a folder becomes the scan folder, an image imports |
+| Fullscreen | Implemented |
 
-## Electron menu and interaction parity pass
+## Still to do
 
-Inventory source of truth:
+- The log viewer opens the file in the platform viewer rather than drawing the Electron log
+  window, so the level filters and the `[tag]` highlight are not reproduced.
+- The interface showcase window is not implemented; the capture scenes cover the same ground
+  for comparison purposes.
+- Inline editing of a comment's heading and body on the canvas is not implemented; both are
+  edited from the inspector.
+- Dragging a node into a group does not re-parent it, which matches Electron.
+- Text Output port reordering is display only; the rows cannot yet be dragged.
+- macOS uses the same in-window menu bar as Windows rather than the system menu.
 
-- `electron/main.ts` top-level menu labels are `File`, `Edit`, `View`, `Debug`, and `Help`.
-- `File` contains New, Run Workflow, Open Workflow, Save Workflow, Save Workflow As, Export CLI Script (PowerShell, Bash, Windows Command Prompt), and Exit.
-- `Edit` contains Undo, Redo, Cut, Copy, Paste, Duplicate, Delete, and Select All.
-- `View` contains Actual Size, Zoom In, Zoom Out, and Toggle Full Screen.
-- `Debug` contains Performance Timers, View Log, Open Temp Folder, Clear Cache, and dev-only UI Showcase.
-- `Help` contains About, Documentation, Report a bug, Credits, and Check for Updates.
+## Verification
 
-Current native changes:
+Offscreen comparison shots are produced by:
 
-- Native menu layout now mirrors Electron menu labels and shortcut text through `ui::menu`.
-- Shortcut alignment delegates to `ImGui::MenuItem` instead of hand-spaced text.
-- Library rendering moved to `ui::library`, with searchable collapsible sections and node drag sources.
-- Canvas accepts dragged library payloads and creates nodes at the canvas drop position.
-- Empty-canvas left drag now pans the node editor instead of starting the selection rectangle.
-- Selected node border uses an obvious white outline.
-- Create-node popup focuses the search field immediately.
-- Context-menu node creation centers ordinary nodes on the cursor; wire-drop creation keeps the drop point as the anchor.
+```powershell
+cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity
+cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity-wf test-workflows/wf-05-meanlogic.bite
+cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity-2x test-workflows/wf-05-meanlogic.bite 2
+```
 
-Still pending for exact parity:
-
-- Native `Debug` commands for log window, temp folder, cache clearing, UI showcase, and fullscreen need platform wiring.
-- Native zoom menu commands currently report guidance rather than invoking node-editor zoom APIs.
-- Native Select All updates selection state but does not yet push the selection into the node-editor visual selection model.
-- The native workflow settings panel remains available as a Debug menu utility until the Electron-style Run Workflow dialog/settings flow is fully ported.
-
-## Platform acceptance
-
-- Windows: automated context creation, graph persistence, font-atlas rebuild,
-  1×/2× rendering and short idle-resource checks pass; native dialog,
-  clipboard, keyboard focus, drag/drop, grouping and live mixed-DPI interaction
-  checks remain.
-- macOS: all native GUI checks pending under the project platform policy.
+Each run writes one image per scene: the seed document, a selected node, the creation menu,
+and every dialog. The hands-on checks are listed in `docs/phase10-windows-acceptance.md`.

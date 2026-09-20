@@ -1,79 +1,82 @@
-# Native GUI prototype
+# Native editor stack
 
-The prototype uses the decided Dear ImGui docking + imgui-node-editor stack.
-Vendor sources are Git submodules; use `git submodule update --init --recursive`.
+The native editor is built on Dear ImGui. The node canvas, every panel and every dialog are
+drawn by BITE itself; there is no node editor add-on and no docking. The Electron renderer is
+the specification, and the parity inventory lives in `docs/native-editor-parity.md`.
 
-- cimgui: `f6fb347cf11217d3ce59fd7956eb3aaf5724518d` (1.90.9 docking).
-- Dear ImGui: cimgui's nested submodule `3369cbd2776d7567ac198b1a3017a4fa2d547cc3`.
-- imgui-node-editor: the revision beginning `e78e447` (full commit is in the gitlink).
-  Newer upstream `021aa0e` defines `ImGui::GetKeyIndex` unconditionally, causing
-  duplicate symbols with 1.90.9; the previous revision builds without local patches.
+## Crates
 
-`bite-imgui-sys` compiles vendor sources plus a small C ABI with C++17. Generated
-bindings are checked in. Normal builds do not require libclang. To regenerate:
+- `bite-imgui-sys` vendors cimgui and Dear ImGui as Git submodules and compiles them with
+  C++17. Fetch them with `git submodule update --init --recursive`.
+  - cimgui: `f6fb347cf11217d3ce59fd7956eb3aaf5724518d` (1.90.9 docking branch).
+  - Dear ImGui: cimgui's nested submodule `3369cbd2776d7567ac198b1a3017a4fa2d547cc3`.
+  - The `imgui-node-editor` submodule is no longer compiled or used. It is left in the
+    working tree so existing checkouts keep working; it can be removed in a later pass.
 
-```
-cargo run -p bite-imgui-sys --features bindgen --example generate_bindings
-```
+  Bindings cover the whole cimgui surface and are checked in, so an ordinary build needs no
+  libclang. To regenerate them:
 
-`bite-imgui` owns its context on one thread, scopes window/editor calls, and copies
-render data into Rust-owned buffers. It has no BITE schema or pipeline dependency.
-The Windows MSVC smoke test builds the font atlas, renders a fake node, and checks
-that draw data remains valid after context destruction.
+  ```
+  cargo run -p bite-imgui-sys --features bindgen --example generate_bindings
+  ```
 
-`bite-gui-prototype` adds a Winit window and an owned WGPU renderer, with 120 fake
-nodes, ten types, typed link colors, a group/comment, docked library/inspector/
-preview/filmstrip panels, keyboard/mouse input and file-drop display. It does not
-depend on the workflow backend in `--smoke` mode. Its event loop waits when untouched; a finite
-redraw burst settles ImGui layout after input. The initial canvas fit waits until
-docking has settled and uses zero-duration navigation to avoid fitting against
-the initial tiny window bounds.
+- `bite-imgui` is the safe wrapper. It owns its context on one thread, copies render data
+  into Rust-owned buffers, and exposes fonts, style, draw lists, input and the widget set. It
+  has no BITE schema or pipeline dependency. Its test builds the atlas, measures text, renders
+  frames and rebuilds the atlas for a new display scale.
+
+- `bite-gui-prototype` is the editor: a winit window, an owned wgpu renderer, and the modules
+  that mirror the Electron renderer. `theme.rs` transcribes `src/renderer/assets/theme.css`,
+  `shell.rs` reproduces the panel layout from `App.svelte`, `canvas/` is the node canvas,
+  `panels/` holds the four panels, `modals.rs` holds the dialogs, and `commands.rs` carries
+  the menu and inspector actions.
+
+## Fonts
+
+Atkinson Hyperlegible Next and JetBrains Mono are embedded in the executable at every size
+and weight the stylesheet uses. A platform font is merged into the text-entry sizes so that
+text typed through an input method renders. The atlas is rasterized at the display scale and
+rebuilt when the scale changes.
+
+## Event loop
+
+The loop waits when nothing is happening, with a short redraw burst after input so layout and
+hover states settle. Imports, previews, text previews, workflow runs and the update check run
+on background threads and wake the loop when they have something to report, so progress
+appears without the pointer moving.
+
+## Running
 
 ```
 cargo run -p bite-gui-prototype
-cargo run -p bite-gui-prototype -- --smoke test-workflows/out/native-prototype.png
 cargo run -p bite-gui-prototype -- workflow.bite
-cargo run -p bite-gui-prototype -- --functional-smoke test-workflows/out/native-functional.png workflow.bite test_images
 ```
 
-Windows offscreen smoke rendered all 120 nodes and uploaded textures on an
-NVIDIA RTX 4080 (WGPU Vulkan); the exported PNG was visually inspected. This is
-rendering evidence, not an interactive acceptance result.
+## Offscreen capture
 
-The Phase 9 path now loads the real v2 registry and calls `bite-core` directly.
-It opens and migrates workflows, renders real nodes and links, adds processing
-and builtin nodes, validates newly drawn links, persists graph positions, saves
-v2 workflows, imports cached thumbnails into WGPU textures, and runs/cancels a
-workflow on a background thread. Dropping a `.bite` file opens it and dropping
-a directory selects it for import. The technical `--smoke` path remains intact.
+The capture mode renders fixed scenes without opening a window, for side-by-side comparison
+with Electron. It writes one image per scene: the seed document, a selected node, the creation
+menu, and every dialog.
 
-The Preview panel now calls the dedicated `bite_core::preview::render` API. It
-renders one source image through the graph to an in-memory PNG and returns live
-contexts for pure-value nodes; the GUI uploads the PNG and shows resolved values
-for the selected node.
+```
+cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity
+cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity-wf test-workflows/wf-05-meanlogic.bite
+cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity-2x test-workflows/wf-05-meanlogic.bite 2
+```
 
-The Inspector edits scalar, integer, string and Boolean workflow parameters and
-shows resolved pure-value outputs. Clicking a Filmstrip thumbnail reruns the
-direct preview for that source. Structured and vector editors remain Phase 10.
-Enum parameters use definition-backed combo boxes, Boolean parameters use
-checkboxes, and text/path values use labeled single-line controls.
+The third argument is the display scale, so the same scenes can be checked at high density.
 
-The remaining Phase 9 Windows acceptance is an interactive pass:
+## Environment
 
-1. Run `cargo run -p bite-gui-prototype`.
-2. Create Input → Resize → Sharpen → Format Convert → Image Output with the
-   Library and canvas link controls.
-3. Import `test_images`, select more than one Filmstrip image, and verify that
-   Preview follows the selection.
-4. Save the workflow, close the window, reopen the saved file, and run it to a
-   new output directory. Exercise Cancel during a second run.
+- `BITE_DEFINITIONS_ROOT` overrides where node and format definitions are read from. A
+  packaged build looks beside the executable first and falls back to the source tree.
+- `BITE_SESSION_PATH` overrides the window bounds and panel size file.
+- `BITE_LOG_PATH` overrides the session log.
 
-The automated equivalent already creates/saves/reopens the five-node workflow,
-runs all 26 images, and compares GUI-path output to `bite run` with zero pixel
-differences. The interactive pass verifies the actual controls and event loop.
+## Remaining work
 
-Pending: structured/vector inspector widgets, creation/context menus, layout persistence, clipboard, non-Latin font
-coverage and IME preedit/candidate positioning, live DPI font-atlas rebuild,
-texture updates, interactive drag/group/selection checks, measured idle CPU/GPU,
-mixed-monitor validation, macOS/clean-clone builds, and ImGui Test Engine
-evaluation. The GUI go/no-go gate has not passed.
+The hands-on checklist is `docs/phase10-windows-acceptance.md`. The known gaps are listed
+under "Still to do" in `docs/native-editor-parity.md`: the log viewer window, the interface
+showcase, inline comment editing on the canvas, dragging Text Output ports to reorder them,
+and the macOS system menu. macOS acceptance is pending under the project platform policy,
+although dialogs, the clipboard, the update check and fonts are now cross-platform.

@@ -603,3 +603,76 @@ Inspector exposes the primary Run Workflow action.
 offscreen comparison. Remaining work is interactive Windows confirmation of the
 new pin and submenu hit behavior, plus further inspector control-row refinement
 where individual specialized node editors still differ from Svelte.
+
+## Continuation 2026-09-20 — native editor rebuilt for Electron parity
+
+The native editor was rebuilt against the Electron renderer as its specification, because
+the previous shell could not reach parity from where it stood. The user's scope decisions
+for this pass were: a fixed Electron layout with drag splitters instead of docking, the
+bundled Electron fonts, replicate intended behavior while fixing obvious bugs, a Rust-owned
+canvas drawn on ImGui draw lists instead of the node editor add-on, full generated cimgui
+bindings instead of a hand-written shim, persisted window bounds and panel sizes, and
+keeping two places where the native editor is already better than Electron.
+
+### Foundation
+
+`bite-imgui-sys` now generates bindings for the whole cimgui surface, so measurement, style,
+draw lists, popups, tooltips, tables, child windows and multiple fonts are all reachable from
+Rust. The 80-function hand-written C shim and the imgui-node-editor submodule are gone; the
+only C++ compiled is Dear ImGui itself plus cimgui. `bite-imgui` is a new safe wrapper split
+into fonts, style, drawing, input and widgets.
+
+Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and
+weight `theme.css` uses, with a platform fallback merged into the text-entry sizes so input
+methods render. Inter and the `BITE_UI_FONT` override are removed. `theme.rs` transcribes
+every token from `src/renderer/assets/theme.css`, and drawing code reads tokens rather than
+literals.
+
+### Editor
+
+The shell reproduces `App.svelte`: a left library, a centre canvas with a filmstrip beneath,
+and a right column holding the inspector above the preview, with the six-pixel gaps as the
+drag targets and the same clamps, including the inverted right and filmstrip drags and the
+inspector's fractional split. Docking and its layout file are removed.
+
+The canvas is Rust-owned. Pan, wheel zoom about the pointer clamped to 50–200%, shift
+rubber-band selection with partial hit testing, modifier multiple selection, the one-pixel
+drag threshold, double-click preview targeting, wire selection and deletion, twenty-pixel
+port snapping, single-input replacement, cycle rejection, wire-drop creation with
+auto-connect as one undo entry, groups, comments, the minimap and the zoom label all follow
+the Svelte Flow configuration the Electron editor uses. Node cards are measured from the
+`--node-layout-*` arithmetic in `ProcessNode.svelte`, including header tints, port rows,
+inline value formatting, computed rows, output slots, footers, badges and the bypass tick.
+
+The creation menu, node library, inspector, preview and filmstrip are ported component by
+component, including every empty state, hint and validation message. All nine dialogs are
+ported with the shared modal chrome and the exact wording. The menu matches
+`electron/main.ts` label for label.
+
+File dialogs, the clipboard and the update check are now cross-platform rather than
+Windows-only, through `rfd`, `arboard` and `ureq`. Import, preview, text preview, runs and
+the update check run off the interface thread and wake the event loop, so progress no longer
+waits for pointer movement.
+
+### Deliberate deviations
+
+Window bounds and panel sizes persist; Electron persists nothing. Inspector parameter edits
+are undoable; Electron records only canvas operations. Wire colors always derive from the
+source handle; Electron loses them on save and reload. Every shortcut stands down while a
+text field has focus; Electron guards only Delete. A dropped workflow file opens; Electron
+ignores it.
+
+### Verification
+
+The Rust workspace passes 177 tests, up from 54, and strict Clippy passes with no warnings.
+An offscreen capture mode renders the seed document, a selected node, the creation menu and
+every dialog at 1x and 2x into `test-workflows/out/parity*`; the shots were reviewed against
+the Electron sources and the remaining differences are recorded in
+`docs/native-editor-parity.md`. The editor was launched on a real workflow and ran without
+error. Electron and the original goldens are untouched.
+
+Remaining work is listed under "Still to do" in the parity inventory: the log viewer window,
+the interface showcase, inline comment editing on the canvas, dragging Text Output ports to
+reorder them, and the macOS system menu. The hands-on checklist in
+`docs/phase10-windows-acceptance.md` has been rewritten around the new gestures and is the
+remaining M4 gate; macOS acceptance stays pending under the platform policy.

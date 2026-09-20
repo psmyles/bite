@@ -9,6 +9,9 @@ pub struct Renderer {
     screen: wgpu::BindGroup,
     texture_layout: wgpu::BindGroupLayout,
     textures: BTreeMap<u64, wgpu::BindGroup>,
+    /// Reused between frames so that a redraw does not allocate a buffer per draw list.
+    vertex_scratch: Vec<u8>,
+    index_scratch: Vec<u8>,
 }
 fn float_bytes(values: &[f32]) -> Vec<u8> {
     values.iter().flat_map(|v| v.to_ne_bytes()).collect()
@@ -93,6 +96,8 @@ impl Renderer {
             screen,
             texture_layout,
             textures: BTreeMap::new(),
+            vertex_scratch: Vec::new(),
+            index_scratch: Vec::new(),
         })
     }
     pub fn texture(&mut self, id: u64, width: u32, height: u32, pixels: &[u8]) {
@@ -143,8 +148,22 @@ impl Renderer {
         });
         self.textures.insert(id, group);
     }
+
+    /// Releases a texture, which the filmstrip does when a branch's thumbnails are replaced.
+    pub fn free_texture(&mut self, id: u64) {
+        self.textures.remove(&id);
+    }
+
+    /// Releases every texture whose identifier the predicate accepts.
+    pub fn free_textures(&mut self, mut keep: impl FnMut(u64) -> bool) {
+        self.textures.retain(|id, _| keep(*id));
+    }
+
+    pub fn has_texture(&self, id: u64) -> bool {
+        self.textures.contains_key(&id)
+    }
     pub fn render(
-        &self,
+        &mut self,
         view: &wgpu::TextureView,
         data: &bite_imgui::DrawData,
         width: u32,
@@ -156,30 +175,43 @@ impl Renderer {
             0,
             &float_bytes(&[width as f32 / scale, height as f32 / scale, 0., 0.]),
         );
-        let buffers: Vec<_> = data
+        let mut buffers: Vec<(wgpu::Buffer, wgpu::Buffer)> = Vec::with_capacity(data.len());
+        for list in data {
+            self.vertex_scratch.clear();
+            self.index_scratch.clear();
+            for vertex in &list.vertices {
+                self.vertex_scratch.extend(float_bytes(&[
+                    vertex.pos[0],
+                    vertex.pos[1],
+                    vertex.uv[0],
+                    vertex.uv[1],
+                ]));
+                self.vertex_scratch.extend(vertex.color.to_ne_bytes());
+            }
+            for index in &list.indices {
+                self.index_scratch.extend(index.to_ne_bytes());
+            }
+            if self.vertex_scratch.is_empty() || self.index_scratch.is_empty() {
+                continue;
+            }
+            buffers.push((
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None,
+                        contents: &self.vertex_scratch,
+                        usage: wgpu::BufferUsages::VERTEX,
+                    }),
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None,
+                        contents: &self.index_scratch,
+                        usage: wgpu::BufferUsages::INDEX,
+                    }),
+            ));
+        }
+        let drawable: Vec<_> = data
             .iter()
-            .map(|list| {
-                let mut vertices = Vec::with_capacity(list.vertices.len() * 20);
-                for v in &list.vertices {
-                    vertices.extend(float_bytes(&[v.pos[0], v.pos[1], v.uv[0], v.uv[1]]));
-                    vertices.extend(v.color.to_ne_bytes());
-                }
-                let indices: Vec<u8> = list.indices.iter().flat_map(|i| i.to_ne_bytes()).collect();
-                (
-                    self.device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: None,
-                            contents: &vertices,
-                            usage: wgpu::BufferUsages::VERTEX,
-                        }),
-                    self.device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: None,
-                            contents: &indices,
-                            usage: wgpu::BufferUsages::INDEX,
-                        }),
-                )
-            })
+            .filter(|list| !list.vertices.is_empty() && !list.indices.is_empty())
             .collect();
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
@@ -190,10 +222,11 @@ impl Renderer {
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
+                        // The shell gap color, so resizing never flashes an unpainted edge.
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.025,
-                            g: 0.03,
-                            b: 0.04,
+                            r: f64::from(crate::theme::GAP_COLOR.0[0]),
+                            g: f64::from(crate::theme::GAP_COLOR.0[1]),
+                            b: f64::from(crate::theme::GAP_COLOR.0[2]),
                             a: 1.,
                         }),
                         store: wgpu::StoreOp::Store,
@@ -203,7 +236,7 @@ impl Renderer {
             });
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &self.screen, &[]);
-            for (list, (vertices, indices)) in data.iter().zip(&buffers) {
+            for (list, (vertices, indices)) in drawable.iter().zip(&buffers) {
                 pass.set_vertex_buffer(0, vertices.slice(..));
                 pass.set_index_buffer(indices.slice(..), wgpu::IndexFormat::Uint32);
                 for cmd in &list.commands {

@@ -144,6 +144,19 @@ impl Studio {
         studio
     }
 
+    /// A new document: one Input wired to nothing and one Image Output, at the positions
+    /// the Electron seed graph uses.
+    pub fn seeded(registry: Registry) -> Self {
+        let mut studio = Self::blank(registry);
+        studio.add_input(Position { x: 80.0, y: 180.0 });
+        studio.add_output(Position { x: 640.0, y: 180.0 });
+        studio.undo.clear();
+        studio.redo.clear();
+        studio.mark_clean();
+        studio.status = "New workflow".into();
+        studio
+    }
+
     pub fn open(registry: Registry, path: &Path) -> Result<Self, String> {
         let loaded = bite_core::workflow::load(
             &fs::read_to_string(path).map_err(|error| error.to_string())?,
@@ -422,9 +435,9 @@ impl Studio {
                 definition_id: String::new(),
                 params: BTreeMap::from([
                     ("cliName".into(), ParamValue::String(cli_name)),
-                    ("outputPath".into(), ParamValue::String("custom".into())),
+                    ("outputPath".into(), ParamValue::String("source".into())),
                     ("customPath".into(), ParamValue::String(String::new())),
-                    ("overwrite".into(), ParamValue::String("overwrite".into())),
+                    ("overwrite".into(), ParamValue::String("skip".into())),
                     ("generateLog".into(), ParamValue::Bool(false)),
                     ("setOutputPrefix".into(), ParamValue::String(String::new())),
                     ("setOutputSuffix".into(), ParamValue::String(String::new())),

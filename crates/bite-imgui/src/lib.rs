@@ -1,228 +1,206 @@
-//! Small owned wrapper. No BITE workflow or pipeline dependencies.
+//! A safe, owned wrapper over Dear ImGui. It carries no BITE workflow or pipeline types.
+//!
+//! The wrapper exposes the parts of the library the native editor needs to reproduce the
+//! Electron interface: measurement, styling, draw lists, popups, tooltips and the full
+//! widget set, plus the font atlas described in [`font`].
+mod draw;
+pub mod font;
+mod input;
+mod style;
+mod widgets;
+
+pub use draw::{DrawListRef, Rounding};
+pub use font::{Face, Family, FontId, Fonts, Weight};
+pub use input::{Key, MouseButton, MouseCursor};
+pub use style::{Color, Style, StyleColor, StyleVar};
+pub use widgets::{IdGuard, InputFlags, WindowFlags};
+
 use bite_imgui_sys as sys;
 use std::{
-    cell::Cell,
     ffi::CString,
     marker::PhantomData,
-    path::PathBuf,
     rc::Rc,
     sync::{Mutex, MutexGuard},
 };
+
 static OWNER: Mutex<()> = Mutex::new(());
-fn c(text: &str) -> CString {
-    CString::new(text.replace('\0', "�")).unwrap()
+
+/// Builds a C string, replacing interior nul bytes so that any caller string is accepted.
+pub(crate) fn c(text: &str) -> CString {
+    CString::new(text.replace('\0', "\u{fffd}")).unwrap_or_default()
 }
-fn ui_font_path() -> Option<PathBuf> {
-    let configured = std::env::var_os("BITE_UI_FONT").map(PathBuf::from);
-    if configured.as_ref().is_some_and(|path| path.is_file()) {
-        return configured;
+
+/// A two-component vector in logical pixels.
+pub type Vec2 = [f32; 2];
+
+pub(crate) fn v(value: Vec2) -> sys::ImVec2 {
+    sys::ImVec2 {
+        x: value[0],
+        y: value[1],
     }
-
-    #[cfg(target_os = "windows")]
-    let candidates = {
-        let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
-        let windows = std::env::var_os("WINDIR").map(PathBuf::from);
-        [
-            local
-                .as_ref()
-                .map(|root| root.join("Microsoft/Windows/Fonts/Inter.ttc")),
-            windows.as_ref().map(|root| root.join("Fonts/Inter.ttc")),
-            windows.as_ref().map(|root| root.join("Fonts/Inter.ttf")),
-        ]
-    };
-    #[cfg(target_os = "macos")]
-    let candidates = [
-        Some(PathBuf::from("/Library/Fonts/Inter.ttc")),
-        Some(PathBuf::from("/Library/Fonts/Inter.ttf")),
-    ];
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    let candidates = [
-        Some(PathBuf::from("/usr/share/fonts/truetype/inter/Inter.ttc")),
-        Some(PathBuf::from(
-            "/usr/share/fonts/truetype/inter/Inter-Regular.ttf",
-        )),
-    ];
-
-    candidates.into_iter().flatten().find(|path| path.is_file())
 }
+
+pub(crate) fn from_v(value: sys::ImVec2) -> Vec2 {
+    [value.x, value.y]
+}
+
+/// One vertex of the generated geometry, laid out for direct upload.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Vertex {
+    pub pos: [f32; 2],
+    pub uv: [f32; 2],
+    pub color: u32,
+}
+
+/// One draw call: a slice of the index buffer, a texture and a scissor rectangle.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Command {
+    pub count: u32,
+    pub index_offset: u32,
+    pub vertex_offset: u32,
+    /// Left, top, right and bottom in logical pixels.
+    pub clip: [f32; 4],
+    pub texture: u64,
+}
+
+/// The geometry of one ImGui draw list, owned by Rust.
+#[derive(Clone, Debug, Default)]
+pub struct DrawList {
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
+    pub commands: Vec<Command>,
+}
+
+/// Everything produced by one frame.
+pub type DrawData = Vec<DrawList>;
+
+/// The ImGui context. Only one may exist at a time.
 pub struct Context {
-    raw: *mut std::ffi::c_void,
+    raw: *mut sys::ImGuiContext,
+    fonts: Fonts,
     _owner: MutexGuard<'static, ()>,
     _thread: PhantomData<Rc<()>>,
 }
-pub struct Frame<'a> {
-    context: &'a mut Context,
-    rendered: bool,
-}
-pub struct Ui<'a> {
-    raw: *mut std::ffi::c_void,
-    scope: Rc<Cell<u8>>,
-    _frame: PhantomData<&'a mut ()>,
-}
-#[derive(Clone, Debug)]
-pub struct DrawList {
-    pub vertices: Vec<sys::BiteVertex>,
-    pub indices: Vec<u32>,
-    pub commands: Vec<sys::BiteCommand>,
-}
-pub type DrawData = Vec<DrawList>;
-#[derive(Clone, Copy)]
-pub enum Key {
-    Tab,
-    Left,
-    Right,
-    Up,
-    Down,
-    PageUp,
-    PageDown,
-    Home,
-    End,
-    Insert,
-    Delete,
-    Backspace,
-    Space,
-    Enter,
-    Escape,
-    Ctrl,
-    Shift,
-    Alt,
-    Super,
-    A,
-    C,
-    V,
-    X,
-    Y,
-    Z,
-    F,
-}
+
 impl Context {
-    pub fn new() -> Result<Self, String> {
-        Self::with_scale(1.0)
+    /// Creates a context at the given display scale with the default face list.
+    pub fn new(scale: f32) -> Result<Self, String> {
+        Self::with_faces(scale, font::default_faces())
     }
-    pub fn with_scale(scale: f32) -> Result<Self, String> {
-        Self::with_scale_and_ini(scale, None)
-    }
-    pub fn with_scale_and_ini(
-        scale: f32,
-        ini_path: Option<&std::path::Path>,
-    ) -> Result<Self, String> {
+
+    pub fn with_faces(scale: f32, faces: Vec<Face>) -> Result<Self, String> {
         if !scale.is_finite() || scale <= 0.0 {
-            return Err("UI scale must be a positive finite number".into());
+            return Err("display scale must be a positive finite number".into());
         }
         let owner = OWNER
             .try_lock()
             .map_err(|_| "only one ImGui context may be active")?;
-        let font = ui_font_path()
-            .and_then(|path| path.to_str().map(c))
-            .unwrap_or_else(|| c(""));
-        let ini = ini_path
-            .and_then(|path| path.to_str().map(c))
-            .unwrap_or_else(|| c(""));
-        let raw = unsafe { sys::bite_create(font.as_ptr(), 16.0, scale, ini.as_ptr()) };
+        let raw = unsafe { sys::igCreateContext(std::ptr::null_mut()) };
         if raw.is_null() {
             return Err("ImGui context creation failed".into());
         }
-        let mut context = Self {
+        unsafe {
+            let io = sys::igGetIO();
+            (*io).IniFilename = std::ptr::null();
+            (*io).LogFilename = std::ptr::null();
+            (*io).BackendFlags |= sys::ImGuiBackendFlags_RendererHasVtxOffset;
+            (*io).ConfigInputTextCursorBlink = true;
+            // Layout is authored in logical pixels; faces are rasterized at the physical size.
+            (*io).FontGlobalScale = 1.0 / scale;
+        }
+        let fonts = Fonts::build(faces, scale);
+        Ok(Self {
             raw,
+            fonts,
             _owner: owner,
             _thread: PhantomData,
-        };
-        context.font_atlas();
-        Ok(context)
+        })
     }
-    pub fn font_atlas(&mut self) -> (u32, u32, Vec<u8>) {
-        let mut pixels = std::ptr::null();
-        let (mut w, mut h) = (0, 0);
-        unsafe {
-            sys::bite_font_pixels(&mut pixels, &mut w, &mut h);
-            (
-                w as u32,
-                h as u32,
-                std::slice::from_raw_parts(pixels, w as usize * h as usize * 4).to_vec(),
-            )
-        }
+
+    pub fn fonts(&self) -> &Fonts {
+        &self.fonts
     }
-    pub fn set_font_texture(&mut self, id: u64) {
-        unsafe { sys::bite_font_texture(id) }
-    }
-    pub fn set_scale(&mut self, scale: f32) -> Result<(u32, u32, Vec<u8>), String> {
+
+    /// Rebuilds the atlas for a new display scale, for example after a monitor change.
+    pub fn set_scale(&mut self, scale: f32) -> Result<(), String> {
         if !scale.is_finite() || scale <= 0.0 {
-            return Err("UI scale must be a positive finite number".into());
+            return Err("display scale must be a positive finite number".into());
         }
-        let font = ui_font_path()
-            .and_then(|path| path.to_str().map(c))
-            .unwrap_or_else(|| c(""));
-        unsafe { sys::bite_set_scale(font.as_ptr(), 16.0, scale) };
-        Ok(self.font_atlas())
+        if (scale - self.fonts.scale()).abs() < f32::EPSILON {
+            return Ok(());
+        }
+        unsafe {
+            (*sys::igGetIO()).FontGlobalScale = 1.0 / scale;
+        }
+        let faces = self.fonts.faces.clone();
+        self.fonts = Fonts::build(faces, scale);
+        Ok(())
     }
+
     pub fn mouse_position(&mut self, x: f32, y: f32) {
         if x.is_finite() && y.is_finite() {
-            unsafe { sys::bite_mouse_position(x, y) }
+            unsafe { sys::ImGuiIO_AddMousePosEvent(sys::igGetIO(), x, y) }
         }
     }
-    pub fn mouse_button(&mut self, button: u8, down: bool) {
-        if button < 5 {
-            unsafe { sys::bite_mouse_button(button.into(), down.into()) }
-        }
+
+    pub fn mouse_button(&mut self, button: MouseButton, down: bool) {
+        unsafe { sys::ImGuiIO_AddMouseButtonEvent(sys::igGetIO(), button as i32, down) }
     }
+
     pub fn mouse_wheel(&mut self, x: f32, y: f32) {
         if x.is_finite() && y.is_finite() {
-            unsafe { sys::bite_mouse_wheel(x, y) }
+            unsafe { sys::ImGuiIO_AddMouseWheelEvent(sys::igGetIO(), x, y) }
         }
     }
+
     pub fn key(&mut self, key: Key, down: bool) {
-        let code = match key {
-            Key::Tab => 512,
-            Key::Left => 513,
-            Key::Right => 514,
-            Key::Up => 515,
-            Key::Down => 516,
-            Key::PageUp => 517,
-            Key::PageDown => 518,
-            Key::Home => 519,
-            Key::End => 520,
-            Key::Insert => 521,
-            Key::Delete => 522,
-            Key::Backspace => 523,
-            Key::Space => 524,
-            Key::Enter => 525,
-            Key::Escape => 526,
-            Key::Ctrl => 4096,
-            Key::Shift => 8192,
-            Key::Alt => 16384,
-            Key::Super => 32768,
-            Key::A => 546,
-            Key::C => 548,
-            Key::F => 551,
-            Key::V => 567,
-            Key::X => 569,
-            Key::Y => 570,
-            Key::Z => 571,
-        };
-        unsafe { sys::bite_key(code, down.into()) }
+        unsafe { sys::ImGuiIO_AddKeyEvent(sys::igGetIO(), key.code(), down) }
     }
+
     pub fn text_input(&mut self, text: &str) {
-        unsafe { sys::bite_text_input(c(text).as_ptr()) }
+        unsafe { sys::ImGuiIO_AddInputCharactersUTF8(sys::igGetIO(), c(text).as_ptr()) }
     }
+
     pub fn focus(&mut self, focused: bool) {
-        unsafe { sys::bite_focus(focused.into()) }
+        unsafe { sys::ImGuiIO_AddFocusEvent(sys::igGetIO(), focused) }
     }
+
+    /// True while a text field is accepting keystrokes, so shortcuts must stand down.
     pub fn want_text_input(&self) -> bool {
-        unsafe { sys::bite_want_text_input() != 0 }
+        unsafe { (*sys::igGetIO()).WantTextInput }
     }
+
+    /// True while ImGui is using the pointer, so the host must not act on it.
+    pub fn want_capture_mouse(&self) -> bool {
+        unsafe { (*sys::igGetIO()).WantCaptureMouse }
+    }
+
+    pub fn want_capture_keyboard(&self) -> bool {
+        unsafe { (*sys::igGetIO()).WantCaptureKeyboard }
+    }
+
+    /// The cursor shape the interface asks the window to display.
+    pub fn mouse_cursor(&self) -> MouseCursor {
+        MouseCursor::from_raw(unsafe { sys::igGetMouseCursor() })
+    }
+
+    /// Starts a frame. `width` and `height` are logical pixels.
     pub fn frame(&mut self, width: f32, height: f32, scale: f32, delta: f32) -> Frame<'_> {
-        assert!(
-            width.is_finite()
-                && height.is_finite()
-                && scale.is_finite()
-                && delta.is_finite()
-                && width > 0.0
-                && height > 0.0
-                && scale > 0.0
-                && delta > 0.0
-        );
+        let width = width.max(1.0);
+        let height = height.max(1.0);
+        let scale = if scale.is_finite() && scale > 0.0 {
+            scale
+        } else {
+            1.0
+        };
+        let delta = delta.clamp(1.0 / 1000.0, 1.0);
         unsafe {
-            sys::bite_frame(width, height, scale, delta);
+            let io = sys::igGetIO();
+            (*io).DisplaySize = v([width, height]);
+            (*io).DisplayFramebufferScale = v([scale, scale]);
+            (*io).DeltaTime = delta;
+            sys::igNewFrame();
         }
         Frame {
             context: self,
@@ -230,432 +208,167 @@ impl Context {
         }
     }
 }
+
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { sys::bite_destroy(self.raw) }
+        unsafe { sys::igDestroyContext(self.raw) }
     }
 }
+
+/// An in-progress frame. Dropping it renders and discards the geometry.
+pub struct Frame<'a> {
+    context: &'a mut Context,
+    rendered: bool,
+}
+
 impl Frame<'_> {
     pub fn ui(&mut self) -> Ui<'_> {
         Ui {
-            raw: self.context.raw,
-            scope: Rc::new(Cell::new(0)),
+            fonts: &self.context.fonts,
             _frame: PhantomData,
         }
     }
+
+    pub fn fonts(&self) -> &Fonts {
+        &self.context.fonts
+    }
+
+    /// Ends the frame and copies the geometry out of ImGui.
     pub fn render(mut self) -> DrawData {
-        unsafe {
-            sys::bite_render();
-        }
+        unsafe { sys::igRender() };
         self.rendered = true;
-        let mut data = Vec::new();
+        let data = unsafe { sys::igGetDrawData() };
+        if data.is_null() || !unsafe { (*data).Valid } {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
         unsafe {
-            for i in 0..sys::bite_draw_list_count() {
-                let mut vertices =
-                    vec![sys::BiteVertex::default(); sys::bite_vertex_count(i) as usize];
-                let mut indices = vec![0; sys::bite_index_count(i) as usize];
-                sys::bite_copy_vertices(i, vertices.as_mut_ptr());
-                sys::bite_copy_indices(i, indices.as_mut_ptr());
-                let mut commands = Vec::new();
-                for j in 0..sys::bite_command_count(i) {
-                    let mut command = sys::BiteCommand::default();
-                    if sys::bite_get_command(i, j, &mut command) != 0 {
-                        commands.push(command);
-                    }
+            let count = (*data).CmdListsCount.max(0) as usize;
+            let lists = (*data).CmdLists.Data;
+            for index in 0..count {
+                let list = *lists.add(index);
+                if list.is_null() {
+                    continue;
                 }
-                data.push(DrawList {
+                let vertex_count = (*list).VtxBuffer.Size.max(0) as usize;
+                let index_count = (*list).IdxBuffer.Size.max(0) as usize;
+                let vertices = std::slice::from_raw_parts((*list).VtxBuffer.Data, vertex_count)
+                    .iter()
+                    .map(|vertex| Vertex {
+                        pos: [vertex.pos.x, vertex.pos.y],
+                        uv: [vertex.uv.x, vertex.uv.y],
+                        color: vertex.col,
+                    })
+                    .collect();
+                let indices = std::slice::from_raw_parts((*list).IdxBuffer.Data, index_count)
+                    .iter()
+                    .map(|value| u32::from(*value))
+                    .collect();
+                let command_count = (*list).CmdBuffer.Size.max(0) as usize;
+                let commands = std::slice::from_raw_parts((*list).CmdBuffer.Data, command_count)
+                    .iter()
+                    .filter(|command| command.UserCallback.is_none() && command.ElemCount > 0)
+                    .map(|command| Command {
+                        count: command.ElemCount,
+                        index_offset: command.IdxOffset,
+                        vertex_offset: command.VtxOffset,
+                        clip: [
+                            command.ClipRect.x,
+                            command.ClipRect.y,
+                            command.ClipRect.z,
+                            command.ClipRect.w,
+                        ],
+                        texture: command.TextureId as u64,
+                    })
+                    .collect();
+                out.push(DrawList {
                     vertices,
                     indices,
                     commands,
                 });
             }
         }
-        data
+        out
     }
 }
+
 impl Drop for Frame<'_> {
     fn drop(&mut self) {
         if !self.rendered {
-            unsafe {
-                sys::bite_render();
-            }
+            unsafe { sys::igRender() };
         }
     }
 }
-struct Scope(unsafe extern "C" fn());
-impl Drop for Scope {
-    fn drop(&mut self) {
-        unsafe { (self.0)() }
-    }
+
+/// The frame-scoped interface handle that every widget call goes through.
+pub struct Ui<'a> {
+    pub(crate) fonts: &'a Fonts,
+    _frame: PhantomData<&'a mut ()>,
 }
-struct StateScope(Rc<Cell<u8>>, u8);
-impl Drop for StateScope {
-    fn drop(&mut self) {
-        self.0.set(self.1);
-    }
-}
+
 impl Ui<'_> {
-    pub fn dockspace(&mut self) {
-        assert_eq!(self.scope.get(), 0, "dockspace cannot be inside an editor");
-        unsafe { sys::bite_dockspace() }
+    pub fn fonts(&self) -> &Fonts {
+        self.fonts
     }
-    pub fn main_menu_bar(&mut self, body: impl FnOnce(&mut Self)) {
-        assert_eq!(self.scope.get(), 0, "menu bar cannot be inside an editor");
-        if unsafe { sys::bite_main_menu_bar_begin() != 0 } {
-            body(self);
-            unsafe { sys::bite_main_menu_bar_end() }
-        }
+
+    /// Reads back the text a widget wrote into a fixed buffer.
+    pub(crate) fn buffer_string(buffer: &[u8]) -> String {
+        let end = buffer.iter().position(|byte| *byte == 0).unwrap_or(0);
+        String::from_utf8_lossy(&buffer[..end]).into_owned()
     }
-    pub fn menu(&mut self, label: &str, body: impl FnOnce(&mut Self)) {
-        if unsafe { sys::bite_menu_begin(c(label).as_ptr()) != 0 } {
-            body(self);
-            unsafe { sys::bite_menu_end() }
-        }
-    }
-    pub fn menu_item(
-        &mut self,
-        label: &str,
-        shortcut: &str,
-        selected: bool,
-        enabled: bool,
-    ) -> bool {
-        unsafe {
-            sys::bite_menu_item(
-                c(label).as_ptr(),
-                c(shortcut).as_ptr(),
-                selected.into(),
-                enabled.into(),
-            ) != 0
-        }
-    }
-    pub fn separator(&mut self) {
-        unsafe { sys::bite_separator() }
-    }
-    pub fn window(&mut self, title: &str, body: impl FnOnce(&mut Self)) {
-        assert_eq!(self.scope.get(), 0, "window cannot be inside an editor");
-        let visible = unsafe { sys::bite_begin(c(title).as_ptr()) != 0 };
-        let _scope = Scope(sys::bite_end);
-        if visible {
-            body(self);
-        }
-    }
-    pub fn text(&mut self, text: &str) {
-        unsafe { sys::bite_text(c(text).as_ptr()) }
-    }
-    pub fn panel_header(&mut self, text: &str) {
-        unsafe { sys::bite_panel_header(c(text).as_ptr()) }
-    }
-    pub fn button(&mut self, text: &str) -> bool {
-        unsafe { sys::bite_button(c(text).as_ptr()) != 0 }
-    }
-    pub fn selectable(&mut self, text: &str) -> bool {
-        unsafe { sys::bite_selectable(c(text).as_ptr()) != 0 }
-    }
-    pub fn selectable_drag_source(
-        &mut self,
-        label: &str,
-        payload_type: &str,
-        payload: &str,
-    ) -> bool {
-        unsafe {
-            sys::bite_selectable_drag_source(
-                c(label).as_ptr(),
-                c(payload_type).as_ptr(),
-                c(payload).as_ptr(),
-            ) != 0
-        }
-    }
-    pub fn collapsing_header(&mut self, label: &str, default_open: bool) -> bool {
-        unsafe { sys::bite_collapsing_header(c(label).as_ptr(), default_open.into()) != 0 }
-    }
-    pub fn drag_float(&mut self, label: &str, value: &mut f32) -> bool {
-        unsafe { sys::bite_drag_float(c(label).as_ptr(), value) != 0 }
-    }
-    pub fn slider_float(&mut self, label: &str, value: &mut f32, min: f32, max: f32) -> bool {
-        unsafe { sys::bite_slider_float(c(label).as_ptr(), value, min, max) != 0 }
-    }
-    pub fn drag_float_n(&mut self, label: &str, values: &mut [f32]) -> bool {
-        if !(2..=4).contains(&values.len()) {
-            return false;
-        }
-        unsafe {
-            sys::bite_drag_float_n(c(label).as_ptr(), values.as_mut_ptr(), values.len() as i32) != 0
-        }
-    }
-    pub fn color_edit4(&mut self, label: &str, values: &mut [f32; 4]) -> bool {
-        unsafe { sys::bite_color_edit4(c(label).as_ptr(), values.as_mut_ptr()) != 0 }
-    }
-    pub fn input_text(&mut self, label: &str, text: &mut String) -> bool {
-        let mut bytes = vec![0u8; text.len().max(4095) + 1];
-        bytes[..text.len()].copy_from_slice(text.as_bytes());
-        let changed = unsafe {
-            sys::bite_input_text(c(label).as_ptr(), bytes.as_mut_ptr().cast(), bytes.len()) != 0
-        };
-        if changed {
-            let len = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
-            *text = String::from_utf8_lossy(&bytes[..len]).into_owned();
-        }
-        changed
-    }
-    pub fn set_keyboard_focus_here(&mut self) {
-        unsafe { sys::bite_set_keyboard_focus_here() }
-    }
-    pub fn checkbox(&mut self, label: &str, value: &mut bool) -> bool {
-        let mut raw = i32::from(*value);
-        let changed = unsafe { sys::bite_checkbox(c(label).as_ptr(), &mut raw) != 0 };
-        *value = raw != 0;
-        changed
-    }
-    pub fn combo(&mut self, label: &str, current: &mut usize, items: &[String]) -> bool {
-        if items.is_empty() {
-            return false;
-        }
-        let mut encoded = Vec::new();
-        for item in items {
-            encoded.extend(item.bytes().filter(|byte| *byte != 0));
-            encoded.push(0);
-        }
-        encoded.push(0);
-        let mut selected = (*current).min(items.len() - 1) as i32;
-        let changed = unsafe {
-            sys::bite_combo(c(label).as_ptr(), &mut selected, encoded.as_ptr().cast()) != 0
-        };
-        *current = (selected as usize).min(items.len() - 1);
-        changed
-    }
-    pub fn next_item_full_width(&mut self) {
-        unsafe { sys::bite_next_item_full_width() }
-    }
-    pub fn disabled<R>(&mut self, disabled: bool, body: impl FnOnce(&mut Self) -> R) -> R {
-        unsafe { sys::bite_begin_disabled(disabled.into()) }
-        let result = body(self);
-        unsafe { sys::bite_end_disabled() }
-        result
-    }
-    pub fn image(&mut self, id: u64, width: f32, height: f32) {
-        unsafe { sys::bite_image(id, width, height) }
-    }
-    pub fn image_button(&mut self, label: &str, id: u64, width: f32, height: f32) -> bool {
-        unsafe { sys::bite_image_button(c(label).as_ptr(), id, width, height) != 0 }
-    }
-    pub fn image_button_selected(
-        &mut self,
-        label: &str,
-        id: u64,
-        width: f32,
-        height: f32,
-        selected: bool,
-    ) -> bool {
-        unsafe {
-            sys::bite_image_button_selected(c(label).as_ptr(), id, width, height, selected.into())
-                != 0
-        }
-    }
-    pub fn same_line(&mut self) {
-        unsafe { sys::bite_same_line() }
-    }
-    pub fn layout_group<R>(&mut self, body: impl FnOnce(&mut Self) -> R) -> R {
-        unsafe { sys::bite_begin_group() }
-        let result = body(self);
-        unsafe { sys::bite_end_group() }
-        result
-    }
-    pub fn editor(&mut self, label: &str, body: impl FnOnce(&mut Self)) {
-        assert_eq!(self.scope.get(), 0, "editors cannot be nested");
-        let _state = StateScope(self.scope.clone(), self.scope.replace(1));
-        unsafe {
-            sys::bite_editor_begin(self.raw, c(label).as_ptr());
-        }
-        let _scope = Scope(sys::bite_editor_end);
-        body(self);
-    }
-    pub fn node(&mut self, id: u64, body: impl FnOnce(&mut Self)) {
-        assert_eq!(
-            self.scope.get(),
-            1,
-            "node requires an editor and cannot be nested"
-        );
-        let _state = StateScope(self.scope.clone(), self.scope.replace(2));
-        assert_ne!(id, 0);
-        unsafe {
-            sys::bite_node_begin(id);
-        }
-        let _scope = Scope(sys::bite_node_end);
-        body(self);
-    }
-    pub fn node_header(&mut self, text: &str, color: [f32; 3]) {
-        assert_eq!(self.scope.get(), 2, "node header requires a node");
-        unsafe { sys::bite_node_header(c(text).as_ptr(), color[0], color[1], color[2]) }
-    }
-    pub fn node_footer(&mut self, text: &str) {
-        assert_eq!(self.scope.get(), 2, "node footer requires a node");
-        unsafe { sys::bite_node_footer(c(text).as_ptr()) }
-    }
-    pub fn typed_pin(&mut self, id: u64, output: bool, label: &str, color: [f32; 3]) {
-        assert_eq!(self.scope.get(), 2, "pin requires a node");
-        assert_ne!(id, 0);
-        unsafe {
-            sys::bite_typed_pin(
-                id,
-                output.into(),
-                c(label).as_ptr(),
-                color[0],
-                color[1],
-                color[2],
-            )
-        }
-    }
-    pub fn pin(&mut self, id: u64, output: bool, label: &str) {
-        assert_eq!(self.scope.get(), 2, "pin requires a node");
-        assert_ne!(id, 0);
-        unsafe {
-            sys::bite_pin_begin(id, output.into());
-            sys::bite_text(c(label).as_ptr());
-            sys::bite_pin_end();
-        }
-    }
-    pub fn link(&mut self, id: u64, source: u64, target: u64, color: [f32; 3]) {
-        assert_eq!(self.scope.get(), 1, "link requires an editor");
-        assert!(id != 0 && source != 0 && target != 0 && color.iter().all(|n| n.is_finite()));
-        unsafe {
-            sys::bite_link(id, source, target, color[0], color[1], color[2]);
-        }
-    }
-    pub fn new_link(&mut self) -> Option<(u64, u64)> {
-        assert_eq!(self.scope.get(), 1, "link creation requires an editor");
-        let (mut a, mut b) = (0, 0);
-        (unsafe { sys::bite_new_link(&mut a, &mut b) } != 0).then_some((a, b))
-    }
-    pub fn new_node(&mut self) -> Option<u64> {
-        assert_eq!(self.scope.get(), 1, "node creation requires an editor");
-        let mut pin = 0;
-        (unsafe { sys::bite_new_node(&mut pin) } != 0).then_some(pin)
-    }
-    pub fn deleted_link(&mut self) -> Option<u64> {
-        assert_eq!(self.scope.get(), 1, "link deletion requires an editor");
-        let mut id = 0;
-        (unsafe { sys::bite_deleted_link(&mut id) } != 0).then_some(id)
-    }
-    pub fn position(&mut self, id: u64) -> [f32; 2] {
-        assert!(
-            self.scope.get() > 0 && id != 0,
-            "position requires an editor"
-        );
-        let (mut x, mut y) = (0.0, 0.0);
-        unsafe {
-            sys::bite_get_node_position(id, &mut x, &mut y);
-        }
-        [x, y]
-    }
-    pub fn set_position(&mut self, id: u64, p: [f32; 2]) {
-        assert!(
-            self.scope.get() > 0 && id != 0 && p.iter().all(|n| n.is_finite()),
-            "position requires an editor"
-        );
-        unsafe {
-            sys::bite_set_node_position(id, p[0], p[1]);
-        }
-    }
-    pub fn node_size(&mut self, id: u64) -> [f32; 2] {
-        assert!(self.scope.get() > 0 && id != 0, "size requires an editor");
-        let (mut width, mut height) = (0.0, 0.0);
-        unsafe {
-            sys::bite_get_node_size(id, &mut width, &mut height);
-        }
-        [width, height]
-    }
-    pub fn selected(&mut self, id: u64) -> bool {
-        assert!(
-            self.scope.get() > 0 && id != 0,
-            "selection requires an editor"
-        );
-        unsafe { sys::bite_node_selected(id) != 0 }
-    }
-    pub fn group(&mut self, width: f32, height: f32) {
-        assert_eq!(self.scope.get(), 2, "group requires a node");
-        assert!(width.is_finite() && height.is_finite() && width > 0.0 && height > 0.0);
-        unsafe {
-            sys::bite_group(width, height);
-        }
-    }
-    pub fn background_menu(&mut self) -> bool {
-        assert_eq!(self.scope.get(), 1, "background menu requires an editor");
-        unsafe { sys::bite_background_menu() != 0 }
-    }
-    pub fn canvas_mouse_position(&mut self) -> [f32; 2] {
-        assert_eq!(self.scope.get(), 1, "canvas position requires an editor");
-        let (mut x, mut y) = (0.0, 0.0);
-        unsafe { sys::bite_canvas_mouse_position(&mut x, &mut y) }
-        [x, y]
-    }
-    pub fn dragging_selection(&mut self) -> bool {
-        assert_eq!(self.scope.get(), 1, "drag state requires an editor");
-        unsafe { sys::bite_editor_dragging_selection() != 0 }
-    }
-    pub fn accept_drag_drop_string(&mut self, payload_type: &str) -> Option<String> {
-        let mut bytes = vec![0u8; 4096];
-        (unsafe {
-            sys::bite_accept_drag_drop_string(
-                c(payload_type).as_ptr(),
-                bytes.as_mut_ptr().cast(),
-                bytes.len(),
-            )
-        } != 0)
-            .then(|| {
-                let len = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
-                String::from_utf8_lossy(&bytes[..len]).into_owned()
-            })
-    }
-    pub fn open_popup(&mut self, id: &str) {
-        assert_eq!(self.scope.get(), 0, "popup must be outside an editor");
-        unsafe { sys::bite_open_popup(c(id).as_ptr()) }
-    }
-    pub fn popup(&mut self, id: &str, body: impl FnOnce(&mut Self)) {
-        assert_eq!(self.scope.get(), 0, "popup must be outside an editor");
-        if unsafe { sys::bite_begin_popup(c(id).as_ptr()) != 0 } {
-            let _scope = Scope(sys::bite_end_popup);
-            body(self);
-        }
-    }
-    pub fn close_popup(&mut self) {
-        assert_eq!(self.scope.get(), 0, "popup must be outside an editor");
-        unsafe { sys::bite_close_popup() }
-    }
-    pub fn navigate(&mut self) {
-        assert_eq!(self.scope.get(), 1, "navigation requires an editor");
-        unsafe { sys::bite_navigate() }
+
+}
+
+/// Runs `body` with a value restored afterwards, which keeps push and pop pairs balanced.
+pub(crate) struct Guard<F: FnMut()>(pub(crate) F);
+
+impl<F: FnMut()> Drop for Guard<F> {
+    fn drop(&mut self) {
+        (self.0)()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Only one ImGui context may exist, so the context-backed checks share one test.
     #[test]
-    fn owned_draw_data_survives_context() {
-        let data = {
-            let mut context = Context::new().unwrap();
-            let (w, h, pixels) = context.font_atlas();
-            assert_eq!(pixels.len(), (w * h * 4) as usize);
-            let (scaled_w, scaled_h, scaled_pixels) = context.set_scale(2.0).unwrap();
-            assert_eq!(scaled_pixels.len(), (scaled_w * scaled_h * 4) as usize);
-            assert!(scaled_w >= w && scaled_h >= h);
-            context.set_font_texture(1);
-            let mut data = Vec::new();
-            for _ in 0..3 {
-                let mut frame = context.frame(1280.0, 720.0, 1.0, 1.0 / 60.0);
-                frame.ui().window("Canvas", |ui| {
-                    ui.editor("editor", |ui| {
-                        ui.node(1, |ui| {
-                            ui.text("Node");
-                            ui.pin(2, false, "Input");
-                            ui.pin(3, true, "Output");
-                        });
-                    })
-                });
-                data = frame.render();
-            }
-            data
-        };
-        assert!(data.iter().any(|l| !l.vertices.is_empty()));
+    fn context_frame_fonts_and_measurement() {
+        let mut context = Context::new(1.0).unwrap();
+        let (width, height, pixels) = context.fonts().texture();
+        assert_eq!(pixels.len(), (width * height * 4) as usize);
+        context.fonts().set_texture_id(1);
+
+        let exact = context.fonts().id(Face::ui(13));
+        assert_eq!(context.fonts().faces[exact.0], Face::ui(13));
+        let missing = context.fonts().id(Face::ui(200));
+        assert_eq!(context.fonts().faces[missing.0].family, Family::Ui);
+        assert_eq!(context.fonts().faces[missing.0].weight, Weight::Regular);
+
+        let mut data = Vec::new();
+        for _ in 0..3 {
+            let mut frame = context.frame(1280.0, 720.0, 1.0, 1.0 / 60.0);
+            let mut ui = frame.ui();
+            ui.window("probe", |ui| {
+                ui.text("Node Library");
+                let size = ui.calc_text_size("Node Library");
+                assert!(size[0] > 0.0 && size[1] > 0.0);
+                let list = ui.draw_list();
+                let measured = list.measure(Face::mono(11), "output-image-1");
+                assert!(measured[0] > 0.0);
+            });
+            data = frame.render();
+        }
+        assert!(data.iter().any(|list| !list.vertices.is_empty()));
+
+        context.set_scale(2.0).unwrap();
+        let (scaled_width, scaled_height, scaled_pixels) = context.fonts().texture();
+        assert_eq!(
+            scaled_pixels.len(),
+            (scaled_width * scaled_height * 4) as usize
+        );
+        assert!(scaled_width >= width && scaled_height >= height);
+        assert_eq!(context.fonts().scale(), 2.0);
     }
 }

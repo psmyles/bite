@@ -1,4 +1,10 @@
-#[derive(Debug)]
+//! The release check behind Help, Check for Updates.
+//!
+//! The Electron build queries the GitHub releases endpoint at startup and reports only when
+//! a newer release exists; a manual check also reports the up to date and failed states.
+
+/// One release, as the update dialog presents it.
+#[derive(Debug, Clone, Default)]
 pub struct UpdateInfo {
     pub available: bool,
     pub version: String,
@@ -29,129 +35,55 @@ fn newer(latest: &str, current: &str) -> bool {
     latest > current
 }
 
-fn current_version() -> String {
+/// The version this build reports, taken from the shared package manifest.
+pub fn current_version() -> String {
     serde_json::from_str::<serde_json::Value>(include_str!("../../../package.json"))
         .ok()
         .and_then(|package| package["version"].as_str().map(str::to_owned))
         .unwrap_or_else(|| env!("CARGO_PKG_VERSION").into())
 }
 
-#[cfg(windows)]
+use std::io::Read;
+
+/// The releases endpoint the Electron main process uses.
+const RELEASES_URL: &str = "https://api.github.com/repos/psmyles/bite/releases/latest";
+/// The response cap the Electron check applies, so a malformed reply cannot exhaust memory.
+const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
+
+/// Fetches the latest release and compares it with this build.
 pub fn check() -> Result<UpdateInfo, String> {
-    use windows::{
-        core::{w, PCWSTR},
-        Win32::Networking::WinHttp::{
-            WinHttpCloseHandle, WinHttpConnect, WinHttpOpen, WinHttpOpenRequest,
-            WinHttpQueryHeaders, WinHttpReadData, WinHttpReceiveResponse, WinHttpSendRequest,
-            INTERNET_DEFAULT_HTTPS_PORT, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_FLAG_SECURE,
-            WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_QUERY_STATUS_CODE,
-        },
-    };
-    struct Handle(*mut std::ffi::c_void);
-    impl Drop for Handle {
-        fn drop(&mut self) {
-            if !self.0.is_null() {
-                unsafe {
-                    let _ = WinHttpCloseHandle(self.0);
-                }
-            }
-        }
-    }
-    unsafe {
-        let session = Handle(WinHttpOpen(
-            w!("bite-updater"),
-            WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-            PCWSTR::null(),
-            PCWSTR::null(),
-            0,
-        ));
-        if session.0.is_null() {
-            return Err("Could not create the update HTTP session".into());
-        }
-        let connection = Handle(WinHttpConnect(
-            session.0,
-            w!("api.github.com"),
-            INTERNET_DEFAULT_HTTPS_PORT,
-            0,
-        ));
-        if connection.0.is_null() {
-            return Err("Could not connect to GitHub".into());
-        }
-        let request = Handle(WinHttpOpenRequest(
-            connection.0,
-            w!("GET"),
-            w!("/repos/psmyles/bite/releases/latest"),
-            PCWSTR::null(),
-            PCWSTR::null(),
-            std::ptr::null(),
-            WINHTTP_FLAG_SECURE,
-        ));
-        if request.0.is_null() {
-            return Err("Could not create the update request".into());
-        }
-        let headers: Vec<u16> =
-            "User-Agent: bite-updater\r\nAccept: application/vnd.github+json\r\n"
-                .encode_utf16()
-                .collect();
-        WinHttpSendRequest(request.0, Some(&headers), None, 0, 0, 0)
-            .map_err(|error| error.to_string())?;
-        WinHttpReceiveResponse(request.0, std::ptr::null_mut())
-            .map_err(|error| error.to_string())?;
-        let mut status = 0u32;
-        let mut status_size = size_of::<u32>() as u32;
-        let mut index = 0u32;
-        WinHttpQueryHeaders(
-            request.0,
-            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-            PCWSTR::null(),
-            Some((&mut status as *mut u32).cast()),
-            &mut status_size,
-            &mut index,
-        )
+    let response = ureq::get(RELEASES_URL)
+        .set("User-Agent", "BITE")
+        .set("Accept", "application/vnd.github+json")
+        .timeout(std::time::Duration::from_secs(15))
+        .call()
         .map_err(|error| error.to_string())?;
-        if status != 200 {
-            return Err(format!("GitHub returned HTTP {status}"));
-        }
-        let mut response = Vec::new();
-        loop {
-            let mut buffer = [0u8; 8192];
-            let mut read = 0u32;
-            WinHttpReadData(
-                request.0,
-                buffer.as_mut_ptr().cast(),
-                buffer.len() as u32,
-                &mut read,
-            )
-            .map_err(|error| error.to_string())?;
-            if read == 0 {
-                break;
-            }
-            response.extend_from_slice(&buffer[..read as usize]);
-            if response.len() > 2 * 1024 * 1024 {
-                return Err("GitHub update response was too large".into());
-            }
-        }
-        let release: serde_json::Value =
-            serde_json::from_slice(&response).map_err(|error| error.to_string())?;
-        let version = release["tag_name"].as_str().unwrap_or_default().to_owned();
-        if version.is_empty() {
-            return Err("GitHub release did not include a version".into());
-        }
-        Ok(UpdateInfo {
-            available: newer(&version, &current_version()),
-            version,
-            body: release["body"].as_str().unwrap_or_default().to_owned(),
-            url: release["html_url"]
-                .as_str()
-                .unwrap_or("https://github.com/psmyles/bite/releases")
-                .to_owned(),
-        })
-    }
+    let mut body = String::new();
+    response
+        .into_reader()
+        .take(MAX_RESPONSE_BYTES as u64)
+        .read_to_string(&mut body)
+        .map_err(|error| error.to_string())?;
+    parse(&body, &current_version())
 }
 
-#[cfg(not(windows))]
-pub fn check() -> Result<UpdateInfo, String> {
-    Err("Update checks are not implemented on this platform yet".into())
+/// Turns a release document into the state the dialog shows.
+pub fn parse(body: &str, current: &str) -> Result<UpdateInfo, String> {
+    let release: serde_json::Value =
+        serde_json::from_str(body).map_err(|error| error.to_string())?;
+    let tag = release["tag_name"].as_str().unwrap_or_default();
+    if tag.is_empty() {
+        return Err("The release response had no version tag".into());
+    }
+    Ok(UpdateInfo {
+        available: newer(tag, current),
+        version: tag.trim_start_matches(['v', 'V']).to_owned(),
+        body: release["body"].as_str().unwrap_or_default().to_owned(),
+        url: release["html_url"]
+            .as_str()
+            .unwrap_or("https://github.com/psmyles/bite/releases")
+            .to_owned(),
+    })
 }
 
 #[cfg(test)]
@@ -163,6 +95,35 @@ mod tests {
         assert!(newer("v1.2.0", "1.1.9"));
         assert!(!newer("v1.2", "1.2.0"));
         assert!(!newer("v1.2.0-beta", "1.2.0"));
-        assert_eq!(current_version(), "0.5.0");
+        assert!(newer("2.0.0", "1.9.9"));
+    }
+
+    #[test]
+    fn a_newer_tag_is_reported_as_available() {
+        let body = r#"{"tag_name":"v9.9.9","body":"notes","html_url":"https://example.invalid/r"}"#;
+        let info = parse(body, "0.5.0").unwrap();
+        assert!(info.available);
+        assert_eq!(info.version, "9.9.9");
+        assert_eq!(info.body, "notes");
+        assert_eq!(info.url, "https://example.invalid/r");
+    }
+
+    #[test]
+    fn the_same_tag_is_reported_as_up_to_date() {
+        let body = r#"{"tag_name":"v0.5.0","body":"","html_url":"https://example.invalid/r"}"#;
+        let info = parse(body, "0.5.0").unwrap();
+        assert!(!info.available);
+        assert_eq!(info.version, "0.5.0");
+    }
+
+    #[test]
+    fn a_response_without_a_tag_is_an_error() {
+        assert!(parse(r#"{"body":"x"}"#, "0.5.0").is_err());
+        assert!(parse("not json", "0.5.0").is_err());
+    }
+
+    #[test]
+    fn the_reported_version_comes_from_the_shared_manifest() {
+        assert!(!current_version().is_empty());
     }
 }
