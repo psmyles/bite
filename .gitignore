@@ -1,40 +1,16 @@
-# -- Dependencies --------------------------------------------------------------
-node_modules/
-target/
-
 # -- Build outputs -------------------------------------------------------------
+target/
+# Packaging output: dist/Bite-Windows-<version>-Setup.exe
 dist/
-dist-ssr/
-dist-electron/
-dist-cli/
-dist-web/
-release/          # electron-builder installer output (release/<version>/)
-out/
-
-# -- Web deployment folder (separate git repo for GitHub Pages) -------------
-web/
-
-# -- TypeScript ----------------------------------------------------------------
-*.tsbuildinfo
-
-# -- Test coverage -------------------------------------------------------------
-coverage/
 
 # -- Logs ----------------------------------------------------------------------
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
 
 # -- Environment / secrets -----------------------------------------------------
 .env
 .env.*
 !.env.example
-
-# -- Local Vite overrides ------------------------------------------------------
-*.local
 
 # -- Claude Code session data --------------------------------------------------
 .claude/
@@ -63,9 +39,4 @@ Desktop.ini
 !.vscode/settings.json
 .idea/
 *.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
-/release
-dist-cli

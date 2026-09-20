@@ -455,7 +455,7 @@ pub fn capture(
     let mut editor = app::Editor::new()?;
     stage(&mut editor, scene, workflow);
 
-    let instance = wgpu::Instance::default();
+    let instance = crate::platform::graphics_instance();
     let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
         .map_err(|error| error.to_string())?;
     let format = wgpu::TextureFormat::Rgba8Unorm;
@@ -464,8 +464,9 @@ pub fn capture(
     let mut context = Context::new(scale)?;
     theme::apply_base_style();
     let (width, height, pixels) = context.fonts().texture();
-    renderer.texture(1, width, height, &pixels);
+    renderer.coverage_texture(1, width, height, &pixels);
     context.fonts().set_texture_id(1);
+    context.fonts().clear_texture_data();
 
     let physical = (
         (size.0 as f32 * scale) as u32,

@@ -337,7 +337,8 @@ mod tests {
     fn context_frame_fonts_and_measurement() {
         let mut context = Context::new(1.0).unwrap();
         let (width, height, pixels) = context.fonts().texture();
-        assert_eq!(pixels.len(), (width * height * 4) as usize);
+        // One byte a pixel: the atlas is coverage, not color.
+        assert_eq!(pixels.len(), (width * height) as usize);
         context.fonts().set_texture_id(1);
 
         let exact = context.fonts().id(Face::ui(13));
@@ -380,10 +381,7 @@ mod tests {
 
         context.set_scale(2.0).unwrap();
         let (scaled_width, scaled_height, scaled_pixels) = context.fonts().texture();
-        assert_eq!(
-            scaled_pixels.len(),
-            (scaled_width * scaled_height * 4) as usize
-        );
+        assert_eq!(scaled_pixels.len(), (scaled_width * scaled_height) as usize);
         assert!(scaled_width >= width && scaled_height >= height);
         assert_eq!(context.fonts().scale(), 2.0);
     }

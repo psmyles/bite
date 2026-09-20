@@ -2,7 +2,9 @@
 
 The native editor is built on Dear ImGui. The node canvas, every panel and every dialog are
 drawn by BITE itself; there is no node editor add-on and no docking. The Electron renderer is
-the specification, and the parity inventory lives in `docs/native-editor-parity.md`.
+the specification, and the parity inventory lives in `docs/native-editor-parity.md`. That
+renderer's sources, which the modules below cite, were removed from this branch once parity was
+reached; they remain on `main`.
 
 ## Crates
 
@@ -25,8 +27,10 @@ the specification, and the parity inventory lives in `docs/native-editor-parity.
   has no BITE schema or pipeline dependency. Its test builds the atlas, measures text, renders
   frames and rebuilds the atlas for a new display scale.
 
-- `bite-gui-prototype` is the editor: a winit window, an owned wgpu renderer, and the modules
-  that mirror the Electron renderer. `theme.rs` transcribes `src/renderer/assets/theme.css`,
+- `bite-gui-prototype` is the editor, and builds as `bite-gui.exe` - the name the installer
+  ships and the `.bite` association points at: a winit window, an owned wgpu renderer, and the
+  modules that mirror the Electron renderer. `build.rs` reads `product.json` for the version and
+  embeds it with `build/icon.ico` into the executable; `icon.rs` decodes the window icon. `theme.rs` transcribes `src/renderer/assets/theme.css`,
   `shell.rs` reproduces the panel layout from `App.svelte`, `canvas/` is the node canvas,
   `panels/` holds the four panels, `color_picker.rs` is the inline colour editor from
   `ColorPicker.svelte` with the conversions ported from `colorConversions.ts`, `modals.rs`
@@ -40,9 +44,17 @@ token names, because that is what a stylesheet's `font-size` means, while Dear I
 size parameter is the distance from ascender to descender. Dear ImGui truncates that
 parameter, so the atlas is built at the nearest whole pixel and drawn at the exact one, and
 horizontal snapping is off: a string then measures the width the stylesheet gives it rather
-than a few per cent more. A platform font is merged into the text-entry sizes so that
-text typed through an input method renders. The atlas is rasterized at the display scale and
-rebuilt when the scale changes.
+than a few per cent more. Every face covers Latin-1 and General Punctuation, the latter so
+that the em dash, the ellipsis and the curly quotes draw; nothing beyond Latin is
+rasterized, and a character outside it falls back to a question mark. The atlas is
+rasterized at the display scale and rebuilt when the scale changes.
+
+The atlas is uploaded as one channel of coverage rather than four of color, and Dear
+ImGui's copy is released once it is on the device. Text is then drawn through a second
+pipeline that reads that channel as alpha. Keeping the four channel form instead cost a
+hundred and fifty megabytes: it allocates a second copy four times the size, keeps both for
+the life of the process and quadruples the texture, all to store the same coverage three
+more times.
 
 ## Event loop
 

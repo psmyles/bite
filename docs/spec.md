@@ -1,3 +1,10 @@
+> **Historical.** This spec documents the TypeScript/Electron implementation, which lives on the
+> `main` branch and is no longer part of this tree. The product behaviour it describes is still
+> the contract the Rust build is held to, but every file path, module name and implementation
+> detail below refers to the removed `src/` tree. For the current architecture see
+> [rust-planning.md](rust-planning.md), [native-gui-prototype.md](native-gui-prototype.md) and
+> [expression-language.md](expression-language.md).
+
 ## 1. Overview
 
 A batch image workflow builder application built around a visual node graph editor powered by imagemagick. Users compose pipelines by connecting nodes (image transforms, logic, value constants, math), preview results in real-time, and batch-process hundreds of images through the pipeline.

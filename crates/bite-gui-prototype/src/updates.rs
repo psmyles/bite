@@ -35,19 +35,17 @@ fn newer(latest: &str, current: &str) -> bool {
     latest > current
 }
 
-/// The version this build reports, taken from the shared package manifest.
+/// The version this build reports. `build.rs` takes it from `product.json`, the one place the
+/// product version is written; the packaging script syncs the crate version to the same value.
 pub fn current_version() -> String {
-    serde_json::from_str::<serde_json::Value>(include_str!("../../../package.json"))
-        .ok()
-        .and_then(|package| package["version"].as_str().map(str::to_owned))
-        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").into())
+    env!("BITE_VERSION").into()
 }
 
 use std::io::Read;
 
-/// The releases endpoint the Electron main process uses.
+/// The releases endpoint the update check polls.
 const RELEASES_URL: &str = "https://api.github.com/repos/psmyles/bite/releases/latest";
-/// The response cap the Electron check applies, so a malformed reply cannot exhaust memory.
+/// The response cap, so a malformed reply cannot exhaust memory.
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 
 /// Fetches the latest release and compares it with this build.

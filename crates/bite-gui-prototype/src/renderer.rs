@@ -1,14 +1,22 @@
 use std::collections::BTreeMap;
 use wgpu::util::DeviceExt;
 
+/// One bound texture, and whether it holds color or the single channel coverage the font
+/// atlas is made of, which the two pipelines read differently.
+struct Texture {
+    group: wgpu::BindGroup,
+    coverage: bool,
+}
+
 pub struct Renderer {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pipeline: wgpu::RenderPipeline,
+    coverage_pipeline: wgpu::RenderPipeline,
     uniform: wgpu::Buffer,
     screen: wgpu::BindGroup,
     texture_layout: wgpu::BindGroupLayout,
-    textures: BTreeMap<u64, wgpu::BindGroup>,
+    textures: BTreeMap<u64, Texture>,
     /// Reused between frames so that a redraw does not allocate a buffer per draw list.
     vertex_scratch: Vec<u8>,
     index_scratch: Vec<u8>,
@@ -78,20 +86,23 @@ impl Renderer {
             bind_group_layouts: &[Some(&screen_layout), Some(&texture_layout)],
             immediate_size: 0,
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let make_pipeline = |entry: &'static str| device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("ImGui"), layout: Some(&layout),
             vertex: wgpu::VertexState { module: &shader, entry_point: Some("vs"), compilation_options: Default::default(), buffers: &[Some(wgpu::VertexBufferLayout {
                 array_stride: 20, step_mode: wgpu::VertexStepMode::Vertex,
                 attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Unorm8x4],
             })] },
-            fragment: Some(wgpu::FragmentState { module: &shader, entry_point: Some("fs"), compilation_options: Default::default(),
+            fragment: Some(wgpu::FragmentState { module: &shader, entry_point: Some(entry), compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState { format, blend: Some(wgpu::BlendState::ALPHA_BLENDING), write_mask: wgpu::ColorWrites::ALL })] }),
             primitive: Default::default(), depth_stencil: None, multisample: Default::default(), multiview_mask: None, cache: None,
-        });
+        }); 
+        let pipeline = make_pipeline("fs");
+        let coverage_pipeline = make_pipeline("fs_coverage");
         Ok(Self {
             device,
             queue,
             pipeline,
+            coverage_pipeline,
             uniform,
             screen,
             texture_layout,
@@ -100,8 +111,29 @@ impl Renderer {
             index_scratch: Vec::new(),
         })
     }
+    /// Uploads four channel color, which is what decoded images are.
     pub fn texture(&mut self, id: u64, width: u32, height: u32, pixels: &[u8]) {
-        assert_eq!(pixels.len(), width as usize * height as usize * 4);
+        self.upload(id, width, height, pixels, wgpu::TextureFormat::Rgba8Unorm, 4);
+    }
+
+    /// Uploads one channel coverage, which is what the font atlas is.
+    pub fn coverage_texture(&mut self, id: u64, width: u32, height: u32, pixels: &[u8]) {
+        self.upload(id, width, height, pixels, wgpu::TextureFormat::R8Unorm, 1);
+    }
+
+    fn upload(
+        &mut self,
+        id: u64,
+        width: u32,
+        height: u32,
+        pixels: &[u8],
+        format: wgpu::TextureFormat,
+        bytes_per_pixel: u32,
+    ) {
+        assert_eq!(
+            pixels.len(),
+            width as usize * height as usize * bytes_per_pixel as usize
+        );
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("UI texture"),
             size: wgpu::Extent3d {
@@ -112,7 +144,7 @@ impl Renderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
@@ -121,7 +153,7 @@ impl Renderer {
             pixels,
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
-                bytes_per_row: Some(width * 4),
+                bytes_per_row: Some(width * bytes_per_pixel),
                 rows_per_image: Some(height),
             },
             texture.size(),
@@ -146,7 +178,13 @@ impl Renderer {
                 },
             ],
         });
-        self.textures.insert(id, group);
+        self.textures.insert(
+            id,
+            Texture {
+                group,
+                coverage: bytes_per_pixel == 1,
+            },
+        );
     }
 
     /// Releases a texture, which the filmstrip does when a branch's thumbnails are replaced.
@@ -234,8 +272,9 @@ impl Renderer {
                 })],
                 ..Default::default()
             });
-            pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &self.screen, &[]);
+            // Remembered so that a run of text, or of images, costs one pipeline switch.
+            let mut bound: Option<bool> = None;
             for (list, (vertices, indices)) in drawable.iter().zip(&buffers) {
                 pass.set_vertex_buffer(0, vertices.slice(..));
                 pass.set_index_buffer(indices.slice(..), wgpu::IndexFormat::Uint32);
@@ -251,7 +290,15 @@ impl Renderer {
                         continue;
                     }
                     pass.set_scissor_rect(x, y, right - x, bottom - y);
-                    pass.set_bind_group(1, texture, &[]);
+                    if bound != Some(texture.coverage) {
+                        pass.set_pipeline(if texture.coverage {
+                            &self.coverage_pipeline
+                        } else {
+                            &self.pipeline
+                        });
+                        bound = Some(texture.coverage);
+                    }
+                    pass.set_bind_group(1, &texture.group, &[]);
                     pass.draw_indexed(
                         cmd.index_offset..cmd.index_offset + cmd.count,
                         cmd.vertex_offset as i32,

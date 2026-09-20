@@ -17,3 +17,10 @@ struct VertexOut {
 @fragment fn fs(input: VertexOut) -> @location(0) vec4<f32> {
     return input.color * textureSample(tex, tex_sampler, input.uv);
 }
+// The font atlas holds coverage in one channel, so it modulates alpha alone and the vertex
+// color supplies the hue. Sampling it through `fs` would darken the text by its own coverage.
+@fragment fn fs_coverage(input: VertexOut) -> @location(0) vec4<f32> {
+    var out = input.color;
+    out.a = out.a * textureSample(tex, tex_sampler, input.uv).r;
+    return out;
+}

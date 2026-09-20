@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 #
-# Compiles public/bite.icon (Icon Composer) into the macOS icon artifacts.
+# Compiles build/icons/bite.icon (Icon Composer) into the macOS icon artifacts.
 #
 #   scripts/build-icon-mac.sh
 #
+# There is no packaged macOS app yet, so nothing consumes these automatically; the
+# script is kept ready for one, and its outputs are what such a bundle would ship.
+#
 # Produces, in build/icons/mac/:
 #
-#   Assets.car  - the compiled catalog. Shipped to Contents/Resources and named
-#                 by CFBundleIconName in electron-builder.json5; this is what
-#                 macOS 26+ reads to draw the layered, Liquid Glass icon.
+#   Assets.car  - the compiled catalog. Belongs at Contents/Resources/Assets.car and
+#                 is named by the bundle's CFBundleIconName; this is what macOS 26+
+#                 reads to draw the layered, Liquid Glass icon.
 #   icon.icns   - the flattened fallback, used by older macOS, the dmg, and
 #                 anything that reads CFBundleIconFile.
 #
@@ -28,7 +31,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-SOURCE="public/bite.icon"
+SOURCE="build/icons/bite.icon"
 OUT="build/icons/mac"
 # The catalog's icon name, and therefore the CFBundleIconName the app has to
 # declare. It is the .icon's basename, so the two move together.

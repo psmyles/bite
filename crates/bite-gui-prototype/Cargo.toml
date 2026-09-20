@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+# `bite-gui.exe`, the name the Windows installer ships and the file association points at.
+[[bin]]
+name = "bite-gui"
+path = "src/main.rs"
+
 [dependencies]
 bite-imgui = { path = "../bite-imgui" }
 bite-core.workspace = true
@@ -20,3 +25,13 @@ rfd = { version = "0.15.4", default-features = false, features = ["xdg-portal", 
 arboard = "3.6.1"
 ureq = "2.12.1"
 image-webp = "0.2"
+
+[build-dependencies]
+# build.rs reads the canonical product metadata from ../../product.json, so one edit there
+# reaches the exe's version resource and the BITE_* compile-time strings the editor shows.
+serde_json.workspace = true
+
+[target.'cfg(windows)'.build-dependencies]
+# Embeds build/icon.ico plus the product metadata into the exe, so Explorer, the taskbar and
+# the file-properties version tab all show them.
+winresource = "0.1"

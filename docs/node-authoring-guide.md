@@ -1,6 +1,15 @@
 # Node Authoring Guide
 
-Nodes are described by plain JSON files in the `node-definitions/` folder. The app loads them at startup and hot-reloads them automatically on file change - in development **and** in packaged builds (the folder ships as loose JSON files beside the executable). No recompile, no restart required. Drop a new `.json` file into `node-definitions/` and it appears in the Node Library immediately.
+> **Out of date.** This guide describes the v1 definition format of the TypeScript/Electron
+> build, whose `command_js` / `compute_js` / `args_js` hooks the Rust build does not load. The
+> shipped definitions are `schema_version: 2` and express their arguments in the BITE expression
+> language - see [expression-language.md](expression-language.md) and the files in
+> `node-definitions-v2/`. The structural parts below (ids, categories, inputs, outputs, params,
+> widgets) still hold; the JavaScript parts do not. A rewrite is pending.
+
+Nodes are described by plain JSON files in the `node-definitions-v2/` folder. They ship as loose
+JSON beside the executable and are read at startup, so adding a node needs no recompile - but the
+Rust editor does not watch the folder, so restart it to pick a change up.
 
 ---
 

@@ -243,7 +243,7 @@ checksum = "b71798fca2c1fe1086445a7258a4bc81e6e49dcd24c8d0dd9a1e57395b603f51"
 
 [[package]]
 name = "bite-cli"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "bite-core",
  "bite-expr",
@@ -252,11 +252,12 @@ dependencies = [
  "ctrlc",
  "schemars",
  "serde_json",
+ "winresource",
 ]
 
 [[package]]
 name = "bite-core"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "bite-expr",
  "bite-schema",
@@ -267,7 +268,7 @@ dependencies = [
 
 [[package]]
 name = "bite-expr"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "bite-schema",
  "serde",
@@ -276,7 +277,7 @@ dependencies = [
 
 [[package]]
 name = "bite-gui-prototype"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "arboard",
  "bite-core",
@@ -293,11 +294,12 @@ dependencies = [
  "ureq",
  "wgpu",
  "winit",
+ "winresource",
 ]
 
 [[package]]
 name = "bite-imagemagick"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "bite-core",
  "bite-expr",
@@ -306,14 +308,14 @@ dependencies = [
 
 [[package]]
 name = "bite-imgui"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "bite-imgui-sys",
 ]
 
 [[package]]
 name = "bite-imgui-sys"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "bindgen",
  "cc",
@@ -321,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "bite-schema"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "schemars",
  "serde",
@@ -2476,6 +2478,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2778,6 +2789,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml"
+version = "1.1.3+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53c96ecdfa941c8fc4fcaed14f99ada8ebed502eef533015095a07e3301d4c3c"
+dependencies = [
+ "indexmap",
+ "serde_core",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_parser",
+ "toml_writer",
+ "winnow",
+]
+
+[[package]]
 name = "toml_datetime"
 version = "1.1.1+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2806,6 +2832,12 @@ checksum = "a2abe9b86193656635d2411dc43050282ca48aa31c2451210f4202550afb7526"
 dependencies = [
  "winnow",
 ]
+
+[[package]]
+name = "toml_writer"
+version = "1.1.2+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
 name = "tracing"
@@ -3612,6 +3644,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "winresource"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0986a8b1d586b7d3e4fe3d9ea39fb451ae22869dcea4aa109d287a374d866087"
+dependencies = [
+ "toml",
+ "version_check",
 ]
 
 [[package]]

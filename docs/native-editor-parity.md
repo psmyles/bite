@@ -4,12 +4,16 @@ The Electron application is the specification. Each row names the Electron sourc
 defines the behavior and what the native editor now does. Items marked pending still need
 hands-on confirmation; items marked missing are not implemented yet.
 
+The sources cited throughout - `src/renderer/**`, `electron/main.ts` and the rest - were removed
+from this branch once parity was reached. They remain on `main`, which is where to read or run the
+reference behaviour.
+
 ## Foundations
 
 | Area | Electron source | Native status |
 | --- | --- | --- |
 | Interface library | Browser layout and CSS | Dear ImGui through full generated cimgui bindings; the hand-written C shim and the node editor add-on are removed |
-| Fonts | `assets/fonts.css` | Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and weight `theme.css` asks for, with a platform fallback merged in for text fields so input methods render. Each face is rasterized so its em equals the token's pixel size, which is what `font-size` means; Dear ImGui's own parameter is the ascender-to-descender distance instead. The atlas is built at the nearest whole pixel and drawn at the exact one, and advances are left unsnapped, so a measured string is the width the stylesheet gives it |
+| Fonts | `assets/fonts.css` | Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and weight `theme.css` asks for, covering Latin-1 and General Punctuation. The interface is English and no other script is rasterized, so a name outside Latin draws as a question mark per character. Each face is rasterized so its em equals the token's pixel size, which is what `font-size` means; Dear ImGui's own parameter is the ascender-to-descender distance instead. The atlas is built at the nearest whole pixel and drawn at the exact one, and advances are left unsnapped, so a measured string is the width the stylesheet gives it |
 | Menu dropdowns | `MenuBar.svelte` | Rows padded five pixels above and below with the accelerator on the right, inside a dropdown padded four pixels above its first row and below its last |
 | Inspector dropdowns | `Dropdown.svelte` | The open list gives each row the five by ten padding `.dd-item` names, pads four pixels top and bottom, and scrolls after eight rows |
 | Design tokens | `assets/theme.css` | Transcribed into `crates/bite-gui-prototype/src/theme.rs`; drawing code reads tokens, never literals |

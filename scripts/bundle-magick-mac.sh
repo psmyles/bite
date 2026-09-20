@@ -8,7 +8,10 @@
 # (install_name_tool invalidates the signature, and arm64 refuses to load an
 # unsigned Mach-O).
 #
-# Layout produced (mirrored into Contents/Resources/magick at package time):
+# The binaries look for it at resources/mac/magick/bin/magick relative to the working
+# directory, and at magick/bin/magick beside the executable once a bundle exists.
+#
+# Layout produced:
 #
 #   resources/mac/magick/bin/magick
 #   resources/mac/magick/lib/*.dylib

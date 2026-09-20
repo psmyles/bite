@@ -6,6 +6,7 @@ pub mod commands;
 pub mod controls;
 pub mod create_menu;
 pub mod dialogs;
+pub mod icon;
 pub mod log_window;
 pub mod logging;
 pub mod menu;

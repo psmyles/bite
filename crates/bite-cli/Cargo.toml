@@ -16,3 +16,11 @@ bite-imagemagick.workspace = true
 serde_json.workspace = true
 schemars.workspace = true
 ctrlc = "3.5"
+
+[build-dependencies]
+# build.rs reads product.json for the exe's version resource.
+serde_json.workspace = true
+
+[target.'cfg(windows)'.build-dependencies]
+# Embeds build/icon.ico and the product metadata into bite.exe.
+winresource = "0.1"

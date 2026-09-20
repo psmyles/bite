@@ -1,34 +1,27 @@
-# Legacy behavioral reference
+# Behavioral reference
 
-Run `npm run test:golden` for definition, compute, graph, and naming goldens.
-Run `npm run test:workflows` for actual ImageMagick workflow execution and the CLI
-contract. The runner redirects every output into a fresh `test-workflows/out/`
-directory and leaves source fixtures untouched. `--only wf-04` can be passed
-directly to `node test-workflows/run-tests.mjs` for diagnosis.
+These goldens were captured from the original TypeScript/Electron implementation and are the
+contract the Rust crates are held to. That implementation is gone from this branch (it remains on
+`main`), so nothing here can be regenerated any more: the files are now a frozen reference, and a
+disagreement means the Rust code changed, not that the expectation is stale.
 
-To intentionally regenerate, set `BITE_UPDATE_GOLDENS=1` in the environment and
-run those commands against the **legacy** backend. Review the diff. Normal test
-runs never rewrite expected results. Node/format files include the original
-definition, cases, and exact returned argument tokens or computed parameters.
-Nonfinite numbers use `{"$number":"NaN"}` / `Infinity` markers.
+`cargo test` reads them:
 
-The execution reference compares filenames, dimensions, text, CLI diagnostics,
-exit codes, and overwrite semantics. The runner additionally checks channel
-means, codecs, and an exact lossless WebP round-trip. Encoded byte sizes and EXIF
-write support are version-dependent and explicitly normalized. Actual codec
-version and platform are recorded in each run's `results.json`.
+- `crates/bite-expr/tests/golden_parity.rs` - every node and format definition's argument tokens
+  and computed parameters, 591 cases. Node and format files include the original definition, its
+  cases, and the exact returned tokens. Nonfinite numbers use `{"$number":"NaN"}` / `Infinity`
+  markers.
+- `crates/bite-core/tests/planning.rs` - the planned ImageMagick command lines per workflow
+  (`workflows/<id>-magick.json`), plus naming and set grouping.
+- `crates/bite-core/tests/workflows.rs` - migration of each `test-workflows/*.bite` fixture and
+  its traversal order (`workflows/<id>.json`).
 
-`BITE_TEST_CLI` can point to a Rust executable for the same integration checks.
-Use `--compare-with <legacy-run-directory>` to additionally compare every output
-image: AE=0 for lossless outputs, normalized RMSE <=0.005 for JPEG and AVIF.
-Rust help permits additive commands; stderr and exit codes remain exact, and
-the named flag/overwrite/default-skip help contract is checked explicitly.
-The runner refuses to update legacy goldens when `BITE_TEST_CLI` is set.
-macOS verification is pending; passing Windows runs do not establish macOS parity.
+Actual execution is checked by `test-workflows/run-tests.ps1`, which runs every reference
+workflow through the built CLI and asserts filenames, dimensions, text output, channel means,
+codecs, an exact lossless WebP round-trip, CLI diagnostics, exit codes and overwrite semantics.
+Encoded byte sizes and EXIF write support are version-dependent, so they are normalized rather
+than asserted; each run records the codec version and platform in its `results.json`.
 
-`npm run test:compat` builds both CLIs and runs additional live differential
-characterization cases: incomplete sets, natural ascending/descending atlas
-ordering, collision-safe rename, and separate input branches. Each backend gets
-its own workflow copy and output directory. These checks preserve the original
-goldens and compare output pixels directly. Collision suffix assignment is
-normalized as documented in `KNOWN_DEVIATIONS.md`.
+`KNOWN_DEVIATIONS.md` records where the Rust implementation deliberately differs, including
+collision-suffix assignment. macOS verification is pending: passing Windows runs do not establish
+macOS parity.

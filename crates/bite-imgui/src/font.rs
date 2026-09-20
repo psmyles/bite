@@ -116,47 +116,20 @@ pub fn default_faces() -> Vec<Face> {
     faces
 }
 
-/// Sizes that also carry a merged fallback covering scripts outside Latin, so that text
-/// entered through an input method renders in the fields that accept free text.
-fn wants_fallback(face: Face) -> bool {
-    matches!(
-        (face.family, face.weight, face.size),
-        (Family::Ui, Weight::Regular, 12..=14) | (Family::Mono, Weight::Regular, 11..=12)
-    )
-}
-
-/// A platform font used to cover glyphs the bundled faces lack.
-fn fallback_font() -> Option<Vec<u8>> {
-    #[cfg(target_os = "windows")]
-    let candidates: Vec<std::path::PathBuf> = {
-        let root = std::env::var_os("WINDIR").map(std::path::PathBuf::from)?;
-        ["Fonts/msyh.ttc", "Fonts/meiryo.ttc", "Fonts/simsun.ttc"]
-            .iter()
-            .map(|name| root.join(name))
-            .collect()
-    };
-    #[cfg(target_os = "macos")]
-    let candidates: Vec<std::path::PathBuf> = [
-        "/System/Library/Fonts/PingFang.ttc",
-        "/System/Library/Fonts/Hiragino Sans GB.ttc",
-    ]
-    .iter()
-    .map(std::path::PathBuf::from)
-    .collect();
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    let candidates: Vec<std::path::PathBuf> = [
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    ]
-    .iter()
-    .map(std::path::PathBuf::from)
-    .collect();
-
-    candidates
-        .into_iter()
-        .find(|path| path.is_file())
-        .and_then(|path| std::fs::read(path).ok())
-}
+/// The codepoints every face is rasterized for.
+///
+/// Dear ImGui's own default stops at the end of Latin-1, which leaves the em dash, the
+/// ellipsis and the curly quotes as missing-glyph boxes even in English text. General
+/// Punctuation adds those for seventeen glyphs in the interface face and thirty two in the
+/// monospaced one, which is nothing against an atlas this size.
+///
+/// Nothing beyond Latin is covered. The interface is English, and a name that cannot be
+/// drawn falls back to a question mark per character rather than failing.
+static GLYPH_RANGES: [sys::ImWchar; 5] = [
+    0x0020, 0x00FF, // Basic Latin and Latin-1 Supplement
+    0x2000, 0x206F, // General Punctuation
+    0,
+];
 
 /// The factor between a face's CSS pixel size and the size Dear ImGui must be asked for.
 ///
@@ -209,8 +182,6 @@ pub struct Fonts {
     pub(crate) heights: Vec<f32>,
 
     scale: f32,
-    /// Held for as long as the atlas keeps a pointer into it.
-    _fallback: Option<Vec<u8>>,
 }
 
 impl Fonts {
@@ -252,7 +223,6 @@ impl Fonts {
     pub(crate) fn build(faces: Vec<Face>, scale: f32) -> Self {
         let atlas = unsafe { (*sys::igGetIO()).Fonts };
         unsafe { sys::ImFontAtlas_Clear(atlas) };
-        let fallback = fallback_font();
         let mut handles = Vec::with_capacity(faces.len());
         let mut heights = Vec::with_capacity(faces.len());
         for face in &faces {
@@ -276,30 +246,9 @@ impl Fonts {
                     data.len() as i32,
                     physical,
                     &config,
-                    std::ptr::null(),
+                    GLYPH_RANGES.as_ptr(),
                 )
             };
-            if let Some(bytes) = fallback.as_ref().filter(|_| wants_fallback(*face)) {
-                let mut merge = unsafe { *sys::ImFontConfig_ImFontConfig() };
-                merge.FontDataOwnedByAtlas = false;
-                merge.MergeMode = true;
-                merge.PixelSnapH = false;
-                unsafe {
-                    let ranges = sys::ImFontAtlas_GetGlyphRangesChineseSimplifiedCommon(atlas);
-                    sys::ImFontAtlas_AddFontFromMemoryTTF(
-                        atlas,
-                        bytes.as_ptr() as *mut _,
-                        bytes.len() as i32,
-                        // The fallback is corrected against its own metrics, so its em
-                        // matches the face it merges into.
-                        (f32::from(face.size) * em_to_pixel_height(bytes) * scale)
-                            .round()
-                            .max(1.0),
-                        &merge,
-                        ranges,
-                    );
-                }
-            }
             // Dear ImGui sizes its own widget text from the atlas size, which is the rounded
             // one. This factor brings that back to the exact height, so a menu row and a
             // label painted through a draw list are the same size.
@@ -313,7 +262,6 @@ impl Fonts {
             handles,
             heights,
             scale,
-            _fallback: fallback,
         }
     }
 
@@ -346,26 +294,40 @@ impl Fonts {
         self.scale
     }
 
-    /// Red, green, blue and alpha pixels for the atlas texture, with its dimensions.
+    /// Coverage for the atlas texture, one byte a pixel, with its dimensions.
+    ///
+    /// The single channel form is what Dear ImGui rasterizes into. Asking for the four
+    /// channel one instead would allocate a second copy four times the size, keep both for
+    /// the life of the process and quadruple the texture, all to store the same coverage in
+    /// three channels that are never read.
     pub fn texture(&self) -> (u32, u32, Vec<u8>) {
         let atlas = unsafe { (*sys::igGetIO()).Fonts };
         let mut pixels: *mut u8 = std::ptr::null_mut();
         let (mut width, mut height, mut bytes_per_pixel) = (0, 0, 0);
         unsafe {
-            sys::ImFontAtlas_GetTexDataAsRGBA32(
+            sys::ImFontAtlas_GetTexDataAsAlpha8(
                 atlas,
                 &mut pixels,
                 &mut width,
                 &mut height,
                 &mut bytes_per_pixel,
             );
-            let len = width as usize * height as usize * 4;
+            let len = width as usize * height as usize;
             (
                 width as u32,
                 height as u32,
                 std::slice::from_raw_parts(pixels, len).to_vec(),
             )
         }
+    }
+
+    /// Releases Dear ImGui's copy of the atlas pixels.
+    ///
+    /// Only the glyph metrics are needed once the texture is on the graphics device, and
+    /// [`Fonts::build`] rasterizes afresh whenever the scale changes, so nothing reads the
+    /// pixels again. Without this they stay allocated for the life of the process.
+    pub fn clear_texture_data(&self) {
+        unsafe { sys::ImFontAtlas_ClearTexData((*sys::igGetIO()).Fonts) };
     }
 
     /// Binds the uploaded texture identifier to the atlas.

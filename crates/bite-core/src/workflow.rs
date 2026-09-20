@@ -21,8 +21,7 @@ pub fn compatible_v1(file: &str) -> bool {
     let Some(v) = semver(file) else {
         return false;
     };
-    let ranges: Value =
-        serde_json::from_str(include_str!("../../../src/shared/compat-ranges.json")).unwrap();
+    let ranges: Value = serde_json::from_str(include_str!("../compat-ranges.json")).unwrap();
     // The active legacy app is 0.5.0: preserve its configured range, not a guessed
     // major-version rule. A future policy change must update this fixture too.
     let app = vec![0, 5, 0];

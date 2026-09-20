@@ -1,5 +1,5 @@
 //! The window, the graphics surface and the event loop.
-use crate::{app, commands, dialogs, logging, modals, persist, renderer::Renderer, work};
+use crate::{app, commands, dialogs, icon, logging, modals, persist, renderer::Renderer, work};
 use bite_imgui::{Context, Key, MouseButton, Vec2};
 use std::{
     path::PathBuf,
@@ -198,6 +198,7 @@ impl App {
 
         let attributes = Window::default_attributes()
             .with_title("Untitled - Bite")
+            .with_window_icon(icon::window_icon())
             .with_inner_size(winit::dpi::LogicalSize::new(bounds.width, bounds.height))
             .with_position(winit::dpi::LogicalPosition::new(bounds.x, bounds.y));
         let window = Arc::new(
@@ -210,7 +211,7 @@ impl App {
             window.set_maximized(true);
         }
 
-        let instance = wgpu::Instance::default();
+        let instance = graphics_instance();
         let surface = instance
             .create_surface(window.clone())
             .map_err(|error| error.to_string())?;
@@ -369,11 +370,36 @@ impl App {
     }
 }
 
+/// A wgpu instance limited to the backend this platform actually draws through.
+///
+/// The default instance enumerates every backend, which on Windows loads the Direct3D, the
+/// Vulkan and the OpenGL driver into the process to pick one of them. That cost twenty five
+/// megabytes and a slower start for nothing. `WGPU_BACKEND` still overrides it, so a driver
+/// problem can be stepped around without a rebuild.
+pub fn graphics_instance() -> wgpu::Instance {
+    let native = if cfg!(target_os = "windows") {
+        wgpu::Backends::DX12
+    } else if cfg!(target_os = "macos") {
+        wgpu::Backends::METAL
+    } else {
+        wgpu::Backends::VULKAN
+    };
+    let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
+    descriptor.backends = native;
+    wgpu::Instance::new(descriptor.with_env())
+}
+
 /// Uploads the font atlas and tells the interface which texture holds it.
 fn upload_font_atlas(state: &mut State) {
     let (width, height, pixels) = state.context.fonts().texture();
-    state.surface.renderer.texture(1, width, height, &pixels);
+    state
+        .surface
+        .renderer
+        .coverage_texture(1, width, height, &pixels);
     state.context.fonts().set_texture_id(1);
+    // The atlas lives on the graphics device now, so Dear ImGui's copy of it can go. A
+    // scale change rebuilds and re-uploads, which rasterizes the pixels afresh.
+    state.context.fonts().clear_texture_data();
 }
 
 /// Uploads whatever decoded images arrived since the last frame.
