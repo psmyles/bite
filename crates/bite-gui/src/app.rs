@@ -708,13 +708,11 @@ pub fn canvas_context<'a>(
 }
 
 /// Draws one frame of the whole interface.
-pub fn draw_frame(
-    editor: &mut Editor,
-    context: &mut Context,
-    size: Vec2,
-    scale: f32,
-    delta: f32,
-) -> bite_imgui::DrawData {
+///
+/// Nothing comes back: the frame is handed to sokol_imgui, which ends it and draws it into
+/// whichever sokol_gfx pass the caller has open. So this must be called with a pass about to be
+/// opened, and `render::imgui::render` called inside it.
+pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale: f32, delta: f32) {
     let mut frame = context.frame(size[0], size[1], scale, delta);
     let mut ui = frame.ui();
 
@@ -847,9 +845,9 @@ pub fn draw_frame(
     }
     handle_shortcuts(editor, &ui);
 
-    // The interface handle borrows the frame, so it is released before rendering.
+    // The interface handle borrows the frame, so it is released before it is handed over.
     let _ = ui;
-    frame.render()
+    frame.submit();
 }
 
 fn draw_inspector(editor: &mut Editor, ui: &mut bite_imgui::Ui, rect: shell::Rect, delta: f32) {

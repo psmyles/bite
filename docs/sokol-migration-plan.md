@@ -431,6 +431,46 @@ Then `platform.rs`:
 fullscreen, thumbnails and previews arriving, text at every stylesheet size crisp - and the ttfp
 harness reports the new numbers. Expect ~300 ms first frame before L3/L4 and ~60 MB working set.
 
+**Landed, and both targets are already beaten: 145 ms and 57 MB.** The estimate of ~300 ms was
+made against a 590 ms baseline that included its own measurement overhead; from the honest 424 ms
+the win is the same size and lands lower.
+
+Two corrections to the phase as written:
+
+- **Acquire the render target *before* building the frame, not after.** The plan has the frame
+  built, then `if !swapchain.acquire(..) { return }`. That crashes on the first restore from
+  minimised: sokol_imgui is what *ends* an ImGui frame, so returning without rendering leaves the
+  context open and the next `igNewFrame` asserts. The comment claiming the drop guard closes it
+  is wrong too - `Frame::submit` marks the frame handed over, which is the whole point of it.
+  Acquiring first means a skipped frame is simply never built.
+- **No `simgui_shutdown` at exit**, per Phase 2. Just `sg::shutdown()`, with the device held in
+  `State` so it outlives it.
+
+`scripts/window-exercise.ps1` is the check for everything `--capture` structurally cannot reach:
+it launches the editor and walks the real window through eight resizes, a minimise (a zero-size
+client), a restore, a maximise and a `WM_CLOSE` from outside, then checks the exit code and that
+nothing was logged above INFO. It is what found the crash above.
+
+The measured breakdown says where the remaining time is, and it is no longer anything the editor
+does:
+
+```
+   6.6 ms  main                        ─┐ all of this runs while the GPU comes up
+  14.4 ms  Editor::new                  │
+  45.3 ms  window created              ─┘
+ 136.5 ms  gpu device                   ← the critical path: D3D11 device creation, ~130 ms
+ 138.3 ms  gpu ready (sg + simgui)      ← sokol_gfx + sokol_imgui: 1.9 ms, against wgpu's 82 ms
+ 141.9 ms  gpu joined
+ 144.4 ms  swapchain                    ← 2.5 ms
+ 144.7 ms  imgui Context (fonts)        ← 0.26 ms; nothing is rasterized here
+ 151.9 ms  FIRST FRAME                  ← 7.2 ms, including the glyphs this frame is first to show
+```
+
+**This makes Phase 5 worth nothing measurable**, and that should be said plainly: the main thread
+reaches "window created" at 45 ms and then waits 96 ms for the device. L3, L4 and L6 all shorten
+work that is already entirely hidden behind that wait. They are worth doing for their own sake -
+`Session::load` running twice is a real duplication - but not for time.
+
 ### Phase 4 - Offscreen capture
 
 `smoke::capture`: after `stage`, bring the GPU up inline (no thread - the process does nothing
@@ -447,6 +487,23 @@ already there cover it.
 *Done when:* `--capture` output matches the Phase 1 output (same ImGui, different renderer).
 Expect byte-identical: sokol_imgui's shader is the same multiply the owned one did. If alpha
 blending rounds differently, accept ≤ 1 LSB per channel and say so here.
+
+**Landed. Not byte-identical, but as close as makes no difference: every one of the 50 scenes
+differs by at most 2 counts on one channel, across about 100 pixels in 1.6 million** (0.006%).
+That is the rounding the plan allowed for, one count wider in two places.
+
+One thing the plan's `capture_all` instruction would have got wrong: "keep one setup for the whole
+run" is true of `sg::setup`, which is process-wide, but must **not** be extended to the ImGui
+context. The first sokol capture run shared one context across all 25 scenes and five modal
+dialogs came out 89% different - fully dimmed backdrops where the reference had none. The cause is
+that `ImGuiContext::DimBgRatio` ramps a modal's dim in over ~10 frames and a capture runs 6, so
+every scene *after* the first modal one inherited a ramp that was already at 1.0. A context per
+scene - which is what the process did before the migration - restores it exactly. The graphics
+stack is what has to be process-wide, not the context.
+
+That is worth keeping in mind beyond the capture: a scene's dimmed backdrop is only partly drawn
+at frame 6 in both the old renderer and the new one, so these images understate what a running
+window shows. It is identical on both sides, which is what this phase is checking.
 
 ### Phase 5 - The rest of the launch work
 
@@ -523,12 +580,12 @@ no shader step.
   leaves *none* current, so any ImGui call in that window reads through a null global. Nothing
   runs there - it is the last thing the bring-up thread does, and the context is made on the main
   thread after the join - but the two calls have to stay adjacent.
-- **Colour space.** Today's surface is deliberately non-sRGB and the swapchain is `RGBA8_UNORM`;
-  sokol_imgui picks its gamma from the swapchain format, which says UNORM. Same as fire. If the
-  goldens differ, this is the first suspect.
+- ~~**Colour space.**~~ Settled in Phase 4: the captures agree to within 2 counts, so the UNORM
+  swapchain and sokol_imgui's gamma choice line up as expected.
 - **WARP.** Keep the fallback; the editor is used over RDP.
 - **Device removed.** `acquire` returning `false` skips the frame and logs. A full device reset
-  is out of scope, as it is in fire.
+  is out of scope, as it is in fire. Note that the skip has to happen *before* the frame is built,
+  not after - see Phase 3.
 - **Adapter choice.** `D3D11CreateDevice(None, HARDWARE, ..)` takes the default adapter; on a
   machine with a virtual display adapter first in the list that could be the wrong one. Fire has
   not hit it; if bite does, enumerate with `IDXGIFactory1::EnumAdapters1` and pick the one with
@@ -554,7 +611,7 @@ have settled; the first-frame instant flatters neither stack and compares neithe
 | Phase 0 baseline, file sink | 424 ms | 168 MB | 326 MB |
 | Phase 1, ImGui 1.92.9b on wgpu | 352 ms | 162 MB | 321 MB |
 | Phase 2, RGBA32 atlas (scaffolding unwired) | 354 ms | 163 MB | 322 MB |
-| Phase 3, sokol_gfx + sokol_imgui shell | | | |
+| Phase 3, sokol_gfx + sokol_imgui shell | 145 ms | 57 MB | 77 MB |
 | Phase 5.1, chores off the path | | | |
 | Phase 5.2, icon at build time | | | |
 | Phase 5.3, initial workflow on a thread | | | |

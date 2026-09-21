@@ -1,9 +1,26 @@
-//! The window, the graphics surface and the event loop.
-use crate::{app, commands, dialogs, icon, logging, modals, persist, renderer::Renderer, timing, work};
+//! The window, the swapchain and the event loop.
+//!
+//! The shell owns the GPU: it creates the device and the swapchain, and hands sokol_gfx the first
+//! at `sg::setup` and a render-target view of the second per frame. sokol_gfx never touches a
+//! window, and nothing above this module names a graphics API at all.
+//!
+//! **The device comes up on its own thread, started before the event loop exists.** It is the
+//! single longest item on the launch path, and it needs no window - so it runs alongside the
+//! logging, the cache prune, `Editor::new` and the window creation, which together are most of
+//! what happens before the first frame. The join is the hand-off: D3D11 devices are free-threaded
+//! and sokol_gfx has no thread affinity, only a single-user rule. The one per-window piece, the
+//! swapchain, is a couple of milliseconds on the main thread afterwards.
+use crate::{
+    app, commands, dialogs, icon, logging, modals, persist,
+    render::{self, Device, SWAPCHAIN_FORMAT, Swapchain, Textures},
+    theme, timing, work,
+};
 use bite_imgui::{Context, Key, MouseButton, Vec2};
+use sokol::gfx as sg;
 use std::{
     path::PathBuf,
     sync::Arc,
+    thread::JoinHandle,
     time::{Duration, Instant},
 };
 use winit::{
@@ -20,9 +37,10 @@ pub struct Wake;
 
 struct Surface {
     window: Arc<Window>,
-    surface: wgpu::Surface<'static>,
-    config: wgpu::SurfaceConfiguration,
-    renderer: Renderer,
+    swapchain: Swapchain,
+    /// The images the editor uploaded: thumbnails and previews. Dear ImGui's own textures - the
+    /// font atlas - are sokol_imgui's and never appear here.
+    textures: Textures,
 }
 
 struct State {
@@ -32,17 +50,23 @@ struct State {
     last_frame: Instant,
     /// A short burst of extra frames after input, so animations settle.
     settle: u8,
+    /// Kept only so the device outlives sokol_gfx: `sg::shutdown` runs against it.
+    _device: Device,
 }
 
 struct App {
     state: Option<State>,
     proxy: EventLoopProxy<Wake>,
     initial: Option<PathBuf>,
+    /// The GPU bring-up, started at the top of [`run`] and joined once the window exists.
+    gpu: Option<JoinHandle<Result<Device, String>>>,
 }
 
 /// Starts the editor.
 pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
     timing::report("run()");
+    // Before anything else: everything below this line runs while the GPU comes up.
+    let gpu = start_gpu();
     logging::start_session();
     work::prune_cache();
     timing::report("prune_cache done");
@@ -56,8 +80,46 @@ pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
         state: None,
         proxy,
         initial,
+        gpu: Some(gpu),
     };
     event_loop.run_app(&mut app).map_err(|error| error.to_string())
+}
+
+/// Brings the GPU up on a worker thread: the device, sokol_gfx on it, and sokol_imgui on that.
+///
+/// None of the three needs a window, and together they are the longest single item on the launch
+/// path. `simgui_setup` belongs here too - it needs sokol_gfx, not a context - and it is followed
+/// immediately by the call that clears the context it leaves current, because nothing may touch
+/// Dear ImGui between the two.
+fn start_gpu() -> JoinHandle<Result<Device, String>> {
+    std::thread::Builder::new()
+        .name("bite-gpu-init".into())
+        .spawn(|| {
+            let device = Device::create(std::env::var_os("BITE_GPU").is_some_and(|v| v == "warp"))?;
+            timing::report("gpu device");
+
+            let mut description = sg::Desc::new();
+            description.environment.defaults = sg::EnvironmentDefaults {
+                color_format: SWAPCHAIN_FORMAT,
+                depth_format: sg::PixelFormat::None,
+                sample_count: 1,
+            };
+            device.fill_environment(&mut description.environment);
+            description.logger = sg::Logger {
+                func: Some(sokol::log::slog_func),
+                user_data: std::ptr::null_mut(),
+            };
+            sg::setup(&description);
+            if !sg::isvalid() {
+                return Err("sokol_gfx could not be set up on the graphics device".into());
+            }
+            // SAFETY: sokol_gfx is up, no ImGui frame is open, and no context exists yet - the
+            // main thread makes the one context after joining this thread.
+            unsafe { render::imgui::setup_once(SWAPCHAIN_FORMAT) };
+            timing::report("gpu ready (sokol_gfx + sokol_imgui)");
+            Ok(device)
+        })
+        .expect("the GPU bring-up thread must start")
 }
 
 impl ApplicationHandler<Wake> for App {
@@ -100,12 +162,9 @@ impl ApplicationHandler<Wake> for App {
                 }
             }
             WindowEvent::Resized(size) => {
-                state.surface.config.width = size.width.max(1);
-                state.surface.config.height = size.height.max(1);
-                state
-                    .surface
-                    .surface
-                    .configure(&state.surface.renderer.device, &state.surface.config);
+                // A zero dimension is a minimised window. The swapchain remembers it and the
+                // frame is skipped; DXGI refuses to resize to it.
+                state.surface.swapchain.resize(size.width, size.height);
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let _ = state.context.set_scale(scale_factor as f32);
@@ -215,47 +274,23 @@ impl App {
         }
         timing::report("window created");
 
-        let instance = graphics_instance();
-        timing::report("wgpu Instance");
-        let surface = instance
-            .create_surface(window.clone())
-            .map_err(|error| error.to_string())?;
-        timing::report("create_surface");
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            compatible_surface: Some(&surface),
-            ..Default::default()
-        }))
-        .map_err(|error| error.to_string())?;
-        timing::report("request_adapter");
-        let capabilities = surface.get_capabilities(&adapter);
-        // A non-sRGB target keeps the interface colors exactly as authored.
-        let format = capabilities
-            .formats
-            .iter()
-            .copied()
-            .find(|format| !format.is_srgb())
-            .unwrap_or(capabilities.formats[0]);
-        let renderer = pollster::block_on(Renderer::new(&adapter, format))?;
-        timing::report("device + pipelines");
+        // Everything above ran alongside the bring-up; this is where the two paths meet.
+        let device = self
+            .gpu
+            .take()
+            .ok_or("the GPU bring-up was already taken")?
+            .join()
+            .map_err(|_| "the GPU bring-up thread panicked".to_string())??;
+        timing::report("gpu joined");
+
         let size = window.inner_size();
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format,
-            width: size.width.max(1),
-            height: size.height.max(1),
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: capabilities.alpha_modes[0],
-            view_formats: Vec::new(),
-            desired_maximum_frame_latency: 2,
-            color_space: wgpu::SurfaceColorSpace::Srgb,
-        };
-        surface.configure(&renderer.device, &config);
-        timing::report("surface configured");
+        let swapchain = Swapchain::new(&device, &window, size.width, size.height)?;
+        timing::report("swapchain");
 
         let scale = window.scale_factor() as f32;
         let context = Context::new(scale)?;
         timing::report("imgui Context (fonts)");
-        crate::theme::apply_base_style();
+        theme::apply_base_style();
 
         let proxy = self.proxy.clone();
         editor.jobs.set_waker(Arc::new(move || {
@@ -267,14 +302,14 @@ impl App {
         let mut state = State {
             surface: Surface {
                 window,
-                surface,
-                config,
-                renderer,
+                swapchain,
+                textures: Textures::default(),
             },
             context,
             editor,
             last_frame: Instant::now(),
             settle: 8,
+            _device: device,
         };
         if let Some(path) = self.initial.take() {
             commands::open_path(&mut state.editor, &path);
@@ -305,21 +340,39 @@ impl App {
         }
         update_progress(state);
 
+        // The render target is acquired *before* the frame is built, not after.
+        //
+        // A minimised window has a zero-size client and a device that has gone away has nothing
+        // to draw into; either way there is no frame. But sokol_imgui is what *ends* an ImGui
+        // frame - `app::draw_frame` only hands it over - so building one and then returning
+        // without rendering would leave the context open, and the next `igNewFrame` asserts. The
+        // window survived being minimised and died on the way back; this order is why it does
+        // not. `scripts/window-exercise.ps1` is what found it and what checks it.
+        let (width, height) = state.surface.swapchain.size();
+        let mut swapchain = sg::Swapchain::new();
+        swapchain.width = width as i32;
+        swapchain.height = height as i32;
+        swapchain.sample_count = 1;
+        swapchain.color_format = SWAPCHAIN_FORMAT;
+        swapchain.depth_format = sg::PixelFormat::None;
+        if !state.surface.swapchain.acquire(&mut swapchain) {
+            if state.editor.should_exit {
+                save_session(state);
+                event_loop.exit();
+            }
+            return;
+        }
+
+        // Only now does time advance: a skipped frame must not be charged to the next one's
+        // delta, or an animation jumps when the window comes back.
         let now = Instant::now();
         let delta = now.duration_since(state.last_frame).as_secs_f32();
         state.last_frame = now;
 
         let scale = state.surface.window.scale_factor() as f32;
-        let size: Vec2 = [
-            state.surface.config.width as f32 / scale,
-            state.surface.config.height as f32 / scale,
-        ];
+        let size: Vec2 = [width as f32 / scale, height as f32 / scale];
 
-        let data = app::draw_frame(&mut state.editor, &mut state.context, size, scale, delta);
-        // Whatever glyphs this frame is the first to show were rasterized while it was built,
-        // and have to reach the device before the frame that names them is drawn.
-        let requests = state.context.texture_requests();
-        state.surface.renderer.apply_texture_requests(&requests);
+        app::draw_frame(&mut state.editor, &mut state.context, size, scale, delta);
 
         state
             .surface
@@ -336,31 +389,29 @@ impl App {
                 .set_fullscreen(fullscreen.then_some(Fullscreen::Borderless(None)));
         }
 
-        match state.surface.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(frame)
-            | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => {
-                let view = frame.texture.create_view(&Default::default());
-                state.surface.renderer.render(
-                    &view,
-                    &data,
-                    state.surface.config.width,
-                    state.surface.config.height,
-                    scale,
-                );
-                state.surface.window.pre_present_notify();
-                state.surface.renderer.queue.present(frame);
-                timing::stamp_first_frame();
-            }
-            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
-                state
-                    .surface
-                    .surface
-                    .configure(&state.surface.renderer.device, &state.surface.config);
-                state.surface.window.request_redraw();
-            }
-            // A timed out or hidden surface simply skips this frame.
-            _ => {}
-        }
+        let mut pass = sg::Pass::new();
+        pass.swapchain = swapchain;
+        // The shell gap colour, so a resize never flashes an unpainted edge.
+        pass.action.colors[0] = sg::ColorAttachmentAction {
+            load_action: sg::LoadAction::Clear,
+            store_action: sg::StoreAction::Store,
+            clear_value: sg::Color {
+                r: theme::GAP_COLOR.0[0],
+                g: theme::GAP_COLOR.0[1],
+                b: theme::GAP_COLOR.0[2],
+                a: 1.0,
+            },
+        };
+        sg::begin_pass(&pass);
+        // SAFETY: a frame is open on the current context and a pass is open, which is what
+        // `render` requires. It is `igRender` plus the texture uploads plus the draw calls, so
+        // the glyphs this frame was the first to show reach the device here too.
+        unsafe { render::imgui::render() };
+        sg::end_pass();
+        sg::commit();
+        state.surface.window.pre_present_notify();
+        state.surface.swapchain.present();
+        timing::stamp_first_frame();
 
         if state.editor.should_exit {
             save_session(state);
@@ -403,6 +454,12 @@ pub fn graphics_instance() -> wgpu::Instance {
 }
 
 /// Uploads whatever decoded images arrived since the last frame.
+///
+/// Two identifiers are in play and they are not the same number. The *key* is what the editor
+/// computes from the cache name (`app::texture_id`) and what it frees by; the *draw id* is what
+/// sokol_imgui turns back into a view when it meets the draw command, and it is what goes into a
+/// thumbnail or a preview. Before the sokol shell those were one number, because the renderer's
+/// texture map was keyed on the editor's own id.
 fn upload_pending(state: &mut State) {
     let pending = std::mem::take(&mut state.editor.pending_uploads);
     let had_thumbnails = pending
@@ -412,13 +469,16 @@ fn upload_pending(state: &mut State) {
         if image.width == 0 || image.height == 0 {
             continue;
         }
-        let id = app::texture_id(&key);
-        state
+        let key_id = app::texture_id(&key);
+        let id = state
             .surface
-            .renderer
-            .texture(id, image.width, image.height, &image.pixels);
-        if !state.editor.textures.contains(&id) {
-            state.editor.textures.push(id);
+            .textures
+            .upload(key_id, image.width, image.height, &image.pixels);
+        if id == 0 {
+            continue;
+        }
+        if !state.editor.textures.contains(&key_id) {
+            state.editor.textures.push(key_id);
         }
         if let Some(rest) = key.strip_prefix("thumbnail:") {
             if let Some((node, index)) = rest.rsplit_once(':') {

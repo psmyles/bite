@@ -1,6 +1,19 @@
 //! Offscreen rendering, used to capture the interface for side-by-side comparison.
-use crate::{app, renderer::Renderer, theme};
+//!
+//! The same code draws the window and these images: `app::draw_frame` builds the frame and
+//! sokol_imgui draws it into whatever pass is open. The only difference is what the pass writes
+//! to - a swapchain there, an offscreen colour attachment here - so a capture shows what the
+//! window would have shown rather than an approximation of it.
+//!
+//! sokol_gfx has no `read_pixels`, so the target is read back through its native handle
+//! ([`crate::render::readback`]).
+use crate::{
+    app,
+    render::{Device, SWAPCHAIN_FORMAT, Textures, imgui, readback},
+    theme,
+};
 use bite_imgui::Context;
+use sokol::gfx as sg;
 use std::path::{Path, PathBuf};
 
 /// A scenario to capture, so that each comparison shot is reproducible.
@@ -452,8 +465,73 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
     }
 }
 
+/// The graphics stack a capture run draws through.
+///
+/// `sg::setup` is process-wide and must happen exactly once, so a run that captures twenty-five
+/// scenes brings the GPU up once and keeps it. Inline, not on a thread: the process is doing
+/// nothing else, so there is nothing for the bring-up to overlap with.
+struct Gpu {
+    /// Held so it outlives sokol_gfx, which runs on it.
+    _device: Device,
+}
+
+impl Gpu {
+    fn new() -> Result<Self, String> {
+        let device = Device::create(std::env::var_os("BITE_GPU").is_some_and(|v| v == "warp"))?;
+        let mut description = sg::Desc::new();
+        description.environment.defaults = sg::EnvironmentDefaults {
+            color_format: SWAPCHAIN_FORMAT,
+            depth_format: sg::PixelFormat::None,
+            sample_count: 1,
+        };
+        device.fill_environment(&mut description.environment);
+        description.logger = sg::Logger {
+            func: Some(sokol::log::slog_func),
+            user_data: std::ptr::null_mut(),
+        };
+        sg::setup(&description);
+        if !sg::isvalid() {
+            return Err("sokol_gfx could not be set up on the graphics device".into());
+        }
+        // SAFETY: sokol_gfx is up, no ImGui frame is open, and no context exists yet.
+        unsafe { imgui::setup_once(SWAPCHAIN_FORMAT) };
+        Ok(Self { _device: device })
+    }
+}
+
+impl Drop for Gpu {
+    fn drop(&mut self) {
+        // Deliberately no `simgui_shutdown`: it destroys the *current* ImGui context, which the
+        // caller still owns and will free itself. See `render::imgui`.
+        sg::shutdown();
+    }
+}
+
 /// Renders one scene to a portable network graphic.
+///
+/// Brings the GPU up for this one scene. [`capture_all`] does it once for the whole run instead,
+/// because `sg::setup` may only happen once in a process.
 pub fn capture(
+    scene: Scene,
+    output: &Path,
+    workflow: Option<&Path>,
+    size: (u32, u32),
+    scale: f32,
+) -> Result<(), String> {
+    let gpu = Gpu::new()?;
+    let result = capture_scene(scene, output, workflow, size, scale);
+    drop(gpu);
+    result
+}
+
+/// Renders one scene onto an already-running graphics stack.
+///
+/// The ImGui context is this scene's alone, created and destroyed here. A context carries popup
+/// stacks, window state and the modal-dimming ramp, so one shared across a run would let a scene
+/// inherit whatever the scene before it left open - which is how the first capture on the sokol
+/// shell came out with the confirmation dialog missing its dimmed backdrop. It is the graphics
+/// stack that has to be process-wide (`sg::setup`), not this.
+fn capture_scene(
     scene: Scene,
     output: &Path,
     workflow: Option<&Path>,
@@ -463,38 +541,65 @@ pub fn capture(
     let mut editor = app::Editor::new()?;
     stage(&mut editor, scene, workflow);
 
-    let instance = crate::platform::graphics_instance();
-    let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
-        .map_err(|error| error.to_string())?;
-    let format = wgpu::TextureFormat::Rgba8Unorm;
-    let mut renderer = pollster::block_on(Renderer::new(&adapter, format))?;
-
     let mut context = Context::new(scale)?;
+    let context = &mut context;
     theme::apply_base_style();
+    // The scene's own thumbnails and previews, released with it.
+    let mut textures = Textures::default();
+    let textures = &mut textures;
 
     let physical = (
         (size.0 as f32 * scale) as u32,
         (size.1 as f32 * scale) as u32,
     );
-    let target = renderer.device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("offscreen capture"),
-        size: wgpu::Extent3d {
-            width: physical.0,
-            height: physical.1,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format,
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-        view_formats: &[],
-    });
-    let view = target.create_view(&Default::default());
 
-    // A few frames let hover states, layout and the settle burst reach a steady state.
+    let mut target = sg::ImageDesc::new();
+    target._type = sg::ImageType::Dim2;
+    target.usage.color_attachment = true;
+    target.width = physical.0 as i32;
+    target.height = physical.1 as i32;
+    target.num_mipmaps = 1;
+    target.pixel_format = SWAPCHAIN_FORMAT;
+    target.label = c"bite capture target".as_ptr();
+    let target = sg::make_image(&target);
+
+    let mut view = sg::ViewDesc::new();
+    view.color_attachment.image = target;
+    view.label = c"bite capture target".as_ptr();
+    let view = sg::make_view(&view);
+
+    if sg::query_image_state(target) != sg::ResourceState::Valid
+        || sg::query_view_state(view) != sg::ResourceState::Valid
+    {
+        sg::destroy_view(view);
+        sg::destroy_image(target);
+        return Err(format!(
+            "a {}x{} capture target could not be created",
+            physical.0, physical.1
+        ));
+    }
+
+    let mut pass = sg::Pass::new();
+    pass.attachments.colors[0] = view;
+    pass.action.colors[0] = sg::ColorAttachmentAction {
+        load_action: sg::LoadAction::Clear,
+        store_action: sg::StoreAction::Store,
+        clear_value: sg::Color {
+            r: theme::GAP_COLOR.0[0],
+            g: theme::GAP_COLOR.0[1],
+            b: theme::GAP_COLOR.0[2],
+            a: 1.0,
+        },
+    };
+
+    // A few frames let hover states, layout and the settle burst reach a steady state - and,
+    // since 1.92, let the atlas grow: a scene's first frame is the first to draw its own text,
+    // and the glyphs are rasterized and uploaded inside the frame that needs them.
+    //
+    // Every frame is drawn, not only the last. sokol_imgui is what *ends* an ImGui frame, so a
+    // warm-up that skipped the render would leave the context open and the next `igNewFrame`
+    // would assert. Only the last frame's pixels are read.
     let logical = [size.0 as f32, size.1 as f32];
-    let mut data = Vec::new();
     // A tooltip only appears once the pointer has rested past its delay.
     let frames = if scene == Scene::Tooltip { 24 } else { 6 };
     for frame in 0..frames {
@@ -512,73 +617,28 @@ pub fn capture(
             context.mouse_position(MENU_POINTER[0], MENU_POINTER[1]);
             context.mouse_button(bite_imgui::MouseButton::Left, frame == 1);
         }
-        data = app::draw_frame(&mut editor, &mut context, logical, scale, 1.0 / 60.0);
-        // Since 1.92 the atlas grows as glyphs are first drawn, so a scene's first frame asks
-        // for its own text. The warm-up frames above are what make that settled by the last
-        // one, which is the frame that gets rendered.
-        renderer.apply_texture_requests(&context.texture_requests());
+        app::draw_frame(&mut editor, context, logical, scale, 1.0 / 60.0);
+        sg::begin_pass(&pass);
+        // SAFETY: a frame is open on the current context and a pass is open.
+        unsafe { imgui::render() };
+        sg::end_pass();
+        sg::commit();
     }
-    renderer.render(&view, &data, physical.0, physical.1, scale);
 
-    read_back(&renderer, &target, physical, output)?;
+    let pixels = readback::rgba8(target, physical.0, physical.1)?;
+    sg::destroy_view(view);
+    sg::destroy_image(target);
+    // Nothing this scene uploaded may outlive it: the next starts from a fresh editor, whose
+    // identifiers would otherwise find this scene's images.
+    textures.free_where(|_| false);
+
+    write_png(&pixels, physical, output)?;
     println!("Captured {} to {}", scene.name(), output.display());
     Ok(())
 }
 
-/// Copies the rendered texture into a file.
-fn read_back(
-    renderer: &Renderer,
-    texture: &wgpu::Texture,
-    size: (u32, u32),
-    output: &Path,
-) -> Result<(), String> {
-    // Buffer rows must be a multiple of two hundred and fifty six bytes.
-    let unpadded = size.0 * 4;
-    let padded = unpadded.div_ceil(256) * 256;
-    let buffer = renderer.device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("capture readback"),
-        size: u64::from(padded) * u64::from(size.1),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-    let mut encoder = renderer.device.create_command_encoder(&Default::default());
-    encoder.copy_texture_to_buffer(
-        texture.as_image_copy(),
-        wgpu::TexelCopyBufferInfo {
-            buffer: &buffer,
-            layout: wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(padded),
-                rows_per_image: Some(size.1),
-            },
-        },
-        texture.size(),
-    );
-    renderer.queue.submit([encoder.finish()]);
-
-    let slice = buffer.slice(..);
-    let (sender, receiver) = std::sync::mpsc::channel();
-    slice.map_async(wgpu::MapMode::Read, move |result| {
-        let _ = sender.send(result);
-    });
-    renderer
-        .device
-        .poll(wgpu::PollType::wait_indefinitely())
-        .map_err(|error| error.to_string())?;
-    receiver
-        .recv()
-        .map_err(|error| error.to_string())?
-        .map_err(|error| error.to_string())?;
-
-    let mapped = slice.get_mapped_range().map_err(|error| error.to_string())?;
-    let mut pixels = Vec::with_capacity(unpadded as usize * size.1 as usize);
-    for row in 0..size.1 {
-        let start = (row * padded) as usize;
-        pixels.extend_from_slice(&mapped[start..start + unpadded as usize]);
-    }
-    drop(mapped);
-    buffer.unmap();
-
+/// Writes tightly packed RGBA8 pixels to a portable network graphic.
+fn write_png(pixels: &[u8], size: (u32, u32), output: &Path) -> Result<(), String> {
     if let Some(parent) = output.parent() {
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
@@ -588,13 +648,28 @@ fn read_back(
     encoder.set_depth(png::BitDepth::Eight);
     let mut writer = encoder.write_header().map_err(|error| error.to_string())?;
     writer
-        .write_image_data(&pixels)
+        .write_image_data(pixels)
         .map_err(|error| error.to_string())?;
     Ok(())
 }
 
 /// Captures every scene into a directory.
 pub fn capture_all(
+    directory: &Path,
+    workflow: Option<&Path>,
+    size: (u32, u32),
+    scale: f32,
+) -> Result<Vec<PathBuf>, String> {
+    // One graphics stack for the whole run - `sg::setup` is process-wide and may only happen
+    // once - but an ImGui context per scene, so no scene inherits the one before it.
+    let gpu = Gpu::new()?;
+    let result = capture_each(directory, workflow, size, scale);
+    drop(gpu);
+    result
+}
+
+/// Every scene, onto an already-running graphics stack.
+fn capture_each(
     directory: &Path,
     workflow: Option<&Path>,
     size: (u32, u32),
@@ -608,7 +683,7 @@ pub fn capture_all(
             format!("{}@{scale}x.png", scene.name())
         };
         let output = directory.join(name);
-        capture(scene, &output, workflow, size, scale)?;
+        capture_scene(scene, &output, workflow, size, scale)?;
         written.push(output);
     }
     Ok(written)
