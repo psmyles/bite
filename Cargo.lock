@@ -243,7 +243,7 @@ checksum = "b71798fca2c1fe1086445a7258a4bc81e6e49dcd24c8d0dd9a1e57395b603f51"
 
 [[package]]
 name = "bite-cli"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bite-core",
  "bite-expr",
@@ -257,7 +257,7 @@ dependencies = [
 
 [[package]]
 name = "bite-core"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bite-expr",
  "bite-schema",
@@ -268,7 +268,7 @@ dependencies = [
 
 [[package]]
 name = "bite-expr"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bite-schema",
  "serde",
@@ -277,7 +277,7 @@ dependencies = [
 
 [[package]]
 name = "bite-gui"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "arboard",
  "bite-core",
@@ -299,7 +299,7 @@ dependencies = [
 
 [[package]]
 name = "bite-imagemagick"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bite-core",
  "bite-expr",
@@ -308,14 +308,14 @@ dependencies = [
 
 [[package]]
 name = "bite-imgui"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bite-imgui-sys",
 ]
 
 [[package]]
 name = "bite-imgui-sys"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "bindgen",
  "cc",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "bite-schema"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "schemars",
  "serde",

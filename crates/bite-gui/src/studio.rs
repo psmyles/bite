@@ -162,6 +162,7 @@ impl Studio {
             &fs::read_to_string(path).map_err(|error| error.to_string())?,
             &registry,
         )?;
+        let next_id = Self::next_free_id(&loaded.workflow.graph);
         let mut studio = Self {
             registry,
             workflow: loaded.workflow,
@@ -172,7 +173,7 @@ impl Studio {
             } else {
                 format!("Opened {}", path.display())
             },
-            next_id: 1,
+            next_id,
             undo: Vec::new(),
             redo: Vec::new(),
             clipboard: Clipboard::default(),
@@ -253,14 +254,37 @@ impl Studio {
         Ok(())
     }
 
+    /// The next free identifier of a kind, checked against the nodes and the edges alike.
+    ///
+    /// Both are named from the same counter, and an edge that took the name of another
+    /// edge only showed up when the file was saved and the schema rejected it.
     fn id(&mut self, prefix: &str) -> String {
         loop {
             let id = format!("{prefix}-native-{}", self.next_id);
             self.next_id += 1;
-            if self.workflow.graph.nodes.iter().all(|node| node.id != id) {
+            let graph = &self.workflow.graph;
+            if graph.nodes.iter().all(|node| node.id != id)
+                && graph.edges.iter().all(|edge| edge.id != id)
+            {
                 return id;
             }
         }
+    }
+
+    /// Where the counter has to resume so that nothing it names is already taken.
+    ///
+    /// A workflow the interface saved carries the names it gave, so reopening one and
+    /// starting again from the first would hand out names the file already used.
+    fn next_free_id(graph: &Graph) -> u64 {
+        let used = graph
+            .nodes
+            .iter()
+            .map(|node| node.id.as_str())
+            .chain(graph.edges.iter().map(|edge| edge.id.as_str()));
+        used.filter_map(|id| id.rsplit_once("-native-"))
+            .filter_map(|(_, number)| number.parse::<u64>().ok())
+            .max()
+            .map_or(1, |highest| highest + 1)
     }
 
     fn graph_key(&self) -> String {
@@ -573,8 +597,7 @@ fn node_kind(definition: &str) -> NodeKind {
         graph
             .edges
             .retain(|edge| !(edge.target == target && edge.target_handle == target_handle));
-        let id = format!("edge-native-{}", self.next_id);
-        self.next_id += 1;
+        let id = self.id("edge");
         graph.edges.push(GraphEdge {
             id: id.clone(),
             source: source.into(),
@@ -1142,6 +1165,61 @@ mod tests {
         let reopened = Studio::open(studio.registry.clone(), &path).unwrap();
         assert_eq!(reopened.workflow.graph.nodes.len(), 5);
         assert_eq!(reopened.workflow.graph.edges.len(), 4);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn editing_a_reopened_workflow_never_reuses_a_name_the_file_already_holds() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = Studio::load_registry(&root).unwrap();
+        let mut studio = Studio::blank(registry);
+        let input = studio.add_input(Position { x: 0.0, y: 0.0 });
+        let blur = studio
+            .add_processing("blur", Position { x: 200.0, y: 0.0 })
+            .unwrap();
+        let output = studio.add_output(Position { x: 400.0, y: 0.0 });
+        studio
+            .connect(&input, "out:output", &blur, "in:input")
+            .unwrap();
+        studio
+            .connect(&blur, "out:output", &output, "in:input")
+            .unwrap();
+        let dir = std::env::temp_dir().join(format!("bite-native-reopen-{}", std::process::id()));
+        let path = dir.join("reopened.bite");
+        studio.save(&path).unwrap();
+
+        // The counter used to start again at one here, so an edge drawn after enough
+        // editing took a name the file already held, and only the save reported it.
+        let mut reopened = Studio::open(studio.registry.clone(), &path).unwrap();
+        let mut previous = blur.clone();
+        for step in 0..4 {
+            let added = reopened
+                .add_processing(
+                    "sharpen",
+                    Position {
+                        x: 600.0 + 100.0 * f64::from(step),
+                        y: 0.0,
+                    },
+                )
+                .unwrap();
+            reopened
+                .connect(&previous, "out:output", &added, "in:input")
+                .unwrap();
+            previous = added;
+        }
+        reopened
+            .connect(&previous, "out:output", &output, "in:input")
+            .unwrap();
+        let names: Vec<_> = reopened
+            .workflow
+            .graph
+            .edges
+            .iter()
+            .map(|edge| edge.id.clone())
+            .collect();
+        let unique: BTreeSet<_> = names.iter().collect();
+        assert_eq!(unique.len(), names.len(), "{names:?}");
+        reopened.save(&path).unwrap();
         fs::remove_dir_all(dir).unwrap();
     }
 
