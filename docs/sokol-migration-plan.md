@@ -347,6 +347,42 @@ against.
 
 *Done when:* `cargo build --release` succeeds with the new modules compiled and unused.
 
+**Landed, and they are not unused: they are tested.** "Compiles" is a weak bar for glue to things
+that only fail at runtime - a device that refuses, a `sg_environment` filled in wrongly, a
+`simgui_desc_t` whose fields do not line up with the header's, a staging texture read at the wrong
+pitch - and every one of those would otherwise first appear, tangled together, in a window that
+draws nothing. So `crates/bite-gui/tests/render_stack.rs` walks the whole path once: device ->
+`sg::setup` -> `simgui_setup` -> an offscreen pass cleared to a known colour with an ImGui
+rectangle drawn over one quadrant -> `readback::rgba8`, checking the colours that come back. One
+test, because `sg::setup` is process-wide. It needed `Frame::submit` from Phase 3, which is
+additive - `Frame::render` still serves the wgpu path - so that came early.
+
+It found two things the plan had wrong:
+
+- **`simgui_shutdown` must never be called.** It ends by destroying the *current* ImGui context,
+  which is bite's, and `bite_imgui::Context`'s own `Drop` then frees it again - a heap corruption
+  inside `igDestroyContext`, several frames from anything that looks like the cause. Phase 3's
+  "Exit: `simgui_shutdown()`, `sg::shutdown()`" is therefore just `sg::shutdown()`. There is no
+  `shutdown` in `render/imgui.rs` at all, and a comment there says why; fire's teardown carries
+  the same note, and fire never calls it either. What is given up is pipelines, shaders, a
+  sampler, two buffers and ~7 MB of staging - all process-wide, all released by the process
+  exiting, which is the only moment this would have been called.
+- **sokol_imgui does not accept an Alpha8 atlas.** It hardcodes `SG_PIXELFORMAT_RGBA8` and
+  asserts `tex->Format == ImTextureFormat_RGBA32`. So `TexDesiredFormat` is not a knob the host
+  has, and `Fonts::prefer_coverage_texture` is gone: the atlas stays in 1.92's default RGBA32 on
+  *both* renderers, so this cost is paid here rather than confounding Phase 3's capture diff.
+  **It is 1 MB** (162.4 -> 163.4 MB working set), not the four-times-the-bytes the risk note
+  feared, because the atlas is small to begin with. First-frame time does not move.
+
+  The wgpu renderer draws the RGBA32 atlas through its colour path rather than its coverage path,
+  which changes glyph edges slightly - 0.1-0.2% of pixels, worst delta 61, against the 0.8-4.3%
+  of the ImGui upgrade itself. Magnified 20x on coloured text, where it would show worst, the two
+  are equivalent and RGBA32 bleeds marginally *less* colour into the background. That is also
+  simply how Dear ImGui renders through a standard `color * texel` backend, which sokol_imgui is.
+
+`test_images/goldens/wgpu-final` is that capture - the last the wgpu renderer produces, and what
+Phases 3 and 4 are checked against. `test_images/goldens/wgpu` remains the Phase 0 baseline.
+
 ### Phase 3 - The window on the new shell
 
 `bite-imgui` first:
@@ -476,11 +512,17 @@ no shader step.
   context, made current for its lifetime, so this is simpler than fire's per-window suspension -
   but the backend flags must be set on *bite's* context, not assumed from setup.
 - **`max_vertices`.** sokol_imgui sizes its vertex and index buffers once from `SimguiDesc`.
-  The default (65536) is fine for the editor's chrome; a filmstrip of hundreds of thumbnails
-  with rounded corners might not be - if a frame draws nothing past a point, this is why. Set it
-  from a measurement of the busiest scene.
+  The default (65536) is fine for the editor's chrome; a filmstrip of hundreds of thumbnails with
+  rounded corners might not be - if a frame draws nothing past a point, this is why. Set to four
+  times the default in Phase 2, which costs ~7 MB of staging and buys enough headroom not to have
+  to diagnose it; revisit with a measurement of the busiest scene if that is ever not enough.
 - **One sokol context per process.** `sg::setup` is global. The GUI and `--capture` never share
   a process, but any test that calls `capture` twice must not `setup` twice.
+- **Nothing may touch ImGui between `simgui_setup` and `Context::new`.** `simgui_setup` creates a
+  context of its own and leaves it current; `bite_imgui::discard_current_context` destroys it and
+  leaves *none* current, so any ImGui call in that window reads through a null global. Nothing
+  runs there - it is the last thing the bring-up thread does, and the context is made on the main
+  thread after the join - but the two calls have to stay adjacent.
 - **Colour space.** Today's surface is deliberately non-sRGB and the swapchain is `RGBA8_UNORM`;
   sokol_imgui picks its gamma from the swapchain format, which says UNORM. Same as fire. If the
   goldens differ, this is the first suspect.
@@ -511,6 +553,7 @@ have settled; the first-frame instant flatters neither stack and compares neithe
 | Baseline, wgpu + ImGui 1.90.9 (experiment, stderr sink) | 590 ms | 172 MB | 325 MB |
 | Phase 0 baseline, file sink | 424 ms | 168 MB | 326 MB |
 | Phase 1, ImGui 1.92.9b on wgpu | 352 ms | 162 MB | 321 MB |
+| Phase 2, RGBA32 atlas (scaffolding unwired) | 354 ms | 163 MB | 322 MB |
 | Phase 3, sokol_gfx + sokol_imgui shell | | | |
 | Phase 5.1, chores off the path | | | |
 | Phase 5.2, icon at build time | | | |

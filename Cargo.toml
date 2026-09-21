@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
 members = ["crates/bite-schema", "crates/bite-expr", "crates/bite-core", "crates/bite-imagemagick", "crates/bite-cli", "crates/bite-imgui-sys", "crates/bite-imgui", "crates/bite-gui"]
+# `vendor/sokol-rust` is a pinned upstream copy, not our code, but it sits inside the workspace
+# directory and cargo makes any path dependency there a member automatically - which puts it in
+# `--workspace`, and so under clippy's gaze, failing on upstream's own style. Declaring it
+# excluded is what stops that; it is still built exactly as before, as a path dependency of
+# `bite-gui`.
+exclude = ["vendor/sokol-rust"]
 
 # The product version, and what the GUI's update check compares against the latest
 # GitHub release. It was carried over from the package manifest the Electron build used.

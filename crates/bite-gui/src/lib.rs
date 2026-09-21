@@ -14,6 +14,7 @@ pub mod modals;
 pub mod panels;
 pub mod persist;
 pub mod platform;
+pub mod render;
 pub mod renderer;
 pub mod shell;
 pub mod showcase;

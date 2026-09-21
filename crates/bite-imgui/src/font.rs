@@ -337,17 +337,6 @@ impl Fonts {
         self.scale = scale;
     }
 
-    /// Asks Dear ImGui to rasterize into one byte a pixel rather than four.
-    ///
-    /// The atlas holds coverage: the four-channel form stores the same information in three
-    /// channels nothing reads, for four times the bytes and four times the upload. 1.92 defaults
-    /// to RGBA32, so this has to be asked for, before the first frame bakes anything.
-    pub(crate) fn prefer_coverage_texture() {
-        unsafe {
-            let atlas = (*sys::igGetIO_Nil()).Fonts;
-            (*atlas).TexDesiredFormat = sys::ImTextureFormat_Alpha8;
-        }
-    }
 }
 
 /// The size Dear ImGui will actually draw at, given the one it is asked for.

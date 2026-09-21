@@ -25,8 +25,27 @@ rfd = { version = "0.15.4", default-features = false, features = ["xdg-portal", 
 arboard = "3.6.1"
 ureq = "2.12.1"
 image-webp = "0.2"
+# The drawing API. Vendored (`vendor/sokol-rust`, floooh/sokol-rust @ b22a545) because the
+# crates.io `sokol` name belongs to an unrelated crate from 2019. `build.rs` compiles
+# `simgui/simgui.c` - Dear ImGui's sokol_gfx renderer - against the same headers.
+sokol = { path = "../../vendor/sokol-rust" }
+
+# The D3D11 device and DXGI flip-model swapchain sokol_gfx draws through (`render::d3d11`), and
+# the staging-texture readback `--capture` reads its pixels back with (`render::readback`). The
+# typed crate rather than raw `windows-sys` because these are COM calls; nothing else names it,
+# and the feature list is only what those two files use.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D",          # D3D_DRIVER_TYPE / feature levels
+    "Win32_Graphics_Direct3D11",        # ID3D11Device / context / render-target view
+    "Win32_Graphics_Dxgi",              # IDXGIFactory2 / swapchain / device / adapter
+    "Win32_Graphics_Dxgi_Common",       # DXGI_FORMAT / sample desc
+] }
 
 [build-dependencies]
+# Compiles `simgui/simgui.c`; see `compile_simgui` in build.rs.
+cc = "1"
 # build.rs reads the canonical product metadata from ../../product.json, so one edit there
 # reaches the exe's version resource and the BITE_* compile-time strings the editor shows.
 serde_json.workspace = true

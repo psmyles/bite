@@ -132,6 +132,28 @@ pub enum TextureAction {
     Destroy,
 }
 
+/// Destroys whatever ImGui context is current, and leaves none current.
+///
+/// For one caller: `simgui_setup` creates a context of its own to probe with and leaves it
+/// current, so the host has to clear it before making the real one. Doing it here rather than in
+/// the host keeps `igCreateContext`/`igDestroyContext` to the one crate that owns them.
+///
+/// A no-op when no context is current, which is the normal case.
+///
+/// # Safety
+///
+/// No [`Context`] this crate handed out may still be alive: this would destroy it out from under
+/// the owner. The one valid moment is between `simgui_setup` and the first [`Context::new`].
+pub unsafe fn discard_current_context() {
+    unsafe {
+        let current = sys::igGetCurrentContext();
+        if !current.is_null() {
+            sys::igDestroyContext(current);
+            sys::igSetCurrentContext(std::ptr::null_mut());
+        }
+    }
+}
+
 /// The ImGui context. Only one may exist at a time.
 pub struct Context {
     raw: *mut sys::ImGuiContext,
@@ -173,7 +195,11 @@ impl Context {
                 | sys::ImGuiBackendFlags_RendererHasTextures;
             (*io).ConfigInputTextCursorBlink = true;
         }
-        Fonts::prefer_coverage_texture();
+        // The atlas stays in 1.92's default RGBA32 rather than the Alpha8 coverage 1.90 used and
+        // this crate asked for at first. It is four times the bytes for the same information -
+        // the colour channels are all 255 - but sokol_imgui hardcodes `SG_PIXELFORMAT_RGBA8` and
+        // asserts on any other `ImTextureFormat`, so the choice is not one the host gets to make.
+        // Keeping one format across both renderers also keeps the Phase 3 capture diff honest.
         let fonts = Fonts::build(faces, scale);
         Ok(Self {
             raw,
@@ -370,6 +396,19 @@ impl Frame<'_> {
 
     pub fn fonts(&self) -> &Fonts {
         &self.context.fonts
+    }
+
+    /// Hands the frame over to a renderer that will end it itself.
+    ///
+    /// sokol_imgui's `simgui_render` is `igRender` *plus* the texture uploads *plus* the draw
+    /// calls, so with it there is nothing for this wrapper to do at the end of a frame and
+    /// nothing to copy out: calling [`Frame::render`] as well would run `igRender` twice. This
+    /// only marks the frame as handed over, so the drop guard does not close it a second time.
+    ///
+    /// The caller must render before the next frame begins, which in practice means inside the
+    /// pass it opened.
+    pub fn submit(mut self) {
+        self.rendered = true;
     }
 
     /// Ends the frame and copies the geometry out of ImGui.

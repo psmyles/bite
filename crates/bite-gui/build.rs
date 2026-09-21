@@ -1,12 +1,16 @@
-//! Reads the canonical product metadata from `product.json` (repo root) and, on Windows,
-//! embeds it into the editor executable together with `build/icon.ico`: the icon Explorer and
-//! the taskbar draw, the name Task Manager lists, and the file-properties version tab.
+//! Build steps for the editor executable:
 //!
-//! The same strings are re-exported as `BITE_*` compile-time environment variables, so the
-//! editor reads them through `env!` instead of carrying its own copy. `product.json` is the one
-//! source of truth - the packaging script reads it too, and syncs the workspace version to it.
+//!   1. Compile `simgui/simgui.c` - sokol_imgui.h, Dear ImGui's sokol_gfx renderer - as C,
+//!      against the vendored sokol headers and the *same* `cimgui.h` `bite-imgui-sys` builds.
+//!      The Rust side calls it through a handful of `extern "C"` declarations in `render::imgui`.
+//!   2. Read the canonical product metadata from `product.json` (repo root) and, on Windows,
+//!      embed it into the executable together with `build/icon.ico`: the icon Explorer and the
+//!      taskbar draw, the name Task Manager lists, and the file-properties version tab.
+//!   3. Re-export the same strings as `BITE_*` compile-time environment variables, so the editor
+//!      reads them through `env!` instead of carrying its own copy. `product.json` is the one
+//!      source of truth - the packaging script reads it too, and syncs the workspace version.
 
-use std::{env, path::Path};
+use std::{env, path::Path, path::PathBuf};
 
 /// The product fields the build consumes.
 struct Product {
@@ -19,11 +23,80 @@ struct Product {
 }
 
 fn main() {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    compile_simgui(&target_os);
     let product = read_product();
-    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+    if target_os == "windows" {
         embed_resources(&product);
     }
     export_env(&product);
+}
+
+/// The defines `simgui.c` is compiled with.
+///
+/// **This list must match `bite-imgui-sys/build.rs`'s `DEFINES` exactly**, and that file's module
+/// comment explains why: `cimgui.h` is a generated header, and the defines it was generated with
+/// decide which struct *fields* exist. `simgui.c` and the Dear ImGui library see the same header
+/// through the same include path, so a define on one side and not the other is two translation
+/// units disagreeing about `ImGuiIO`'s layout - which nothing would report.
+///
+/// `CIMGUI_DEFINE_ENUMS_AND_STRUCTS` is only on this side: it asks the header for the C view of
+/// the types, which is what a C translation unit needs and what the C++ one must not have.
+const IMGUI_DEFINES: &[&str] = &[
+    "CIMGUI_DEFINE_ENUMS_AND_STRUCTS",
+    "CIMGUI_NO_EXPORT",
+    "IMGUI_DISABLE_OBSOLETE_FUNCTIONS",
+];
+
+/// Compiles sokol_imgui.h (see `simgui/simgui.c`).
+///
+/// The sokol backend define must match the one the vendored `sokol` crate's build picks - the
+/// same `SOKOL_BACKEND` override, the same per-OS default - because the two translation units
+/// share sokol_gfx's structs, exactly as the ImGui defines above are shared with the sys crate.
+fn compile_simgui(target_os: &str) {
+    let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let simgui = manifest.join("simgui");
+    let sokol_c = manifest.join("../../vendor/sokol-rust/src/sokol/c");
+    // One `cimgui.h` in the tree, not a copy beside `simgui.c`: the sys crate's, which is the one
+    // its bindings were generated from.
+    let cimgui = manifest.join("../bite-imgui-sys/vendor/cimgui");
+    for file in ["simgui.c", "sokol_imgui.h"] {
+        println!("cargo:rerun-if-changed={}", simgui.join(file).display());
+    }
+    println!("cargo:rerun-if-changed={}", cimgui.join("cimgui.h").display());
+    println!("cargo:rerun-if-env-changed=SOKOL_BACKEND");
+
+    let backend = match env::var("SOKOL_BACKEND").as_deref() {
+        Ok("D3D11") => "SOKOL_D3D11",
+        Ok("METAL") => "SOKOL_METAL",
+        Ok("GL") => "SOKOL_GLCORE",
+        Ok("GLES3") => "SOKOL_GLES3",
+        Ok("WGPU") => "SOKOL_WGPU",
+        _ => match target_os {
+            "windows" => "SOKOL_D3D11",
+            "macos" => "SOKOL_METAL",
+            _ => "SOKOL_GLCORE",
+        },
+    };
+
+    let mut build = cc::Build::new();
+    build
+        .file(simgui.join("simgui.c"))
+        .include(&simgui)
+        .include(&sokol_c)
+        .include(&cimgui)
+        .define(backend, None)
+        // Renderer only: the window and its input are winit's (see render::imgui).
+        .define("SOKOL_IMGUI_NO_SOKOL_APP", None)
+        .warnings(false);
+    for define in IMGUI_DEFINES {
+        build.define(define, None);
+    }
+    if env::var("PROFILE").as_deref() == Ok("release") {
+        build.define("NDEBUG", None);
+        build.opt_level(2);
+    }
+    build.compile("bite_simgui");
 }
 
 /// Parses `../../product.json`. A missing file or field is a build error, not a fallback: every
