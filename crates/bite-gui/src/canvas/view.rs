@@ -134,6 +134,10 @@ impl Canvas {
         flags.no_scroll_with_mouse = true;
         flags.no_background = true;
 
+        if std::mem::take(&mut self.state.fit_request) {
+            self.fit_view(rect, &placed);
+        }
+
         ui.window_with("##canvas", flags, |ui| {
             let list = ui.draw_list();
             list.push_clip(rect.min, rect.max, true);
@@ -261,24 +265,31 @@ impl Canvas {
         let origin = [rect.min[0] + viewport.x, rect.min[1] + viewport.y];
         let first_x = origin[0] - ((origin[0] - rect.min[0]) / gap).ceil() * gap;
         let first_y = origin[1] - ((origin[1] - rect.min[1]) / gap).ceil() * gap;
+        // A line landing on an edge traces that edge end to end, which reads as a square
+        // border drawn around the rounded canvas. Those two lines are skipped; the rest
+        // run the full span as before.
         let mut x = first_x;
         while x <= rect.max[0] {
-            list.line(
-                [x, rect.min[1]],
-                [x, rect.max[1]],
-                theme::GRAPH_BG_COLOR,
-                theme::GRAPH_BG_LINE_WIDTH,
-            );
+            if x > rect.min[0] + 0.5 && x < rect.max[0] - 0.5 {
+                list.line(
+                    [x, rect.min[1]],
+                    [x, rect.max[1]],
+                    theme::GRAPH_BG_COLOR,
+                    theme::GRAPH_BG_LINE_WIDTH,
+                );
+            }
             x += gap;
         }
         let mut y = first_y;
         while y <= rect.max[1] {
-            list.line(
-                [rect.min[0], y],
-                [rect.max[0], y],
-                theme::GRAPH_BG_COLOR,
-                theme::GRAPH_BG_LINE_WIDTH,
-            );
+            if y > rect.min[1] + 0.5 && y < rect.max[1] - 0.5 {
+                list.line(
+                    [rect.min[0], y],
+                    [rect.max[0], y],
+                    theme::GRAPH_BG_COLOR,
+                    theme::GRAPH_BG_LINE_WIDTH,
+                );
+            }
             y += gap;
         }
     }

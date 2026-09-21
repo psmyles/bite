@@ -25,13 +25,15 @@ pub fn color(wire: WireType) -> Color {
 /// right, using the curvature Svelte Flow applies to a bezier edge.
 pub fn bezier_points(from: Vec2, to: Vec2) -> [Vec2; 4] {
     const CURVATURE: f32 = 0.25;
-    // Svelte Flow grows the control offset when the target sits behind the source, so a
-    // backwards wire bows out instead of doubling back through the cards.
+    // Svelte Flow's `calculateControlOffset`: a forward wire puts its handles halfway
+    // along the span, which is what gives the Electron edges their bow. A backwards wire
+    // falls back to the curvature term so it bulges out instead of doubling back through
+    // the cards.
     let distance = (to[0] - from[0]).abs();
     let offset = if to[0] >= from[0] {
-        distance * CURVATURE
+        distance * 0.5
     } else {
-        CURVATURE * 25.0 * (distance / 2.0).sqrt().max(0.0) + distance * CURVATURE
+        CURVATURE * 25.0 * distance.sqrt()
     };
     [
         from,
@@ -110,6 +112,21 @@ mod tests {
         assert!(points[1][0] > points[0][0]);
         assert!(points[2][0] < points[3][0]);
         assert_eq!(points[1][1], points[0][1]);
+    }
+
+    #[test]
+    fn a_forward_wire_bows_out_by_half_the_span() {
+        // Svelte Flow's forward control offset, which is what gives an edge between two
+        // cards on different rows its S.
+        let points = bezier_points([0.0, 0.0], [200.0, 120.0]);
+        assert_eq!(points[1][0], 100.0);
+        assert_eq!(points[2][0], 100.0);
+    }
+
+    #[test]
+    fn a_backwards_wire_falls_back_to_the_curvature_term() {
+        let points = bezier_points([200.0, 0.0], [100.0, 0.0]);
+        assert_eq!(points[1][0], 200.0 + 0.25 * 25.0 * 10.0);
     }
 
     #[test]

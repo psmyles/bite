@@ -736,7 +736,7 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
         bite_imgui::Rounding::None,
     );
 
-    let command = ui.with_face(theme::face::BODY, |ui| {
+    let bar = ui.with_face(theme::face::BODY, |ui| {
         menu::draw(
             ui,
             &editor.title(),
@@ -744,8 +744,9 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
             cfg!(debug_assertions),
         )
     });
+    let command = bar.command;
 
-    let layout = shell::compute(size, menu::MENU_BAR_HEIGHT, editor.session.panels);
+    let layout = shell::compute(size, bar.height, editor.session.panels);
     let counts = editor.image_counts();
 
     // Panels.
@@ -809,7 +810,7 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
     }
 
     // The splitters sit above the panels so their gaps stay clickable.
-    let shell_height = size[1] - menu::MENU_BAR_HEIGHT;
+    let shell_height = size[1] - bar.height;
     let mut panels_sizes = editor.session.panels;
     if editor
         .splitters

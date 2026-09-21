@@ -105,6 +105,9 @@ pub struct CanvasState {
     pub hover_elapsed: f32,
     /// Set when a node must be scrolled into view after being created or pasted.
     pub focus_request: Option<String>,
+    /// Set when the whole graph must be framed on the next frame, which is how a freshly
+    /// opened document arrives: the canvas rectangle is only known once it is drawn.
+    pub fit_request: bool,
 }
 
 impl Default for CanvasState {
@@ -120,6 +123,7 @@ impl Default for CanvasState {
             last_pointer: [0.0, 0.0],
             hover_elapsed: 0.0,
             focus_request: None,
+            fit_request: false,
         }
     }
 }

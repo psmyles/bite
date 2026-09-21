@@ -219,6 +219,9 @@ pub fn open_path(editor: &mut Editor, path: &Path) {
                     crate::theme::ZOOM_MAX,
                 ),
             };
+            // The saved viewport was framed for whatever window the file was saved from,
+            // so the opened graph is fitted to this one instead once the canvas is drawn.
+            editor.canvas.state.fit_request = true;
             editor.selected_node = None;
             editor.preview_node = None;
             editor.branches.clear();

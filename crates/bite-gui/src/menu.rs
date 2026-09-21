@@ -46,8 +46,18 @@ pub enum Command {
     CheckForUpdates,
 }
 
-/// The height of the in-window menu bar, from `MenuBar.svelte`.
+/// The height the in-window menu bar is laid out for, from `MenuBar.svelte`. Dear ImGui
+/// sizes the real bar from the font and its frame padding, so [`draw`] reports what it
+/// actually drew and the shell pads below that; this is only the fallback for tests.
 pub const MENU_BAR_HEIGHT: f32 = 30.0;
+
+/// What one frame of the menu bar produced: the command the user picked, if any, and the
+/// height the bar took, so the panels below it sit one shell gap away rather than a gap
+/// plus whatever the constant above mis-estimates.
+pub struct Bar {
+    pub command: Option<Command>,
+    pub height: f32,
+}
 
 /// Draws the menu bar and returns the command the user picked, if any.
 pub fn draw(
@@ -55,8 +65,9 @@ pub fn draw(
     title: &str,
     timers_enabled: bool,
     show_developer_items: bool,
-) -> Option<Command> {
+) -> Bar {
     let mut command = None;
+    let mut height = MENU_BAR_HEIGHT;
     ui.with_style(
         &[
             StyleVar::WindowPadding([8.0, 0.0]),
@@ -99,17 +110,18 @@ pub fn draw(
                                 },
                             );
                         });
-                        draw_title(ui, title);
+                        height = ui.window_size()[1];
+                        draw_title(ui, title, height);
                     });
                 },
             )
         },
     );
-    command
+    Bar { command, height }
 }
 
 /// The current document title, shown at the right of the bar in muted monospace.
-fn draw_title(ui: &mut Ui, title: &str) {
+fn draw_title(ui: &mut Ui, title: &str, bar_height: f32) {
     if title.is_empty() {
         return;
     }
@@ -122,7 +134,7 @@ fn draw_title(ui: &mut Ui, title: &str) {
     ui.draw_list().text_with_face(
         [
             origin[0] + available - size[0] - 8.0,
-            origin[1] + (MENU_BAR_HEIGHT - size[1]) / 2.0 - 2.0,
+            origin[1] + (bar_height - size[1]) / 2.0 - 2.0,
         ],
         theme::TEXT.with_alpha(0.6),
         theme::face::SMALL_MONO,

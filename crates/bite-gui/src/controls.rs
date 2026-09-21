@@ -342,6 +342,10 @@ pub fn dropdown(
                     theme::DROPDOWN_ITEM_PADDING_X,
                     theme::DROPDOWN_LIST_PADDING_Y,
                 ]),
+                // A row is taller than its text, and Dear ImGui lays a selectable's label
+                // against the top of the box it was given. `.dd-item` centres it instead,
+                // so the highlight sits on the text rather than above it.
+                StyleVar::SelectableTextAlign([0.0, 0.5]),
             ],
             |ui| {
                 ui.with_colors(
@@ -431,7 +435,15 @@ pub fn panel_header(ui: &mut Ui, title: &str, trailing: Option<&str>) {
     let origin = ui.cursor_screen_position();
     let max = [origin[0] + width, origin[1] + theme::PANEL_HEADER_HEIGHT];
     let list = ui.draw_list();
-    list.rect(origin, max, theme::PANEL_HEADER_BG, 0.0, Rounding::None);
+    // The header sits on the panel's own rounded background, so it carries the same top
+    // corners; squaring them here is what made the panels disagree with one another.
+    list.rect(
+        origin,
+        max,
+        theme::PANEL_HEADER_BG,
+        theme::PANEL_RADIUS,
+        Rounding::Top,
+    );
     // The stylesheet letter-spaces the title, which is drawn per character here.
     let title_position = [
         origin[0] + 12.0,
