@@ -451,12 +451,19 @@ impl ImageHost for RecordingHost<'_> {
             .iter()
             .find(|f| f.args == args)
             .map(|f| f.value.clone());
-        if args.ends_with(&["-format".into(), "%[fx:mean]".into(), "info:".into()]) {
+        // A mean is measured either one channel at a time or every channel of an image at
+        // once, and the second reports one number per channel. Both end by formatting
+        // `%[fx:mean]`, and every number either reports has to be a real mean.
+        let measures_mean = matches!(args, [.., flag, format, info]
+            if flag == "-format" && format.trim() == "%[fx:mean]" && info == "info:");
+        if measures_mean {
             if let Some(value) = &value {
-                if !value
-                    .trim()
-                    .parse::<f64>()
-                    .is_ok_and(|v| v.is_finite() && (0.0..=1.0).contains(&v))
+                let mut means = value.split_whitespace().peekable();
+                if means.peek().is_none()
+                    || !means.all(|mean| {
+                        mean.parse::<f64>()
+                            .is_ok_and(|mean| mean.is_finite() && (0.0..=1.0).contains(&mean))
+                    })
                 {
                     return Err(
                         "Invalid planning mean capture: expected a finite number in [0, 1]".into(),

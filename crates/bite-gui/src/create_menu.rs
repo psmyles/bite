@@ -15,8 +15,16 @@ use bite_schema::{ParamType, PortType};
 /// What the menu produced.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Outcome {
-    /// Create this entry at the recorded position, connecting it if a wire was dropped.
-    Create(Entry),
+    /// Create this entry at the position the menu opened at, connecting the wire it was
+    /// dropped from when there is one.
+    ///
+    /// The outcome carries both, because choosing an entry closes the menu, and closing
+    /// it lets go of the wire it was holding.
+    Create {
+        entry: Entry,
+        position: Vec2,
+        pending: Option<PendingWire>,
+    },
     GroupSelection,
     UngroupSelection,
     Dismissed,
@@ -83,6 +91,15 @@ impl CreateMenu {
         self.tooltip.reset();
         self.open_category = None;
         self.sub_rect = None;
+    }
+
+    /// The outcome for a chosen entry, taken while the menu still holds the wire.
+    pub fn create(&self, entry: Entry) -> Outcome {
+        Outcome::Create {
+            entry,
+            position: self.position,
+            pending: self.pending.clone(),
+        }
     }
 
     pub fn close(&mut self) {
@@ -284,7 +301,7 @@ impl CreateMenu {
                 for (index, entry) in flat.iter().enumerate() {
                     if self.result_row(ui, entry, Some(index) == self.active_index, width, delta, true)
                     {
-                        outcome = Some(Outcome::Create(entry.clone()));
+                        outcome = Some(self.create(entry.clone()));
                     }
                 }
                 if ui.key_pressed(Key::Enter) {
@@ -292,7 +309,7 @@ impl CreateMenu {
                     // menu does, and otherwise waits for a choice.
                     let chosen = self.active_index.or((flat.len() == 1).then_some(0));
                     if let Some(entry) = chosen.and_then(|index| flat.get(index)) {
-                        outcome = Some(Outcome::Create(entry.clone()));
+                        outcome = Some(self.create(entry.clone()));
                     }
                 }
             } else {
@@ -307,7 +324,7 @@ impl CreateMenu {
                             delta,
                         )
                     {
-                        outcome = Some(Outcome::Create(entry));
+                        outcome = Some(self.create(entry));
                     }
                 }
             }
@@ -822,5 +839,25 @@ mod tests {
         menu.close();
         assert!(!menu.open);
         assert!(menu.pending.is_none());
+    }
+
+    /// Choosing an entry closes the menu, so the wire has to travel with the outcome or
+    /// the new node is created with nothing joined to it.
+    #[test]
+    fn a_chosen_entry_carries_the_wire_that_opened_the_menu() {
+        let mut menu = CreateMenu::default();
+        let dropped = pending(WireType::Image, WireEnd::Source);
+        menu.open_at([120.0, 40.0], Some(dropped.clone()));
+        let entry = comment_entry();
+        let outcome = menu.create(entry.clone());
+        menu.close();
+        assert_eq!(
+            outcome,
+            Outcome::Create {
+                entry,
+                position: [120.0, 40.0],
+                pending: Some(dropped),
+            }
+        );
     }
 }

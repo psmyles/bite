@@ -801,3 +801,64 @@ fn channel_and_set_plans_record_fused_native_structure() {
         }
     }
 }
+
+#[test]
+fn a_listed_input_selection_runs_without_an_input_folder() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let registry = Registry::load(
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
+    )
+    .unwrap();
+    let graph = workflow::load(
+        &fs::read_to_string(root.join("test-workflows/wf-04-channels.bite")).unwrap(),
+        &registry,
+    )
+    .unwrap()
+    .workflow
+    .graph;
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("input");
+    let output = dir.path().join("output");
+    fs::create_dir(&input).unwrap();
+    // A third file sits beside the two that were picked, to prove the run follows the
+    // list rather than the folder it happens to live in.
+    let picked: Vec<PathBuf> = ["b.png", "a.png"]
+        .iter()
+        .map(|name| {
+            let path = input.join(name);
+            fs::write(&path, b"planning only").unwrap();
+            path
+        })
+        .collect();
+    fs::write(input.join("ignored.png"), b"planning only").unwrap();
+    let options = RunOptions {
+        named_paths: [("out".into(), output)].into(),
+        named_files: [("in".into(), picked)].into(),
+        ..RunOptions::default()
+    };
+    let facts = PlanningFacts::default();
+    let mut metadata = |_: &std::path::Path, _: bool| Ok(bite_expr::Context::new());
+    let result = plan::concrete(&graph, &registry, &options, &facts, &mut metadata).unwrap();
+    let mut outputs: Vec<String> = result
+        .events
+        .into_iter()
+        .filter_map(|e| match e {
+            PlannedEvent::Output { operation, .. } => Some(
+                operation
+                    .output()
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+            _ => None,
+        })
+        .collect();
+    outputs.sort();
+    assert_eq!(outputs.len(), 2, "{outputs:?}");
+    assert!(
+        outputs[0].starts_with('a') && outputs[1].starts_with('b'),
+        "{outputs:?}"
+    );
+}

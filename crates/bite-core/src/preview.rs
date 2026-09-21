@@ -548,9 +548,8 @@ mod tests {
     struct MeanHost;
     impl MeanHost {
         fn channel(args: &[String]) -> Option<&str> {
-            args.windows(2).find_map(|pair| {
-                (pair[0] == "-channel").then(|| pair[1].as_str())
-            })
+            args.windows(2)
+                .find_map(|pair| (pair[0] == "-channel").then(|| pair[1].as_str()))
         }
     }
     impl ImageHost for MeanHost {
@@ -560,10 +559,15 @@ mod tests {
             fs::write(output, b"rendered").map_err(|error| error.to_string())
         }
         fn capture(&mut self, args: &[String]) -> Result<String, String> {
-            let mean = match MeanHost::channel(args) {
-                Some("Red") => 0.61,
-                Some("Green") => 0.56,
-                Some("Blue") => 0.53,
+            // Separating without naming a channel reports every channel at once, which is
+            // how the execution measures a split image in one read.
+            let Some(channel) = MeanHost::channel(args) else {
+                return Ok("0.61 0.56 0.53 ".into());
+            };
+            let mean = match channel {
+                "Red" => 0.61,
+                "Green" => 0.56,
+                "Blue" => 0.53,
                 _ => return Err(format!("unexpected capture {args:?}")),
             };
             Ok(format!("{mean}"))

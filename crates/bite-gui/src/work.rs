@@ -358,7 +358,7 @@ fn preview_worker(jobs: &Receiver<PreviewJob>, handle: &JobHandle) {
         }
         let key = preview_key(&job);
         let started = std::time::Instant::now();
-        let before = magick.processes;
+        let before = magick.processes();
         if job.target.is_none() {
             // Nothing renders, but the property and logic nodes still report what they
             // read from the selected file, which is all this workflow's canvas shows.
@@ -400,7 +400,7 @@ fn preview_worker(jobs: &Receiver<PreviewJob>, handle: &JobHandle) {
                 crate::timings::report_preview(crate::timings::Preview {
                     nodes: job.graph.nodes.len(),
                     reused: false,
-                    processes: magick.processes - before,
+                    processes: magick.processes() - before,
                     milliseconds: started.elapsed().as_millis(),
                 });
             }

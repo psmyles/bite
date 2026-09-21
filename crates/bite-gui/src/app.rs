@@ -905,11 +905,11 @@ fn handle_filmstrip(editor: &mut Editor, outcome: panels::filmstrip::Outcome) {
 
 fn handle_create_menu(editor: &mut Editor, outcome: create_menu::Outcome) {
     match outcome {
-        create_menu::Outcome::Create(entry) => {
-            let position = editor.create_menu.position;
-            let pending = editor.create_menu.pending.clone();
-            editor.create_node(&entry.id, position, pending);
-        }
+        create_menu::Outcome::Create {
+            entry,
+            position,
+            pending,
+        } => editor.create_node(&entry.id, position, pending),
         create_menu::Outcome::GroupSelection => crate::commands::group_selection(editor),
         create_menu::Outcome::UngroupSelection => crate::commands::ungroup_selection(editor),
         create_menu::Outcome::Dismissed => {}
@@ -1078,6 +1078,134 @@ mod tests {
             next_texture: 2,
             pending_uploads: Vec::new(),
         }
+    }
+
+    /// A wire dropped on empty canvas opens the menu, and the node the menu creates is
+    /// joined to the port the drag started from, in one step.
+    #[test]
+    fn a_node_created_from_a_dropped_wire_is_connected_to_it() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut editor = bare_editor();
+        editor.studio = studio::Studio::seeded(studio::Studio::load_registry(&root).unwrap());
+        let input = editor
+            .studio
+            .workflow
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::Input))
+            .unwrap()
+            .id
+            .clone();
+        let dropped = PendingWire {
+            node: input.clone(),
+            handle: "out:output".into(),
+            end: WireEnd::Source,
+            origin: [0.0, 0.0],
+            wire: bite_core::graph::WireType::Image,
+        };
+        editor.create_menu.open_at([320.0, 200.0], Some(dropped));
+        let entry = editor.entry_for("grayscale").unwrap();
+        let outcome = editor.create_menu.create(entry);
+        // Choosing a row closes the menu before the outcome is acted on.
+        editor.create_menu.close();
+        handle_create_menu(&mut editor, outcome);
+
+        let created = editor.selected_node.clone().unwrap();
+        let edge = editor
+            .studio
+            .workflow
+            .graph
+            .edges
+            .iter()
+            .find(|edge| edge.target == created)
+            .expect("the new node is wired to the port the drag came from");
+        assert_eq!(edge.source, input);
+        assert_eq!(edge.source_handle, "out:output");
+        assert_eq!(edge.target_handle, "in:input");
+        assert!(editor.status.is_empty(), "{}", editor.status);
+
+        // Dragging the other way round, out of an input port, wires the new node into it.
+        let output = editor
+            .studio
+            .workflow
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::ImageOutput))
+            .unwrap()
+            .id
+            .clone();
+        editor.create_menu.open_at(
+            [480.0, 200.0],
+            Some(PendingWire {
+                node: output.clone(),
+                handle: "in:input".into(),
+                end: WireEnd::Target,
+                origin: [0.0, 0.0],
+                wire: bite_core::graph::WireType::Image,
+            }),
+        );
+        let entry = editor.entry_for("blur").unwrap();
+        let outcome = editor.create_menu.create(entry);
+        editor.create_menu.close();
+        handle_create_menu(&mut editor, outcome);
+        let blur = editor.selected_node.clone().unwrap();
+        let edge = editor
+            .studio
+            .workflow
+            .graph
+            .edges
+            .iter()
+            .find(|edge| edge.target == output)
+            .expect("the new node feeds the port the drag came from");
+        assert_eq!(edge.source, blur);
+        assert_eq!(edge.source_handle, "out:output");
+        assert!(editor.status.is_empty(), "{}", editor.status);
+    }
+
+    /// A number dragged out of a value node lands on the first parameter of the new node
+    /// that can take one, not on an image port.
+    #[test]
+    fn a_dropped_value_wire_lands_on_a_parameter_port() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut editor = bare_editor();
+        editor.studio = studio::Studio::seeded(studio::Studio::load_registry(&root).unwrap());
+        let float = editor
+            .studio
+            .add_processing("value_float", Position { x: 0.0, y: 0.0 })
+            .unwrap();
+        editor.create_menu.open_at(
+            [320.0, 320.0],
+            Some(PendingWire {
+                node: float.clone(),
+                handle: "param:value".into(),
+                end: WireEnd::Source,
+                origin: [0.0, 0.0],
+                wire: bite_core::graph::WireType::Number,
+            }),
+        );
+        let entry = editor.entry_for("blur").unwrap();
+        let outcome = editor.create_menu.create(entry);
+        editor.create_menu.close();
+        handle_create_menu(&mut editor, outcome);
+        let blur = editor.selected_node.clone().unwrap();
+        let edge = editor
+            .studio
+            .workflow
+            .graph
+            .edges
+            .iter()
+            .find(|edge| edge.target == blur)
+            .expect("the number reaches a parameter of the new node");
+        assert_eq!(edge.source, float);
+        assert_eq!(edge.source_handle, "param:value");
+        assert!(
+            edge.target_handle.starts_with("param:"),
+            "{}",
+            edge.target_handle
+        );
+        assert!(editor.status.is_empty(), "{}", editor.status);
     }
 
     #[test]

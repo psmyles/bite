@@ -36,18 +36,46 @@ struct CachedMetadata {
     value: Context,
 }
 
+/// What a command measured, and the state of every file it measured it from.
+#[derive(Clone)]
+struct CachedCapture {
+    sources: Vec<(PathBuf, FileStamp)>,
+    inserted: Instant,
+    value: String,
+}
+
 pub struct Magick {
     pub binary: PathBuf,
     pub environment: BTreeMap<String, String>,
     pub cancelled: Arc<AtomicBool>,
     pub timeout: Duration,
-    pub processes: usize,
-    metadata_cache: BTreeMap<(PathBuf, bool), CachedMetadata>,
-    pub metadata_cache_stats: CacheStats,
-    pub metadata_cache_ttl: Duration,
-    current_child_memory: Arc<AtomicU64>,
-    peak_child_memory: Arc<AtomicU64>,
+    pub cache_ttl: Duration,
+    shared: Arc<Shared>,
 }
+
+/// What every host cloned from one `discover` has in common.
+///
+/// A batch is split across workers and a workflow may have several output nodes, so the
+/// measurements and the counts have to outlive any one host: a file read for the first
+/// output is still read for the second, whichever worker happened to reach it.
+#[derive(Default)]
+struct Shared {
+    processes: AtomicUsize,
+    metadata: Mutex<BTreeMap<(PathBuf, bool), CachedMetadata>>,
+    metadata_stats: Mutex<CacheStats>,
+    /// What each analysis command reported. A workflow with an image output and a report
+    /// runs its chain once per output, and asking the same question of the same file
+    /// twice costs as much as asking it the first time.
+    captures: Mutex<BTreeMap<Vec<String>, CachedCapture>>,
+    capture_stats: Mutex<CacheStats>,
+    current_child_memory: AtomicU64,
+    peak_child_memory: AtomicU64,
+}
+
+/// How many measurements are kept before the expired ones are cleared out. A run measures
+/// once per file, so this holds several large batches; the interface keeps one host for
+/// the whole session and would otherwise grow without bound.
+const CAPTURE_CACHE_LIMIT: usize = 8192;
 
 #[cfg(windows)]
 fn child_working_set(child: &std::process::Child) -> u64 {
@@ -173,39 +201,77 @@ impl Magick {
             environment,
             cancelled,
             timeout: Duration::from_secs(120),
-            processes: 0,
-            metadata_cache: BTreeMap::new(),
-            metadata_cache_stats: CacheStats::default(),
-            metadata_cache_ttl: Duration::from_secs(10 * 60),
-            current_child_memory: Arc::new(AtomicU64::new(0)),
-            peak_child_memory: Arc::new(AtomicU64::new(0)),
+            cache_ttl: Duration::from_secs(10 * 60),
+            shared: Arc::default(),
         }
     }
 
+    /// Another host onto the same ImageMagick, sharing this one's measurements and counts.
+    fn worker(&self, threads: usize) -> Self {
+        let mut environment = self.environment.clone();
+        environment.insert("MAGICK_THREAD_LIMIT".into(), threads.to_string());
+        Self {
+            binary: self.binary.clone(),
+            environment,
+            cancelled: self.cancelled.clone(),
+            timeout: self.timeout,
+            cache_ttl: self.cache_ttl,
+            shared: self.shared.clone(),
+        }
+    }
+
+    /// How many ImageMagick processes have been started through this host and its workers.
+    pub fn processes(&self) -> usize {
+        self.shared.processes.load(Ordering::Relaxed)
+    }
+
+    pub fn metadata_cache_stats(&self) -> CacheStats {
+        *self.shared.metadata_stats.lock().unwrap()
+    }
+
+    pub fn capture_cache_stats(&self) -> CacheStats {
+        *self.shared.capture_stats.lock().unwrap()
+    }
+
     pub fn peak_child_memory_bytes(&self) -> u64 {
-        self.peak_child_memory.load(Ordering::Relaxed)
+        self.shared.peak_child_memory.load(Ordering::Relaxed)
     }
 
     pub fn reset_peak_child_memory(&self) {
-        self.peak_child_memory.store(
-            self.current_child_memory.load(Ordering::Relaxed),
+        self.shared.peak_child_memory.store(
+            self.shared.current_child_memory.load(Ordering::Relaxed),
             Ordering::Relaxed,
         );
     }
 
-    fn file_stamp(path: &Path) -> Result<FileStamp, String> {
-        let metadata = fs::metadata(path)
-            .map_err(|error| format!("Cannot read metadata for {}: {error}", path.display()))?;
-        let modified_ns = metadata
-            .modified()
-            .ok()
-            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|duration| duration.as_nanos())
-            .unwrap_or(0);
-        Ok(FileStamp {
+    fn stamp_of(metadata: &fs::Metadata) -> FileStamp {
+        FileStamp {
             size: metadata.len(),
-            modified_ns,
-        })
+            modified_ns: metadata
+                .modified()
+                .ok()
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                .map_or(0, |duration| duration.as_nanos()),
+        }
+    }
+
+    /// The files a command reads, as they stand now.
+    ///
+    /// A command is options and image paths mixed together and only the host knows which
+    /// is which, so anything that is a file on disk counts. The rest cannot go stale.
+    fn source_stamps(args: &[String]) -> Vec<(PathBuf, FileStamp)> {
+        args.iter()
+            .filter_map(|arg| {
+                let metadata = fs::metadata(arg).ok().filter(fs::Metadata::is_file)?;
+                Some((PathBuf::from(arg), Self::stamp_of(&metadata)))
+            })
+            .collect()
+    }
+
+    fn file_stamp(path: &Path) -> Result<FileStamp, String> {
+        fs::metadata(path)
+            .map(|metadata| Self::stamp_of(&metadata))
+            .map_err(|error| format!("Cannot read metadata for {}: {error}", path.display()))
     }
     pub fn analysis_identity(&self) -> Result<String, String> {
         let binary = if self.binary.is_file() {
@@ -242,7 +308,7 @@ impl Magick {
         if self.cancelled.load(Ordering::Relaxed) {
             return Err("Cancelled".into());
         }
-        self.processes += 1;
+        self.shared.processes.fetch_add(1, Ordering::Relaxed);
         let mut command = Command::new(&self.binary);
         command
             .args(args)
@@ -285,12 +351,16 @@ impl Magick {
             if memory > tracked_memory {
                 let delta = memory - tracked_memory;
                 let current = self
+                    .shared
                     .current_child_memory
                     .fetch_add(delta, Ordering::Relaxed)
                     + delta;
-                self.peak_child_memory.fetch_max(current, Ordering::Relaxed);
+                self.shared
+                    .peak_child_memory
+                    .fetch_max(current, Ordering::Relaxed);
             } else if tracked_memory > memory {
-                self.current_child_memory
+                self.shared
+                    .current_child_memory
                     .fetch_sub(tracked_memory - memory, Ordering::Relaxed);
             }
             tracked_memory = memory;
@@ -308,7 +378,8 @@ impl Magick {
             }
             thread::sleep(Duration::from_millis(5));
         };
-        self.current_child_memory
+        self.shared
+            .current_child_memory
             .fetch_sub(tracked_memory, Ordering::Relaxed);
         let stdout = out.join().map_err(|_| "stdout reader failed")??;
         let stderr = error.join().map_err(|_| "stderr reader failed")??;
@@ -324,6 +395,7 @@ impl Magick {
         Ok(String::from_utf8_lossy(&stdout).into_owned())
     }
 
+    /// Runs each command over `jobs` workers, keeping the order of the results.
     fn output_many(
         &mut self,
         commands: Vec<Vec<String>>,
@@ -333,61 +405,27 @@ impl Magick {
             return commands.iter().map(|args| self.output(args)).collect();
         }
         let count = commands.len();
-        let queue = Arc::new(Mutex::new(
-            commands.into_iter().enumerate().collect::<VecDeque<_>>(),
-        ));
-        let results = Arc::new(Mutex::new(
-            (0..count)
-                .map(|_| None)
-                .collect::<Vec<Option<Result<String, String>>>>(),
-        ));
-        let process_count = Arc::new(AtomicUsize::new(0));
-        let binary = self.binary.clone();
-        let environment = self.environment.clone();
-        let cancelled = self.cancelled.clone();
-        let timeout = self.timeout;
-        let current_child_memory = self.current_child_memory.clone();
-        let peak_child_memory = self.peak_child_memory.clone();
+        let queue = Mutex::new(commands.into_iter().enumerate().collect::<VecDeque<_>>());
+        let results = Mutex::new((0..count).map(|_| None).collect::<Vec<_>>());
+        let workers = jobs.min(count);
         thread::scope(|scope| {
-            for _ in 0..jobs.min(count) {
-                let queue = queue.clone();
-                let results = results.clone();
-                let process_count = process_count.clone();
-                let binary = binary.clone();
-                let environment = environment.clone();
-                let cancelled = cancelled.clone();
-                let current_child_memory = current_child_memory.clone();
-                let peak_child_memory = peak_child_memory.clone();
-                scope.spawn(move || {
-                    let mut worker = Magick {
-                        binary,
-                        environment,
-                        cancelled,
-                        timeout,
-                        processes: 0,
-                        metadata_cache: BTreeMap::new(),
-                        metadata_cache_stats: CacheStats::default(),
-                        metadata_cache_ttl: Duration::from_secs(10 * 60),
-                        current_child_memory,
-                        peak_child_memory,
-                    };
-                    loop {
-                        if worker.cancelled.load(Ordering::Relaxed) {
-                            break;
-                        }
-                        let Some((index, args)) = queue.lock().unwrap().pop_front() else {
-                            break;
-                        };
-                        let value = worker.output(&args);
-                        results.lock().unwrap()[index] = Some(value);
+            for _ in 0..workers {
+                let queue = &queue;
+                let results = &results;
+                let mut worker = self.worker(thread_share(workers));
+                scope.spawn(move || loop {
+                    if worker.cancelled.load(Ordering::Relaxed) {
+                        break;
                     }
-                    process_count.fetch_add(worker.processes, Ordering::Relaxed);
+                    let Some((index, args)) = queue.lock().unwrap().pop_front() else {
+                        break;
+                    };
+                    let value = worker.output(&args);
+                    results.lock().unwrap()[index] = Some(value);
                 });
             }
         });
-        self.processes += process_count.load(Ordering::Relaxed);
-        Arc::try_unwrap(results)
-            .unwrap()
+        results
             .into_inner()
             .unwrap()
             .into_iter()
@@ -399,8 +437,43 @@ impl ImageHost for Magick {
     fn run(&mut self, args: &[String]) -> Result<(), String> {
         self.output(args).map(|_| ())
     }
+    /// Measures an image, reusing what the same command reported about the same files.
+    ///
+    /// A workflow runs its chain once per output node, so a channel gate feeding both an
+    /// image output and a report asks for every mean twice over. The answer only depends
+    /// on the command and the files it reads, and both are known here.
     fn capture(&mut self, args: &[String]) -> Result<String, String> {
-        self.output(args)
+        let sources = Self::source_stamps(args);
+        // A command that reads no file has nothing to notice a change in, so it is
+        // measured afresh every time rather than remembered forever.
+        if sources.is_empty() {
+            return self.output(args);
+        }
+        if let Some(cached) = self.shared.captures.lock().unwrap().get(args) {
+            if cached.sources == sources && cached.inserted.elapsed() <= self.cache_ttl {
+                self.shared.capture_stats.lock().unwrap().hits += 1;
+                return Ok(cached.value.clone());
+            }
+            self.shared.capture_stats.lock().unwrap().invalidations += 1;
+        }
+        self.shared.capture_stats.lock().unwrap().misses += 1;
+        let value = self.output(args)?;
+        let mut captures = self.shared.captures.lock().unwrap();
+        if captures.len() >= CAPTURE_CACHE_LIMIT {
+            captures.retain(|_, cached| cached.inserted.elapsed() <= self.cache_ttl);
+            if captures.len() >= CAPTURE_CACHE_LIMIT {
+                captures.clear();
+            }
+        }
+        captures.insert(
+            args.to_vec(),
+            CachedCapture {
+                sources,
+                inserted: Instant::now(),
+                value: value.clone(),
+            },
+        );
+        Ok(value)
     }
     fn emit_many(
         &mut self,
@@ -415,85 +488,61 @@ impl ImageHost for Magick {
                 .collect();
         }
         let count = operations.len();
-        let queue = Arc::new(Mutex::new(
-            operations.into_iter().enumerate().collect::<VecDeque<_>>(),
-        ));
-        let results = Arc::new(Mutex::new(
-            (0..count)
-                .map(|_| None)
-                .collect::<Vec<Option<Result<(), String>>>>(),
-        ));
-        let process_count = Arc::new(AtomicUsize::new(0));
-        let binary = self.binary.clone();
+        let queue = Mutex::new(operations.into_iter().enumerate().collect::<VecDeque<_>>());
+        let results = Mutex::new((0..count).map(|_| None).collect::<Vec<_>>());
         let workers = jobs.min(count).max(1);
-        let mut environment = self.environment.clone();
-        // Each pipeline gets an equal share of the hardware threads. Pinning every one of
-        // them to a single thread leaves most of a machine idle when there are only a few
-        // images to process, and letting each take the whole machine would have them
-        // fighting over it. The total stays at about one thread per core either way.
-        environment.insert("MAGICK_THREAD_LIMIT".into(), thread_share(workers).to_string());
-        let environment = environment;
-        let cancelled = self.cancelled.clone();
-        let timeout = self.timeout;
-        let current_child_memory = self.current_child_memory.clone();
-        let peak_child_memory = self.peak_child_memory.clone();
         thread::scope(|scope| {
             for _ in 0..workers {
-                let queue = queue.clone();
-                let results = results.clone();
-                let process_count = process_count.clone();
-                let binary = binary.clone();
-                let environment = environment.clone();
-                let cancelled = cancelled.clone();
-                let current_child_memory = current_child_memory.clone();
-                let peak_child_memory = peak_child_memory.clone();
-                scope.spawn(move || {
-                    let mut worker = Magick {
-                        binary,
-                        environment,
-                        cancelled,
-                        timeout,
-                        processes: 0,
-                        metadata_cache: BTreeMap::new(),
-                        metadata_cache_stats: CacheStats::default(),
-                        metadata_cache_ttl: Duration::from_secs(10 * 60),
-                        current_child_memory,
-                        peak_child_memory,
-                    };
-                    loop {
-                        if worker.cancelled.load(Ordering::Relaxed) {
-                            break;
-                        }
-                        let Some((index, operation)) = queue.lock().unwrap().pop_front() else {
-                            break;
-                        };
-                        let value = worker.emit(operation, options);
-                        results.lock().unwrap()[index] = Some(value);
+                let queue = &queue;
+                let results = &results;
+                // Each pipeline gets an equal share of the hardware threads. Pinning every
+                // one of them to a single thread leaves most of a machine idle when there
+                // are only a few images to process, and letting each take the whole machine
+                // would have them fighting over it. The total stays at about one thread per
+                // core either way.
+                let mut worker = self.worker(thread_share(workers));
+                scope.spawn(move || loop {
+                    if worker.cancelled.load(Ordering::Relaxed) {
+                        break;
                     }
-                    process_count.fetch_add(worker.processes, Ordering::Relaxed);
+                    let Some((index, operation)) = queue.lock().unwrap().pop_front() else {
+                        break;
+                    };
+                    let value = worker.emit(operation, options);
+                    results.lock().unwrap()[index] = Some(value);
                 });
             }
         });
-        self.processes += process_count.load(Ordering::Relaxed);
-        Arc::try_unwrap(results)
-            .unwrap()
+        results
             .into_inner()
             .unwrap()
             .into_iter()
             .map(|result| result.unwrap_or_else(|| Err("Cancelled".into())))
             .collect()
     }
+    /// One host per job, each with an equal share of the hardware threads, so that the
+    /// files of a batch can be resolved at the same time without their ImageMagick thread
+    /// pools fighting over the machine.
+    fn workers(&self, jobs: usize) -> Vec<Box<dyn ImageHost + Send>> {
+        let jobs = jobs.max(1);
+        if jobs == 1 {
+            return Vec::new();
+        }
+        (0..jobs)
+            .map(|_| Box::new(self.worker(thread_share(jobs))) as Box<dyn ImageHost + Send>)
+            .collect()
+    }
     fn metadata(&mut self, path: &Path, heavy: bool) -> Result<Context, String> {
         let key = (path.to_owned(), heavy);
         let stamp = Self::file_stamp(path)?;
-        if let Some(cached) = self.metadata_cache.get(&key) {
-            if cached.stamp == stamp && cached.inserted.elapsed() <= self.metadata_cache_ttl {
-                self.metadata_cache_stats.hits += 1;
+        if let Some(cached) = self.shared.metadata.lock().unwrap().get(&key) {
+            if cached.stamp == stamp && cached.inserted.elapsed() <= self.cache_ttl {
+                self.shared.metadata_stats.lock().unwrap().hits += 1;
                 return Ok(cached.value.clone());
             }
-            self.metadata_cache_stats.invalidations += 1;
+            self.shared.metadata_stats.lock().unwrap().invalidations += 1;
         }
-        self.metadata_cache_stats.misses += 1;
+        self.shared.metadata_stats.lock().unwrap().misses += 1;
         let mut ctx: Context = metadata_types()
             .into_iter()
             .map(|(k, t)| {
@@ -586,7 +635,7 @@ impl ImageHost for Magick {
                 }
             }
         }
-        self.metadata_cache.insert(
+        self.shared.metadata.lock().unwrap().insert(
             key,
             CachedMetadata {
                 stamp,
@@ -618,12 +667,8 @@ mod process_tests {
             environment: BTreeMap::from([("BITE_PROCESS_FIXTURE".into(), mode.into())]),
             cancelled: Arc::new(AtomicBool::new(false)),
             timeout: Duration::from_secs(5),
-            processes: 0,
-            metadata_cache: BTreeMap::new(),
-            metadata_cache_stats: CacheStats::default(),
-            metadata_cache_ttl: Duration::from_secs(10 * 60),
-            current_child_memory: Arc::new(AtomicU64::new(0)),
-            peak_child_memory: Arc::new(AtomicU64::new(0)),
+            cache_ttl: Duration::from_secs(10 * 60),
+            shared: Arc::default(),
         }
     }
 
@@ -677,19 +722,66 @@ mod process_tests {
         let first = host.metadata(&path, false).unwrap();
         let second = host.metadata(&path, false).unwrap();
         assert_eq!(first, second);
-        assert_eq!(host.metadata_cache_stats.hits, 1);
-        assert_eq!(host.metadata_cache_stats.misses, 1);
+        assert_eq!(host.metadata_cache_stats().hits, 1);
+        assert_eq!(host.metadata_cache_stats().misses, 1);
 
-        host.metadata_cache_ttl = Duration::ZERO;
+        host.cache_ttl = Duration::ZERO;
         host.metadata(&path, false).unwrap();
-        assert_eq!(host.metadata_cache_stats.invalidations, 1);
-        host.metadata_cache_ttl = Duration::from_secs(60);
+        assert_eq!(host.metadata_cache_stats().invalidations, 1);
+        host.cache_ttl = Duration::from_secs(60);
         thread::sleep(Duration::from_millis(10));
         png[16..20].copy_from_slice(&64u32.to_be_bytes());
         fs::write(&path, &png).unwrap();
         let changed = host.metadata(&path, false).unwrap();
         assert_eq!(changed["image.width"], Value::Int(64));
-        assert_eq!(host.metadata_cache_stats.invalidations, 2);
+        assert_eq!(host.metadata_cache_stats().invalidations, 2);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn captures_are_reused_until_the_files_they_measured_change() {
+        let dir = std::env::temp_dir().join(format!(
+            "bite-capture-cache-{}-{}",
+            std::process::id(),
+            Instant::now().elapsed().as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("fixture.png");
+        fs::write(&path, b"first").unwrap();
+        let mut host = fixture("tokens");
+        host.environment
+            .insert("BITE_FIXTURE_VALUE".into(), "0.25".into());
+        let args = [
+            path.to_string_lossy().into_owned(),
+            "--exact".into(),
+            "process_tests::child_fixture".into(),
+            "--nocapture".into(),
+        ];
+
+        assert!(host.capture(&args).unwrap().contains("0.25"));
+        // The second output node asks the same question of the same file, and is answered
+        // without starting a process: the host now reports a different number, and the
+        // remembered one comes back anyway.
+        host.environment
+            .insert("BITE_FIXTURE_VALUE".into(), "0.75".into());
+        assert!(host.capture(&args).unwrap().contains("0.25"));
+        assert_eq!(host.capture_cache_stats().hits, 1);
+        assert_eq!(host.capture_cache_stats().misses, 1);
+        assert_eq!(host.processes(), 1);
+
+        // A file that has changed underneath is measured again.
+        thread::sleep(Duration::from_millis(10));
+        fs::write(&path, b"second").unwrap();
+        assert!(host.capture(&args).unwrap().contains("0.75"));
+        assert_eq!(host.capture_cache_stats().invalidations, 1);
+        assert_eq!(host.processes(), 2);
+
+        // A command that reads no file has nothing to go stale, so it is never kept.
+        let transient = ["--exact".into(), "process_tests::child_fixture".into()];
+        host.capture(&transient).unwrap();
+        host.capture(&transient).unwrap();
+        assert_eq!(host.capture_cache_stats().hits, 1, "still only the one hit");
+        assert_eq!(host.processes(), 4);
         fs::remove_dir_all(dir).unwrap();
     }
 }

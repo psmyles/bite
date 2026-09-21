@@ -98,7 +98,7 @@ fn run() -> Result<(), String> {
                 "after_ms": after_ms,
                 "cancellation_latency_ms": latency_ms,
                 "jobs": options.jobs,
-                "imagemagick_processes_started": host.processes,
+                "imagemagick_processes_started": host.processes(),
                 "peak_child_memory_bytes": host.peak_child_memory_bytes(),
             }))
             .map_err(|error| error.to_string())?
@@ -168,9 +168,11 @@ fn run() -> Result<(), String> {
         let mut host = bite_imagemagick::Magick::discover(options.cancelled.clone());
         let mut measurements = Vec::new();
         for iteration in 0..iterations {
-            let processes = host.processes;
-            let hits = host.metadata_cache_stats.hits;
-            let misses = host.metadata_cache_stats.misses;
+            let processes = host.processes();
+            let hits = host.metadata_cache_stats().hits;
+            let misses = host.metadata_cache_stats().misses;
+            let capture_hits = host.capture_cache_stats().hits;
+            let capture_misses = host.capture_cache_stats().misses;
             host.reset_peak_child_memory();
             let started = Instant::now();
             let result = bite_core::execution::run_workflow(
@@ -186,10 +188,12 @@ fn run() -> Result<(), String> {
                 "processed": result.processed,
                 "skipped": result.skipped,
                 "failed": result.failed,
-                "imagemagick_processes": host.processes - processes,
+                "imagemagick_processes": host.processes() - processes,
                 "peak_child_memory_bytes": host.peak_child_memory_bytes(),
-                "metadata_cache_hits": host.metadata_cache_stats.hits - hits,
-                "metadata_cache_misses": host.metadata_cache_stats.misses - misses,
+                "metadata_cache_hits": host.metadata_cache_stats().hits - hits,
+                "metadata_cache_misses": host.metadata_cache_stats().misses - misses,
+                "capture_cache_hits": host.capture_cache_stats().hits - capture_hits,
+                "capture_cache_misses": host.capture_cache_stats().misses - capture_misses,
             }));
         }
         println!(
@@ -265,7 +269,7 @@ fn run() -> Result<(), String> {
         let cold_started = Instant::now();
         let cold = cache.load_batch(&mut host, &paths, size)?;
         let cold_ms = cold_started.elapsed().as_secs_f64() * 1000.0;
-        let cold_processes = host.processes;
+        let cold_processes = host.processes();
         let cold_peak_child_memory = host.peak_child_memory_bytes();
         let after_cold = cache.stats;
         host.reset_peak_child_memory();
@@ -292,7 +296,7 @@ fn run() -> Result<(), String> {
                 "warm": {
                     "elapsed_ms": warm_ms,
                     "images": warm.len(),
-                    "processes": host.processes - cold_processes,
+                    "processes": host.processes() - cold_processes,
                     "peak_child_memory_bytes": host.peak_child_memory_bytes(),
                     "memory_hits": cache.stats.memory_hits - after_cold.memory_hits,
                     "disk_hits": cache.stats.disk_hits - after_cold.disk_hits,

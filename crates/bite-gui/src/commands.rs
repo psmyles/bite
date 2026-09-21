@@ -562,7 +562,7 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
             images: paths.len(),
             cached: cache.stats.disk_hits,
             generated: cache.stats.disk_misses,
-            processes: magick.processes,
+            processes: magick.processes(),
             milliseconds: started.elapsed().as_millis(),
         });
         handle.send(work::Message::ImportFinished {
@@ -743,6 +743,31 @@ pub fn request_run(editor: &mut Editor) {
     start_run(editor);
 }
 
+/// What each Input node holds, keyed by the flag its output side names it with. An Input
+/// node stands for the files imported into it, which a folder cannot express: the import
+/// may be recursive, filtered by format, or picked file by file. A run follows that list
+/// rather than re-reading a folder, so it processes exactly what the filmstrip shows.
+pub fn imported_files(
+    graph: &bite_schema::Graph,
+    branches: &std::collections::BTreeMap<String, crate::app::Branch>,
+) -> std::collections::BTreeMap<String, Vec<PathBuf>> {
+    let mut files = std::collections::BTreeMap::new();
+    for node in &graph.nodes {
+        if node.kind != NodeKind::Builtin(BuiltinNodeKind::Input) {
+            continue;
+        }
+        let Some(ParamValue::String(flag)) = node.data.params.get("cliName") else {
+            continue;
+        };
+        if let Some(branch) = branches.get(&node.id) {
+            if !branch.paths.is_empty() {
+                files.insert(flag.clone(), branch.paths.clone());
+            }
+        }
+    }
+    files
+}
+
 /// Runs the workflow on a background thread.
 pub fn start_run(editor: &mut Editor) {
     let cancelled = Arc::new(AtomicBool::new(false));
@@ -754,6 +779,7 @@ pub fn start_run(editor: &mut Editor) {
         editor
             .studio
             .run_options_with_overrides(placeholder, placeholder, &editor.runtime_paths);
+    options.named_files = imported_files(&editor.studio.workflow.graph, &editor.branches);
     options.cancelled = cancelled.clone();
     let handle = editor.jobs.handle();
 
@@ -793,7 +819,7 @@ pub fn start_run(editor: &mut Editor) {
                     processed: batch.processed,
                     skipped: batch.skipped,
                     failed: batch.failed,
-                    processes: magick.processes,
+                    processes: magick.processes(),
                     milliseconds: started.elapsed().as_millis(),
                 });
                 handle.send(work::Message::RunFinished(Box::new(batch)))
@@ -979,5 +1005,34 @@ mod tests {
         assert!(matches_extensions(Path::new("a/b.PNG"), &extensions));
         assert!(!matches_extensions(Path::new("a/b.webp"), &extensions));
         assert!(!matches_extensions(Path::new("a/b"), &extensions));
+    }
+
+    #[test]
+    fn each_input_node_contributes_the_files_imported_into_it() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = studio::Studio::load_registry(&root).unwrap();
+        let mut studio = studio::Studio::blank(registry);
+        let first = studio.add_input(bite_schema::Position { x: 0.0, y: 0.0 });
+        let second = studio.add_input(bite_schema::Position { x: 0.0, y: 100.0 });
+        let third = studio.add_input(bite_schema::Position { x: 0.0, y: 200.0 });
+        let branch = |paths: &[&str]| crate::app::Branch {
+            paths: paths.iter().map(PathBuf::from).collect(),
+            ..Default::default()
+        };
+        let branches = [
+            (first, branch(&["one.png", "two.png"])),
+            (second, branch(&["three.png"])),
+            // An input with nothing imported is left out, so the run names it as a
+            // missing flag rather than reading an empty folder path.
+            (third, branch(&[])),
+        ]
+        .into();
+        let files = imported_files(&studio.workflow.graph, &branches);
+        assert_eq!(files.len(), 2);
+        assert_eq!(
+            files["input-1"],
+            [PathBuf::from("one.png"), PathBuf::from("two.png")]
+        );
+        assert_eq!(files["input-2"], [PathBuf::from("three.png")]);
     }
 }

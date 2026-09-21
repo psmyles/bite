@@ -57,6 +57,49 @@ pub trait ImageHost {
         }
         results
     }
+    /// Independent hosts that may resolve files at the same time as this one.
+    ///
+    /// Resolving a file reads its metadata and runs whatever analysis its chain asks for,
+    /// such as a mean or a comparison, and for a workflow like a channel gate that is
+    /// nearly all of the run. Those files never read what another writes, so a host that
+    /// can spawn concurrent processes hands back workers here and the batch is split
+    /// across them.
+    ///
+    /// Returning nothing, which is the default, keeps every file on this host in order.
+    /// That is what a host that records rather than spawns wants, and it is what makes a
+    /// plan reproducible.
+    fn workers(&self, _jobs: usize) -> Vec<Box<dyn ImageHost + Send>> {
+        Vec::new()
+    }
+}
+/// What one input file resolved to for one output node, before the results are folded
+/// back together in file order.
+///
+/// Nothing here has touched shared state: output paths are still names, and the counters
+/// a run reports are still the caller's to add up. That is what lets the files be
+/// resolved in any order and still land exactly as a serial run would have left them.
+pub struct ItemResult {
+    output: ItemOutput,
+    /// `capture_values` only: what every value node read on this file.
+    values: BTreeMap<String, Context>,
+    /// `capture_values` only: the nodes that stopped the stream.
+    stopped: Vec<String>,
+}
+pub type ItemOutcome = Result<ItemResult, String>;
+enum ItemOutput {
+    /// The chain reached this output with nothing to write.
+    Skipped,
+    /// The output takes no per-file work, or this file contributed none.
+    None,
+    /// The command this file resolved to, under the name it wants. The directory and
+    /// any collision suffix are settled when the results are merged.
+    Image {
+        name: String,
+        args: Vec<String>,
+        format: Option<String>,
+    },
+    Text(String),
+    Atlas(Context),
 }
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -109,6 +152,9 @@ fn output_args(
 #[derive(Debug, Clone)]
 pub struct RunOptions {
     pub named_paths: BTreeMap<String, PathBuf>,
+    /// The exact files an input flag should process, for a host that already holds a
+    /// list (the interface imports a selection) instead of a folder to enumerate.
+    pub named_files: BTreeMap<String, Vec<PathBuf>>,
     pub overwrite: bool,
     pub cancelled: Arc<AtomicBool>,
     pub analysis_identity: String,
@@ -122,6 +168,7 @@ impl Default for RunOptions {
     fn default() -> Self {
         Self {
             named_paths: BTreeMap::new(),
+            named_files: BTreeMap::new(),
             overwrite: false,
             cancelled: Arc::new(AtomicBool::new(false)),
             analysis_identity: String::new(),
@@ -442,6 +489,452 @@ fn write_output_log(
     Ok(Some(path))
 }
 
+/// Resolves every file of `work`, over whatever workers the host offers, in file order.
+///
+/// A host with no workers resolves them one after another on itself, so the order a plan
+/// records and the order a run reports are the same either way. Workers pull from a shared
+/// queue rather than taking a fixed slice, because files differ wildly in cost: one large
+/// image in a fixed slice would leave its worker running long after the others had
+/// finished.
+fn scatter(
+    host: &mut dyn ImageHost,
+    options: &RunOptions,
+    work: &[(PathBuf, Option<String>, BTreeMap<String, PathBuf>)],
+    resolve: &(dyn Fn(&mut dyn ImageHost, usize) -> ItemOutcome + Sync),
+) -> Vec<ItemOutcome> {
+    let cancelled = || options.cancelled.load(Ordering::Relaxed);
+    let mut workers = if work.len() > 1 {
+        host.workers(options.jobs)
+    } else {
+        Vec::new()
+    };
+    if workers.is_empty() {
+        return (0..work.len())
+            .map(|index| {
+                if cancelled() {
+                    Err("Cancelled".into())
+                } else {
+                    resolve(host, index)
+                }
+            })
+            .collect();
+    }
+    workers.truncate(work.len());
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let results: Vec<std::sync::Mutex<Option<ItemOutcome>>> = (0..work.len())
+        .map(|_| std::sync::Mutex::new(None))
+        .collect();
+    std::thread::scope(|scope| {
+        for worker in &mut workers {
+            let next = &next;
+            let results = &results;
+            scope.spawn(move || loop {
+                let index = next.fetch_add(1, Ordering::Relaxed);
+                if index >= results.len() {
+                    break;
+                }
+                let outcome = if cancelled() {
+                    Err("Cancelled".into())
+                } else {
+                    resolve(worker.as_mut(), index)
+                };
+                *results[index].lock().unwrap() = Some(outcome);
+            });
+        }
+    });
+    results
+        .into_iter()
+        .map(|slot| {
+            slot.into_inner()
+                .unwrap()
+                .unwrap_or_else(|| Err("Cancelled".into()))
+        })
+        .collect()
+}
+/// The channels Split Channels offers, in the order `-separate` hands them back.
+const CHANNELS: [&str; 4] = ["Red", "Green", "Blue", "Alpha"];
+/// Splits a stream that ends by taking a single channel into the channel and what it was
+/// taken from. Any other stream has no channel to share, and comes back as nothing.
+fn channel_of(args: &[String]) -> Option<(usize, &[String])> {
+    let [rest @ .., flag, name, separate, restore] = args else {
+        return None;
+    };
+    if (flag.as_str(), separate.as_str(), restore.as_str()) != ("-channel", "-separate", "+channel")
+    {
+        return None;
+    }
+    CHANNELS
+        .iter()
+        .position(|channel| channel == name)
+        .map(|index| (index, rest))
+}
+/// The mean of one stream, measuring every channel of an image at once.
+///
+/// Taking the mean of red, then green, then blue - which is what a normal-map check does -
+/// reads and decodes the same file three times over. Separating the channels in one
+/// command reports all of their means together, so the file is read once and the other two
+/// are already known by the time they are asked for.
+///
+/// Anything that is not a plain channel of an image, and any channel the image turns out
+/// not to have, is measured on its own as before.
+fn mean_of(
+    host: &mut dyn ImageHost,
+    measured: &mut BTreeMap<Vec<String>, Vec<f64>>,
+    args: Vec<String>,
+) -> Result<f64, String> {
+    if let Some((channel, image)) = channel_of(&args) {
+        if !measured.contains_key(image) {
+            let mut probe = image.to_vec();
+            probe.extend(s(&["-separate", "-format", "%[fx:mean] ", "info:"]));
+            let means = host
+                .capture(&probe)?
+                .split_whitespace()
+                .map(|mean| mean.parse().unwrap_or(f64::NAN))
+                .collect();
+            measured.insert(image.to_vec(), means);
+        }
+        if let Some(mean) = measured[image].get(channel).filter(|mean| !mean.is_nan()) {
+            return Ok(*mean);
+        }
+    }
+    let mut args = args;
+    args.extend(s(&["-format", "%[fx:mean]", "info:"]));
+    host.capture(&args)?
+        .trim()
+        .parse()
+        .map_err(|error: std::num::ParseFloatError| error.to_string())
+}
+/// Everything resolving one file needs that is the same for every file of an output.
+struct ItemContext<'a> {
+    g: &'a Graph,
+    registry: &'a Registry,
+    options: &'a RunOptions,
+    plan: &'a crate::plan::Plan,
+    contributors: &'a BTreeSet<String>,
+    input_id: &'a String,
+    output: &'a GraphNode,
+    raw_output: &'a Context,
+    heavy: bool,
+}
+impl ItemResult {
+    fn new(output: ItemOutput, values: BTreeMap<String, Context>, stopped: Vec<String>) -> Self {
+        Self {
+            output,
+            values,
+            stopped,
+        }
+    }
+}
+/// Runs one input file through the graph and reports what it produced for this output.
+///
+/// This is the whole of a batch's per-file work, and the only part of a run that spawns
+/// analysis processes. It reads nothing the other files write, which is what lets a host
+/// resolve several at once.
+fn resolve_item(
+    host: &mut dyn ImageHost,
+    context: &ItemContext<'_>,
+    index: usize,
+    file: &Path,
+    set_name: &Option<String>,
+    set_inputs: &BTreeMap<String, PathBuf>,
+) -> ItemOutcome {
+    let &ItemContext {
+        g,
+        registry,
+        options,
+        plan,
+        contributors,
+        input_id,
+        output,
+        raw_output,
+        heavy,
+    } = context;
+    let mut values = BTreeMap::new();
+    let mut stopped = Vec::new();
+    let mut channel_means = BTreeMap::new();
+    let metadata = host.metadata(file, heavy)?;
+    let mut resolved = ResolvedParams::new();
+    let mut streams: BTreeMap<(String, String), Option<Stream>> = BTreeMap::new();
+    // Legacy batch execution selects one input per output. Its lazy
+    // materializer falls back to that image for other input nodes;
+    // additional input folders are not zipped together at a merge.
+    for source in g
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::Builtin(BuiltinNodeKind::Input))
+    {
+        streams.insert(
+            (source.id.clone(), "out:output".into()),
+            Some(Stream {
+                args: vec![path_text(file)?],
+                format: None,
+            }),
+        );
+    }
+    for id in &plan.execution_order {
+        // A preview evaluates every node, because a value node hanging off a
+        // branch still shows its number even when no output reads it.
+        if (!contributors.contains(id) && !options.capture_values) || id == input_id {
+            continue;
+        }
+        let node = g.nodes.iter().find(|n| &n.id == id).unwrap();
+        let mut params = resolve::node_params(node, g, &resolved, registry, &metadata)?;
+        if node.id == output.id {
+            resolved.insert(id.clone(), params);
+            continue;
+        }
+        let Some(def) = registry.nodes.get(&node.data.definition_id) else {
+            resolved.insert(id.clone(), params);
+            continue;
+        };
+        let incoming = input_stream(node, g, &streams, "input");
+        let mut outgoing = incoming.clone();
+        let enabled = bool_param(&params, "_enabled", true);
+        match &def.implementation {
+            CompiledImplementation::Compute(_) => {}
+            CompiledImplementation::Imagemagick(args) => {
+                if enabled {
+                    if let Some(image) = outgoing.as_mut() {
+                        image.args.extend(
+                            CompiledArg::resolve_all(args, &params).map_err(|e| e.to_string())?,
+                        );
+                    }
+                }
+            }
+            CompiledImplementation::Native(executor) => match executor.as_str() {
+                "gate" => {
+                    if enabled && !bool_param(&params, "condition", true) {
+                        outgoing = None;
+                        if options.capture_values {
+                            stopped.push(id.clone());
+                        }
+                    }
+                }
+                // Naming is applied once at the output, matching legacy batch semantics.
+                "rename" => {}
+                "format_convert" => {
+                    if enabled {
+                        if let Some(image) = outgoing.as_mut() {
+                            let format = text(&params, "format", "PNG").to_uppercase();
+                            let (def, args) = registry
+                                .formats
+                                .get(&format)
+                                .ok_or_else(|| format!("unknown format {format}"))?;
+                            let mut p = definition::default_context(&def.params);
+                            p.extend(params.clone());
+                            image.args.extend(
+                                CompiledArg::resolve_all(args, &p).map_err(|e| e.to_string())?,
+                            );
+                            image.format = Some(format);
+                        }
+                    }
+                }
+                "channel_split" => {
+                    for (i, name) in ["r", "g", "b", "a"].iter().enumerate() {
+                        let mut channel = incoming.clone();
+                        if let Some(c) = channel.as_mut() {
+                            c.args.extend(s(&[
+                                "-channel",
+                                ["Red", "Green", "Blue", "Alpha"][i],
+                                "-separate",
+                                "+channel",
+                            ]));
+                        }
+                        streams.insert((id.clone(), format!("out:{name}")), channel);
+                    }
+                    resolved.insert(id.clone(), params);
+                    continue;
+                }
+                "channel_merge" => {
+                    let mut args = Vec::new();
+                    let alpha = scalar(&params, "channels", 3.0) >= 4.0
+                        && g.edges
+                            .iter()
+                            .any(|e| e.target == *id && e.target_handle == "in:a");
+                    let mut blocked = false;
+                    for name in if alpha {
+                        &["r", "g", "b", "a"][..]
+                    } else {
+                        &["r", "g", "b"][..]
+                    } {
+                        args.push("(".into());
+                        if let Some(edge) = g
+                            .edges
+                            .iter()
+                            .find(|e| e.target == *id && e.target_handle == format!("in:{name}"))
+                        {
+                            if let Some(param) = edge.source_handle.strip_prefix("param:") {
+                                let fill = resolved
+                                    .get(&edge.source)
+                                    .and_then(|p| p.get(param))
+                                    .and_then(|v| v.scalar().ok())
+                                    .unwrap_or(0.0)
+                                    .clamp(0.0, 1.0);
+                                args.push(path_text(file)?);
+                                args.extend(s(&[
+                                    "-evaluate",
+                                    "set",
+                                    &format!("{}%", (fill * 100.0).round()),
+                                    "-colorspace",
+                                    "Gray",
+                                ]));
+                            } else if let Some(image) = streams
+                                .get(&(edge.source.clone(), edge.source_handle.clone()))
+                                .cloned()
+                                .flatten()
+                            {
+                                args.extend(image.args);
+                            } else {
+                                blocked = true;
+                            }
+                        } else {
+                            args.push(path_text(file)?);
+                            args.extend(s(&["-evaluate", "set", "0%", "-colorspace", "Gray"]));
+                        }
+                        args.push(")".into());
+                    }
+                    args.extend(s(&["-set", "colorspace", "sRGB", "-combine"]));
+                    if alpha {
+                        args.extend(s(&["-alpha", "on"]));
+                    }
+                    outgoing = (!blocked).then_some(Stream { args, format: None });
+                }
+                "mean_value" => {
+                    if let Some(image) = incoming {
+                        let value = mean_of(host, &mut channel_means, image.args)?;
+                        params.insert("value".into(), Value::Float(value));
+                    }
+                }
+                "process_as_set" => {
+                    for (name, path) in set_inputs {
+                        streams.insert(
+                            (id.clone(), format!("out:{name}")),
+                            Some(Stream {
+                                args: vec![path_text(path)?],
+                                format: None,
+                            }),
+                        );
+                    }
+                    resolved.insert(id.clone(), params);
+                    continue;
+                }
+                "solid_image" => {
+                    // This source has no image input port. Its canvas
+                    // dimensions come from the selected batch input.
+                    outgoing = Some(Stream {
+                        args: vec![path_text(file)?],
+                        format: None,
+                    });
+                    if enabled {
+                        if let Some(image) = outgoing.as_mut() {
+                            image.args.extend(s(&[
+                                "-evaluate",
+                                "set",
+                                &format!("{}%", scalar(&params, "value", 1.0) * 100.0),
+                            ]));
+                        }
+                    }
+                }
+                "comment" => {}
+                other => return Err(format!("unimplemented native executor {other}")),
+            },
+        }
+        streams.insert((id.clone(), "out:output".into()), outgoing);
+        if options.capture_values && !produces_image(def) {
+            values.insert(id.clone(), params.clone());
+        }
+        resolved.insert(id.clone(), params);
+    }
+    let output_params = resolved.get(&output.id).unwrap_or(raw_output);
+    let image = input_stream(output, g, &streams, "input");
+    match output.kind {
+        NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
+            let Some(image) = image else {
+                return Ok(ItemResult::new(ItemOutput::Skipped, values, stopped));
+            };
+            // Legacy batch naming uses the first rename in global topological
+            // order, including disabled or disconnected rename nodes.
+            let mut name = filename(file);
+            if let Some(node) = plan
+                .execution_order
+                .iter()
+                .filter_map(|id| g.nodes.iter().find(|n| n.id == *id))
+                .find(|n| n.data.definition_id == "rename")
+            {
+                if let Some(ParamValue::Structured(StructuredParam::RenameBlocks { blocks })) =
+                    node.data.params.get("blocks")
+                {
+                    name = rename(&name, blocks, index);
+                }
+            }
+            if let Some(set) = set_name {
+                name = format!(
+                    "{}{}{}.{}",
+                    text(output_params, "setOutputPrefix", ""),
+                    set,
+                    text(output_params, "setOutputSuffix", ""),
+                    file.extension().unwrap_or_default().to_string_lossy()
+                );
+            }
+            if let Some(format) = &image.format {
+                let ext = &registry.formats[format].0.extension;
+                name = Path::new(&name)
+                    .with_extension(ext.trim_start_matches('.'))
+                    .to_string_lossy()
+                    .into_owned();
+            }
+            if Path::new(&name).file_name().and_then(|s| s.to_str()) != Some(&name) {
+                return Err("rename result must be a filename".into());
+            }
+            return Ok(ItemResult::new(
+                ItemOutput::Image {
+                    name,
+                    args: image.args,
+                    format: image.format,
+                },
+                values,
+                stopped,
+            ));
+        }
+        NodeKind::Builtin(BuiltinNodeKind::TextOutput) => {
+            if image.is_none() || !bool_param(output_params, "_txo_condition", true) {
+                return Ok(ItemResult::new(ItemOutput::Skipped, values, stopped));
+            }
+            let slots = match output.data.params.get("portIds") {
+                Some(ParamValue::Structured(StructuredParam::TextSlots { slots })) => {
+                    slots.as_slice()
+                }
+                _ => &[],
+            };
+            let fields: Vec<_> = slots
+                .iter()
+                .take(slots.len().saturating_sub(1))
+                .filter_map(|slot| output_params.get(&format!("_txo_{slot}")))
+                .map(resolve::text_value)
+                .collect();
+            let sep = match text(output_params, "separatorType", "comma").as_str() {
+                "tab" => "\t".into(),
+                "space" => " ".into(),
+                "custom" => text(output_params, "customSeparator", ""),
+                _ => ",".into(),
+            };
+            return Ok(ItemResult::new(
+                ItemOutput::Text(fields.join(&sep)),
+                values,
+                stopped,
+            ));
+        }
+        NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) => {
+            return Ok(ItemResult::new(
+                ItemOutput::Atlas(output_params.clone()),
+                values,
+                stopped,
+            ));
+        }
+        _ => {}
+    }
+    Ok(ItemResult::new(ItemOutput::None, values, stopped))
+}
 pub fn run_workflow(
     g: &Graph,
     registry: &Registry,
@@ -470,8 +963,18 @@ pub fn run_workflow(
             .and_then(definition::to_value)
             .map(|v| v.text())
             .unwrap_or_default();
-        let dir=options.named_paths.get(&input_flag).ok_or_else(||format!("Missing required flag: --{}\n  Needed to run output node \"{}\".\n  Export a CLI script from Bite to see all required flags.",if input_flag.is_empty(){"input"}else{&input_flag},output.data.params.get("cliName").and_then(definition::to_value).map(|v|v.text()).unwrap_or_default()))?;
-        let files = images(dir)?;
+        let files = match options.named_files.get(&input_flag) {
+            Some(listed) if !listed.is_empty() => {
+                let mut listed = listed.clone();
+                listed.sort();
+                listed.dedup();
+                listed
+            }
+            _ => {
+                let dir=options.named_paths.get(&input_flag).filter(|path|!path.as_os_str().is_empty()).ok_or_else(||format!("Missing required flag: --{}\n  Needed to run output node \"{}\".\n  Export a CLI script from Bite to see all required flags.",if input_flag.is_empty(){"input"}else{&input_flag},output.data.params.get("cliName").and_then(definition::to_value).map(|v|v.text()).unwrap_or_default()))?;
+                images(dir)?
+            }
+        };
         let raw_output: Context = output
             .data
             .params
@@ -479,9 +982,12 @@ pub fn run_workflow(
             .filter_map(|(k, v)| definition::to_value(v).map(|v| (k.clone(), v)))
             .collect();
         let flag = text(&raw_output, "cliName", "");
+        // A host that has no path for an endpoint leaves it out or empty; either way the
+        // output's own parameters say where it goes.
         let dest = options
             .named_paths
             .get(&flag)
+            .filter(|path| !path.as_os_str().is_empty())
             .cloned()
             .or_else(|| match output.kind {
                 NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
@@ -581,341 +1087,96 @@ pub fn run_workflow(
         let mut claimed_paths = BTreeSet::new();
         let mut atlas_params = raw_output.clone();
         let mut pending = Vec::new();
-        for (index, (file, set_name, set_inputs)) in work.iter().enumerate() {
-            if options.cancelled.load(Ordering::Relaxed) {
-                return Err("Cancelled".into());
-            }
+        // Every file resolves on its own: it reads its own metadata and runs its own
+        // analysis, and nothing it does is visible to another. Handing the whole set to
+        // the host lets one that can run processes concurrently do so, which is where a
+        // chain with a mean or a property spends nearly all of its time. Placement, the
+        // collision suffix and the counters stay here, applied in file order, so the run
+        // lands exactly where a serial one would have.
+        let context = ItemContext {
+            g,
+            registry,
+            options,
+            plan: &plan,
+            contributors: &contributors,
+            input_id,
+            output,
+            raw_output: &raw_output,
+            heavy,
+        };
+        let resolved = scatter(host, options, &work, &|host, index| {
+            let (file, set_name, set_inputs) = &work[index];
+            resolve_item(host, &context, index, file, set_name, set_inputs)
+        });
+        for (index, ((file, _, _), item)) in work.iter().zip(resolved).enumerate() {
+            let item = match item {
+                Ok(item) => item,
+                Err(error) => {
+                    host.image_error(file, &output.id, &error);
+                    if options.cancelled.load(Ordering::Relaxed)
+                        || !host.continue_after_image_error()
+                    {
+                        return Err(error);
+                    }
+                    result.failed += 1;
+                    result.errors.push(format!(
+                        "{} (output {}): {error}",
+                        file.display(),
+                        output.id
+                    ));
+                    progress(index + 1, work.len(), file);
+                    continue;
+                }
+            };
+            result.values.extend(item.values);
+            result.stopped.extend(item.stopped);
             let mut queued = false;
-            let item_result = (|| -> Result<(), String> {
-                let metadata = host.metadata(file, heavy)?;
-                let mut resolved = ResolvedParams::new();
-                let mut streams: BTreeMap<(String, String), Option<Stream>> = BTreeMap::new();
-                // Legacy batch execution selects one input per output. Its lazy
-                // materializer falls back to that image for other input nodes;
-                // additional input folders are not zipped together at a merge.
-                for source in g
-                    .nodes
-                    .iter()
-                    .filter(|n| n.kind == NodeKind::Builtin(BuiltinNodeKind::Input))
-                {
-                    streams.insert(
-                        (source.id.clone(), "out:output".into()),
-                        Some(Stream {
-                            args: vec![path_text(file)?],
-                            format: None,
-                        }),
-                    );
-                }
-                for id in &plan.execution_order {
-                    // A preview evaluates every node, because a value node hanging off a
-                    // branch still shows its number even when no output reads it.
-                    if (!contributors.contains(id) && !options.capture_values) || id == input_id {
-                        continue;
+            match item.output {
+                ItemOutput::None => {}
+                ItemOutput::Skipped => result.skipped += 1,
+                ItemOutput::Image { name, args, format } => {
+                    let desired = dest
+                        .clone()
+                        .unwrap_or_else(|| file.parent().unwrap().into())
+                        .join(name);
+                    let mut out = desired.clone();
+                    let mut collision = 1;
+                    while !claimed_paths.insert(out.clone()) {
+                        let stem = desired.file_stem().unwrap_or_default().to_string_lossy();
+                        let ext = desired
+                            .extension()
+                            .map(|e| format!(".{}", e.to_string_lossy()))
+                            .unwrap_or_default();
+                        out = desired.with_file_name(format!("{stem}_{collision}{ext}"));
+                        collision += 1;
                     }
-                    let node = g.nodes.iter().find(|n| &n.id == id).unwrap();
-                    let mut params = resolve::node_params(node, g, &resolved, registry, &metadata)?;
-                    if node.id == output.id {
-                        resolved.insert(id.clone(), params);
-                        continue;
-                    }
-                    let Some(def) = registry.nodes.get(&node.data.definition_id) else {
-                        resolved.insert(id.clone(), params);
-                        continue;
-                    };
-                    let incoming = input_stream(node, g, &streams, "input");
-                    let mut outgoing = incoming.clone();
-                    let enabled = bool_param(&params, "_enabled", true);
-                    match &def.implementation {
-                        CompiledImplementation::Compute(_) => {}
-                        CompiledImplementation::Imagemagick(args) => {
-                            if enabled {
-                                if let Some(image) = outgoing.as_mut() {
-                                    image.args.extend(
-                                        CompiledArg::resolve_all(args, &params)
-                                            .map_err(|e| e.to_string())?,
-                                    );
-                                }
-                            }
-                        }
-                        CompiledImplementation::Native(executor) => match executor.as_str() {
-                            "gate" => {
-                                if enabled && !bool_param(&params, "condition", true) {
-                                    outgoing = None;
-                                    if options.capture_values {
-                                        result.stopped.push(id.clone());
-                                    }
-                                }
-                            }
-                            // Naming is applied once at the output, matching legacy batch semantics.
-                            "rename" => {}
-                            "format_convert" => {
-                                if enabled {
-                                    if let Some(image) = outgoing.as_mut() {
-                                        let format = text(&params, "format", "PNG").to_uppercase();
-                                        let (def, args) = registry
-                                            .formats
-                                            .get(&format)
-                                            .ok_or_else(|| format!("unknown format {format}"))?;
-                                        let mut p = definition::default_context(&def.params);
-                                        p.extend(params.clone());
-                                        image.args.extend(
-                                            CompiledArg::resolve_all(args, &p)
-                                                .map_err(|e| e.to_string())?,
-                                        );
-                                        image.format = Some(format);
-                                    }
-                                }
-                            }
-                            "channel_split" => {
-                                for (i, name) in ["r", "g", "b", "a"].iter().enumerate() {
-                                    let mut channel = incoming.clone();
-                                    if let Some(c) = channel.as_mut() {
-                                        c.args.extend(s(&[
-                                            "-channel",
-                                            ["Red", "Green", "Blue", "Alpha"][i],
-                                            "-separate",
-                                            "+channel",
-                                        ]));
-                                    }
-                                    streams.insert((id.clone(), format!("out:{name}")), channel);
-                                }
-                                resolved.insert(id.clone(), params);
-                                continue;
-                            }
-                            "channel_merge" => {
-                                let mut args = Vec::new();
-                                let alpha = scalar(&params, "channels", 3.0) >= 4.0
-                                    && g.edges
-                                        .iter()
-                                        .any(|e| e.target == *id && e.target_handle == "in:a");
-                                let mut blocked = false;
-                                for name in if alpha {
-                                    &["r", "g", "b", "a"][..]
-                                } else {
-                                    &["r", "g", "b"][..]
-                                } {
-                                    args.push("(".into());
-                                    if let Some(edge) = g.edges.iter().find(|e| {
-                                        e.target == *id && e.target_handle == format!("in:{name}")
-                                    }) {
-                                        if let Some(param) =
-                                            edge.source_handle.strip_prefix("param:")
-                                        {
-                                            let fill = resolved
-                                                .get(&edge.source)
-                                                .and_then(|p| p.get(param))
-                                                .and_then(|v| v.scalar().ok())
-                                                .unwrap_or(0.0)
-                                                .clamp(0.0, 1.0);
-                                            args.push(path_text(file)?);
-                                            args.extend(s(&[
-                                                "-evaluate",
-                                                "set",
-                                                &format!("{}%", (fill * 100.0).round()),
-                                                "-colorspace",
-                                                "Gray",
-                                            ]));
-                                        } else if let Some(image) = streams
-                                            .get(&(edge.source.clone(), edge.source_handle.clone()))
-                                            .cloned()
-                                            .flatten()
-                                        {
-                                            args.extend(image.args);
-                                        } else {
-                                            blocked = true;
-                                        }
-                                    } else {
-                                        args.push(path_text(file)?);
-                                        args.extend(s(&[
-                                            "-evaluate",
-                                            "set",
-                                            "0%",
-                                            "-colorspace",
-                                            "Gray",
-                                        ]));
-                                    }
-                                    args.push(")".into());
-                                }
-                                args.extend(s(&["-set", "colorspace", "sRGB", "-combine"]));
-                                if alpha {
-                                    args.extend(s(&["-alpha", "on"]));
-                                }
-                                outgoing = (!blocked).then_some(Stream { args, format: None });
-                            }
-                            "mean_value" => {
-                                if let Some(image) = incoming {
-                                    let mut args = image.args;
-                                    args.extend(s(&["-format", "%[fx:mean]", "info:"]));
-                                    let value = host
-                                        .capture(&args)?
-                                        .trim()
-                                        .parse::<f64>()
-                                        .map_err(|e| e.to_string())?;
-                                    params.insert("value".into(), Value::Float(value));
-                                }
-                            }
-                            "process_as_set" => {
-                                for (name, path) in set_inputs {
-                                    streams.insert(
-                                        (id.clone(), format!("out:{name}")),
-                                        Some(Stream {
-                                            args: vec![path_text(path)?],
-                                            format: None,
-                                        }),
-                                    );
-                                }
-                                resolved.insert(id.clone(), params);
-                                continue;
-                            }
-                            "solid_image" => {
-                                // This source has no image input port. Its canvas
-                                // dimensions come from the selected batch input.
-                                outgoing = Some(Stream {
-                                    args: vec![path_text(file)?],
-                                    format: None,
-                                });
-                                if enabled {
-                                    if let Some(image) = outgoing.as_mut() {
-                                        image.args.extend(s(&[
-                                            "-evaluate",
-                                            "set",
-                                            &format!("{}%", scalar(&params, "value", 1.0) * 100.0),
-                                        ]));
-                                    }
-                                }
-                            }
-                            "comment" => {}
-                            other => return Err(format!("unimplemented native executor {other}")),
-                        },
-                    }
-                    streams.insert((id.clone(), "out:output".into()), outgoing);
-                    if options.capture_values && !produces_image(def) {
-                        result.values.insert(id.clone(), params.clone());
-                    }
-                    resolved.insert(id.clone(), params);
-                }
-                let output_params = resolved.get(&output.id).unwrap_or(&raw_output);
-                let image = input_stream(output, g, &streams, "input");
-                match output.kind {
-                    NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
-                        let Some(image) = image else {
-                            result.skipped += 1;
-                            return Ok(());
-                        };
-                        // Legacy batch naming uses the first rename in global topological
-                        // order, including disabled or disconnected rename nodes.
-                        let mut name = filename(file);
-                        if let Some(node) = plan
-                            .execution_order
-                            .iter()
-                            .filter_map(|id| g.nodes.iter().find(|n| n.id == *id))
-                            .find(|n| n.data.definition_id == "rename")
-                        {
-                            if let Some(ParamValue::Structured(StructuredParam::RenameBlocks {
-                                blocks,
-                            })) = node.data.params.get("blocks")
-                            {
-                                name = rename(&name, blocks, index);
-                            }
-                        }
-                        if let Some(set) = set_name {
-                            name = format!(
-                                "{}{}{}.{}",
-                                text(output_params, "setOutputPrefix", ""),
-                                set,
-                                text(output_params, "setOutputSuffix", ""),
-                                file.extension().unwrap_or_default().to_string_lossy()
-                            );
-                        }
-                        if let Some(format) = &image.format {
-                            let ext = &registry.formats[format].0.extension;
-                            name = Path::new(&name)
-                                .with_extension(ext.trim_start_matches('.'))
-                                .to_string_lossy()
-                                .into_owned();
-                        }
-                        if Path::new(&name).file_name().and_then(|s| s.to_str()) != Some(&name) {
-                            return Err("rename result must be a filename".into());
-                        }
-                        let desired = dest
-                            .clone()
-                            .unwrap_or_else(|| file.parent().unwrap().into())
-                            .join(name);
-                        let mut out = desired.clone();
-                        let mut collision = 1;
-                        while !claimed_paths.insert(out.clone()) {
-                            let stem = desired.file_stem().unwrap_or_default().to_string_lossy();
-                            let ext = desired
-                                .extension()
-                                .map(|e| format!(".{}", e.to_string_lossy()))
-                                .unwrap_or_default();
-                            out = desired.with_file_name(format!("{stem}_{collision}{ext}"));
-                            collision += 1;
-                        }
-                        if out.exists() && !options.overwrite {
-                            result.skipped += 1;
-                            return Ok(());
-                        }
-                        let operation = if image.args.len() == 1 && image.format.is_none() {
+                    if out.exists() && !options.overwrite {
+                        result.skipped += 1;
+                    } else {
+                        let operation = if args.len() == 1 && format.is_none() {
                             OutputOperation::Copy {
-                                source: image.args[0].clone().into(),
+                                source: args[0].clone().into(),
                                 output: out.clone(),
                             }
                         } else {
                             OutputOperation::Image {
-                                args: image.args,
-                                format: image.format,
+                                args,
+                                format,
                                 output: out.clone(),
                             }
                         };
                         pending.push((index, file.clone(), out, operation));
                         queued = true;
                     }
-                    NodeKind::Builtin(BuiltinNodeKind::TextOutput) => {
-                        if image.is_none() || !bool_param(output_params, "_txo_condition", true) {
-                            result.skipped += 1;
-                            return Ok(());
-                        }
-                        let slots = match output.data.params.get("portIds") {
-                            Some(ParamValue::Structured(StructuredParam::TextSlots { slots })) => {
-                                slots.as_slice()
-                            }
-                            _ => &[],
-                        };
-                        let fields: Vec<_> = slots
-                            .iter()
-                            .take(slots.len().saturating_sub(1))
-                            .filter_map(|slot| output_params.get(&format!("_txo_{slot}")))
-                            .map(resolve::text_value)
-                            .collect();
-                        let sep = match text(output_params, "separatorType", "comma").as_str() {
-                            "tab" => "\t".into(),
-                            "space" => " ".into(),
-                            "custom" => text(output_params, "customSeparator", ""),
-                            _ => ",".into(),
-                        };
-                        report.push(fields.join(&sep));
-                        result.processed += 1;
-                    }
-                    NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) => {
-                        atlas.push(file.clone());
-                        atlas_params = output_params.clone();
-                    }
-                    _ => {}
                 }
-                Ok(())
-            })();
-            if let Err(error) = item_result {
-                host.image_error(file, &output.id, &error);
-                if options.cancelled.load(Ordering::Relaxed) || !host.continue_after_image_error() {
-                    return Err(error);
+                ItemOutput::Text(line) => {
+                    report.push(line);
+                    result.processed += 1;
                 }
-                result.failed += 1;
-                result.errors.push(format!(
-                    "{} (output {}): {error}",
-                    file.display(),
-                    output.id
-                ));
+                ItemOutput::Atlas(params) => {
+                    atlas.push(file.clone());
+                    atlas_params = params;
+                }
             }
             if !queued {
                 progress(index + 1, work.len(), file);
@@ -1050,6 +1311,73 @@ pub fn run_workflow(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Answers a separation of every channel with one mean each, and a single channel
+    /// with its own, so what a measurement cost can be counted.
+    #[derive(Default)]
+    struct MeanHost {
+        captures: Vec<Vec<String>>,
+    }
+    impl ImageHost for MeanHost {
+        fn run(&mut self, _: &[String]) -> Result<(), String> {
+            Ok(())
+        }
+        fn metadata(&mut self, _: &Path, _: bool) -> Result<Context, String> {
+            Ok(Context::new())
+        }
+        fn capture(&mut self, args: &[String]) -> Result<String, String> {
+            self.captures.push(args.to_vec());
+            let has = |arg: &str| args.iter().any(|item| item == arg);
+            Ok(match (has("-separate"), has("-channel")) {
+                // Every channel of a three channel image, then one named channel, then
+                // an image that was never separated at all.
+                (true, false) => "0.1 0.2 0.3 ",
+                (true, true) => "0.25",
+                _ => "0.5",
+            }
+            .into())
+        }
+    }
+
+    #[test]
+    fn channel_means_of_one_image_are_measured_in_a_single_pass() {
+        let mut host = MeanHost::default();
+        let mut measured = BTreeMap::new();
+        let channel = |name: &str| s(&["image.png", "-channel", name, "-separate", "+channel"]);
+        for (name, expected) in [("Red", 0.1), ("Green", 0.2), ("Blue", 0.3)] {
+            let mean = mean_of(&mut host, &mut measured, channel(name)).unwrap();
+            assert_eq!(mean, expected, "{name}");
+        }
+        assert_eq!(
+            host.captures,
+            [s(&[
+                "image.png",
+                "-separate",
+                "-format",
+                "%[fx:mean] ",
+                "info:"
+            ])],
+            "three channels of one image are one read, not three"
+        );
+
+        // The image has no fourth channel, so alpha is the one that still costs a read.
+        assert_eq!(
+            mean_of(&mut host, &mut measured, channel("Alpha")).unwrap(),
+            0.25
+        );
+        assert_eq!(host.captures.len(), 2);
+        assert!(host.captures[1].contains(&"Alpha".to_string()));
+
+        // Anything that is not a plain channel is measured as it always was.
+        let mut host = MeanHost::default();
+        let blurred = s(&["image.png", "-blur", "0x1"]);
+        assert_eq!(
+            mean_of(&mut host, &mut BTreeMap::new(), blurred.clone()).unwrap(),
+            0.5
+        );
+        assert_eq!(host.captures[0][..3], blurred[..3]);
+        assert!(!host.captures[0].contains(&"-separate".to_string()));
+    }
 
     #[test]
     fn natural_sort_matches_base_sensitive_numeric_collation() {
