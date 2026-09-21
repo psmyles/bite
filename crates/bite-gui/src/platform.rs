@@ -68,8 +68,15 @@ pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
     // Before anything else: everything below this line runs while the GPU comes up.
     let gpu = start_gpu();
     logging::start_session();
-    work::prune_cache();
-    timing::report("prune_cache done");
+    // Walking the thumbnail cache and deleting stale files is housekeeping nothing waits on, so
+    // it does not belong on the path to the first frame - it tolerates a missing directory and
+    // reports only to the log. It is a fraction of a millisecond here and the startup is now
+    // bounded by the GPU anyway, so this buys no time; it is off the path because that is where
+    // it belongs, and because a cache large enough to matter is exactly when it would.
+    std::thread::Builder::new()
+        .name("bite-cache-prune".into())
+        .spawn(work::prune_cache)
+        .map_err(|error| error.to_string())?;
     let event_loop = EventLoop::<Wake>::with_user_event()
         .build()
         .map_err(|error| error.to_string())?;
@@ -247,7 +254,9 @@ impl App {
     fn create(&mut self, event_loop: &ActiveEventLoop) -> Result<State, String> {
         let mut editor = app::Editor::new()?;
         timing::report("Editor::new");
-        let session = persist::Session::load();
+        // `Editor::new` has already read the session; reading it again here - which this used to
+        // do - parsed the same file twice and then threw the first copy away.
+        let session = editor.session.clone();
         let monitors: Vec<(i32, i32, u32, u32)> = event_loop
             .available_monitors()
             .map(|monitor| {
@@ -296,7 +305,6 @@ impl App {
         editor.jobs.set_waker(Arc::new(move || {
             let _ = proxy.send_event(Wake);
         }));
-        editor.session = session;
         editor.sync_active_input();
 
         let mut state = State {

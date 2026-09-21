@@ -46,6 +46,10 @@ windows = { version = "0.62", features = [
 [build-dependencies]
 # Compiles `simgui/simgui.c`; see `compile_simgui` in build.rs.
 cc = "1"
+# Decodes the window icon to raw RGBA at build time (`decode_icon`), so no PNG decode happens on
+# the launch path and a malformed asset is a build error rather than a missing icon. The runtime
+# `png` dependency stays: `--capture` writes with it.
+png = "0.18"
 # build.rs reads the canonical product metadata from ../../product.json, so one edit there
 # reaches the exe's version resource and the BITE_* compile-time strings the editor shows.
 serde_json.workspace = true

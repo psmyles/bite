@@ -3,10 +3,12 @@
 //!   1. Compile `simgui/simgui.c` - sokol_imgui.h, Dear ImGui's sokol_gfx renderer - as C,
 //!      against the vendored sokol headers and the *same* `cimgui.h` `bite-imgui-sys` builds.
 //!      The Rust side calls it through a handful of `extern "C"` declarations in `render::imgui`.
-//!   2. Read the canonical product metadata from `product.json` (repo root) and, on Windows,
+//!   2. Decode the window icon to raw RGBA, so no PNG decoder runs on the launch path and a
+//!      malformed asset is a build error rather than a window with no icon.
+//!   3. Read the canonical product metadata from `product.json` (repo root) and, on Windows,
 //!      embed it into the executable together with `build/icon.ico`: the icon Explorer and the
 //!      taskbar draw, the name Task Manager lists, and the file-properties version tab.
-//!   3. Re-export the same strings as `BITE_*` compile-time environment variables, so the editor
+//!   4. Re-export the same strings as `BITE_*` compile-time environment variables, so the editor
 //!      reads them through `env!` instead of carrying its own copy. `product.json` is the one
 //!      source of truth - the packaging script reads it too, and syncs the workspace version.
 
@@ -25,6 +27,7 @@ struct Product {
 fn main() {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     compile_simgui(&target_os);
+    decode_icon();
     let product = read_product();
     if target_os == "windows" {
         embed_resources(&product);
@@ -97,6 +100,55 @@ fn compile_simgui(target_os: &str) {
         build.opt_level(2);
     }
     build.compile("bite_simgui");
+}
+
+/// The edge of the window icon, in pixels. Kept in sync with `icon::ICON_EDGE`.
+const ICON_EDGE: u32 = 256;
+
+/// Decodes `assets/icon-256.png` to raw straight-alpha RGBA in `OUT_DIR`, which `icon.rs` embeds
+/// with `include_bytes!` and hands winit directly.
+///
+/// The decode used to happen at launch, on the serial path, immediately before the window was
+/// created - so every start paid for it and a re-exported or corrupt asset silently produced a
+/// window with the system default icon. Here it costs nothing at runtime and a bad asset is a
+/// build failure, which is the same posture as the product metadata below.
+fn decode_icon() {
+    let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let source = Path::new(&manifest).join("assets/icon-256.png");
+    println!("cargo:rerun-if-changed={}", source.display());
+
+    let file = std::fs::File::open(&source)
+        .unwrap_or_else(|error| panic!("failed to read icon {}: {error}", source.display()));
+    let mut decoder = png::Decoder::new(std::io::BufReader::new(file));
+    // Whatever the master is re-exported as, winit wants 8-bit RGBA.
+    decoder.set_transformations(
+        png::Transformations::EXPAND | png::Transformations::STRIP_16 | png::Transformations::ALPHA,
+    );
+    let mut reader = decoder
+        .read_info()
+        .unwrap_or_else(|error| panic!("{} is not valid PNG: {error}", source.display()));
+    let mut pixels = vec![0u8; reader.output_buffer_size().unwrap_or(0)];
+    let frame = reader
+        .next_frame(&mut pixels)
+        .unwrap_or_else(|error| panic!("{} could not be decoded: {error}", source.display()));
+    pixels.truncate(frame.buffer_size());
+
+    assert_eq!(
+        frame.color_type,
+        png::ColorType::Rgba,
+        "{} did not expand to RGBA",
+        source.display()
+    );
+    assert_eq!(
+        (frame.width, frame.height),
+        (ICON_EDGE, ICON_EDGE),
+        "the window icon must be {ICON_EDGE}x{ICON_EDGE}"
+    );
+
+    let out = Path::new(&out_dir).join("icon.rgba");
+    std::fs::write(&out, &pixels)
+        .unwrap_or_else(|error| panic!("failed to write {}: {error}", out.display()));
 }
 
 /// Parses `../../product.json`. A missing file or field is a build error, not a fallback: every

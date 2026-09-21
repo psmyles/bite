@@ -159,11 +159,12 @@ paired with is created on the main thread after the join - see Phase 3.
 the 95 ms "device + pipelines" step. sokol_imgui's shaders are embedded DXBC/MSL/SPIR-V; fire's
 whole pipeline step is 0.8 ms.
 
-**L3 - File-system chores off the critical path.**
+**L3 - File-system chores off the critical path.** Done in Phase 5 except the log header, which
+was left alone: `logging::start_session` is one `OpenOptions` and one `writeln!`, it is the first
+thing that must work if anything later goes wrong, and making it lazy would trade that for no
+measurable time. The other two are done.
 - `work::prune_cache` walks the thumbnail cache and deletes stale files; nothing waits on it.
   Spawn it; it already tolerates a missing directory.
-- `logging::start_session` opens the log file and writes a header. Make the header lazy (first
-  `log()` writes it) or put it on the prune thread.
 - `persist::Session::load` runs in `Editor::new` *and* again in `App::create`. Load once and
   hand it over.
 
@@ -515,6 +516,35 @@ In this order, measuring after each with the harness:
 
 *Done when:* the *Results* table has a row per step and first frame is under the 300 ms target.
 
+**L3 and L4 landed; L6 deliberately not done.** The target was already met by Phase 3, at 145 ms,
+and the breakdown says why none of this can move it: the main thread reaches "window created" at
+45 ms and then waits ~90 ms for the D3D11 device. Every item here shortens work that is already
+entirely inside that wait. Measured after: **148 ms**, which is 145 ms plus noise.
+
+So these were done for their own sake, and are worth it on those terms:
+
+- **`Session::load` ran twice.** `Editor::new` read and parsed the session file, then
+  `App::create` read and parsed it again for the window bounds and overwrote the first copy.
+  `create` now reads `editor.session`.
+- **The icon is decoded in `build.rs`** to raw RGBA in `OUT_DIR`, which `icon.rs` embeds and
+  hands winit directly. The old decode sat on the serial path immediately before the window was
+  created, and - worse - a re-exported or corrupt asset silently produced a window with the
+  system default icon. Now it is a build failure. `png` stays a runtime dependency for
+  `--capture`'s writer, and gains a build-dependency entry.
+- **`prune_cache` is on its own thread.** It is a fraction of a millisecond on this machine's
+  cache, so this buys nothing today; it is off the path because a cache large enough to matter is
+  exactly the case where it would, and nothing waits on it either way.
+
+**L6 was not done**, and should not be until there is a reason. Parsing a command-line `.bite` on
+a thread is the most invasive of the three - it restructures how the initial workflow reaches
+`App::create` - and unlike L3 and L4 it tidies nothing: `commands::open_path` already runs after
+the first frame's state is built, so it is not on the first-frame path at all. It would be
+speculative work against a number that cannot move.
+
+**What would actually move it** is the ~90 ms of `D3D11CreateDevice`, which is the whole
+remaining critical path and is the D3D11 runtime's, not the editor's. The plan's own isolated
+benchmark measured 127 ms for a raw D3D11 device, so this is already at the floor for the API.
+
 ### Phase 6 - `bite-imgui` cleanup
 
 With `Frame::render` unused by the app, decide whether the wrapper's tests want it or would
@@ -612,6 +642,13 @@ have settled; the first-frame instant flatters neither stack and compares neithe
 | Phase 1, ImGui 1.92.9b on wgpu | 352 ms | 162 MB | 321 MB |
 | Phase 2, RGBA32 atlas (scaffolding unwired) | 354 ms | 163 MB | 322 MB |
 | Phase 3, sokol_gfx + sokol_imgui shell | 145 ms | 57 MB | 77 MB |
-| Phase 5.1, chores off the path | | | |
-| Phase 5.2, icon at build time | | | |
-| Phase 5.3, initial workflow on a thread | | | |
+| Phase 5, L3 + L4 (`Session::load` once, icon at build time, prune on a thread) | 148 ms | 57 MB | 77 MB |
+| ~~Phase 5.3, initial workflow on a thread~~ | not done - see Phase 5 | | |
+
+The last row is not a regression: 145 and 148 ms are the same number twice, which is the point.
+From Phase 3 on, the first frame is bounded by `D3D11CreateDevice` and nothing the editor does
+before the window is on the critical path any more.
+
+Against the targets: first frame **145-148 ms** against ≤ 300 ms, steady working set **57 MB**
+against ≤ 70 MB, and `--capture` matching the pre-migration output to within 2 counts on one
+channel across ~100 pixels in 1.6 million.
