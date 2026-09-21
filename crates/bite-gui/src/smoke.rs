@@ -59,6 +59,9 @@ pub enum Scene {
     /// The Rename inspector with one block of each kind, for the badges, the compact
     /// fields and the preview table's columns.
     RenameInspector,
+    /// A Vector 4 node selected, whose inspector is a column of component fields sharing
+    /// one left edge, each editable although the card's port is an output.
+    VectorInspector,
 }
 
 impl Scene {
@@ -89,6 +92,7 @@ impl Scene {
             "output-inspector" => Self::OutputInspector,
             "resize-inspector" => Self::ResizeInspector,
             "rename-inspector" => Self::RenameInspector,
+            "vector-inspector" => Self::VectorInspector,
             _ => return None,
         })
     }
@@ -119,6 +123,7 @@ impl Scene {
             Self::OutputInspector => "output-inspector",
             Self::ResizeInspector => "resize-inspector",
             Self::RenameInspector => "rename-inspector",
+            Self::VectorInspector => "vector-inspector",
         }
     }
 
@@ -149,6 +154,7 @@ impl Scene {
             Self::OutputInspector,
             Self::ResizeInspector,
             Self::RenameInspector,
+            Self::VectorInspector,
         ]
     }
 }
@@ -399,11 +405,13 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
                 ),
             );
         }
-        Scene::Slider | Scene::Color | Scene::Dropdown => {
-            // Sharpen carries two sliders, Tint a colour and a slider, Compare a list.
+        Scene::Slider | Scene::Color | Scene::Dropdown | Scene::VectorInspector => {
+            // Sharpen carries two sliders, Tint a colour and a slider, Compare a list,
+            // and Vector 4 a component field for each of X, Y, Z and W.
             let definition = match scene {
                 Scene::Slider => "sharpen",
                 Scene::Color => "tint",
+                Scene::VectorInspector => "value_vector4",
                 _ => "logic_comparison",
             };
             let position = bite_schema::Position { x: 320.0, y: 360.0 };
@@ -632,6 +640,7 @@ mod tests {
         assert!(scenes.contains(&Scene::Previewing));
         assert!(scenes.contains(&Scene::LogWindow));
         assert!(scenes.contains(&Scene::ResizeInspector));
-        assert_eq!(scenes.len(), 24);
+        assert!(scenes.contains(&Scene::VectorInspector));
+        assert_eq!(scenes.len(), 25);
     }
 }

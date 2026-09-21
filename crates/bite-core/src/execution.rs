@@ -113,6 +113,10 @@ pub struct RunOptions {
     pub cancelled: Arc<AtomicBool>,
     pub analysis_identity: String,
     pub jobs: usize,
+    /// Collects what each value node resolved to, for the canvas to show against the
+    /// image being previewed. It also visits nodes no output depends on, which a batch
+    /// run has no reason to evaluate but the canvas still displays.
+    pub capture_values: bool,
 }
 impl Default for RunOptions {
     fn default() -> Self {
@@ -125,6 +129,7 @@ impl Default for RunOptions {
             // threads. Half the cores with a single thread each, which is what this was,
             // left three quarters of a machine idle on a batch.
             jobs: std::thread::available_parallelism().map_or(1, |count| count.get()),
+            capture_values: false,
         }
     }
 }
@@ -135,6 +140,14 @@ pub struct BatchResult {
     pub failed: usize,
     pub errors: Vec<String>,
     pub outputs: Vec<PathBuf>,
+    /// What each value node resolved to on the last file, when `capture_values` asked
+    /// for it. Never serialised: the command line reports counts and paths.
+    #[serde(skip)]
+    pub values: BTreeMap<String, Context>,
+    /// The nodes that stopped the stream on the last file, so a preview can say why it
+    /// has no image to show rather than reporting a failure. Also `capture_values` only.
+    #[serde(skip)]
+    pub stopped: Vec<String>,
 }
 #[derive(Debug, Clone)]
 struct Stream {
@@ -265,6 +278,16 @@ pub fn wants_heavy_metadata<'a>(
     definitions.flat_map(|d| &d.metadata).any(|key| {
         key == "image.bit_depth" || key.starts_with("image.dpi_") || key.starts_with("image.exif.")
     })
+}
+
+/// Whether a node hands an image on. The ones that do not are the value nodes, whose
+/// resolved numbers the canvas shows beside their ports.
+fn produces_image(definition: &definition::CompiledDefinition) -> bool {
+    definition
+        .definition
+        .outputs
+        .iter()
+        .any(|port| matches!(port.kind, PortType::Image | PortType::Mask))
 }
 
 pub fn rename(original: &str, blocks: &[RenameBlock], index: usize) -> String {
@@ -483,12 +506,22 @@ pub fn run_workflow(
         let output_started = Instant::now();
         let first_output = result.outputs.len();
         let contributors: BTreeSet<_> = output_plan.contributors.iter().cloned().collect();
-        let heavy = wants_heavy_metadata(
-            output_plan
-                .operations
-                .iter()
-                .filter_map(|o| registry.nodes.get(&o.definition)),
-        );
+        // A preview evaluates the whole graph, so what any of it asks about the file has
+        // to be read, not only what this output's own chain needs.
+        let heavy = if options.capture_values {
+            wants_heavy_metadata(
+                g.nodes
+                    .iter()
+                    .filter_map(|n| registry.nodes.get(&n.data.definition_id)),
+            )
+        } else {
+            wants_heavy_metadata(
+                output_plan
+                    .operations
+                    .iter()
+                    .filter_map(|o| registry.nodes.get(&o.definition)),
+            )
+        };
         let set_node = g
             .nodes
             .iter()
@@ -574,7 +607,9 @@ pub fn run_workflow(
                     );
                 }
                 for id in &plan.execution_order {
-                    if !contributors.contains(id) || id == input_id {
+                    // A preview evaluates every node, because a value node hanging off a
+                    // branch still shows its number even when no output reads it.
+                    if (!contributors.contains(id) && !options.capture_values) || id == input_id {
                         continue;
                     }
                     let node = g.nodes.iter().find(|n| &n.id == id).unwrap();
@@ -606,6 +641,9 @@ pub fn run_workflow(
                             "gate" => {
                                 if enabled && !bool_param(&params, "condition", true) {
                                     outgoing = None;
+                                    if options.capture_values {
+                                        result.stopped.push(id.clone());
+                                    }
                                 }
                             }
                             // Naming is applied once at the output, matching legacy batch semantics.
@@ -751,6 +789,9 @@ pub fn run_workflow(
                         },
                     }
                     streams.insert((id.clone(), "out:output".into()), outgoing);
+                    if options.capture_values && !produces_image(def) {
+                        result.values.insert(id.clone(), params.clone());
+                    }
                     resolved.insert(id.clone(), params);
                 }
                 let output_params = resolved.get(&output.id).unwrap_or(&raw_output);

@@ -867,6 +867,16 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
                 .collect();
             editor.pending_uploads = vec![(format!("preview:{node}:{index}"), image)];
         }
+        work::Message::ValuesResolved { resolved } => {
+            editor.resolved = resolved;
+        }
+        work::Message::PreviewBlocked { reason, resolved } => {
+            editor.resolved = resolved;
+            // The chain reached no image, so the panel shows the file the chain started
+            // from and the status says what stopped it.
+            editor.show_thumbnail_as_preview();
+            editor.status = reason;
+        }
         work::Message::PreviewFailed(error) => {
             editor.status = error;
         }

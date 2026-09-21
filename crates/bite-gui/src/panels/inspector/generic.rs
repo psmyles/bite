@@ -17,12 +17,13 @@ pub enum RowState {
     Computed,
 }
 
-/// Decides how a parameter row is presented.
+/// Decides how a parameter row is presented. `computed` says whether the node's own
+/// implementation produces this parameter.
 pub fn row_state(
     definition: &ParamDefinition,
     node: &GraphNode,
     graph: &bite_schema::Graph,
-    has_executor: bool,
+    computed: bool,
 ) -> RowState {
     let handle = format!("param:{}", definition.name);
     let wired = graph
@@ -31,10 +32,24 @@ pub fn row_state(
         .any(|edge| edge.target == node.id && edge.target_handle == handle);
     if wired {
         RowState::Wired
-    } else if definition.readonly && has_executor {
+    } else if definition.readonly && computed {
         RowState::Computed
     } else {
         RowState::Editable
+    }
+}
+
+/// Whether the implementation works this parameter out for itself.
+///
+/// Readonly alone does not settle it: a Float, String or Boolean node marks its value
+/// readonly to give the card an output port, yet nothing computes the value, so the
+/// inspector edits it. The Svelte editor drew the same line by asking whether the
+/// definition named an executor at all, which those three did not.
+pub fn is_computed(implementation: &bite_schema::Implementation, name: &str) -> bool {
+    match implementation {
+        bite_schema::Implementation::Native { .. } => true,
+        bite_schema::Implementation::Compute { outputs } => outputs.contains_key(name),
+        bite_schema::Implementation::Imagemagick { .. } => false,
     }
 }
 
@@ -122,10 +137,6 @@ pub fn draw(
         controls::hint(ui, "No definition found for this node.");
         return edits;
     };
-    let has_executor = matches!(
-        entry.definition.implementation,
-        bite_schema::Implementation::Compute { .. } | bite_schema::Implementation::Native { .. }
-    );
     let visible: Vec<&ParamDefinition> = entry
         .definition
         .params
@@ -139,7 +150,8 @@ pub fn draw(
         return edits;
     }
     for definition in visible {
-        edits.extend(row(ui, width, node, definition, has_executor, context, pickers));
+        let computed = is_computed(&entry.definition.implementation, &definition.name);
+        edits.extend(row(ui, width, node, definition, computed, context, pickers));
     }
     edits
 }
@@ -156,12 +168,12 @@ pub fn row(
     width: f32,
     node: &GraphNode,
     definition: &ParamDefinition,
-    has_executor: bool,
+    computed: bool,
     context: &InspectorContext,
     pickers: &mut color_picker::States,
 ) -> Vec<Edit> {
     let mut edits = Vec::new();
-    let state = row_state(definition, node, context.graph, has_executor);
+    let state = row_state(definition, node, context.graph, computed);
     let stored = node.data.params.get(&definition.name);
     let padding = theme::INSPECTOR_PARAM_PADDING;
     let _id = ui.push_id(&definition.name);
@@ -455,9 +467,12 @@ fn vector(
     let labels = ["X", "Y", "Z", "W"];
     let mut values = vector_of(stored, count);
     let mut changed = false;
+    // Laying out a row returns the cursor to the panel's own left edge, not to where the
+    // row began, so each component is anchored to the edge the first one set.
+    let left = ui.cursor_screen_position()[0];
     for index in 0..count {
         let label_width = 14.0;
-        let origin = ui.cursor_screen_position();
+        let origin = [left, ui.cursor_screen_position()[1]];
         ui.draw_list().text_with_face(
             [origin[0], origin[1] + 8.0],
             theme::TEXT_BRIGHT.with_alpha(0.5),
@@ -670,6 +685,40 @@ mod tests {
             row_state(&definition, &node, &graph, false),
             RowState::Editable
         );
+    }
+
+    /// A Float, String or Boolean node carries one readonly value so the card gains an
+    /// output port. Nothing computes it, so the inspector must still offer the control.
+    #[test]
+    fn a_constant_is_edited_while_a_worked_out_value_is_only_shown() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = crate::studio::Studio::load_registry(&root).unwrap();
+        let state = |definition_id: &str, parameter: &str| {
+            let entry = &registry.nodes[definition_id];
+            let definition = entry
+                .definition
+                .params
+                .iter()
+                .find(|param| param.name == parameter)
+                .unwrap();
+            let mut node = node("a");
+            node.data.definition_id = definition_id.into();
+            let graph = graph(vec![node.clone()], Vec::new());
+            row_state(
+                definition,
+                &node,
+                &graph,
+                is_computed(&entry.definition.implementation, parameter),
+            )
+        };
+        assert_eq!(state("value_float", "value"), RowState::Editable);
+        assert_eq!(state("value_string", "value"), RowState::Editable);
+        assert_eq!(state("value_boolean", "value"), RowState::Editable);
+        assert_eq!(state("value_vector4", "vec"), RowState::Editable);
+        // The ones a node really does work out stay as readings.
+        assert_eq!(state("math_add", "result"), RowState::Computed);
+        assert_eq!(state("prop_dimensions", "width"), RowState::Computed);
+        assert_eq!(state("mean_value", "value"), RowState::Computed);
     }
 
     #[test]

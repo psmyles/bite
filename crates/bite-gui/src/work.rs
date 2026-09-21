@@ -4,7 +4,7 @@
 //! to report, so progress appears without the pointer having to move.
 use bite_core::execution::BatchResult;
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -43,6 +43,16 @@ pub enum Message {
         resolved: std::collections::BTreeMap<String, bite_schema::Params>,
     },
     PreviewFailed(String),
+    /// What the value nodes read from the selected image, with no chain to render.
+    ValuesResolved {
+        resolved: std::collections::BTreeMap<String, bite_schema::Params>,
+    },
+    /// The chain ran but no image reached the previewed node, a Gate having stopped it.
+    /// The panel keeps the image itself and the reason is reported, rather than an error.
+    PreviewBlocked {
+        reason: String,
+        resolved: std::collections::BTreeMap<String, bite_schema::Params>,
+    },
     TextPreview {
         lines: Vec<String>,
     },
@@ -94,8 +104,9 @@ pub struct PreviewJob {
     pub node: String,
     pub index: usize,
     pub thumbnail_size: u32,
-    /// The node the chain is rendered up to.
-    pub target: String,
+    /// The node the chain is rendered up to. With nothing to render through, the job only
+    /// resolves what the value nodes read from the selected image.
+    pub target: Option<String>,
 }
 
 /// The channel the interface drains each frame, plus the flags jobs watch.
@@ -348,6 +359,24 @@ fn preview_worker(jobs: &Receiver<PreviewJob>, handle: &JobHandle) {
         let key = preview_key(&job);
         let started = std::time::Instant::now();
         let before = magick.processes;
+        if job.target.is_none() {
+            // Nothing renders, but the property and logic nodes still report what they
+            // read from the selected file, which is all this workflow's canvas shows.
+            handle.send(
+                match bite_core::preview::values_from(
+                    &job.graph,
+                    &job.registry,
+                    &mut magick,
+                    &job.path,
+                ) {
+                    Ok(values) => Message::ValuesResolved {
+                        resolved: resolved_params(values),
+                    },
+                    Err(error) => Message::PreviewFailed(error),
+                },
+            );
+            continue;
+        }
         if let Some(index) = rendered.iter().position(|(cached, _)| *cached == key) {
             // Going back to an image whose chain has not changed since costs nothing.
             let entry = rendered.remove(index);
@@ -389,7 +418,7 @@ fn preview_key(job: &PreviewJob) -> String {
         "{}|{}|{}",
         job.path.to_string_lossy(),
         job.thumbnail_size,
-        job.target
+        job.target.as_deref().unwrap_or_default()
     );
     for node in &job.graph.nodes {
         let _ = write!(key, "|{}:{}:", node.id, node.data.definition_id);
@@ -410,21 +439,47 @@ fn preview_key(job: &PreviewJob) -> String {
 /// A finished preview, kept so that returning to it needs no work.
 #[derive(Clone)]
 struct RenderedPreview {
-    image: DecodedImage,
+    /// Nothing when a Gate stopped the chain, which the panel reports as it stands.
+    image: Option<DecodedImage>,
     source: SourceImage,
     resolved: std::collections::BTreeMap<String, bite_schema::Params>,
+    stopped: Vec<String>,
 }
 
 impl RenderedPreview {
     /// Addresses the preview to the branch and position that asked for it.
     fn message(&self, job: &PreviewJob) -> Message {
+        let Some(image) = self.image.clone() else {
+            return Message::PreviewBlocked {
+                reason: blocked_reason(&job.graph, &self.stopped),
+                resolved: self.resolved.clone(),
+            };
+        };
         Message::PreviewFinished {
             node: job.node.clone(),
             index: job.index,
-            image: self.image.clone(),
+            image,
             source: self.source,
             resolved: self.resolved.clone(),
         }
+    }
+}
+
+/// Why the preview has no image, named after whatever stopped the chain.
+fn blocked_reason(graph: &bite_schema::Graph, stopped: &[String]) -> String {
+    let label = stopped
+        .first()
+        .and_then(|id| {
+            graph
+                .nodes
+                .iter()
+                .find(|node| node.id == *id)
+                .map(|node| node.data.label.clone())
+        })
+        .filter(|label| !label.is_empty());
+    match label {
+        Some(label) => format!("{label} stops this image"),
+        None => "Nothing reaches the previewed node".into(),
     }
 }
 
@@ -444,6 +499,16 @@ fn render_preview(
         height: thumbnail.height,
         bytes: thumbnail.size_bytes,
     };
+    // A Process As Set reads one image per suffix, so the files beside the selected one
+    // are thumbnailed too. A companion that cannot be read is left out rather than
+    // failing the preview, as the Electron pipeline left a missing one out.
+    let companions = set_companions(&job.graph, &job.path);
+    let companions: Vec<(PathBuf, PathBuf)> = cache
+        .load_batch(magick, &companions, job.thumbnail_size)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|companion| (companion.thumbnail, companion.path))
+        .collect();
     // The chain runs over the thumbnail for speed while parameters written as a share of
     // the image measure against the original, as the Electron preview pipeline does.
     let result = bite_core::preview::render_from(
@@ -452,25 +517,80 @@ fn render_preview(
         magick,
         &thumbnail.thumbnail,
         &job.path,
-        Some((job.target.as_str(), "out:output")),
+        &companions,
+        job.target.as_deref().map(|target| (target, "out:output")),
     )?;
     Ok(RenderedPreview {
-        image: decode_png(&result.png)?,
+        image: result.png.as_deref().map(decode_png).transpose()?,
         source,
-        resolved: result
-            .resolved_values
-            .into_iter()
-            .map(|(id, context)| {
-                (
-                    id,
-                    context
-                        .into_iter()
-                        .map(|(name, value)| (name, param_from_value(value)))
-                        .collect(),
-                )
-            })
-            .collect(),
+        resolved: resolved_params(result.resolved_values),
+        stopped: result.stopped,
     })
+}
+
+/// The files a Process As Set reads beside the selected one.
+///
+/// A set names its streams by suffix, so the companions are the siblings whose names
+/// differ only there. The Electron preview located them the same way, from the selected
+/// file's own name.
+fn set_companions(graph: &bite_schema::Graph, path: &Path) -> Vec<PathBuf> {
+    use bite_schema::{ParamValue, StructuredParam};
+    let Some(node) = graph
+        .nodes
+        .iter()
+        .find(|node| node.data.definition_id == "process_as_set")
+    else {
+        return Vec::new();
+    };
+    let prefix = match node.data.params.get("prefix") {
+        Some(ParamValue::String(text)) => text.clone(),
+        _ => String::new(),
+    };
+    let Some(ParamValue::Structured(StructuredParam::SetSuffixes { suffixes })) =
+        node.data.params.get("suffixes")
+    else {
+        return Vec::new();
+    };
+    let suffixes: Vec<&String> = suffixes.iter().filter(|suffix| !suffix.is_empty()).collect();
+    let stem = path.file_stem().unwrap_or_default().to_string_lossy();
+    let extension = path
+        .extension()
+        .map(|extension| format!(".{}", extension.to_string_lossy()))
+        .unwrap_or_default();
+    let Some(rest) = stem.strip_prefix(&prefix) else {
+        return Vec::new();
+    };
+    // The selected file names the set: whichever suffix it ends with leaves the middle.
+    let Some(middle) = suffixes
+        .iter()
+        .find_map(|suffix| rest.strip_suffix(suffix.as_str()))
+    else {
+        return Vec::new();
+    };
+    let directory = path.parent().unwrap_or_else(|| Path::new(""));
+    suffixes
+        .iter()
+        .map(|suffix| directory.join(format!("{prefix}{middle}{suffix}{extension}")))
+        .filter(|companion| companion != path && companion.is_file())
+        .collect()
+}
+
+/// Turns resolved expression values into the stored parameters the canvas reads.
+pub fn resolved_params(
+    values: std::collections::BTreeMap<String, bite_expr::Context>,
+) -> std::collections::BTreeMap<String, bite_schema::Params> {
+    values
+        .into_iter()
+        .map(|(id, context)| {
+            (
+                id,
+                context
+                    .into_iter()
+                    .map(|(name, value)| (name, param_from_value(value)))
+                    .collect(),
+            )
+        })
+        .collect()
 }
 
 /// Converts a computed expression value back into a stored parameter.
@@ -583,8 +703,64 @@ mod tests {
             node: "input".into(),
             index: 0,
             thumbnail_size: 256,
-            target: "one".into(),
+            target: Some("one".into()),
         }
+    }
+
+    /// The companions are the siblings whose names differ only by the set's suffix, and
+    /// only the ones that are actually there.
+    /// The panel is told which node stopped the chain, by the name on its card.
+    #[test]
+    fn a_stopped_chain_is_named_after_the_node_that_stopped_it() {
+        let mut graph = preview_job().graph;
+        graph.nodes[0].data.label = "Gate".into();
+        assert_eq!(
+            blocked_reason(&graph, &["one".to_string()]),
+            "Gate stops this image"
+        );
+        // An unnamed card, or nothing reported at all, still reads as a sentence.
+        graph.nodes[0].data.label = String::new();
+        assert_eq!(
+            blocked_reason(&graph, &["one".to_string()]),
+            "Nothing reaches the previewed node"
+        );
+        assert_eq!(
+            blocked_reason(&graph, &[]),
+            "Nothing reaches the previewed node"
+        );
+    }
+
+    #[test]
+    fn a_set_finds_the_companions_beside_the_selected_file() {
+        let directory =
+            std::env::temp_dir().join(format!("bite-set-companions-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        for name in ["set_alpha_diffuse.png", "set_alpha_normal.png", "set_beta_rough.png"] {
+            std::fs::write(directory.join(name), b"fixture").unwrap();
+        }
+        let mut graph = preview_job().graph;
+        graph.nodes[0].data.definition_id = "process_as_set".into();
+        graph.nodes[0].data.params = std::collections::BTreeMap::from([
+            (
+                "prefix".to_string(),
+                bite_schema::ParamValue::String("set_".into()),
+            ),
+            (
+                "suffixes".to_string(),
+                bite_schema::ParamValue::Structured(bite_schema::StructuredParam::SetSuffixes {
+                    suffixes: vec!["_diffuse".into(), "_normal".into(), "_rough".into()],
+                }),
+            ),
+        ]);
+        let selected = directory.join("set_alpha_diffuse.png");
+        // The selected file is left out, and the missing `set_alpha_rough.png` with it.
+        assert_eq!(
+            set_companions(&graph, &selected),
+            vec![directory.join("set_alpha_normal.png")]
+        );
+        // A file whose name does not fit the set has no companions at all.
+        assert!(set_companions(&graph, &directory.join("loose.png")).is_empty());
+        std::fs::remove_dir_all(&directory).unwrap();
     }
 
     #[test]
@@ -610,7 +786,7 @@ mod tests {
         assert_ne!(preview_key(&elsewhere), same);
 
         let mut further = preview_job();
-        further.target = "two".into();
+        further.target = Some("two".into());
         assert_ne!(preview_key(&further), same);
     }
 

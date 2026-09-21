@@ -490,6 +490,17 @@ impl Editor {
         self.jobs.request_preview();
     }
 
+    /// Resolves the value nodes with no image to render through.
+    ///
+    /// A Compare, an Add or a Float still shows its number on the canvas before anything
+    /// is imported, which is what the Electron preview did with nothing selected. Nothing
+    /// here reads a file, so it costs one pass over the graph.
+    pub fn resolve_values(&mut self) {
+        let values = bite_core::preview::values(&self.studio.workflow.graph, &self.studio.registry)
+            .unwrap_or_default();
+        self.resolved = crate::work::resolved_params(values);
+    }
+
     /// Puts the selected thumbnail in the preview panel while nothing has been rendered
     /// there yet, so an imported image appears at once rather than after the first render.
     /// `Preview.svelte` seeds the same stand-in, and leaves a rendered image in place.

@@ -479,23 +479,26 @@ fn upload_pending(state: &mut State) {
 ///
 /// With nothing to process the panel shows the thumbnail the filmstrip already holds, which
 /// is the image Electron's pipeline returns when the graph has no nodes. That costs nothing
-/// and switches with the pointer; anything with a chain in it goes to the worker.
+/// and switches with the pointer, while the worker still reports what the value nodes read
+/// from the file, as the Electron preview did for a workflow it had no chain to follow.
 fn refresh_preview(state: &mut State) {
     let editor = &mut state.editor;
-    let Some(node) = editor.active_input.clone() else {
+    let selected = editor.active_input.clone().and_then(|node| {
+        let branch = editor.branches.get(&node)?;
+        let index = branch.selected?;
+        let path = branch.paths.get(index).cloned()?;
+        Some((node, index, path))
+    });
+    let Some((node, index, path)) = selected else {
+        editor.resolve_values();
         return;
     };
-    let Some(branch) = editor.branches.get(&node) else {
-        return;
-    };
-    let Some(index) = branch.selected else { return };
-    let Some(path) = branch.paths.get(index).cloned() else {
-        return;
-    };
-    let Some(target) = editor.effective_preview_node() else {
+    // With no chain to render, the panel shows the image itself while the job still
+    // reports what the value nodes read from it.
+    let target = editor.effective_preview_node();
+    if target.is_none() {
         editor.show_thumbnail_as_preview();
-        return;
-    };
+    }
     editor.jobs.submit_preview(work::PreviewJob {
         graph: editor.studio.workflow.graph.clone(),
         registry: Arc::new(editor.studio.registry.clone()),
