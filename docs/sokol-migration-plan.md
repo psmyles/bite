@@ -683,3 +683,59 @@ before the window is on the critical path any more.
 Against the targets: first frame **145-148 ms** against ≤ 300 ms, steady working set **57 MB**
 against ≤ 70 MB, and `--capture` matching the pre-migration output to within 2 counts on one
 channel across ~100 pixels in 1.6 million.
+
+| | before | after |
+|---|---|---|
+| Warm start → first frame | 424 ms | **147 ms** |
+| Steady working set | 168 MB | **57 MB** |
+| Steady commit | 326 MB | **77 MB** |
+| GPU bring-up (device + pipelines) | 355 ms, on the critical path | 133 ms, on a thread |
+| Shader compilation at launch | naga → HLSL → DXBC | none; embedded bytecode |
+| Font atlas at launch | 23 ms, rebuilt on every DPI change | none; glyphs baked on first use |
+
+## What this document got wrong
+
+Kept because a plan's errors are the most useful part of it to the next one.
+
+1. **"Use 1.92's legacy atlas path so the wgpu renderer keeps working."** The vendored `cimgui.h`
+   is generated with `IMGUI_DISABLE_OBSOLETE_FUNCTIONS`, which removes struct *fields*, so the
+   define is mandatory and the legacy path is not there to use. Phase 1 had to carry Phase 3's
+   font work.
+2. **"sokol_imgui accepts `ImTextureFormat_Alpha8` too."** It hardcodes `SG_PIXELFORMAT_RGBA8`
+   and asserts. The atlas is RGBA32, which costs 1 MB rather than the feared 4x.
+3. **"Exit: `simgui_shutdown()`, `sg::shutdown()`."** `simgui_shutdown` destroys the *current*
+   ImGui context, which is bite's, and `Context::drop` then frees it again. It must never be
+   called. fire never calls it either.
+4. **"`if !swapchain.acquire(&mut sc) { return }`" after building the frame.** The acquire has to
+   come first: `Frame::submit` hands the frame to sokol_imgui rather than closing it, so
+   returning without rendering leaves the context open and the next `igNewFrame` asserts. This
+   crashed on the first restore from minimised.
+5. **"`capture_all` runs scenes in one process: keep one setup for the whole run."** True of
+   `sg::setup`; false of the ImGui context. Sharing one let a modal's dim ramp carry between
+   scenes and five captures came out 89% wrong.
+6. **"L3 - file-system chores off the critical path", and the ~22 ms steps.** Both were artefacts
+   of measuring through a redirected stderr pipe. `prune_cache` is 0.6 ms. The honest baseline
+   was 424 ms, not 590.
+7. **Phase 5 as a whole.** Written when the first frame was expected to land near 300 ms. At
+   147 ms the main thread waits ~90 ms on `D3D11CreateDevice`, so nothing before the window is on
+   the critical path and none of L3/L4/L6 can move the number. L6 was not done.
+8. **"Delete the `Fonts` fields that only served the atlas … `scale` goes."** `scale` records the
+   display scale, not anything the atlas owned. It stays.
+
+None of these changed the destination. Every one of them was found by something that runs -
+`tests/render_stack.rs`, `scripts/window-exercise.ps1`, `examples/capture_diff.rs`,
+`scripts/ttfp.ps1` - rather than by reading, which is the argument for building those four first.
+
+## How to check this again
+
+```powershell
+cargo test --workspace                       # includes tests/render_stack.rs: device → readback
+.\scripts\window-exercise.ps1                # resize, minimise, restore, maximise, close
+.\scripts\ttfp.ps1 -N 5 -Breakdown           # first frame, working set, commit, phase by phase
+bite-gui.exe --capture <dir>                 # and --capture <dir> 2, then:
+cargo run --release -p bite-gui --example capture_diff -- test_images\goldens\wgpu-final <dir>
+```
+
+`test_images/goldens/` holds `wgpu` (the Phase 0 baseline, Dear ImGui 1.90.9) and `wgpu-final`
+(the last output the wgpu renderer produced, 1.92.9b). They are gitignored - re-creatable in one
+command from the tagged commit, and not worth 8.6 MB of history each.
