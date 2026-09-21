@@ -14,7 +14,6 @@ bite-expr.workspace = true
 bite-core.workspace = true
 bite-imagemagick.workspace = true
 serde_json.workspace = true
-schemars.workspace = true
 ctrlc = "3.5"
 
 [build-dependencies]

@@ -93,8 +93,23 @@ Source: "..\node-definitions\*.json"; DestDir: "{app}\node-definitions"; Flags: 
 Source: "..\format-definitions\*.json"; DestDir: "{app}\format-definitions"; Flags: ignoreversion
 ; Bundled ImageMagick. Both binaries resolve <exe dir>\magick\magick.exe first, so no PATH
 ; install of ImageMagick is needed.
-Source: "..\resources\win\magick\*"; DestDir: "{app}\magick"; \
-  Flags: ignoreversion recursesubdirs createallsubdirs
+;
+; magick.exe and nothing else: upstream's portable Windows distribution also carries the legacy
+; utilities (mogrify, montage, identify, compare, composite, conjure, stream), and each of those
+; is a full 30 MB static copy of the same library. Nothing here ever runs them - Magick::discover
+; only ever resolves magick.exe, and every call site passes the tool as a subcommand
+; (`magick identify ...`, `magick montage ...`), which the one binary handles. Shipping all eight
+; cost 210 MB of payload and took the installer from ~14 MB to ~70 MB: they are not byte-identical
+; and sit 30 MB apart, so solid compression dedupes almost none of it. The listing below is
+; deliberately explicit rather than a wildcard, so re-vendoring an upstream drop cannot silently
+; put them back (build-windows-installer.ps1 also fails the build if they reappear).
+Source: "..\resources\win\magick\magick.exe"; DestDir: "{app}\magick"; Flags: ignoreversion
+; Colour names, locale strings, MIME types, the security policy, dither thresholds and the
+; sRGB profile. The static build warns and falls back to built-in defaults without them.
+Source: "..\resources\win\magick\*.xml"; DestDir: "{app}\magick"; Flags: ignoreversion
+Source: "..\resources\win\magick\sRGB.icc"; DestDir: "{app}\magick"; Flags: ignoreversion
+Source: "..\resources\win\magick\LICENSE.txt"; DestDir: "{app}\magick"; Flags: ignoreversion
+Source: "..\resources\win\magick\NOTICE.txt"; DestDir: "{app}\magick"; Flags: ignoreversion
 ; The ImageMagick license requires its notice to travel with the binary.
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD_PARTY_LICENSES"; DestDir: "{app}"; Flags: ignoreversion

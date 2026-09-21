@@ -153,6 +153,17 @@ if ($magickSize -lt 1MB) {
     throw "$magickExe is only $magickSize bytes - that is a Git LFS pointer, not the binary. Run ``git lfs pull``."
 }
 
+# Upstream's portable distribution ships the legacy utilities beside magick.exe, and each is a
+# full 30 MB static copy of the same library that nothing here ever runs (every call site uses
+# `magick <tool>` instead). Re-vendoring a new upstream drop is the one way they come back, and
+# they are invisible in a diff - they would just quietly add 210 MB and quintuple the installer.
+$strayTools = @(Get-ChildItem -Path (Split-Path $magickExe) -Filter '*.exe' |
+    Where-Object { $_.Name -ne 'magick.exe' })
+if ($strayTools) {
+    throw ("resources\win\magick holds legacy utilities that must not ship: $($strayTools.Name -join ', '). " +
+        "magick.exe runs all of them as subcommands - delete them.")
+}
+
 foreach ($definitions in 'node-definitions', 'format-definitions') {
     $dir = Join-Path $RepoRoot $definitions
     $count = @(Get-ChildItem -Path $dir -Filter '*.json' -ErrorAction SilentlyContinue).Count
