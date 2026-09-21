@@ -80,6 +80,23 @@ pub fn trace_input(graph: &Graph, output: &str) -> Option<String> {
     }
     None
 }
+/// The folder a Folder Path node wired into this output's `in:folder` port names.
+///
+/// An output whose folder arrives over a wire takes it from there rather than from its own
+/// `customPath`, which is what the Electron run button did before it invoked a batch. An
+/// empty path is no answer at all: the destination then falls back to the output's own
+/// parameters, and the interface reports the unset node as a reason it cannot run.
+pub fn connected_folder(graph: &Graph, output: &str) -> Option<String> {
+    let edge = graph
+        .edges
+        .iter()
+        .find(|e| e.target == output && e.target_handle == "in:folder")?;
+    let source = graph.nodes.iter().find(|n| n.id == edge.source)?;
+    match source.data.params.get("folderPath") {
+        Some(ParamValue::String(path)) if !path.trim().is_empty() => Some(path.clone()),
+        _ => None,
+    }
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WireType {
     Image,

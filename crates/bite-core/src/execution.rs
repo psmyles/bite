@@ -1,5 +1,6 @@
 //! Shared execution topology. ImageMagick is an injected process service.
 use crate::{
+    graph,
     resolve::{self, ResolvedParams},
     Registry,
 };
@@ -155,6 +156,13 @@ pub struct RunOptions {
     /// The exact files an input flag should process, for a host that already holds a
     /// list (the interface imports a selection) instead of a folder to enumerate.
     pub named_files: BTreeMap<String, Vec<PathBuf>>,
+    /// Files whose *measurements* come from another file than the one being processed.
+    ///
+    /// A preview renders a thumbnail for speed, so what it hands the pipeline is small,
+    /// while a parameter written as a share of the image's width must still mean a share
+    /// of the real one. Mapping the staged thumbnail to the original makes every property,
+    /// dimension and expression resolve against the picture the user actually selected.
+    pub measured_as: BTreeMap<PathBuf, PathBuf>,
     pub overwrite: bool,
     pub cancelled: Arc<AtomicBool>,
     pub analysis_identity: String,
@@ -169,6 +177,7 @@ impl Default for RunOptions {
         Self {
             named_paths: BTreeMap::new(),
             named_files: BTreeMap::new(),
+            measured_as: BTreeMap::new(),
             overwrite: false,
             cancelled: Arc::new(AtomicBool::new(false)),
             analysis_identity: String::new(),
@@ -652,7 +661,10 @@ fn resolve_item(
     let mut values = BTreeMap::new();
     let mut stopped = Vec::new();
     let mut channel_means = BTreeMap::new();
-    let metadata = host.metadata(file, heavy)?;
+    // What the chain runs over and what it measures are the same file in a batch; a
+    // preview renders a thumbnail and measures the original it was made from.
+    let measured = options.measured_as.get(file).map_or(file, PathBuf::as_path);
+    let metadata = host.metadata(measured, heavy)?;
     let mut resolved = ResolvedParams::new();
     let mut streams: BTreeMap<(String, String), Option<Stream>> = BTreeMap::new();
     // Legacy batch execution selects one input per output. Its lazy
@@ -971,7 +983,29 @@ pub fn run_workflow(
                 listed
             }
             _ => {
-                let dir=options.named_paths.get(&input_flag).filter(|path|!path.as_os_str().is_empty()).ok_or_else(||format!("Missing required flag: --{}\n  Needed to run output node \"{}\".\n  Export a CLI script from Bite to see all required flags.",if input_flag.is_empty(){"input"}else{&input_flag},output.data.params.get("cliName").and_then(definition::to_value).map(|v|v.text()).unwrap_or_default()))?;
+                let dir = options
+                    .named_paths
+                    .get(&input_flag)
+                    .filter(|path| !path.as_os_str().is_empty())
+                    .ok_or_else(|| {
+                        let flag = if input_flag.is_empty() {
+                            "input"
+                        } else {
+                            &input_flag
+                        };
+                        let node = output
+                            .data
+                            .params
+                            .get("cliName")
+                            .and_then(definition::to_value)
+                            .map(|value| value.text())
+                            .unwrap_or_default();
+                        format!(
+                            "Missing required flag: --{flag}\n  \
+                             Needed to run output node \"{node}\".\n  \
+                             Export a CLI script from Bite to see all required flags."
+                        )
+                    })?;
                 images(dir)?
             }
         };
@@ -982,6 +1016,16 @@ pub fn run_workflow(
             .filter_map(|(k, v)| definition::to_value(v).map(|v| (k.clone(), v)))
             .collect();
         let flag = text(&raw_output, "cliName", "");
+        // The output's own skip/overwrite drop-down decides whether an existing file is
+        // replaced, as the Electron run button's did. `--overwrite` on the command line
+        // forces it for every output, which is what a repeated benchmark run wants.
+        let overwrite = options.overwrite || text(&raw_output, "overwrite", "skip") == "overwrite";
+        // Emitting still stages beside the destination, but a noclobber persist would refuse
+        // the replacement this output just asked for, so the effective flag travels with it.
+        let emit_options = RunOptions {
+            overwrite,
+            ..options.clone()
+        };
         // A host that has no path for an endpoint leaves it out or empty; either way the
         // output's own parameters say where it goes.
         let dest = options
@@ -991,11 +1035,15 @@ pub fn run_workflow(
             .cloned()
             .or_else(|| match output.kind {
                 NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
-                    if text(&raw_output, "outputPath", "source") == "custom" {
-                        Some(PathBuf::from(text(&raw_output, "customPath", "")))
-                    } else {
-                        None
-                    }
+                    // A wired Folder Path names the destination whatever the node's own
+                    // drop-down says, which is the order the Electron run button resolved
+                    // them in. Only a path the host passed for this flag outranks it.
+                    graph::connected_folder(g, &output.id)
+                        .map(PathBuf::from)
+                        .or_else(|| {
+                            (text(&raw_output, "outputPath", "source") == "custom")
+                                .then(|| PathBuf::from(text(&raw_output, "customPath", "")))
+                        })
                 }
                 NodeKind::Builtin(BuiltinNodeKind::TextOutput) => {
                     Some(PathBuf::from(text(&raw_output, "outputPath", "")))
@@ -1004,7 +1052,7 @@ pub fn run_workflow(
             });
         if output.kind != NodeKind::Builtin(BuiltinNodeKind::ImageOutput)
             && dest.as_ref().is_some_and(|p| p.exists())
-            && !options.overwrite
+            && !overwrite
         {
             result.skipped += files.len();
             continue;
@@ -1150,7 +1198,7 @@ pub fn run_workflow(
                         out = desired.with_file_name(format!("{stem}_{collision}{ext}"));
                         collision += 1;
                     }
-                    if out.exists() && !options.overwrite {
+                    if out.exists() && !overwrite {
                         result.skipped += 1;
                     } else {
                         let operation = if args.len() == 1 && format.is_none() {
@@ -1187,7 +1235,7 @@ pub fn run_workflow(
                 .iter()
                 .map(|(_, _, _, operation)| operation.clone())
                 .collect();
-            let emitted = host.emit_many(operations, options, options.jobs);
+            let emitted = host.emit_many(operations, &emit_options, options.jobs);
             for ((index, file, out, _), emitted) in pending.into_iter().zip(emitted) {
                 match emitted {
                     Ok(()) => {
@@ -1225,11 +1273,14 @@ pub fn run_workflow(
                     output: out.clone(),
                     contents: report.join("\n") + "\n",
                 },
-                options,
+                &emit_options,
             )?;
             result.outputs.push(out);
         }
-        if output.kind == NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) {
+        // A Gate that shut on every file leaves nothing to tile, and `montage` with no
+        // pictures fails with a message about its own arguments rather than reporting a
+        // run in which nothing reached the output.
+        if output.kind == NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) && !atlas.is_empty() {
             let out = dest.clone().ok_or("flipbook output path missing")?;
             let rows = scalar(&atlas_params, "rows", 4.0) as usize;
             let cols = scalar(&atlas_params, "cols", 4.0) as usize;
@@ -1284,7 +1335,7 @@ pub fn run_workflow(
                     format: None,
                     output: out.clone(),
                 },
-                options,
+                &emit_options,
             )?;
             result.processed += atlas.len();
             result.outputs.push(out);

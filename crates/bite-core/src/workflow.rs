@@ -105,7 +105,10 @@ fn migrate_graph(
             n["data"]["params"] = json!({});
         }
         let id = n["data"]["definitionId"].as_str().unwrap_or("").to_owned();
-        let kind = n["type"].as_str().unwrap().to_owned();
+        let kind = n["type"]
+            .as_str()
+            .ok_or("node type must be a string")?
+            .to_owned();
         let p = n["data"]["params"]
             .as_object_mut()
             .ok_or("params must be an object")?;

@@ -108,6 +108,8 @@ pub struct Progress {
     pub total: usize,
     pub elapsed_seconds: f32,
     pub error: Option<String>,
+    /// Files an import could not read. They are left out of the branch and named in the log.
+    pub skipped: usize,
 }
 
 impl Progress {
@@ -307,7 +309,9 @@ fn footer(
 
     let mut widths = Vec::new();
     for (label, _, _) in buttons {
-        widths.push(controls::measure(ui, theme::face::BUTTON, label)[0] + theme::BUTTON_PADDING_X * 2.0);
+        widths.push(
+            controls::measure(ui, theme::face::BUTTON, label)[0] + theme::BUTTON_PADDING_X * 2.0,
+        );
     }
     let total: f32 = widths.iter().sum::<f32>() + 8.0 * (buttons.len().max(1) - 1) as f32;
     ui.set_cursor_screen_position([
@@ -371,8 +375,7 @@ fn message(ui: &mut Ui, title: &str, text: &str) -> Option<Outcome> {
             ui.text_wrapped(text);
         });
         ui.dummy([inner, 18.0]);
-        footer(ui, width, 20.0, &[("Close", ButtonKind::Neutral, true)])
-            .map(|_| Outcome::Dismissed)
+        footer(ui, width, 20.0, &[("Close", ButtonKind::Neutral, true)]).map(|_| Outcome::Dismissed)
     })
 }
 
@@ -411,8 +414,7 @@ fn about(ui: &mut Ui, versions: &[(String, String)]) -> Option<Outcome> {
             ui.dummy([inner, 18.0]);
         }
         ui.dummy([inner, 8.0]);
-        footer(ui, width, 20.0, &[("Close", ButtonKind::Neutral, true)])
-            .map(|_| Outcome::Dismissed)
+        footer(ui, width, 20.0, &[("Close", ButtonKind::Neutral, true)]).map(|_| Outcome::Dismissed)
     })
 }
 
@@ -429,13 +431,13 @@ pub fn credit_entries() -> Vec<CreditSection> {
             vec![
                 ("Dear ImGui", "MIT", "https://github.com/ocornut/imgui"),
                 ("sokol", "zlib/libpng", "https://github.com/floooh/sokol"),
-                ("winit", "Apache-2.0", "https://github.com/rust-windowing/winit"),
-                ("Rust", "MIT/Apache-2.0", "https://www.rust-lang.org"),
                 (
-                    "ImageMagick",
-                    "ImageMagick",
-                    "https://imagemagick.org",
+                    "winit",
+                    "Apache-2.0",
+                    "https://github.com/rust-windowing/winit",
                 ),
+                ("Rust", "MIT/Apache-2.0", "https://www.rust-lang.org"),
+                ("ImageMagick", "ImageMagick", "https://imagemagick.org"),
                 ("serde", "MIT/Apache-2.0", "https://serde.rs"),
                 ("rfd", "MIT", "https://github.com/PolyMeilex/rfd"),
                 ("ureq", "MIT/Apache-2.0", "https://github.com/algesten/ureq"),
@@ -516,8 +518,7 @@ fn credits(ui: &mut Ui) -> Option<Outcome> {
             }
             ui.dummy([inner, 18.0]);
         }
-        footer(ui, width, 16.0, &[("Close", ButtonKind::Neutral, true)])
-            .map(|_| Outcome::Dismissed)
+        footer(ui, width, 16.0, &[("Close", ButtonKind::Neutral, true)]).map(|_| Outcome::Dismissed)
     });
     outcome.or(result)
 }
@@ -539,7 +540,10 @@ fn update(ui: &mut Ui, state: &UpdateState) -> Option<Outcome> {
                 });
                 ui.same_line_at(0.0, 6.0);
                 ui.with_face(
-                    bite_imgui::Face::mono_weight(theme::FONT_SIZE_BASE, bite_imgui::Weight::SemiBold),
+                    bite_imgui::Face::mono_weight(
+                        theme::FONT_SIZE_BASE,
+                        bite_imgui::Weight::SemiBold,
+                    ),
                     |ui| {
                         ui.with_colors(&[(StyleColor::Text, theme::ACCENT)], |ui| {
                             ui.text(&format!("v{version}"))
@@ -576,8 +580,7 @@ fn update(ui: &mut Ui, state: &UpdateState) -> Option<Outcome> {
             }
         }
         ui.dummy([inner, 18.0]);
-        footer(ui, width, 20.0, &[("Close", ButtonKind::Neutral, true)])
-            .map(|_| Outcome::Dismissed)
+        footer(ui, width, 20.0, &[("Close", ButtonKind::Neutral, true)]).map(|_| Outcome::Dismissed)
     });
     link.map(Outcome::OpenUrl).or(result)
 }
@@ -588,8 +591,12 @@ fn release_notes(ui: &mut Ui, width: f32, body: &str) {
         return;
     }
     let origin = ui.cursor_screen_position();
-    ui.draw_list()
-        .line(origin, [origin[0] + width, origin[1]], theme::CTX_BORDER, 1.0);
+    ui.draw_list().line(
+        origin,
+        [origin[0] + width, origin[1]],
+        theme::CTX_BORDER,
+        1.0,
+    );
     ui.dummy([width, 14.0]);
     controls::draw_tracked_text(
         ui,
@@ -829,15 +836,15 @@ fn counter_row(ui: &mut Ui, width: f32, completed: usize, total: usize) {
     );
     x += completed_size[0] + 6.0;
     let slash_face = bite_imgui::Face::mono(theme::FONT_SIZE_XL);
-    list.text_with_face(
-        [x, origin[1] + 8.0],
-        theme::TEXT,
-        slash_face,
-        "/",
-    );
+    list.text_with_face([x, origin[1] + 8.0], theme::TEXT, slash_face, "/");
     x += list.measure(slash_face, "/")[0] + 6.0;
     let total_face = bite_imgui::Face::mono(theme::FONT_SIZE_2XL);
-    list.text_with_face([x, origin[1] + 6.0], theme::TEXT_BRIGHT, total_face, &total_text);
+    list.text_with_face(
+        [x, origin[1] + 6.0],
+        theme::TEXT_BRIGHT,
+        total_face,
+        &total_text,
+    );
     x += list.measure(total_face, &total_text)[0] + 8.0;
     list.text_with_face(
         [x, origin[1] + 12.0],
@@ -909,7 +916,10 @@ fn batch_summary(ui: &mut Ui, summary: &BatchSummary) -> Option<Outcome> {
             let label_size = controls::measure_tracked(ui, label_face, label, 0.06 * 11.0);
             controls::draw_tracked_text(
                 ui,
-                [centre - label_size[0] / 2.0, origin[1] + value_size[1] + 2.0],
+                [
+                    centre - label_size[0] / 2.0,
+                    origin[1] + value_size[1] + 2.0,
+                ],
                 theme::TEXT,
                 label_face,
                 label,
@@ -979,9 +989,7 @@ fn batch_summary(ui: &mut Ui, summary: &BatchSummary) -> Option<Outcome> {
             ui.with_face(theme::face::SMALL_MONO, |ui| {
                 ui.with_colors(&[(StyleColor::Text, theme::COLOR_ERROR_TEXT)], |ui| {
                     ui.set_next_item_width(inner);
-                    ui.text_wrapped(
-                        "Check the log window for per-image error details.",
-                    );
+                    ui.text_wrapped("Check the log window for per-image error details.");
                 })
             });
             ui.dummy([inner, 12.0]);
@@ -1020,11 +1028,7 @@ fn import_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
             let origin = ui.cursor_screen_position();
             let centre = [origin[0] + inner / 2.0, origin[1] + 22.0];
             let list = ui.draw_list();
-            list.circle(
-                centre,
-                22.0,
-                theme::COLOR_SUCCESS.mix(20.0, theme::CTX_BG),
-            );
+            list.circle(centre, 22.0, theme::COLOR_SUCCESS.mix(20.0, theme::CTX_BG));
             list.circle_outline(centre, 22.0, theme::COLOR_SUCCESS, 2.0);
             list.line(
                 [centre[0] - 8.0, centre[1] + 1.0],
@@ -1039,10 +1043,11 @@ fn import_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
                 3.0,
             );
             ui.dummy([inner, 56.0]);
+            let imported = progress.total.saturating_sub(progress.skipped);
             let text = format!(
                 "Imported {} {} in {}",
-                progress.total,
-                if progress.total == 1 { "image" } else { "images" },
+                imported,
+                if imported == 1 { "image" } else { "images" },
                 format_import_duration(progress.elapsed_seconds)
             );
             let size = controls::measure(ui, theme::face::VALUE, &text);
@@ -1056,6 +1061,31 @@ fn import_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
                 &text,
             );
             ui.dummy([inner, size[1] + 20.0]);
+            // A picture nobody can decode no longer ends the import, so the dialog is where
+            // the ones that were left out are accounted for.
+            if progress.skipped > 0 {
+                let note = format!(
+                    "{} {} could not be read - the log names {}",
+                    progress.skipped,
+                    if progress.skipped == 1 {
+                        "file"
+                    } else {
+                        "files"
+                    },
+                    if progress.skipped == 1 { "it" } else { "them" }
+                );
+                let size = controls::measure(ui, theme::face::SMALL_MONO, &note);
+                ui.draw_list().text_with_face(
+                    [
+                        ui.cursor_screen_position()[0] + (inner - size[0]) / 2.0,
+                        ui.cursor_screen_position()[1],
+                    ],
+                    theme::COLOR_WARNING_TEXT,
+                    theme::face::SMALL_MONO,
+                    &note,
+                );
+                ui.dummy([inner, size[1] + 20.0]);
+            }
             return footer(ui, width, 24.0, &[("OK", ButtonKind::Primary, true)])
                 .map(|_| Outcome::Dismissed);
         }
@@ -1063,7 +1093,11 @@ fn import_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
         ui.dummy([inner, 12.0]);
         progress_bar(ui, inner, progress.fraction(), theme::COLOR_SUCCESS);
         ui.dummy([inner, 8.0]);
-        let label = format!("{}%  -  {:.1}s", progress.percent(), progress.elapsed_seconds);
+        let label = format!(
+            "{}%  -  {:.1}s",
+            progress.percent(),
+            progress.elapsed_seconds
+        );
         let size = controls::measure(ui, theme::face::SMALL_MONO, &label);
         ui.draw_list().text_with_face(
             [
@@ -1075,8 +1109,13 @@ fn import_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
             &label,
         );
         ui.dummy([inner, size[1] + 20.0]);
-        footer(ui, width, 24.0, &[("Cancel Import", ButtonKind::Danger, true)])
-            .map(|_| Outcome::CancelImport)
+        footer(
+            ui,
+            width,
+            24.0,
+            &[("Cancel Import", ButtonKind::Danger, true)],
+        )
+        .map(|_| Outcome::CancelImport)
     })
 }
 
@@ -1124,6 +1163,7 @@ mod tests {
             total: 4,
             elapsed_seconds: 1.0,
             error: None,
+            skipped: 0,
         };
         assert_eq!(progress.fraction(), 0.75);
         assert_eq!(progress.percent(), 75);
@@ -1181,6 +1221,9 @@ mod tests {
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].0, "Open Source Libraries");
         assert_eq!(sections[1].0, "Fonts");
-        assert!(sections[1].1.iter().any(|(name, _, _)| *name == "JetBrains Mono"));
+        assert!(sections[1]
+            .1
+            .iter()
+            .any(|(name, _, _)| *name == "JetBrains Mono"));
     }
 }

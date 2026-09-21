@@ -126,7 +126,10 @@ pub fn compute(size: Vec2, menu_height: f32, panels: PanelSizes) -> Layout {
         .clamp(theme::INSPECTOR_MIN, theme::INSPECTOR_MAX)
         * available)
         .round()
-        .clamp(40.0, (content_bottom - content_top - handle - 40.0).max(40.0));
+        .clamp(
+            40.0,
+            (content_bottom - content_top - handle - 40.0).max(40.0),
+        );
     let inspector = Rect {
         min: [right_start, content_top],
         max: [content_right, content_top + inspector_height],
@@ -236,8 +239,7 @@ impl SplitterState {
             }
             Splitter::Inspector => {
                 let available = right_column_available(shell_height);
-                panels.inspector_fraction = (self.start.inspector_fraction
-                    + delta[1] / available)
+                panels.inspector_fraction = (self.start.inspector_fraction + delta[1] / available)
                     .clamp(theme::INSPECTOR_MIN, theme::INSPECTOR_MAX);
             }
         }

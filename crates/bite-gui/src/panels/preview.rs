@@ -146,10 +146,7 @@ pub fn draw(ui: &mut Ui, rect: Rect, image: Option<&PreviewImage>, show_info: bo
         };
 
         if let Some(texture) = image.texture {
-            let fitted = contain(
-                [image.pixels[0] as f32, image.pixels[1] as f32],
-                area,
-            );
+            let fitted = contain([image.pixels[0] as f32, image.pixels[1] as f32], area);
             let min = [
                 area_min[0] + (area[0] - fitted[0]) / 2.0,
                 area_min[1] + (area[1] - fitted[1]) / 2.0,

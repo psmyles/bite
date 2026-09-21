@@ -60,12 +60,7 @@ pub struct Bar {
 }
 
 /// Draws the menu bar and returns the command the user picked, if any.
-pub fn draw(
-    ui: &mut Ui,
-    title: &str,
-    timers_enabled: bool,
-    show_developer_items: bool,
-) -> Bar {
+pub fn draw(ui: &mut Ui, title: &str, timers_enabled: bool, show_developer_items: bool) -> Bar {
     let mut command = None;
     let mut height = MENU_BAR_HEIGHT;
     ui.with_style(
@@ -193,11 +188,35 @@ fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Optio
     ui.menu("File", |ui| {
         item(ui, &mut command, "New", primary!("N"), Command::New);
         ui.separator();
-        item(ui, &mut command, "Run Workflow", primary!("R"), Command::RunWorkflow);
+        item(
+            ui,
+            &mut command,
+            "Run Workflow",
+            primary!("R"),
+            Command::RunWorkflow,
+        );
         ui.separator();
-        item(ui, &mut command, "Open Workflow", primary!("O"), Command::OpenWorkflow);
-        item(ui, &mut command, "Save Workflow", primary!("S"), Command::SaveWorkflow);
-        item(ui, &mut command, "Save Workflow As", primary!("Shift+S"), Command::SaveWorkflowAs);
+        item(
+            ui,
+            &mut command,
+            "Open Workflow",
+            primary!("O"),
+            Command::OpenWorkflow,
+        );
+        item(
+            ui,
+            &mut command,
+            "Save Workflow",
+            primary!("S"),
+            Command::SaveWorkflow,
+        );
+        item(
+            ui,
+            &mut command,
+            "Save Workflow As",
+            primary!("Shift+S"),
+            Command::SaveWorkflowAs,
+        );
         ui.separator();
         let mut nested = None;
         ui.menu("Export CLI Script", |ui| {
@@ -215,7 +234,13 @@ fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Optio
             command = Some(nested);
         }
         ui.separator();
-        item(ui, &mut command, EXIT_LABEL, EXIT_ACCELERATOR, Command::Exit);
+        item(
+            ui,
+            &mut command,
+            EXIT_LABEL,
+            EXIT_ACCELERATOR,
+            Command::Exit,
+        );
     });
 
     ui.menu("Edit", |ui| {
@@ -226,18 +251,54 @@ fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Optio
         item(ui, &mut command, "Copy", primary!("C"), Command::Copy);
         item(ui, &mut command, "Paste", primary!("V"), Command::Paste);
         ui.separator();
-        item(ui, &mut command, "Duplicate", primary!("D"), Command::Duplicate);
+        item(
+            ui,
+            &mut command,
+            "Duplicate",
+            primary!("D"),
+            Command::Duplicate,
+        );
         item(ui, &mut command, "Delete", "Delete", Command::Delete);
         ui.separator();
-        item(ui, &mut command, "Select All", primary!("A"), Command::SelectAll);
+        item(
+            ui,
+            &mut command,
+            "Select All",
+            primary!("A"),
+            Command::SelectAll,
+        );
     });
 
     ui.menu("View", |ui| {
-        item(ui, &mut command, "Actual Size", primary!("0"), Command::ActualSize);
-        item(ui, &mut command, "Zoom In", primary!("Plus"), Command::ZoomIn);
-        item(ui, &mut command, "Zoom Out", primary!("-"), Command::ZoomOut);
+        item(
+            ui,
+            &mut command,
+            "Actual Size",
+            primary!("0"),
+            Command::ActualSize,
+        );
+        item(
+            ui,
+            &mut command,
+            "Zoom In",
+            primary!("Plus"),
+            Command::ZoomIn,
+        );
+        item(
+            ui,
+            &mut command,
+            "Zoom Out",
+            primary!("-"),
+            Command::ZoomOut,
+        );
         ui.separator();
-        item(ui, &mut command, "Toggle Full Screen", "F11", Command::ToggleFullScreen);
+        item(
+            ui,
+            &mut command,
+            "Toggle Full Screen",
+            "F11",
+            Command::ToggleFullScreen,
+        );
     });
 
     ui.menu("Debug", |ui| {
@@ -246,25 +307,55 @@ fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Optio
         } else {
             "Enable Performance Timers"
         };
-        item(ui, &mut command, label, "", Command::TogglePerformanceTimers);
+        item(
+            ui,
+            &mut command,
+            label,
+            "",
+            Command::TogglePerformanceTimers,
+        );
         ui.separator();
         item(ui, &mut command, "View Log", "", Command::ViewLog);
         ui.separator();
-        item(ui, &mut command, "Open Temp Folder", "", Command::OpenTempFolder);
+        item(
+            ui,
+            &mut command,
+            "Open Temp Folder",
+            "",
+            Command::OpenTempFolder,
+        );
         item(ui, &mut command, "Clear Cache", "", Command::ClearCache);
         if show_developer_items {
             ui.separator();
-            item(ui, &mut command, "Show All UI Elements", "", Command::ShowAllUiElements);
+            item(
+                ui,
+                &mut command,
+                "Show All UI Elements",
+                "",
+                Command::ShowAllUiElements,
+            );
         }
     });
 
     ui.menu("Help", |ui| {
         item(ui, &mut command, "About", "", Command::About);
-        item(ui, &mut command, "Documentation", "", Command::Documentation);
+        item(
+            ui,
+            &mut command,
+            "Documentation",
+            "",
+            Command::Documentation,
+        );
         item(ui, &mut command, "Report a bug", "", Command::ReportBug);
         item(ui, &mut command, "Credits", "", Command::Credits);
         ui.separator();
-        item(ui, &mut command, "Check for Updates", "", Command::CheckForUpdates);
+        item(
+            ui,
+            &mut command,
+            "Check for Updates",
+            "",
+            Command::CheckForUpdates,
+        );
     });
 
     command

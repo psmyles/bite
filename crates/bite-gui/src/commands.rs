@@ -5,11 +5,11 @@ use crate::{
     panels::inspector::Edit,
     studio, work,
 };
-use bite_imagemagick::{Magick, import::ThumbnailCache};
+use bite_imagemagick::{import::ThumbnailCache, Magick};
 use bite_schema::{BuiltinNodeKind, GraphNode, NodeKind, ParamValue};
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, atomic::AtomicBool},
+    sync::{atomic::AtomicBool, Arc},
     time::Instant,
 };
 
@@ -101,12 +101,10 @@ pub fn run(editor: &mut Editor, command: menu::Command) {
             let _ = std::fs::create_dir_all(&directory);
             let _ = dialogs::open_path(&directory);
         }
-        C::ClearCache => {
-            match work::clear_cache() {
-                Ok(count) => editor.status = format!("Cleared {count} cached file(s)"),
-                Err(error) => editor.status = error,
-            }
-        }
+        C::ClearCache => match work::clear_cache() {
+            Ok(count) => editor.status = format!("Cleared {count} cached file(s)"),
+            Err(error) => editor.status = error,
+        },
         C::ShowAllUiElements => editor.showcase.open = true,
         C::About => {
             editor.modal = modals::Modal::About {
@@ -214,10 +212,8 @@ pub fn open_path(editor: &mut Editor, path: &Path) {
             editor.canvas.state.viewport = crate::canvas::viewport::Viewport {
                 x: editor.studio.workflow.graph.viewport.x as f32,
                 y: editor.studio.workflow.graph.viewport.y as f32,
-                zoom: (editor.studio.workflow.graph.viewport.zoom as f32).clamp(
-                    crate::theme::ZOOM_MIN,
-                    crate::theme::ZOOM_MAX,
-                ),
+                zoom: (editor.studio.workflow.graph.viewport.zoom as f32)
+                    .clamp(crate::theme::ZOOM_MIN, crate::theme::ZOOM_MAX),
             };
             // The saved viewport was framed for whatever window the file was saved from,
             // so the opened graph is fitted to this one instead once the canvas is drawn.
@@ -270,12 +266,8 @@ fn save(editor: &mut Editor, force_dialog: bool) {
 
 fn export(editor: &mut Editor, shell: bite_core::cli_export::Shell, extension: &str) {
     let default = format!("bite-batch.{extension}");
-    let Ok(Some(path)) = dialogs::save_file(
-        "Export CLI Script",
-        "Script",
-        extension,
-        &default,
-    ) else {
+    let Ok(Some(path)) = dialogs::save_file("Export CLI Script", "Script", extension, &default)
+    else {
         return;
     };
     match editor.studio.export_cli(&path, shell) {
@@ -395,12 +387,9 @@ pub fn apply_edit(editor: &mut Editor, edit: Edit) {
             extension,
         } => {
             let default = format!("output.{extension}");
-            if let Ok(Some(path)) = dialogs::save_file(
-                "Choose output file",
-                "Output",
-                &extension,
-                &default,
-            ) {
+            if let Ok(Some(path)) =
+                dialogs::save_file("Choose output file", "Output", &extension, &default)
+            {
                 editor.studio.set_param(
                     &node,
                     name,
@@ -516,6 +505,7 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
         total: paths.len(),
         elapsed_seconds: 0.0,
         error: None,
+        skipped: 0,
     };
 
     std::thread::spawn(move || {
@@ -524,31 +514,53 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
         let mut cache = ThumbnailCache::new(work::cache_directory());
         let jobs = bite_imagemagick::import::default_jobs();
         let mut thumbnails = Vec::new();
+        // The files that made it, which is what the branch holds: a picture with no
+        // thumbnail has nothing to show in the filmstrip and nothing to preview.
+        let mut imported = Vec::new();
+        let mut skipped = 0;
         // Batching keeps the number of spawned processes low.
         for (index, chunk) in paths.chunks(16).enumerate() {
             match cache.load_batch(&mut magick, chunk, size) {
                 Ok(infos) => {
+                    // A picture ImageMagick cannot read is left out of the batch rather
+                    // than ending the import, and each one is named in the log.
+                    for (path, error) in std::mem::take(&mut cache.failures) {
+                        crate::logging::warn(format!("Skipped {}: {error}", path.display()));
+                        skipped += 1;
+                    }
                     let files: Vec<PathBuf> =
                         infos.iter().map(|info| info.thumbnail.clone()).collect();
                     let decoded = work::decode_many(&files, jobs);
                     for (info, image) in infos.into_iter().zip(decoded) {
                         // The cache writes WebP, which decodes in process. Anything else
                         // it ever holds goes the long way round.
-                        let image = image
-                            .or_else(|_| decode_thumbnail(&mut magick, &info.thumbnail));
-                        if let Ok(image) = image {
-                            thumbnails.push(work::Thumbnail {
-                                path: info.path.clone(),
-                                image,
-                                source: work::SourceImage {
-                                    width: info.width,
-                                    height: info.height,
-                                    bytes: info.size_bytes,
-                                },
-                            });
+                        let image =
+                            image.or_else(|_| decode_thumbnail(&mut magick, &info.thumbnail));
+                        match image {
+                            Ok(image) => {
+                                imported.push(info.path.clone());
+                                thumbnails.push(work::Thumbnail {
+                                    path: info.path.clone(),
+                                    image,
+                                    source: work::SourceImage {
+                                        width: info.width,
+                                        height: info.height,
+                                        bytes: info.size_bytes,
+                                    },
+                                });
+                            }
+                            Err(error) => {
+                                crate::logging::warn(format!(
+                                    "Skipped {}: {error}",
+                                    info.path.display()
+                                ));
+                                skipped += 1;
+                            }
                         }
                     }
                 }
+                // A whole batch only fails for something that would stop the rest of them
+                // too: a cancelled import, or a cache directory that cannot be written.
                 Err(error) => {
                     handle.send(work::Message::ImportFailed {
                         node: node_id,
@@ -572,8 +584,9 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
         });
         handle.send(work::Message::ImportFinished {
             node: node_id,
-            paths,
+            paths: imported,
             thumbnails,
+            skipped,
         });
     });
 }
@@ -666,21 +679,14 @@ pub fn output_problems(editor: &Editor, node: &GraphNode) -> Vec<String> {
     match node.kind {
         NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
             if string_param("outputPath") == "custom" {
-                let folder_edge = graph
+                let wired = graph
                     .edges
                     .iter()
-                    .find(|edge| edge.target == node.id && edge.target_handle == "in:folder");
-                if let Some(edge) = folder_edge {
-                    let empty = graph
-                        .nodes
-                        .iter()
-                        .find(|candidate| candidate.id == edge.source)
-                        .map(|source| match source.data.params.get("folderPath") {
-                            Some(ParamValue::String(path)) => path.is_empty(),
-                            _ => true,
-                        })
-                        .unwrap_or(true);
-                    if empty {
+                    .any(|edge| edge.target == node.id && edge.target_handle == "in:folder");
+                if wired {
+                    // The run reads the wired folder through the same helper, so what the
+                    // button refuses and what a run would write to cannot drift apart.
+                    if bite_core::graph::connected_folder(graph, &node.id).is_none() {
                         reasons.push("Connected folder path node has no folder set".into());
                     }
                 } else if string_param("customPath").is_empty() {
@@ -694,9 +700,10 @@ pub fn output_problems(editor: &Editor, node: &GraphNode) -> Vec<String> {
             }
         }
         NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput)
-            if string_param("flipbookOutputPath").is_empty() => {
-                reasons.push("Output file path is empty".into());
-            }
+            if string_param("flipbookOutputPath").is_empty() =>
+        {
+            reasons.push("Output file path is empty".into());
+        }
         _ => {}
     }
     // Only when nothing else is wrong does an empty branch become the reason.
@@ -852,6 +859,7 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
             node,
             paths,
             thumbnails,
+            skipped,
         } => {
             let branch = editor.branches.entry(node.clone()).or_default();
             branch.paths = paths;
@@ -859,16 +867,19 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
                 .iter()
                 .map(|thumbnail| crate::panels::filmstrip::Thumbnail {
                     path: thumbnail.path.to_string_lossy().into_owned(),
-                    name: crate::panels::filmstrip::display_name(
-                        &thumbnail.path.to_string_lossy(),
-                    ),
+                    name: crate::panels::filmstrip::display_name(&thumbnail.path.to_string_lossy()),
                     texture: None,
                     size: [thumbnail.image.width, thumbnail.image.height],
                     source: thumbnail.source,
                 })
                 .collect();
-            branch.selected = if branch.paths.is_empty() { None } else { Some(0) };
+            branch.selected = if branch.paths.is_empty() {
+                None
+            } else {
+                Some(0)
+            };
             editor.progress.completed = editor.progress.total;
+            editor.progress.skipped = skipped;
             editor.finish_import_timing();
             editor.pending_uploads = thumbnails
                 .into_iter()
@@ -891,7 +902,11 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
             source,
             resolved,
         } => {
-            editor.branches.entry(node.clone()).or_default().preview_source = source;
+            editor
+                .branches
+                .entry(node.clone())
+                .or_default()
+                .preview_source = source;
             editor.resolved = resolved
                 .into_iter()
                 .map(|(id, params)| (id, params.into_iter().collect()))

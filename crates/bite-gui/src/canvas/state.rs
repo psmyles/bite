@@ -199,8 +199,7 @@ pub fn nearest_port<'a>(
     let radius = theme::CONNECTION_RADIUS * zoom.max(0.01);
     let mut best: Option<(f32, &str, &str)> = None;
     for (node, handle, position) in ports {
-        let distance =
-            ((point[0] - position[0]).powi(2) + (point[1] - position[1]).powi(2)).sqrt();
+        let distance = ((point[0] - position[0]).powi(2) + (point[1] - position[1]).powi(2)).sqrt();
         if distance <= radius && best.is_none_or(|(current, _, _)| distance < current) {
             best = Some((distance, node, handle));
         }

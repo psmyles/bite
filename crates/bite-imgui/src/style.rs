@@ -1,5 +1,5 @@
 //! Colors, style variables and scoped push and pop helpers.
-use crate::{FontId, Ui, Vec2, v};
+use crate::{v, FontId, Ui, Vec2};
 use bite_imgui_sys as sys;
 
 /// A straight red, green, blue and alpha color in the zero to one range.

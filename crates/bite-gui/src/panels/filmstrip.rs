@@ -187,7 +187,10 @@ pub fn draw(
         let text = status_text(thumbnails.len());
         let size = list.measure(theme::face::SMALL_MONO, &text);
         list.text_with_face(
-            [rect.min[0] + 10.0, status_top + (status_height - size[1]) / 2.0],
+            [
+                rect.min[0] + 10.0,
+                status_top + (status_height - size[1]) / 2.0,
+            ],
             theme::TEXT_BRIGHT.with_alpha(0.5),
             theme::face::SMALL_MONO,
             &text,

@@ -300,8 +300,7 @@ pub const MENU_DROPDOWN_PADDING_Y: f32 = 4.0;
 /// The twelve is the row's own horizontal padding. The vertical figure carries the row's
 /// padding as well as the dropdown's, because Dear ImGui places the first row's text at the
 /// window padding and only grows its highlight into half the item spacing above it.
-pub const MENU_DROPDOWN_PADDING: [f32; 2] =
-    [12.0, MENU_DROPDOWN_PADDING_Y + MENU_ITEM_PADDING_Y];
+pub const MENU_DROPDOWN_PADDING: [f32; 2] = [12.0, MENU_DROPDOWN_PADDING_Y + MENU_ITEM_PADDING_Y];
 /// The gap the row leaves between its label and its shortcut.
 pub const MENU_ITEM_GAP: f32 = 8.0;
 /// The fit-view control that stands in for the Electron minimap.
@@ -430,7 +429,6 @@ pub fn button_danger() -> ButtonStyle {
 
 /// The disabled appearance shared by all three button styles.
 pub fn button_disabled() -> ButtonStyle {
-    
     ButtonStyle {
         background: PANEL_HEADER_BG,
         border: BORDER.mix(50.0, Color::TRANSPARENT),

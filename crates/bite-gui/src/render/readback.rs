@@ -29,12 +29,12 @@ pub use metal::rgba8;
 #[cfg(windows)]
 mod d3d11 {
     use sokol::gfx as sg;
+    use windows::core::Interface;
     use windows::Win32::Graphics::Direct3D11::{
-        D3D11_CPU_ACCESS_READ, D3D11_MAP_READ, D3D11_MAPPED_SUBRESOURCE, D3D11_TEXTURE2D_DESC,
-        D3D11_USAGE_STAGING, ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D,
+        ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D, D3D11_CPU_ACCESS_READ,
+        D3D11_MAPPED_SUBRESOURCE, D3D11_MAP_READ, D3D11_TEXTURE2D_DESC, D3D11_USAGE_STAGING,
     };
     use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SAMPLE_DESC};
-    use windows::core::Interface;
 
     /// Copies `image` back to the CPU as tightly packed RGBA8, row by row.
     pub fn rgba8(image: sg::Image, width: u32, height: u32) -> Result<Vec<u8>, String> {

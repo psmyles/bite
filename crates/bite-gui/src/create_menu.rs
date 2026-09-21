@@ -8,7 +8,7 @@ use crate::{
     panels::library::{self, Entry},
     theme,
 };
-use bite_core::{Registry, graph::WireType};
+use bite_core::{graph::WireType, Registry};
 use bite_imgui::{Key, MouseCursor, Rounding, StyleColor, StyleVar, Ui, Vec2};
 use bite_schema::{ParamType, PortType};
 
@@ -150,7 +150,9 @@ impl CreateMenu {
             + self.action_height();
         let room = (if flip_up { space_above } else { space_below }) - 16.0;
         let max_height = content.min(theme::CTX_MAX_HEIGHT).min(room).max(120.0);
-        let left = anchor[0].min(viewport_size[0] - theme::CTX_WIDTH - 8.0).max(0.0);
+        let left = anchor[0]
+            .min(viewport_size[0] - theme::CTX_WIDTH - 8.0)
+            .max(0.0);
         let top = if flip_up {
             (anchor[1] - max_height).max(0.0)
         } else {
@@ -262,7 +264,8 @@ impl CreateMenu {
                 moved = true;
             }
             if ui.key_pressed(Key::Up) {
-                self.active_index = Some(self.active_index.map_or(0, |index| index.saturating_sub(1)));
+                self.active_index =
+                    Some(self.active_index.map_or(0, |index| index.saturating_sub(1)));
                 moved = true;
             }
             // Browsing by keyboard opens the highlighted category's flyout, so the arrow
@@ -299,8 +302,14 @@ impl CreateMenu {
                     return;
                 }
                 for (index, entry) in flat.iter().enumerate() {
-                    if self.result_row(ui, entry, Some(index) == self.active_index, width, delta, true)
-                    {
+                    if self.result_row(
+                        ui,
+                        entry,
+                        Some(index) == self.active_index,
+                        width,
+                        delta,
+                        true,
+                    ) {
                         outcome = Some(self.create(entry.clone()));
                     }
                 }
@@ -314,16 +323,14 @@ impl CreateMenu {
                 }
             } else {
                 for (index, (category, entries)) in groups.iter().enumerate() {
-                    if let Some(entry) =
-                        self.category_row(
-                            ui,
-                            category,
-                            entries,
-                            Some(index) == self.active_index,
-                            width,
-                            delta,
-                        )
-                    {
+                    if let Some(entry) = self.category_row(
+                        ui,
+                        category,
+                        entries,
+                        Some(index) == self.active_index,
+                        width,
+                        delta,
+                    ) {
                         outcome = Some(self.create(entry));
                     }
                 }
@@ -506,7 +513,14 @@ impl CreateMenu {
                         ui.window_with(&format!("##sub-{category}"), flags, |ui| {
                             for entry in entries {
                                 // The flyout lists one category, so its name is not repeated.
-                                if self.result_row(ui, entry, false, theme::CTX_SUB_WIDTH, delta, false) {
+                                if self.result_row(
+                                    ui,
+                                    entry,
+                                    false,
+                                    theme::CTX_SUB_WIDTH,
+                                    delta,
+                                    false,
+                                ) {
                                     chosen = Some(entry.clone());
                                 }
                             }
@@ -603,8 +617,14 @@ pub fn accepts_wire(entry: &Entry, pending: &PendingWire, registry: &Registry) -
     };
     let definition = &definition.definition;
     let port_matches = |kind: &PortType| port_wire(kind) == pending.wire;
-    if definition.inputs.iter().any(|port| port_matches(&port.kind))
-        || definition.outputs.iter().any(|port| port_matches(&port.kind))
+    if definition
+        .inputs
+        .iter()
+        .any(|port| port_matches(&port.kind))
+        || definition
+            .outputs
+            .iter()
+            .any(|port| port_matches(&port.kind))
     {
         return true;
     }

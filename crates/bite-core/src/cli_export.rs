@@ -73,16 +73,13 @@ fn specs(graph: &Graph) -> Vec<ParamSpec> {
                 required: true,
             }),
             NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {
-                let default_value = if string_param(node, "outputPath") == "custom" {
-                    let custom = string_param(node, "customPath");
-                    if custom.is_empty() {
-                        "./output".into()
-                    } else {
-                        custom
-                    }
-                } else {
-                    "./output".into()
-                };
+                // A wired Folder Path is where a run inside the editor writes, so it is what
+                // the exported script defaults this flag to as well.
+                let wired = crate::graph::connected_folder(graph, &node.id);
+                let custom = (string_param(node, "outputPath") == "custom")
+                    .then(|| string_param(node, "customPath"))
+                    .filter(|custom| !custom.is_empty());
+                let default_value = wired.or(custom).unwrap_or_else(|| "./output".into());
                 outputs.push(ParamSpec {
                     flag,
                     variable,
@@ -403,5 +400,42 @@ mod tests {
         let bash = generate(Shell::Bash, "flow.bite", "today", &graph);
         assert!(bash.contains("--input-1 \"${INPUT_1}\""));
         assert!(bash.contains("${SCRIPT_DIR}/flow.bite"));
+    }
+
+    /// An output whose folder arrives over a wire writes there when it is run inside the
+    /// editor, so that is the folder the exported script starts from as well.
+    #[test]
+    fn a_wired_folder_path_is_what_the_output_flag_defaults_to() {
+        let mut graph = graph();
+        graph.nodes.push(GraphNode {
+            id: "folder".into(),
+            kind: NodeKind::Builtin(BuiltinNodeKind::FolderPath),
+            position: Position { x: 0.0, y: 0.0 },
+            parent_id: None,
+            extent: None,
+            width: None,
+            height: None,
+            data: NodeData {
+                label: "Folder".into(),
+                definition_id: "folderpath".into(),
+                params: BTreeMap::from([(
+                    "folderPath".into(),
+                    ParamValue::String("D:\\wired".into()),
+                )]),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+            },
+        });
+        graph.edges.push(bite_schema::GraphEdge {
+            id: "wire".into(),
+            source: "folder".into(),
+            source_handle: "out:output".into(),
+            target: "output".into(),
+            target_handle: "in:folder".into(),
+        });
+        let bash = generate(Shell::Bash, "flow.bite", "today", &graph);
+        assert!(bash.contains("D:\\wired"), "{bash}");
+        // The node's own custom folder is what the wire stands in front of.
+        assert!(!bash.contains("it's"), "{bash}");
     }
 }

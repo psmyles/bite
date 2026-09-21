@@ -1,6 +1,10 @@
 //! Times a cached re-import, the way the filmstrip does one.
 use bite_gui::work;
-use std::{path::PathBuf, sync::{Arc, atomic::AtomicBool}, time::Instant};
+use std::{
+    path::PathBuf,
+    sync::{atomic::AtomicBool, Arc},
+    time::Instant,
+};
 
 fn main() {
     let directory = std::env::args().nth(1).expect("a folder of images");
@@ -18,7 +22,9 @@ fn main() {
         let mut decoded = 0;
         let jobs = bite_imagemagick::import::default_jobs();
         for chunk in paths.chunks(16) {
-            let infos = cache.load_batch(&mut magick, chunk, 256).expect("thumbnails");
+            let infos = cache
+                .load_batch(&mut magick, chunk, 256)
+                .expect("thumbnails");
             let files: Vec<PathBuf> = infos.iter().map(|info| info.thumbnail.clone()).collect();
             for (info, image) in infos.into_iter().zip(work::decode_many(&files, jobs)) {
                 let image = image.expect("the thumbnail decodes");
@@ -34,6 +40,9 @@ fn main() {
                 }
             }
         }
-        println!("pass {pass}: {decoded} images in {:.2} sec", started.elapsed().as_secs_f32());
+        println!(
+            "pass {pass}: {decoded} images in {:.2} sec",
+            started.elapsed().as_secs_f32()
+        );
     }
 }

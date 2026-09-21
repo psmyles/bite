@@ -259,7 +259,14 @@ pub fn row(
         }
         RowState::Editable => {
             if definition.widget != Some(WidgetType::Checkbox) {
-                edits.extend(control(ui, content_width, node, definition, stored, pickers));
+                edits.extend(control(
+                    ui,
+                    content_width,
+                    node,
+                    definition,
+                    stored,
+                    pickers,
+                ));
             }
         }
     }
@@ -429,11 +436,7 @@ fn dropdown(
     };
     let current_value = match stored {
         Some(ParamValue::String(text)) => text.clone(),
-        _ => definition
-            .options
-            .first()
-            .cloned()
-            .unwrap_or_default(),
+        _ => definition.options.first().cloned().unwrap_or_default(),
     };
     let mut index = definition
         .options

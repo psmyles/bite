@@ -10,8 +10,8 @@
 //! These are all one test because a Dear ImGui context is process-wide and a test binary runs
 //! its tests in one process.
 
-use bite_imgui::Context;
 use bite_imgui::font::Face;
+use bite_imgui::Context;
 
 /// Ten characters, which makes a per-character advance easy to read off a total.
 const TEXT: &str = "PREVIEWING";

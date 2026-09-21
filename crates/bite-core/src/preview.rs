@@ -386,6 +386,13 @@ pub fn render_from(
     let input = temporary.path().join("input");
     let output = temporary.path().join("output");
     fs::create_dir_all(&input).map_err(|error| error.to_string())?;
+    let mut options = RunOptions {
+        overwrite: true,
+        // The canvas shows what each value node measured, and a mean is only known once
+        // the chain has actually run over the image.
+        capture_values: true,
+        ..Default::default()
+    };
     // Each file is staged under the name it has on disk, not the thumbnail's: a Process As
     // Set reads its streams from the suffixes of the names it finds beside each other.
     for (pixels, measured) in std::iter::once((PathBuf::from(image), PathBuf::from(measured)))
@@ -399,14 +406,10 @@ pub fn render_from(
         fs::hard_link(&pixels, &staged)
             .or_else(|_| fs::copy(&pixels, &staged).map(|_| ()))
             .map_err(|error| error.to_string())?;
+        // The staged file holds the thumbnail's pixels, so anything the chain asks about
+        // the image is answered from the original it was made from instead.
+        options.measured_as.insert(staged, measured);
     }
-    let mut options = RunOptions {
-        overwrite: true,
-        // The canvas shows what each value node measured, and a mean is only known once
-        // the chain has actually run over the image.
-        capture_values: true,
-        ..Default::default()
-    };
     for node in &preview.nodes {
         if let Some(ParamValue::String(flag)) = node.data.params.get("cliName") {
             match node.kind {
@@ -595,6 +598,144 @@ mod tests {
         fn metadata(&mut self, _path: &Path, _heavy: bool) -> Result<Context, String> {
             Ok(Context::new())
         }
+    }
+
+    /// Reports the real picture's size for the file it was given and a thumbnail's for
+    /// anything else, so a measurement taken from the wrong file shows up in the result.
+    struct MeasuringHost {
+        original: PathBuf,
+        args: Vec<Vec<String>>,
+    }
+    impl ImageHost for MeasuringHost {
+        fn run(&mut self, args: &[String]) -> Result<(), String> {
+            self.args.push(args.to_vec());
+            let output = args.last().ok_or("no output")?;
+            let output = output.strip_prefix("PNG:").unwrap_or(output);
+            fs::write(output, b"rendered").map_err(|error| error.to_string())
+        }
+        fn capture(&mut self, args: &[String]) -> Result<String, String> {
+            Err(format!("unexpected capture {args:?}"))
+        }
+        fn metadata(&mut self, path: &Path, _heavy: bool) -> Result<Context, String> {
+            let (width, height) = if path == self.original {
+                (4000, 3000)
+            } else {
+                (256, 192)
+            };
+            Ok(Context::from([
+                ("image.width".into(), bite_expr::Value::Int(width)),
+                ("image.height".into(), bite_expr::Value::Int(height)),
+            ]))
+        }
+    }
+
+    /// A preview renders the thumbnail for speed, but everything the graph asks about the
+    /// image must still answer for the original: a width taken from the thumbnail resized
+    /// to a sixteenth of what the same workflow would produce in a run, and the property
+    /// nodes on the canvas reported the thumbnail's dimensions as the picture's own.
+    #[test]
+    fn a_preview_measures_the_original_while_it_renders_the_thumbnail() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = Registry::load(
+            &root.join("node-definitions"),
+            &root.join("format-definitions"),
+        )
+        .unwrap();
+        let node = |id: &str, kind: NodeKind, definition_id: &str, params| GraphNode {
+            id: id.into(),
+            kind,
+            position: Position { x: 0.0, y: 0.0 },
+            parent_id: None,
+            extent: None,
+            width: None,
+            height: None,
+            data: NodeData {
+                label: id.into(),
+                definition_id: definition_id.into(),
+                params,
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+            },
+        };
+        let graph = Graph {
+            nodes: vec![
+                node(
+                    "input",
+                    NodeKind::Builtin(BuiltinNodeKind::Input),
+                    "",
+                    BTreeMap::from([("cliName".into(), ParamValue::String("input-1".into()))]),
+                ),
+                node(
+                    "dims",
+                    NodeKind::Processing(ProcessingNodeKind::Process),
+                    "prop_dimensions",
+                    BTreeMap::new(),
+                ),
+                node(
+                    "resize",
+                    NodeKind::Processing(ProcessingNodeKind::Process),
+                    "resize",
+                    BTreeMap::new(),
+                ),
+            ],
+            edges: vec![
+                GraphEdge {
+                    id: "to-resize".into(),
+                    source: "input".into(),
+                    source_handle: "out:output".into(),
+                    target: "resize".into(),
+                    target_handle: "in:input".into(),
+                },
+                // The resize takes its width from what the image measured, which is the
+                // shape of workflow the thumbnail measurement quietly rescaled.
+                GraphEdge {
+                    id: "width".into(),
+                    source: "dims".into(),
+                    source_handle: "param:width".into(),
+                    target: "resize".into(),
+                    target_handle: "param:width".into(),
+                },
+            ],
+            viewport: Viewport {
+                x: 0.0,
+                y: 0.0,
+                zoom: 1.0,
+            },
+        };
+        let temporary = tempfile::tempdir().unwrap();
+        let original = temporary.path().join("photo.png");
+        let thumbnail = temporary.path().join("thumbnails/photo.png");
+        fs::write(&original, b"original").unwrap();
+        fs::create_dir_all(thumbnail.parent().unwrap()).unwrap();
+        fs::write(&thumbnail, b"thumbnail").unwrap();
+        let mut host = MeasuringHost {
+            original: original.clone(),
+            args: Vec::new(),
+        };
+        let result = render_from(
+            &graph,
+            &registry,
+            &mut host,
+            &thumbnail,
+            &original,
+            &[],
+            Some(("resize", "out:output")),
+        )
+        .unwrap();
+
+        let resized = host
+            .args
+            .iter()
+            .find(|args| args.iter().any(|argument| argument == "-resize"))
+            .unwrap_or_else(|| panic!("nothing resized: {:?}", host.args));
+        assert!(
+            resized.contains(&"4000".to_string()),
+            "resized against the thumbnail: {resized:?}"
+        );
+        assert_eq!(
+            result.resolved_values["dims"]["width"],
+            bite_expr::Value::Int(4000)
+        );
     }
 
     /// A Process As Set reads one image per suffix. The preview hands each stream the

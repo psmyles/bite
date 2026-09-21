@@ -187,8 +187,11 @@ pub fn draw(
         let footer_height = 51.0;
         let body_height = (rect.height() - theme::PANEL_HEADER_HEIGHT - footer_height).max(1.0);
         ui.with_style(&[StyleVar::ItemSpacing([0.0, 0.0])], |ui| {
-            ui.child("inspector-body", [rect.width(), body_height], false, |ui| {
-                match selected {
+            ui.child(
+                "inspector-body",
+                [rect.width(), body_height],
+                false,
+                |ui| match selected {
                     None => {
                         ui.dummy([rect.width(), 14.0]);
                         ui.set_cursor_screen_position([
@@ -200,8 +203,8 @@ pub fn draw(
                     Some(node) => {
                         edits.extend(nodes::draw(ui, rect, node, state, context));
                     }
-                }
-            });
+                },
+            );
         });
 
         // The primary action sits in a bordered footer at the bottom of the panel.

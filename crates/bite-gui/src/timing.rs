@@ -218,7 +218,8 @@ fn memory() -> (u64, u64) {
     }
     unsafe extern "system" {
         fn GetCurrentProcess() -> isize;
-        fn K32GetProcessMemoryInfo(process: isize, counters: *mut MemoryCountersEx, cb: u32) -> i32;
+        fn K32GetProcessMemoryInfo(process: isize, counters: *mut MemoryCountersEx, cb: u32)
+            -> i32;
     }
 
     let size = std::mem::size_of::<MemoryCountersEx>() as u32;

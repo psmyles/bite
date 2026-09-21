@@ -189,7 +189,10 @@ pub fn draw(
 
         if groups.is_empty() && (searching || definitions.is_empty()) && matched_workflow.is_empty()
         {
-            ui.set_cursor_screen_position([rect.min[0] + 12.0, ui.cursor_screen_position()[1] + 12.0]);
+            ui.set_cursor_screen_position([
+                rect.min[0] + 12.0,
+                ui.cursor_screen_position()[1] + 12.0,
+            ]);
             controls::hint(
                 ui,
                 if searching {
@@ -284,13 +287,7 @@ fn category_row(ui: &mut Ui, label: &str, open: bool, width: f32) -> bool {
 }
 
 /// One draggable library entry.
-fn entry_row(
-    ui: &mut Ui,
-    entry: &Entry,
-    width: f32,
-    state: &mut LibraryState,
-    delta: f32,
-) -> bool {
+fn entry_row(ui: &mut Ui, entry: &Entry, width: f32, state: &mut LibraryState, delta: f32) -> bool {
     let height = 20.0;
     let origin = ui.cursor_screen_position();
     let clicked = ui.invisible_button(&format!("##entry-{}", entry.id), [width - 12.0, height]);

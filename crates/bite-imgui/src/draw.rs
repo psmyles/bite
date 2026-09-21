@@ -1,5 +1,5 @@
 //! Direct drawing. The node canvas and every custom visual are painted through this.
-use crate::{Color, Face, Ui, Vec2, c, texture_ref, v};
+use crate::{c, texture_ref, v, Color, Face, Ui, Vec2};
 use bite_imgui_sys as sys;
 
 /// Which corners a rounded rectangle rounds.
@@ -141,7 +141,13 @@ impl DrawListRef<'_> {
     pub fn text(&self, position: Vec2, color: Color, text: &str) {
         let text = c(text);
         unsafe {
-            sys::ImDrawList_AddText_Vec2(self.raw, v(position), color.packed(), text.as_ptr(), std::ptr::null())
+            sys::ImDrawList_AddText_Vec2(
+                self.raw,
+                v(position),
+                color.packed(),
+                text.as_ptr(),
+                std::ptr::null(),
+            )
         }
     }
 
@@ -151,14 +157,7 @@ impl DrawListRef<'_> {
     }
 
     /// Draws text at `scale` times the face's size, for content that zooms with a canvas.
-    pub fn text_scaled(
-        &self,
-        position: Vec2,
-        color: Color,
-        face: Face,
-        scale: f32,
-        text: &str,
-    ) {
+    pub fn text_scaled(&self, position: Vec2, color: Color, face: Face, scale: f32, text: &str) {
         let id = self.fonts.id(face);
         let Some(handle) = self.fonts.handles.get(id.0).copied() else {
             return self.text(position, color, text);

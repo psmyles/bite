@@ -23,7 +23,7 @@ pub mod readback;
 pub mod textures;
 
 #[cfg(windows)]
-pub use d3d11::{Device, SWAPCHAIN_FORMAT, Swapchain};
+pub use d3d11::{Device, Swapchain, SWAPCHAIN_FORMAT};
 #[cfg(target_os = "macos")]
-pub use metal::{Device, SWAPCHAIN_FORMAT, Swapchain};
+pub use metal::{Device, Swapchain, SWAPCHAIN_FORMAT};
 pub use textures::Textures;

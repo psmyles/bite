@@ -1,7 +1,9 @@
 //! The session log, matching the Electron logger's file and format.
 use std::{
+    collections::VecDeque,
+    fs::File,
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Mutex, OnceLock},
 };
 
@@ -33,9 +35,41 @@ impl Level {
 /// The ring buffer the log window reads, capped as the Electron logger caps it.
 const MAX_ENTRIES: usize = 1000;
 
-fn buffer() -> &'static Mutex<Vec<Entry>> {
-    static BUFFER: OnceLock<Mutex<Vec<Entry>>> = OnceLock::new();
-    BUFFER.get_or_init(|| Mutex::new(Vec::new()))
+fn buffer() -> &'static Mutex<VecDeque<Entry>> {
+    static BUFFER: OnceLock<Mutex<VecDeque<Entry>>> = OnceLock::new();
+    BUFFER.get_or_init(|| Mutex::new(VecDeque::new()))
+}
+
+/// The open log file, kept between lines, with the path it was opened for.
+///
+/// Every line used to open the file, append to it and close it again. A run that logs once
+/// per picture paid that for each one; the path travels with the handle so that anything
+/// repointing `BITE_LOG_PATH`, such as a test, still lands in the file it asked for.
+fn writer() -> &'static Mutex<Option<(PathBuf, File)>> {
+    static WRITER: OnceLock<Mutex<Option<(PathBuf, File)>>> = OnceLock::new();
+    WRITER.get_or_init(|| Mutex::new(None))
+}
+
+/// Appends through the held handle, opening it the first time and after a path change.
+///
+/// The file is written unbuffered, so the log window tailing it sees each line as it
+/// lands. Nothing here reports a failure: a log that cannot be written is not worth
+/// interrupting the editor over, and the window still reads the buffer.
+fn append(path: &Path, line: &str) {
+    let Ok(mut held) = writer().lock() else {
+        return;
+    };
+    if held.as_ref().is_none_or(|(open, _)| open != path) {
+        *held = File::options()
+            .create(true)
+            .append(true)
+            .open(path)
+            .ok()
+            .map(|file| (path.to_owned(), file));
+    }
+    if let Some((_, file)) = held.as_mut() {
+        let _ = writeln!(file, "{line}");
+    }
 }
 
 /// Where the log file lives on this platform.
@@ -66,9 +100,7 @@ pub fn start_session() {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
-        let _ = writeln!(file, "--- Session {} ---", timestamp_iso());
-    }
+    append(&path, &format!("--- Session {} ---", timestamp_iso()));
 }
 
 /// Records a line, both in the buffer and in the file.
@@ -79,21 +111,21 @@ pub fn log(level: Level, message: impl Into<String>) {
         message: message.into(),
     };
     if let Ok(mut entries) = buffer().lock() {
-        if entries.len() >= MAX_ENTRIES {
-            entries.remove(0);
+        while entries.len() >= MAX_ENTRIES {
+            entries.pop_front();
         }
-        entries.push(entry.clone());
+        entries.push_back(entry.clone());
     }
     if let Some(path) = log_path() {
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-            let _ = writeln!(
-                file,
+        append(
+            &path,
+            &format!(
                 "{} [{}] {}",
                 entry.timestamp,
                 entry.level.label(),
                 entry.message
-            );
-        }
+            ),
+        );
     }
 }
 
@@ -111,7 +143,10 @@ pub fn error(message: impl Into<String>) {
 
 /// Every recorded line, newest last.
 pub fn entries() -> Vec<Entry> {
-    buffer().lock().map(|entries| entries.clone()).unwrap_or_default()
+    buffer()
+        .lock()
+        .map(|entries| entries.iter().cloned().collect())
+        .unwrap_or_default()
 }
 
 pub fn clear() {
@@ -127,12 +162,7 @@ fn parts() -> (u64, u64, u64, u64) {
         .unwrap_or_default();
     let total = now.as_secs();
     let milliseconds = u64::from(now.subsec_millis());
-    (
-        total / 3600 % 24,
-        total / 60 % 60,
-        total % 60,
-        milliseconds,
-    )
+    (total / 3600 % 24, total / 60 % 60, total % 60, milliseconds)
 }
 
 /// The clock stamp each line carries, as hours, minutes, seconds and milliseconds.

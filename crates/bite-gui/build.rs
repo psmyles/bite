@@ -66,7 +66,10 @@ fn compile_simgui(target_os: &str) {
     for file in ["simgui.c", "sokol_imgui.h"] {
         println!("cargo:rerun-if-changed={}", simgui.join(file).display());
     }
-    println!("cargo:rerun-if-changed={}", cimgui.join("cimgui.h").display());
+    println!(
+        "cargo:rerun-if-changed={}",
+        cimgui.join("cimgui.h").display()
+    );
     println!("cargo:rerun-if-env-changed=SOKOL_BACKEND");
 
     let backend = match env::var("SOKOL_BACKEND").as_deref() {

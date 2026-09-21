@@ -33,6 +33,10 @@ mod tests {
         assert_eq!(ICON_RGBA.len(), (ICON_EDGE * ICON_EDGE * 4) as usize);
         assert!(window_icon().is_some());
         // Straight alpha, not premultiplied, and an icon that is not entirely transparent.
-        assert!(ICON_RGBA.as_chunks::<4>().0.iter().any(|pixel| pixel[3] > 0));
+        assert!(ICON_RGBA
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .any(|pixel| pixel[3] > 0));
     }
 }

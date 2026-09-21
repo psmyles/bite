@@ -371,20 +371,20 @@ impl Studio {
         true
     }
 
-/// The kind a definition makes.
-///
-/// Most make an ordinary processing node, but three have a card and an inspector of their
-/// own and are recorded as such in a saved file. Creating one of those as an ordinary node
-/// left it with the generic parameter editor: a Folder Path had no button to pick a folder
-/// with, and a Process As Set none of its suffix rows.
-fn node_kind(definition: &str) -> NodeKind {
-    match definition {
-        "folderpath" => NodeKind::Builtin(BuiltinNodeKind::FolderPath),
-        "process_as_set" => NodeKind::Processing(ProcessingNodeKind::SetInput),
-        "logic_comparison" => NodeKind::Processing(ProcessingNodeKind::Compare),
-        _ => NodeKind::Processing(ProcessingNodeKind::Process),
+    /// The kind a definition makes.
+    ///
+    /// Most make an ordinary processing node, but three have a card and an inspector of their
+    /// own and are recorded as such in a saved file. Creating one of those as an ordinary node
+    /// left it with the generic parameter editor: a Folder Path had no button to pick a folder
+    /// with, and a Process As Set none of its suffix rows.
+    fn node_kind(definition: &str) -> NodeKind {
+        match definition {
+            "folderpath" => NodeKind::Builtin(BuiltinNodeKind::FolderPath),
+            "process_as_set" => NodeKind::Processing(ProcessingNodeKind::SetInput),
+            "logic_comparison" => NodeKind::Processing(ProcessingNodeKind::Compare),
+            _ => NodeKind::Processing(ProcessingNodeKind::Process),
+        }
     }
-}
 
     pub fn add_processing(
         &mut self,
@@ -1068,10 +1068,10 @@ fn node_kind(definition: &str) -> NodeKind {
         output: &Path,
         runtime_paths: &BTreeMap<String, String>,
     ) -> RunOptions {
-        let mut options = RunOptions {
-            overwrite: true,
-            ..Default::default()
-        };
+        // Whether an existing file is replaced is the output node's own drop-down, read per
+        // output while the run executes. Forcing it here overwrote every destination,
+        // including a source image written back in place, whatever the node said.
+        let mut options = RunOptions::default();
         for node in &self.workflow.graph.nodes {
             let flag = node
                 .data

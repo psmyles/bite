@@ -342,5 +342,4 @@ impl Fonts {
     pub(crate) fn set_scale(&mut self, scale: f32) {
         self.scale = scale;
     }
-
 }

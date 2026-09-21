@@ -1,5 +1,5 @@
 //! Keyboard, pointer and cursor types, plus the frame-scoped input queries.
-use crate::{Ui, Vec2, from_v};
+use crate::{from_v, Ui, Vec2};
 use bite_imgui_sys as sys;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

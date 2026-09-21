@@ -23,10 +23,7 @@ impl Default for Viewport {
 impl Viewport {
     /// Converts a graph position to a position inside the canvas rectangle.
     pub fn to_screen(self, point: Vec2) -> Vec2 {
-        [
-            point[0] * self.zoom + self.x,
-            point[1] * self.zoom + self.y,
-        ]
+        [point[0] * self.zoom + self.x, point[1] * self.zoom + self.y]
     }
 
     /// Converts a position inside the canvas rectangle back to graph coordinates.
@@ -148,7 +145,10 @@ mod tests {
 
     #[test]
     fn an_empty_graph_fits_to_the_default_viewport() {
-        assert_eq!(Viewport::fit(None, [800.0, 600.0], 40.0), Viewport::default());
+        assert_eq!(
+            Viewport::fit(None, [800.0, 600.0], 40.0),
+            Viewport::default()
+        );
     }
 
     #[test]

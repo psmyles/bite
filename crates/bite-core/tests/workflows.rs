@@ -308,3 +308,24 @@ fn legacy_migration_covers_structures_quality_enums_and_special_handles() {
         ParamValue::Vector(vec![0.0; 4])
     );
 }
+
+/// A hand-edited v1 graph whose node has lost its `type` is a load error, not a panic: the
+/// loader used to unwrap the field after only conditionally putting it back.
+#[test]
+fn a_v1_node_without_a_type_is_rejected_rather_than_panicking() {
+    let r = registry();
+    let mut doc: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(root().join("test-workflows/wf-01-fastpath.bite")).unwrap(),
+    )
+    .unwrap();
+    // A node the migration does not rename by id, so nothing puts a type back for it.
+    let node = doc["graph"]["nodes"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|n| n["id"] == "blur-1783250589996")
+        .unwrap();
+    node.as_object_mut().unwrap().remove("type");
+    let error = workflow::load(&doc.to_string(), &r).unwrap_err();
+    assert!(error.contains("node type"), "{error}");
+}

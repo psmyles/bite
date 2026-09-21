@@ -5,7 +5,7 @@
 //! component line for line: a header, an optional port section, an optional body parameter
 //! section, an optional output slot section, and an optional footer.
 use crate::theme;
-use bite_core::{Registry, graph::WireType};
+use bite_core::{graph::WireType, Registry};
 use bite_schema::{
     BuiltinNodeKind, GraphNode, NodeKind, ParamDefinition, ParamType, ParamValue, PortDefinition,
     PortType, ProcessingNodeKind, StructuredParam,
@@ -112,7 +112,11 @@ pub fn format_param_value(value: &ParamValue) -> Option<String> {
         } else {
             text.clone()
         }),
-        ParamValue::Bool(value) => Some(if *value { "true".into() } else { "false".into() }),
+        ParamValue::Bool(value) => Some(if *value {
+            "true".into()
+        } else {
+            "false".into()
+        }),
         ParamValue::Vector(values) => Some(
             values
                 .iter()
@@ -215,9 +219,8 @@ pub fn measure(node: &GraphNode, context: &CardContext) -> Card {
         .unwrap_or_default();
     // An enum parameter is edited in the inspector only. `nodeEditorHelpers.ts` filters
     // `type !== 'enum'` when it builds `paramDefs`, so an enum has neither a row nor a port.
-    let carded = |param: &&ParamDefinition| {
-        param.kind != ParamType::Enum && (context.visible)(&param.name)
-    };
+    let carded =
+        |param: &&ParamDefinition| param.kind != ParamType::Enum && (context.visible)(&param.name);
     let body_params: Vec<&&ParamDefinition> = params
         .iter()
         .filter(|param| !param.port_only && carded(param))
@@ -235,8 +238,7 @@ pub fn measure(node: &GraphNode, context: &CardContext) -> Card {
     let sep = theme::NODE_LAYOUT_SEP_H;
 
     let image_section = if has_image_ports {
-        port_pad * 2.0
-            + (input_ports.len().max(output_ports.len()).max(1)) as f32 * port_row
+        port_pad * 2.0 + (input_ports.len().max(output_ports.len()).max(1)) as f32 * port_row
     } else {
         0.0
     };
@@ -359,7 +361,11 @@ pub fn measure(node: &GraphNode, context: &CardContext) -> Card {
             0.0
         };
         for (index, param) in slot_params.iter().enumerate() {
-            let top = header + image_section + body_section + sep_offset + port_pad
+            let top = header
+                + image_section
+                + body_section
+                + sep_offset
+                + port_pad
                 + index as f32 * port_row;
             let wire = param_wire(param);
             ports.push(Port {
@@ -537,10 +543,12 @@ fn slot_value(
             return format_param_value(stored);
         }
     }
-    let source = body_params.iter().find_map(|body| match lookup(&body.name) {
-        Some(ParamValue::Vector(values)) => Some(values.clone()),
-        _ => None,
-    })?;
+    let source = body_params
+        .iter()
+        .find_map(|body| match lookup(&body.name) {
+            Some(ParamValue::Vector(values)) => Some(values.clone()),
+            _ => None,
+        })?;
     if let Some(length) = combined_slice(&param.name) {
         // Combined slots show only their label, never a value.
         let _ = length;
@@ -851,7 +859,10 @@ mod tests {
     #[test]
     fn a_channel_count_set_on_the_node_beats_the_definition_default() {
         let definition = channels_definition("3");
-        let node = node_with("channel_merge", vec![("channels", ParamValue::String("4".into()))]);
+        let node = node_with(
+            "channel_merge",
+            vec![("channels", ParamValue::String("4".into()))],
+        );
         assert_eq!(channel_limit(&node, &definition), Some(4));
         let numeric = node_with("channel_merge", vec![("channels", ParamValue::Int(4))]);
         assert_eq!(channel_limit(&numeric, &definition), Some(4));

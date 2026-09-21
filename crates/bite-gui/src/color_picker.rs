@@ -392,10 +392,30 @@ fn round_corners(
     let bottom = matches!(corners, Rounding::All | Rounding::Bottom);
     // Each corner, the angle its arc starts at, and whether this rounding includes it.
     let wanted = [
-        ([min[0], min[1]], [min[0] + radius, min[1] + radius], 180.0, top),
-        ([max[0], min[1]], [max[0] - radius, min[1] + radius], 270.0, top),
-        ([max[0], max[1]], [max[0] - radius, max[1] - radius], 0.0, bottom),
-        ([min[0], max[1]], [min[0] + radius, max[1] - radius], 90.0, bottom),
+        (
+            [min[0], min[1]],
+            [min[0] + radius, min[1] + radius],
+            180.0,
+            top,
+        ),
+        (
+            [max[0], min[1]],
+            [max[0] - radius, min[1] + radius],
+            270.0,
+            top,
+        ),
+        (
+            [max[0], max[1]],
+            [max[0] - radius, max[1] - radius],
+            0.0,
+            bottom,
+        ),
+        (
+            [min[0], max[1]],
+            [min[0] + radius, max[1] - radius],
+            90.0,
+            bottom,
+        ),
     ];
     for (corner, centre, start, include) in wanted {
         if !include {
@@ -523,10 +543,7 @@ pub fn draw(
     ui.dummy([width, HUE_MARGIN_TOP]);
     // `ui.dummy` puts the cursor back at the window's left edge, so every x below comes
     // from the picker's own origin rather than from the cursor.
-    let hue_origin = [
-        origin[0] + HUE_MARGIN_X,
-        ui.cursor_screen_position()[1],
-    ];
+    let hue_origin = [origin[0] + HUE_MARGIN_X, ui.cursor_screen_position()[1]];
     let hue_width = (width - HUE_MARGIN_X * 2.0).max(1.0);
     ui.set_cursor_screen_position(hue_origin);
     ui.invisible_button("##hue", [hue_width, HUE_HEIGHT]);
@@ -613,14 +630,7 @@ pub fn draw(
             })
             .collect();
         if let Some(next) = channel_row(
-            ui,
-            origin[0],
-            width,
-            channel,
-            current,
-            &stops,
-            readonly,
-            background,
+            ui, origin[0], width, channel, current, &stops, readonly, background,
         ) {
             let state = states.get(id);
             if mode == Mode::Hsv {

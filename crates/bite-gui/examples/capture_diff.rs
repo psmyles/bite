@@ -89,10 +89,7 @@ fn run(before: &Path, after: &Path) -> Result<u8, String> {
         let a = decode(path)?;
         let b = decode(&other)?;
         if a.1 != b.1 || a.2 != b.2 {
-            println!(
-                "{name:<28} SIZE {}x{} vs {}x{}",
-                a.1, a.2, b.1, b.2
-            );
+            println!("{name:<28} SIZE {}x{} vs {}x{}", a.1, a.2, b.1, b.2);
             worst_anywhere = u8::MAX;
             continue;
         }

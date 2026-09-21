@@ -34,8 +34,8 @@ pub fn button(ui: &mut Ui, label: &str, kind: ButtonKind, width: f32, enabled: b
         text_size[0] + theme::BUTTON_PADDING_X * 2.0
     };
     let origin = ui.cursor_screen_position();
-    let pressed = ui.invisible_button(&format!("##button-{label}"), [width, theme::BUTTON_HEIGHT])
-        && enabled;
+    let pressed =
+        ui.invisible_button(&format!("##button-{label}"), [width, theme::BUTTON_HEIGHT]) && enabled;
     let hovered = ui.item_hovered() && enabled;
     if hovered {
         ui.set_mouse_cursor(MouseCursor::Hand);
@@ -107,7 +107,10 @@ pub fn debug_window(
                     (StyleColor::TitleBg, theme::PANEL_HEADER_BG),
                     (StyleColor::TitleBgActive, theme::PANEL_HEADER_BG),
                     (StyleColor::TitleBgCollapsed, theme::PANEL_HEADER_BG),
-                    (StyleColor::Border, theme::BORDER.mix(50.0, Color::TRANSPARENT)),
+                    (
+                        StyleColor::Border,
+                        theme::BORDER.mix(50.0, Color::TRANSPARENT),
+                    ),
                     (StyleColor::Text, theme::TEXT_BRIGHT),
                     (StyleColor::Header, theme::PANEL_HEADER_BG),
                     (StyleColor::HeaderHovered, theme::NODE_HEAD_BG),
@@ -411,7 +414,10 @@ fn dropdown_list(
     let visible = labels.len().min(theme::DROPDOWN_VISIBLE_ROWS) as f32;
     ui.set_next_window_size_constraints(
         [0.0, 0.0],
-        [f32::MAX, visible * row + theme::DROPDOWN_LIST_PADDING_Y * 2.0],
+        [
+            f32::MAX,
+            visible * row + theme::DROPDOWN_LIST_PADDING_Y * 2.0,
+        ],
     );
     if ui.begin_combo(&format!("##{id}"), &labels[index]) {
         for (position, label) in labels.iter().enumerate() {
@@ -462,7 +468,10 @@ pub fn panel_header(ui: &mut Ui, title: &str, trailing: Option<&str>) {
         let available = width * 0.6;
         let text_x = (max[0] - 10.0 - size[0]).max(origin[0] + 12.0 + available * 0.2);
         ui.draw_list().text_with_face(
-            [text_x, origin[1] + (theme::PANEL_HEADER_HEIGHT - size[1]) / 2.0],
+            [
+                text_x,
+                origin[1] + (theme::PANEL_HEADER_HEIGHT - size[1]) / 2.0,
+            ],
             theme::TEXT_BRIGHT.with_alpha(0.5),
             theme::face::SMALL_MONO,
             trailing,
@@ -597,16 +606,20 @@ pub fn draw_ellipsized_scaled(
         }
         end -= 1;
     }
-    list.text_with_face(position, color, face, &format!("{}{ellipsis}", &text[..end]));
+    list.text_with_face(
+        position,
+        color,
+        face,
+        &format!("{}{ellipsis}", &text[..end]),
+    );
 }
 
 /// A label drawn in the inspector's row style: twelve pixels at sixty percent opacity.
 pub fn row_label(ui: &mut Ui, text: &str) {
     ui.with_face(theme::face::LABEL, |ui| {
-        ui.with_colors(
-            &[(StyleColor::Text, theme::INSPECTOR_LABEL)],
-            |ui| ui.text(text),
-        )
+        ui.with_colors(&[(StyleColor::Text, theme::INSPECTOR_LABEL)], |ui| {
+            ui.text(text)
+        })
     });
 }
 
@@ -656,7 +669,11 @@ pub fn close_button(ui: &mut Ui, id: &str) -> bool {
     list.rect_outline(
         origin,
         max,
-        if hovered { theme::ACCENT } else { theme::BORDER },
+        if hovered {
+            theme::ACCENT
+        } else {
+            theme::BORDER
+        },
         theme::MODAL_CLOSE_BTN_RADIUS,
         Rounding::All,
         theme::MODAL_CLOSE_BTN_BORDER_WIDTH,
@@ -744,21 +761,14 @@ pub fn slider(
     let list = ui.draw_list();
     list.rect(
         [origin[0], track_top],
-        [
-            origin[0] + width,
-            track_top + theme::SLIDER_TRACK_HEIGHT,
-        ],
+        [origin[0] + width, track_top + theme::SLIDER_TRACK_HEIGHT],
         theme::BORDER.mix(theme::SLIDER_TRACK_MIX, theme::PANEL_BG),
         theme::SLIDER_TRACK_RADIUS,
         Rounding::All,
     );
     let half = theme::SLIDER_THUMB_SIZE / 2.0;
     let thumb_x = origin[0] + half + fraction * (width - theme::SLIDER_THUMB_SIZE).max(0.0);
-    list.circle(
-        [thumb_x, centre_y],
-        half,
-        theme::ACCENT,
-    );
+    list.circle([thumb_x, centre_y], half, theme::ACCENT);
     changed
 }
 
@@ -766,15 +776,7 @@ pub fn slider(
 ///
 /// Faces differ in line height, so two faces sharing a row cannot both sit at a fixed
 /// offset from its top; centring each one against the row keeps them on the same line.
-pub fn draw_in_row(
-    ui: &Ui,
-    x: f32,
-    top: f32,
-    height: f32,
-    color: Color,
-    face: Face,
-    text: &str,
-) {
+pub fn draw_in_row(ui: &Ui, x: f32, top: f32, height: f32, color: Color, face: Face, text: &str) {
     let list = ui.draw_list();
     let line = list.measure(face, text)[1];
     list.text_with_face([x, top + (height - line) / 2.0], color, face, text);

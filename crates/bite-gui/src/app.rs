@@ -2,7 +2,7 @@
 use crate::{
     canvas::{
         state::{PendingWire, WireEnd},
-        view::{Action, Canvas, CanvasContext, node_enabled},
+        view::{node_enabled, Action, Canvas, CanvasContext},
     },
     create_menu, dialogs, menu, modals, panels, persist, shell, studio, theme, work,
 };
@@ -11,7 +11,7 @@ use bite_schema::{BuiltinNodeKind, NodeKind, ParamValue, Position};
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
-    sync::{Arc, atomic::AtomicBool},
+    sync::{atomic::AtomicBool, Arc},
     time::Instant,
 };
 
@@ -421,12 +421,7 @@ impl Editor {
     }
 
     /// Creates a node from a library or menu entry, connecting a dropped wire in one step.
-    pub fn create_node(
-        &mut self,
-        payload: &str,
-        position: Vec2,
-        pending: Option<PendingWire>,
-    ) {
+    pub fn create_node(&mut self, payload: &str, position: Vec2, pending: Option<PendingWire>) {
         // The card's corner lands under the pointer. Centring would need the height before
         // the node exists, and guessing it puts the card somewhere the pointer never was.
         let place = Position {
@@ -520,7 +515,10 @@ impl Editor {
     /// there yet, so an imported image appears at once rather than after the first render.
     /// `Preview.svelte` seeds the same stand-in, and leaves a rendered image in place.
     pub fn seed_preview_from_thumbnail(&mut self) {
-        if self.active_branch().is_some_and(|branch| branch.preview.is_some()) {
+        if self
+            .active_branch()
+            .is_some_and(|branch| branch.preview.is_some())
+        {
             return;
         }
         self.show_thumbnail_as_preview();
@@ -650,9 +648,7 @@ impl Editor {
             .collect();
         let terminal = candidates.iter().rev().find(|id| {
             !graph.edges.iter().any(|edge| {
-                edge.source == ***id
-                    && reachable.contains(&edge.target)
-                    && !is_output(&edge.target)
+                edge.source == ***id && reachable.contains(&edge.target) && !is_output(&edge.target)
             })
         });
         terminal
@@ -800,9 +796,13 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
         .active_branch()
         .map(|branch| branch.scroll)
         .unwrap_or(0.0);
-    if let Some(outcome) =
-        panels::filmstrip::draw(&mut ui, layout.filmstrip, &thumbnails, selected, &mut scroll)
-    {
+    if let Some(outcome) = panels::filmstrip::draw(
+        &mut ui,
+        layout.filmstrip,
+        &thumbnails,
+        selected,
+        &mut scroll,
+    ) {
         handle_filmstrip(editor, outcome);
     }
     if let Some(branch) = editor.active_branch_mut() {
@@ -821,7 +821,11 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
 
     // The creation menu draws above the canvas.
     let anchor = {
-        let local = editor.canvas.state.viewport.to_screen(editor.create_menu.position);
+        let local = editor
+            .canvas
+            .state
+            .viewport
+            .to_screen(editor.create_menu.position);
         [
             layout.canvas.min[0] + local[0],
             layout.canvas.min[1] + local[1],
@@ -880,16 +884,17 @@ fn draw_inspector(editor: &mut Editor, ui: &mut bite_imgui::Ui, rect: shell::Rec
             .as_ref()
             .and_then(|id| editor.resolved.get(id)),
         image_names: &names,
-        selected_image: editor.selected_thumbnail().map(|thumbnail| {
-            [thumbnail.source.width, thumbnail.source.height]
-        }),
+        selected_image: editor
+            .selected_thumbnail()
+            .map(|thumbnail| [thumbnail.source.width, thumbnail.source.height]),
         runtime_paths: &editor.runtime_paths,
         running: editor.run.is_some(),
         run_ready: ready > 0,
         run_tooltip: crate::commands::run_tooltip(&candidates),
         delta,
     };
-    let edits = panels::inspector::draw(ui, rect, selected.as_ref(), &mut editor.inspector, &context);
+    let edits =
+        panels::inspector::draw(ui, rect, selected.as_ref(), &mut editor.inspector, &context);
     for edit in edits {
         crate::commands::apply_edit(editor, edit);
     }
@@ -911,7 +916,11 @@ fn handle_filmstrip(editor: &mut Editor, outcome: panels::filmstrip::Outcome) {
         }
         panels::filmstrip::Outcome::Dropped(paths) => {
             if let Some(node) = editor.active_input.clone() {
-                crate::commands::add_paths(editor, &node, paths.iter().map(PathBuf::from).collect());
+                crate::commands::add_paths(
+                    editor,
+                    &node,
+                    paths.iter().map(PathBuf::from).collect(),
+                );
             }
         }
     }
@@ -1013,13 +1022,7 @@ fn handle_shortcuts(editor: &mut Editor, ui: &bite_imgui::Ui) {
     ];
     for (key, name) in map {
         if ui.key_pressed(key) {
-            if let Some(command) = menu::shortcut(
-                name,
-                menu::Modifiers {
-                    primary,
-                    shift,
-                },
-            ) {
+            if let Some(command) = menu::shortcut(name, menu::Modifiers { primary, shift }) {
                 crate::commands::run(editor, command);
             }
         }
@@ -1057,7 +1060,12 @@ mod tests {
         assert!(first >= 2);
         // Whatever the hash, the identifier must never carry Dear ImGui's bit: the font atlas
         // and a thumbnail share the renderer's one texture map.
-        for key in ["thumbnail:a:0", "preview:node:3", "", "a very long key indeed"] {
+        for key in [
+            "thumbnail:a:0",
+            "preview:node:3",
+            "",
+            "a very long key indeed",
+        ] {
             assert_eq!(texture_id(key) & bite_imgui::IMGUI_TEXTURE_ID_BIT, 0);
         }
     }
@@ -1322,7 +1330,12 @@ mod tests {
     #[test]
     fn with_nothing_wired_to_an_output_the_end_of_the_chain_previews() {
         let mut editor = chained_editor();
-        editor.studio.workflow.graph.edges.retain(|edge| edge.id != "e3");
+        editor
+            .studio
+            .workflow
+            .graph
+            .edges
+            .retain(|edge| edge.id != "e3");
         assert_eq!(editor.effective_preview_node().as_deref(), Some("second"));
     }
 

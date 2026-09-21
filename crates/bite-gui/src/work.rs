@@ -6,9 +6,9 @@ use bite_core::execution::BatchResult;
 use std::{
     path::{Path, PathBuf},
     sync::{
-        Arc,
         atomic::{AtomicBool, Ordering},
-        mpsc::{Receiver, Sender, channel},
+        mpsc::{channel, Receiver, Sender},
+        Arc,
     },
 };
 
@@ -25,6 +25,8 @@ pub enum Message {
         node: String,
         paths: Vec<PathBuf>,
         thumbnails: Vec<Thumbnail>,
+        /// How many of the requested files could not be read. Each is named in the log.
+        skipped: usize,
     },
     ImportFailed {
         node: String,
@@ -238,12 +240,10 @@ pub fn decode_many(paths: &[PathBuf], jobs: usize) -> Vec<Result<DecodedImage, S
             let next = &next;
             let results = &results;
             let one = &one;
-            scope.spawn(move || {
-                loop {
-                    let index = next.fetch_add(1, Ordering::Relaxed);
-                    let Some(path) = paths.get(index) else { break };
-                    *results[index].lock().unwrap() = Some(one(path));
-                }
+            scope.spawn(move || loop {
+                let index = next.fetch_add(1, Ordering::Relaxed);
+                let Some(path) = paths.get(index) else { break };
+                *results[index].lock().unwrap() = Some(one(path));
             });
         }
     });
@@ -308,8 +308,7 @@ pub fn decode_png(bytes: &[u8]) -> Result<DecodedImage, String> {
         png::ColorType::Rgba => pixels.copy_from_slice(&buffer[..pixel_count * 4]),
         png::ColorType::Rgb => {
             for index in 0..pixel_count {
-                pixels[index * 4..index * 4 + 3]
-                    .copy_from_slice(&buffer[index * 3..index * 3 + 3]);
+                pixels[index * 4..index * 4 + 3].copy_from_slice(&buffer[index * 3..index * 3 + 3]);
                 pixels[index * 4 + 3] = 255;
             }
         }
@@ -409,17 +408,40 @@ fn preview_worker(jobs: &Receiver<PreviewJob>, handle: &JobHandle) {
     }
 }
 
-/// What a rendered preview depends on: the file, the node it is rendered up to, and the
-/// shape and parameters of the graph. Positions and selection are left out, as the Svelte
-/// component leaves them out of the key that retriggers a render.
+/// How the file stood when it was read: its size and when it was last written.
+///
+/// A picture edited in place is a different picture at the same path. The thumbnail and
+/// metadata caches both stamp what they hold for that reason, and a rendered preview that
+/// did not went on showing the version from before the edit.
+fn file_stamp(path: &Path) -> String {
+    let Ok(metadata) = std::fs::metadata(path) else {
+        return String::new();
+    };
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |since| since.as_nanos());
+    format!("{}:{modified}", metadata.len())
+}
+
+/// What a rendered preview depends on: the file as it stands on disk, the node it is
+/// rendered up to, and the shape and parameters of the graph. Positions and selection are
+/// left out, as the Svelte component leaves them out of the key that retriggers a render.
 fn preview_key(job: &PreviewJob) -> String {
     use std::fmt::Write;
     let mut key = format!(
-        "{}|{}|{}",
+        "{}|{}|{}|{}",
         job.path.to_string_lossy(),
+        file_stamp(&job.path),
         job.thumbnail_size,
         job.target.as_deref().unwrap_or_default()
     );
+    // A Process As Set reads the files beside the selected one, so an edit to any of them
+    // is an edit to what this preview shows.
+    for companion in set_companions(&job.graph, &job.path) {
+        let _ = write!(key, "|{}", file_stamp(&companion));
+    }
     for node in &job.graph.nodes {
         let _ = write!(key, "|{}:{}:", node.id, node.data.definition_id);
         for (name, value) in &node.data.params {
@@ -551,7 +573,10 @@ fn set_companions(graph: &bite_schema::Graph, path: &Path) -> Vec<PathBuf> {
     else {
         return Vec::new();
     };
-    let suffixes: Vec<&String> = suffixes.iter().filter(|suffix| !suffix.is_empty()).collect();
+    let suffixes: Vec<&String> = suffixes
+        .iter()
+        .filter(|suffix| !suffix.is_empty())
+        .collect();
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();
     let extension = path
         .extension()
@@ -621,9 +646,10 @@ pub fn clear_cache() -> Result<usize, String> {
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if (name.starts_with("thumb_") || name.starts_with("preview_"))
-            && std::fs::remove_file(entry.path()).is_ok() {
-                removed += 1;
-            }
+            && std::fs::remove_file(entry.path()).is_ok()
+        {
+            removed += 1;
+        }
     }
     Ok(removed)
 }
@@ -735,7 +761,11 @@ mod tests {
         let directory =
             std::env::temp_dir().join(format!("bite-set-companions-{}", std::process::id()));
         std::fs::create_dir_all(&directory).unwrap();
-        for name in ["set_alpha_diffuse.png", "set_alpha_normal.png", "set_beta_rough.png"] {
+        for name in [
+            "set_alpha_diffuse.png",
+            "set_alpha_normal.png",
+            "set_beta_rough.png",
+        ] {
             std::fs::write(directory.join(name), b"fixture").unwrap();
         }
         let mut graph = preview_job().graph;

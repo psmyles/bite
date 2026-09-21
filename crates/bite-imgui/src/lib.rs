@@ -413,7 +413,6 @@ impl Ui<'_> {
         let end = buffer.iter().position(|byte| *byte == 0).unwrap_or(0);
         String::from_utf8_lossy(&buffer[..end]).into_owned()
     }
-
 }
 
 /// Runs `body` with a value restored afterwards, which keeps push and pop pairs balanced.
@@ -502,7 +501,10 @@ mod tests {
             })
             .expect("drawing text must ask the host to create the atlas texture");
         let (id, width, height, coverage, length) = upload;
-        assert!(id & IMGUI_TEXTURE_ID_BIT != 0, "atlas id {id:#x} is host-side");
+        assert!(
+            id & IMGUI_TEXTURE_ID_BIT != 0,
+            "atlas id {id:#x} is host-side"
+        );
         assert!(!coverage, "the atlas must be four channels for sokol_imgui");
         assert_eq!(length, (width * height * 4) as usize);
 

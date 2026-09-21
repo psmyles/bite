@@ -9,7 +9,7 @@
 //! ([`crate::render::readback`]).
 use crate::{
     app,
-    render::{Device, SWAPCHAIN_FORMAT, Textures, imgui, readback},
+    render::{imgui, readback, Device, Textures, SWAPCHAIN_FORMAT},
     theme,
 };
 use bite_imgui::Context;
@@ -200,9 +200,7 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
                 .find(|node| {
                     matches!(
                         node.kind,
-                        bite_schema::NodeKind::Processing(
-                            bite_schema::ProcessingNodeKind::Process
-                        )
+                        bite_schema::NodeKind::Processing(bite_schema::ProcessingNodeKind::Process)
                     )
                 })
                 .or_else(|| editor.studio.workflow.graph.nodes.first())
@@ -225,10 +223,15 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
                 .graph
                 .nodes
                 .iter()
-                .find(|node| node.kind == bite_schema::NodeKind::Builtin(
-                    bite_schema::BuiltinNodeKind::Input
-                ))
-                .map(|node| (node.id.clone(), [node.position.x as f32, node.position.y as f32]));
+                .find(|node| {
+                    node.kind == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::Input)
+                })
+                .map(|node| {
+                    (
+                        node.id.clone(),
+                        [node.position.x as f32, node.position.y as f32],
+                    )
+                });
             if let Some((id, position)) = source {
                 editor.create_menu.open_at(
                     [position[0] + 90.0, position[1] + 210.0],
@@ -367,9 +370,7 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
                 skipped: 2,
                 failed: 1,
                 elapsed_ms: Some(4230),
-                errors: vec![
-                    "corrupted_scan.jpg: decode error - unsupported colour space".into(),
-                ],
+                errors: vec!["corrupted_scan.jpg: decode error - unsupported colour space".into()],
                 output_dir: Some("out".into()),
             });
         }
@@ -400,10 +401,9 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
             };
         }
         Scene::Comment => {
-            let id = editor.studio.add_comment(bite_schema::Position {
-                x: 120.0,
-                y: 360.0,
-            });
+            let id = editor
+                .studio
+                .add_comment(bite_schema::Position { x: 120.0, y: 360.0 });
             editor.studio.set_param(
                 &id,
                 "heading".into(),

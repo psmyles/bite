@@ -22,7 +22,7 @@
 
 #![cfg(any(windows, target_os = "macos"))]
 
-use bite_gui::render::{Device, SWAPCHAIN_FORMAT, imgui, readback};
+use bite_gui::render::{imgui, readback, Device, SWAPCHAIN_FORMAT};
 use sokol::gfx as sg;
 
 /// The clear colour, chosen so every channel is distinct and none is 0 or 255 - a readback that
@@ -141,7 +141,11 @@ fn the_graphics_stack_comes_up_and_reads_back_what_it_drew() {
     // uploaded the geometry and drew it into the pass, and the rows came back the right way up.
     let rectangle: Vec<u8> = RECT.iter().map(|c| (c * 255.0).round() as u8).collect();
     close(&at(1, 1), &rectangle, "top-left inside the rectangle");
-    close(&at(HALF - 2, HALF - 2), &rectangle, "inside, near its corner");
+    close(
+        &at(HALF - 2, HALF - 2),
+        &rectangle,
+        "inside, near its corner",
+    );
 
     // Note what is *not* called here: `simgui_shutdown`. It ends by destroying the *current*
     // ImGui context - bite's - which `Context`'s own `Drop` would then free a second time. See

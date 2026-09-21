@@ -141,8 +141,22 @@ pub fn draw(ui: &mut Ui, state: &mut Showcase) -> Option<Outcome> {
             controls::button(ui, "Disabled", ButtonKind::Neutral, 110.0, false);
 
             controls::text_input(ui, "showcase-text", &mut state.text, "Name...", 240.0);
-            controls::search_input(ui, "showcase-search", &mut state.search, "Filter nodes...", 240.0);
-            controls::slider(ui, "showcase-slider", &mut state.slider, 0.0, 1.0, 180.0, 24.0);
+            controls::search_input(
+                ui,
+                "showcase-search",
+                &mut state.search,
+                "Filter nodes...",
+                240.0,
+            );
+            controls::slider(
+                ui,
+                "showcase-slider",
+                &mut state.slider,
+                0.0,
+                1.0,
+                180.0,
+                24.0,
+            );
             ui.same_line();
             controls::text_input(ui, "showcase-number", &mut state.number, "", 60.0);
             controls::dropdown(
@@ -213,9 +227,7 @@ fn dialogs() -> Vec<(&'static str, modals::Modal)> {
                 skipped: 2,
                 failed: 1,
                 elapsed_ms: Some(4230),
-                errors: vec![
-                    "corrupted_scan.jpg: decode error - unsupported colour space".into(),
-                ],
+                errors: vec!["corrupted_scan.jpg: decode error - unsupported colour space".into()],
                 output_dir: None,
             }),
         ),

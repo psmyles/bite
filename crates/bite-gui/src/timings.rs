@@ -147,7 +147,10 @@ mod tests {
             processes: 1,
             milliseconds: 520,
         });
-        assert_eq!(lines[0], "[timings] Import - 26 image(s) in 520ms, 20ms each");
+        assert_eq!(
+            lines[0],
+            "[timings] Import - 26 image(s) in 520ms, 20ms each"
+        );
         assert_eq!(
             lines[1],
             "[timings]   cached: 24  generated: 2  magick processes: 1"

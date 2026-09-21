@@ -12,7 +12,7 @@
 //! swapchain, is a couple of milliseconds on the main thread afterwards.
 use crate::{
     app, commands, dialogs, icon, logging, modals, persist,
-    render::{self, Device, SWAPCHAIN_FORMAT, Swapchain, Textures},
+    render::{self, Device, Swapchain, Textures, SWAPCHAIN_FORMAT},
     theme, timing, work,
 };
 use bite_imgui::{Context, Key, MouseButton, Vec2};
@@ -133,7 +133,9 @@ pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
         initial,
         gpu: Some(gpu),
     };
-    event_loop.run_app(&mut app).map_err(|error| error.to_string())
+    event_loop
+        .run_app(&mut app)
+        .map_err(|error| error.to_string())
 }
 
 /// Brings the GPU up on a worker thread: the device, sokol_gfx on it, and sokol_imgui on that.
@@ -211,12 +213,7 @@ impl ApplicationHandler<AppEvent> for App {
         state.surface.window.request_redraw();
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _id: WindowId,
-        event: WindowEvent,
-    ) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let Some(state) = &mut self.state else { return };
         match event {
             WindowEvent::CloseRequested => {
@@ -247,7 +244,11 @@ impl ApplicationHandler<AppEvent> for App {
                     .context
                     .mouse_position(position.x as f32 / scale, position.y as f32 / scale);
             }
-            WindowEvent::MouseInput { state: pressed, button, .. } => {
+            WindowEvent::MouseInput {
+                state: pressed,
+                button,
+                ..
+            } => {
                 let button = match button {
                     winit::event::MouseButton::Left => Some(MouseButton::Left),
                     winit::event::MouseButton::Right => Some(MouseButton::Right),
@@ -550,9 +551,7 @@ impl App {
 /// texture map was keyed on the editor's own id.
 fn upload_pending(state: &mut State) {
     let pending = std::mem::take(&mut state.editor.pending_uploads);
-    let had_thumbnails = pending
-        .iter()
-        .any(|(key, _)| key.starts_with("thumbnail:"));
+    let had_thumbnails = pending.iter().any(|(key, _)| key.starts_with("thumbnail:"));
     for (key, image) in pending {
         if image.width == 0 || image.height == 0 {
             continue;

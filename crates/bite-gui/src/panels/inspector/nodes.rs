@@ -1,5 +1,5 @@
 //! The per-node inspectors, one for each `Inspector*Node.svelte` component.
-use super::{Edit, InspectorContext, InspectorState, generic, scan_format_groups};
+use super::{generic, scan_format_groups, Edit, InspectorContext, InspectorState};
 use crate::{
     color_picker,
     controls::{self, ButtonKind},
@@ -31,11 +31,7 @@ pub fn sanitize_cli_name(value: &str) -> String {
 }
 
 /// The hint beneath a command line name field, and whether it reports a problem.
-pub fn cli_name_hint(
-    name: &str,
-    node_id: &str,
-    graph: &bite_schema::Graph,
-) -> (String, bool) {
+pub fn cli_name_hint(name: &str, node_id: &str, graph: &bite_schema::Graph) -> (String, bool) {
     if name.is_empty() {
         return (
             "No flag (node won't appear in exported script)".into(),
@@ -104,9 +100,7 @@ pub fn draw(
         _ => match node.data.definition_id.as_str() {
             "rename" => rename_node(ui, width, node, context),
             "resize" => resize_node(ui, width, node, context),
-            "format_convert" => {
-                format_convert_node(ui, width, node, context, &mut state.pickers)
-            }
+            "format_convert" => format_convert_node(ui, width, node, context, &mut state.pickers),
             _ => generic::draw(ui, width, node, context, &mut state.pickers),
         },
     }
@@ -121,14 +115,16 @@ const DELETE_WIDTH: f32 = 19.0;
 /// A padded section with a title, matching the `.section` rule.
 fn section(ui: &mut Ui, width: f32, title: &str, body: impl FnOnce(&mut Ui)) {
     ui.dummy([width, 10.0]);
-    ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+    ui.set_cursor_screen_position([
+        ui.cursor_screen_position()[0] + 12.0,
+        ui.cursor_screen_position()[1],
+    ]);
     ui.group(|ui| {
         if !title.is_empty() {
             ui.with_face(theme::face::LABEL, |ui| {
-                ui.with_colors(
-                    &[(StyleColor::Text, theme::INSPECTOR_LABEL)],
-                    |ui| ui.text(title),
-                )
+                ui.with_colors(&[(StyleColor::Text, theme::INSPECTOR_LABEL)], |ui| {
+                    ui.text(title)
+                })
             });
             ui.dummy([width - 24.0, 8.0]);
         }
@@ -219,10 +215,9 @@ fn title_tooltip(ui: &mut Ui, text: &str) {
 /// A label above a control, used by the sections that are not full parameter rows.
 fn field_label(ui: &mut Ui, text: &str) {
     ui.with_face(theme::face::LABEL, |ui| {
-        ui.with_colors(
-            &[(StyleColor::Text, theme::INSPECTOR_LABEL)],
-            |ui| ui.text(text),
-        )
+        ui.with_colors(&[(StyleColor::Text, theme::INSPECTOR_LABEL)], |ui| {
+            ui.text(text)
+        })
     });
     ui.dummy([1.0, 4.0]);
 }
@@ -245,7 +240,10 @@ fn input_node(
             Some(ParamValue::Number(value)) => *value as i64,
             _ => 256,
         };
-        let mut index = options.iter().position(|size| *size == current).unwrap_or(1);
+        let mut index = options
+            .iter()
+            .position(|size| *size == current)
+            .unwrap_or(1);
         if controls::dropdown(ui, "thumb-size", &mut index, &labels, width - 24.0, true) {
             edits.push(Edit::SetParam {
                 node: node.id.clone(),
@@ -400,12 +398,7 @@ fn folder_card(ui: &mut Ui, width: f32, path: &str) {
 }
 
 /// The five column grid of format chips.
-fn format_chips(
-    ui: &mut Ui,
-    width: f32,
-    node: &GraphNode,
-    state: &InspectorState,
-) -> Vec<Edit> {
+fn format_chips(ui: &mut Ui, width: f32, node: &GraphNode, state: &InspectorState) -> Vec<Edit> {
     let mut edits = Vec::new();
     let groups = scan_format_groups();
     let columns = 5.0;
@@ -521,7 +514,10 @@ fn input_loaded_state(
             width - 36.0 - extension_size[0],
         );
         list.text_with_face(
-            [origin[0] + width - 12.0 - extension_size[0], origin[1] + 5.0],
+            [
+                origin[0] + width - 12.0 - extension_size[0],
+                origin[1] + 5.0,
+            ],
             theme::TEXT.with_alpha(0.4),
             theme::face::SMALL_MONO,
             &extension,
@@ -562,7 +558,10 @@ fn image_output_node(
         let options = ["source", "custom"];
         let labels: Vec<String> = vec!["Same as source".into(), "Custom folder".into()];
         let current = string_param(node, "outputPath", "source");
-        let mut index = options.iter().position(|mode| *mode == current).unwrap_or(0);
+        let mut index = options
+            .iter()
+            .position(|mode| *mode == current)
+            .unwrap_or(0);
         if controls::dropdown(ui, "output-path", &mut index, &labels, width - 24.0, true) {
             edits.push(Edit::SetParam {
                 node: node.id.clone(),
@@ -589,8 +588,8 @@ fn image_output_node(
             }
             ui.same_line_at(0.0, 6.0);
             let browse = controls::button(ui, "...", ButtonKind::Neutral, browse_width, true);
-        title_tooltip(ui, "Browse...");
-        if browse {
+            title_tooltip(ui, "Browse...");
+            if browse {
                 edits.push(Edit::BrowseFolder {
                     node: node.id.clone(),
                     name: "customPath".into(),
@@ -641,7 +640,10 @@ fn overwrite_section(ui: &mut Ui, width: f32, node: &GraphNode) -> Vec<Edit> {
         let options = ["skip", "overwrite"];
         let labels: Vec<String> = vec!["Skip existing".into(), "Overwrite".into()];
         let current = string_param(node, "overwrite", "skip");
-        let mut index = options.iter().position(|mode| *mode == current).unwrap_or(0);
+        let mut index = options
+            .iter()
+            .position(|mode| *mode == current)
+            .unwrap_or(0);
         if controls::dropdown(ui, "overwrite", &mut index, &labels, width - 24.0, true) {
             edits.push(Edit::SetParam {
                 node: node.id.clone(),
@@ -657,7 +659,10 @@ fn overwrite_section(ui: &mut Ui, width: f32, node: &GraphNode) -> Vec<Edit> {
 fn output_log_section(ui: &mut Ui, width: f32, node: &GraphNode) -> Vec<Edit> {
     let mut edits = Vec::new();
     section(ui, width, "Output Log", |ui| {
-        let mut value = matches!(node.data.params.get("generateLog"), Some(ParamValue::Bool(true)));
+        let mut value = matches!(
+            node.data.params.get("generateLog"),
+            Some(ParamValue::Bool(true))
+        );
         if checkbox_row(
             ui,
             "generate-log",
@@ -775,15 +780,11 @@ fn text_output_node(
                 (slot.clone(), label)
             })
             .collect();
-        if connected
-            .iter()
-            .all(|(_, label)| label == "(unconnected)")
-        {
+        if connected.iter().all(|(_, label)| label == "(unconnected)") {
             ui.with_face(theme::face::SMALL_MONO, |ui| {
-                ui.with_colors(
-                    &[(StyleColor::Text, theme::TEXT.with_alpha(0.35))],
-                    |ui| ui.text_wrapped("Connect nodes to the Text Output's input ports."),
-                )
+                ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.35))], |ui| {
+                    ui.text_wrapped("Connect nodes to the Text Output's input ports.")
+                })
             });
             return;
         }
@@ -944,34 +945,31 @@ fn flipbook_output_node(
 
     section(ui, width, "Grid", |ui| {
         let half = (width - 24.0 - 8.0) / 2.0;
-        let mut pair = |ui: &mut Ui, left: (&str, &str, i64, i64), right: (&str, &str, i64, i64)| {
-            for (index, (name, label, min, max)) in [left, right].into_iter().enumerate() {
-                ui.group(|ui| {
-                    field_label(ui, label);
-                    let current = int_param(node, name, min);
-                    let mut text = current.to_string();
-                    if controls::text_input(ui, name, &mut text, "", half) {
-                        if let Ok(parsed) = text.trim().parse::<i64>() {
-                            if parsed >= min && parsed <= max {
-                                edits.push(Edit::SetParam {
-                                    node: node.id.clone(),
-                                    name: name.into(),
-                                    value: ParamValue::Int(parsed),
-                                });
+        let mut pair =
+            |ui: &mut Ui, left: (&str, &str, i64, i64), right: (&str, &str, i64, i64)| {
+                for (index, (name, label, min, max)) in [left, right].into_iter().enumerate() {
+                    ui.group(|ui| {
+                        field_label(ui, label);
+                        let current = int_param(node, name, min);
+                        let mut text = current.to_string();
+                        if controls::text_input(ui, name, &mut text, "", half) {
+                            if let Ok(parsed) = text.trim().parse::<i64>() {
+                                if parsed >= min && parsed <= max {
+                                    edits.push(Edit::SetParam {
+                                        node: node.id.clone(),
+                                        name: name.into(),
+                                        value: ParamValue::Int(parsed),
+                                    });
+                                }
                             }
                         }
+                    });
+                    if index == 0 {
+                        ui.same_line_at(0.0, 8.0);
                     }
-                });
-                if index == 0 {
-                    ui.same_line_at(0.0, 8.0);
                 }
-            }
-        };
-        pair(
-            ui,
-            ("cols", "Columns", 1, 64),
-            ("rows", "Rows", 1, 64),
-        );
+            };
+        pair(ui, ("cols", "Columns", 1, 64), ("rows", "Rows", 1, 64));
         ui.dummy([width - 24.0, 8.0]);
         pair(
             ui,
@@ -1034,9 +1032,7 @@ fn flipbook_output_node(
             edits.push(Edit::SetParam {
                 node: node.id.clone(),
                 name: "bgColor".into(),
-                value: ParamValue::Vector(
-                    rgba.iter().map(|component| *component as f64).collect(),
-                ),
+                value: ParamValue::Vector(rgba.iter().map(|component| *component as f64).collect()),
             });
         }
     });
@@ -1056,7 +1052,10 @@ fn atlas_summary(ui: &mut Ui, width: f32, node: &GraphNode, images: usize) {
 
     let box_width = width - 24.0;
     ui.dummy([width, 8.0]);
-    ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+    ui.set_cursor_screen_position([
+        ui.cursor_screen_position()[0] + 12.0,
+        ui.cursor_screen_position()[1],
+    ]);
     let origin = ui.cursor_screen_position();
     let height = 66.0;
     let list = ui.draw_list();
@@ -1126,7 +1125,10 @@ fn atlas_summary(ui: &mut Ui, width: f32, node: &GraphNode, images: usize) {
 fn folder_path_node(ui: &mut Ui, width: f32, node: &GraphNode) -> Vec<Edit> {
     let mut edits = Vec::new();
     ui.dummy([width, 7.0]);
-    ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+    ui.set_cursor_screen_position([
+        ui.cursor_screen_position()[0] + 12.0,
+        ui.cursor_screen_position()[1],
+    ]);
     ui.group(|ui| {
         field_label(ui, "Folder");
         let mut path = string_param(node, "folderPath", "");
@@ -1161,12 +1163,20 @@ fn folder_path_node(ui: &mut Ui, width: f32, node: &GraphNode) -> Vec<Edit> {
 fn comment_node(ui: &mut Ui, width: f32, node: &GraphNode) -> Vec<Edit> {
     let mut edits = Vec::new();
     ui.dummy([width, 10.0]);
-    ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+    ui.set_cursor_screen_position([
+        ui.cursor_screen_position()[0] + 12.0,
+        ui.cursor_screen_position()[1],
+    ]);
     ui.group(|ui| {
         field_label(ui, "Heading");
         let mut heading = string_param(node, "heading", "Comment");
-        if controls::text_input(ui, "comment-heading", &mut heading, "Heading...", width - 24.0)
-        {
+        if controls::text_input(
+            ui,
+            "comment-heading",
+            &mut heading,
+            "Heading...",
+            width - 24.0,
+        ) {
             edits.push(Edit::SetParam {
                 node: node.id.clone(),
                 name: "heading".into(),
@@ -1212,7 +1222,10 @@ fn comment_node(ui: &mut Ui, width: f32, node: &GraphNode) -> Vec<Edit> {
 fn group_node(ui: &mut Ui, width: f32, node: &GraphNode) -> Vec<Edit> {
     let mut edits = Vec::new();
     ui.dummy([width, 10.0]);
-    ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+    ui.set_cursor_screen_position([
+        ui.cursor_screen_position()[0] + 12.0,
+        ui.cursor_screen_position()[1],
+    ]);
     ui.group(|ui| {
         field_label(ui, "Name");
         let mut name = string_param(node, "name", "Group");
@@ -1242,7 +1255,10 @@ fn set_input_node(
         .any(|edge| edge.target == node.id && edge.target_handle == "param:prefix");
 
     ui.dummy([width, 8.0]);
-    ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+    ui.set_cursor_screen_position([
+        ui.cursor_screen_position()[0] + 12.0,
+        ui.cursor_screen_position()[1],
+    ]);
     ui.group(|ui| {
         let label_width = 52.0;
         ui.group(|ui| controls::row_label(ui, "Prefix"));
@@ -1268,7 +1284,10 @@ fn set_input_node(
     });
 
     ui.dummy([width, 10.0]);
-    ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+    ui.set_cursor_screen_position([
+        ui.cursor_screen_position()[0] + 12.0,
+        ui.cursor_screen_position()[1],
+    ]);
     controls::draw_tracked_text(
         ui,
         ui.cursor_screen_position(),
@@ -1281,7 +1300,10 @@ fn set_input_node(
 
     let suffixes = set_suffixes(node);
     for (index, suffix) in suffixes.iter().enumerate() {
-        ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+        ui.set_cursor_screen_position([
+            ui.cursor_screen_position()[0] + 12.0,
+            ui.cursor_screen_position()[1],
+        ]);
         ui.group(|ui| {
             let label_width = 52.0;
             ui.group(|ui| controls::row_label(ui, &format!("suffix {}", index + 1)));
@@ -1324,7 +1346,10 @@ fn set_input_node(
     }
 
     ui.dummy([width, 2.0]);
-    ui.set_cursor_screen_position([ui.cursor_screen_position()[0] + 12.0, ui.cursor_screen_position()[1]]);
+    ui.set_cursor_screen_position([
+        ui.cursor_screen_position()[0] + 12.0,
+        ui.cursor_screen_position()[1],
+    ]);
     if controls::button(ui, "+ Add Suffix", ButtonKind::Neutral, width - 24.0, true) {
         let mut updated = suffixes.clone();
         updated.push(String::new());
@@ -1349,10 +1374,9 @@ fn set_input_node(
             |ui| {
                 if sets.is_empty() {
                     ui.with_face(theme::face::SMALL_MONO, |ui| {
-                        ui.with_colors(
-                            &[(StyleColor::Text, theme::TEXT.with_alpha(0.5))],
-                            |ui| ui.text("No images match the current pattern."),
-                        )
+                        ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.5))], |ui| {
+                            ui.text("No images match the current pattern.")
+                        })
                     });
                     return;
                 }
@@ -1381,10 +1405,9 @@ fn set_input_node(
                 }
                 if sets.len() > 6 {
                     ui.with_face(theme::face::SMALL_MONO, |ui| {
-                        ui.with_colors(
-                            &[(StyleColor::Text, theme::TEXT.with_alpha(0.5))],
-                            |ui| ui.text(&format!("...and {} more", sets.len() - 6)),
-                        )
+                        ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.5))], |ui| {
+                            ui.text(&format!("...and {} more", sets.len() - 6))
+                        })
                     });
                 }
             },
@@ -1427,12 +1450,7 @@ pub fn matched_sets(
 }
 
 /// The Rename inspector: the block list plus a live preview.
-fn rename_node(
-    ui: &mut Ui,
-    width: f32,
-    node: &GraphNode,
-    context: &InspectorContext,
-) -> Vec<Edit> {
+fn rename_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorContext) -> Vec<Edit> {
     let mut edits = Vec::new();
     let blocks = rename_blocks(node);
 
@@ -1522,10 +1540,7 @@ fn rename_node(
         let half = (width - 36.0) / 2.0;
         // `.preview-head` names the two columns in tracked upper case before the rows.
         let head = ui.cursor_screen_position();
-        for (text, x) in [
-            ("ORIGINAL", head[0]),
-            ("NEW NAME", head[0] + half + 18.0),
-        ] {
+        for (text, x) in [("ORIGINAL", head[0]), ("NEW NAME", head[0] + half + 18.0)] {
             controls::draw_tracked_text(
                 ui,
                 [x, head[1]],
@@ -1646,7 +1661,11 @@ fn add_button(ui: &mut Ui, id: &str, label: &str, width: f32, tint: Color) -> bo
             origin[0] + (width - size[0]) / 2.0,
             origin[1] + (height - size[1]) / 2.0,
         ],
-        if hovered { theme::TEXT } else { theme::TEXT_BRIGHT },
+        if hovered {
+            theme::TEXT
+        } else {
+            theme::TEXT_BRIGHT
+        },
         theme::face::SMALL_MONO,
         label,
     );
@@ -1667,8 +1686,7 @@ fn compact_input(ui: &mut Ui, id: &str, value: &mut String, hint: &str, width: f
             bite_imgui::StyleVar::FrameBorderSize(0.0),
             bite_imgui::StyleVar::FramePadding([
                 7.0,
-                (COMPACT_INPUT_HEIGHT
-                    - controls::measure(ui, theme::face::SMALL_MONO, "Ag")[1])
+                (COMPACT_INPUT_HEIGHT - controls::measure(ui, theme::face::SMALL_MONO, "Ag")[1])
                     / 2.0,
             ]),
         ],
@@ -1725,7 +1743,14 @@ fn block_badge(ui: &mut Ui, text: &str, color: Color) -> f32 {
         2.0,
         Rounding::All,
     );
-    controls::draw_tracked_text(ui, [origin[0] + 5.0, top + 2.0], color, face, text, tracking);
+    controls::draw_tracked_text(
+        ui,
+        [origin[0] + 5.0, top + 2.0],
+        color,
+        face,
+        text,
+        tracking,
+    );
     width
 }
 
@@ -1887,10 +1912,7 @@ fn rename_block_row(
         }
 
         // `.block-delete` sits hard right whatever the block is made of.
-        ui.set_cursor_screen_position([
-            row_origin[0] + width - DELETE_WIDTH,
-            row_origin[1] + 4.0,
-        ]);
+        ui.set_cursor_screen_position([row_origin[0] + width - DELETE_WIDTH, row_origin[1] + 4.0]);
         if delete_cross(ui, "delete", DELETE_WIDTH, COMPACT_INPUT_HEIGHT) {
             change = Some(RowChange::Removed);
         }
@@ -2010,7 +2032,11 @@ fn unit_row(
         unit,
     );
     ui.set_cursor_screen_position([origin[0], origin[1] + theme::INPUT_HEIGHT]);
-    if changed { Some(text) } else { None }
+    if changed {
+        Some(text)
+    } else {
+        None
+    }
 }
 
 /// The dimensions a resize would produce, as `previewW` and `previewH` work them out.
@@ -2088,7 +2114,14 @@ fn resize_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
     } else {
         number_param(node, "height", 1024.0).round().max(1.0)
     };
-    let preview = resize_preview(source, relative, preserve, &anchor, width_value, height_value);
+    let preview = resize_preview(
+        source,
+        relative,
+        preserve,
+        &anchor,
+        width_value,
+        height_value,
+    );
 
     let mut mode_index = usize::from(relative);
     param_row(ui, width, "Mode", |ui, content| {
@@ -2097,15 +2130,19 @@ fn resize_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
             edits.push(Edit::SetParam {
                 node: node.id.clone(),
                 name: "mode".into(),
-                value: ParamValue::String(
-                    ["absolute", "relative"][mode_index].into(),
-                ),
+                value: ParamValue::String(["absolute", "relative"][mode_index].into()),
             });
         }
     });
 
     let mut keep = preserve;
-    if inline_checkbox_row(ui, width, "preserve-aspect", "Preserve Aspect Ratio", &mut keep) {
+    if inline_checkbox_row(
+        ui,
+        width,
+        "preserve-aspect",
+        "Preserve Aspect Ratio",
+        &mut keep,
+    ) {
         edits.push(Edit::SetParam {
             node: node.id.clone(),
             name: "preserve_aspect".into(),
@@ -2133,7 +2170,14 @@ fn resize_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
         let mut anchor_index = usize::from(anchor == "height");
         param_row(ui, width, "Anchor", |ui, content| {
             let labels: Vec<String> = vec!["Width".into(), "Height".into()];
-            if controls::dropdown(ui, "resize-anchor", &mut anchor_index, &labels, content, true) {
+            if controls::dropdown(
+                ui,
+                "resize-anchor",
+                &mut anchor_index,
+                &labels,
+                content,
+                true,
+            ) {
                 edits.push(Edit::SetParam {
                     node: node.id.clone(),
                     name: "anchor".into(),
@@ -2214,7 +2258,9 @@ fn resize_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
 
     let mut density_text: Option<String> = None;
     param_row(ui, width, "Resolution", |ui, content| {
-        let density = number_param(node, "density", 72.0).round().clamp(1.0, 9600.0);
+        let density = number_param(node, "density", 72.0)
+            .round()
+            .clamp(1.0, 9600.0);
         let value = format!("{}", density as i64);
         density_text = unit_row(ui, content, "resize-density", &value, "dpi", true);
     });
@@ -2235,7 +2281,14 @@ fn resize_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
         .unwrap_or(0);
     param_row(ui, width, "Filter", |ui, content| {
         let labels: Vec<String> = FILTERS.iter().map(|name| (*name).into()).collect();
-        if controls::dropdown(ui, "resize-filter", &mut filter_index, &labels, content, true) {
+        if controls::dropdown(
+            ui,
+            "resize-filter",
+            &mut filter_index,
+            &labels,
+            content,
+            true,
+        ) {
             edits.push(Edit::SetParam {
                 node: node.id.clone(),
                 name: "filter".into(),
@@ -2305,7 +2358,9 @@ fn format_convert_node(
         return edits;
     }
     for parameter in &definition.0.params {
-        edits.extend(generic::row(ui, width, node, parameter, false, context, pickers));
+        edits.extend(generic::row(
+            ui, width, node, parameter, false, context, pickers,
+        ));
     }
     edits
 }

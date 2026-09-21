@@ -34,6 +34,27 @@ impl Default for WindowBounds {
     }
 }
 
+impl WindowBounds {
+    /// The smallest and largest rectangle worth asking a window for, in physical pixels.
+    const SIZE: std::ops::RangeInclusive<u32> = 320..=32_767;
+
+    /// Replaces a size no window could be drawn at, keeping where it was and how it was
+    /// shown. Saving guards against a zero size, but a file written by an older build or
+    /// edited by hand can still hold one, and the window is created from it literally: a
+    /// zero there asked for a surface nothing could be drawn on.
+    fn sized(self) -> Self {
+        if Self::SIZE.contains(&self.width) && Self::SIZE.contains(&self.height) {
+            return self;
+        }
+        let default = Self::default();
+        Self {
+            width: default.width,
+            height: default.height,
+            ..self
+        }
+    }
+}
+
 /// Panel sizes in the same units the shell uses: pixels, except the inspector fraction.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PanelSizes {
@@ -112,6 +133,7 @@ impl Session {
             return Self::default();
         };
         let mut session: Self = serde_json::from_str(&text).unwrap_or_default();
+        session.window = session.window.sized();
         session.panels = session.panels.clamped();
         session
     }
@@ -259,5 +281,34 @@ mod tests {
         let bounds = session.window_within(&[(0, 0, 1920, 1080)]);
         assert_eq!(bounds.x, 100);
         assert_eq!(bounds.width, 1400);
+    }
+
+    /// A size no window can be made from is replaced with the default one, keeping where
+    /// the window was and how it was shown. A zero here reached `with_inner_size` intact
+    /// and the editor came up with a surface nothing could be drawn on.
+    #[test]
+    fn a_window_size_nothing_can_be_drawn_at_falls_back_to_the_default() {
+        let unusable = |width, height| {
+            WindowBounds {
+                x: 240,
+                y: 160,
+                width,
+                height,
+                maximized: true,
+            }
+            .sized()
+        };
+        let default = WindowBounds::default();
+        for bounds in [unusable(0, 0), unusable(1280, 0), unusable(99, 40_000)] {
+            assert_eq!(
+                (bounds.width, bounds.height),
+                (default.width, default.height)
+            );
+            // Where it was and how it was shown are still the session's own.
+            assert_eq!((bounds.x, bounds.y), (240, 160));
+            assert!(bounds.maximized);
+        }
+        let kept = unusable(1400, 900);
+        assert_eq!((kept.width, kept.height), (1400, 900));
     }
 }

@@ -1,5 +1,5 @@
 //! Windows, layout, measurement and the widget set the editor draws with.
-use crate::{Color, Guard, Ui, Vec2, c, from_v, texture_ref, v};
+use crate::{c, from_v, texture_ref, v, Color, Guard, Ui, Vec2};
 use bite_imgui_sys as sys;
 
 /// How a window behaves; the editor's panels are fixed, so most chrome is switched off.
@@ -50,9 +50,15 @@ impl WindowFlags {
             self.no_bring_to_front,
             sys::ImGuiWindowFlags_NoBringToFrontOnFocus,
         );
-        set(self.no_saved_settings, sys::ImGuiWindowFlags_NoSavedSettings);
+        set(
+            self.no_saved_settings,
+            sys::ImGuiWindowFlags_NoSavedSettings,
+        );
         set(self.no_nav, sys::ImGuiWindowFlags_NoNav);
-        set(self.always_auto_resize, sys::ImGuiWindowFlags_AlwaysAutoResize);
+        set(
+            self.always_auto_resize,
+            sys::ImGuiWindowFlags_AlwaysAutoResize,
+        );
         set(
             self.horizontal_scrollbar,
             sys::ImGuiWindowFlags_HorizontalScrollbar,
@@ -146,12 +152,7 @@ impl Ui<'_> {
         }
     }
 
-    pub fn window_with(
-        &mut self,
-        title: &str,
-        flags: WindowFlags,
-        body: impl FnOnce(&mut Self),
-    ) {
+    pub fn window_with(&mut self, title: &str, flags: WindowFlags, body: impl FnOnce(&mut Self)) {
         let visible = unsafe { sys::igBegin(c(title).as_ptr(), std::ptr::null_mut(), flags.raw()) };
         let _guard = Guard(|| unsafe { sys::igEnd() });
         if visible {
@@ -201,7 +202,13 @@ impl Ui<'_> {
         }
     }
 
-    pub fn menu_item(&mut self, label: &str, shortcut: &str, selected: bool, enabled: bool) -> bool {
+    pub fn menu_item(
+        &mut self,
+        label: &str,
+        shortcut: &str,
+        selected: bool,
+        enabled: bool,
+    ) -> bool {
         let label = c(label);
         // The shortcut string has to outlive the call. Building it inside the argument would
         // drop it at the end of the block that made it, leaving Dear ImGui a dangling pointer
@@ -231,7 +238,13 @@ impl Ui<'_> {
     }
 
     /// A modal popup. `open` is cleared when the popup closes itself.
-    pub fn modal(&mut self, id: &str, open: &mut bool, flags: WindowFlags, body: impl FnOnce(&mut Self)) {
+    pub fn modal(
+        &mut self,
+        id: &str,
+        open: &mut bool,
+        flags: WindowFlags,
+        body: impl FnOnce(&mut Self),
+    ) {
         let mut raw_open = *open;
         if unsafe { sys::igBeginPopupModal(c(id).as_ptr(), &mut raw_open, flags.raw()) } {
             body(self);
@@ -241,7 +254,12 @@ impl Ui<'_> {
     }
 
     /// A modal popup without a close control, matching dialogs that offer explicit buttons.
-    pub fn modal_without_close(&mut self, id: &str, flags: WindowFlags, body: impl FnOnce(&mut Self)) {
+    pub fn modal_without_close(
+        &mut self,
+        id: &str,
+        flags: WindowFlags,
+        body: impl FnOnce(&mut Self),
+    ) {
         if unsafe { sys::igBeginPopupModal(c(id).as_ptr(), std::ptr::null_mut(), flags.raw()) } {
             body(self);
             unsafe { sys::igEndPopup() }
@@ -501,7 +519,14 @@ impl Ui<'_> {
 
     // -- Numbers ---------------------------------------------------------------------
 
-    pub fn drag_float(&mut self, label: &str, value: &mut f32, speed: f32, min: f32, max: f32) -> bool {
+    pub fn drag_float(
+        &mut self,
+        label: &str,
+        value: &mut f32,
+        speed: f32,
+        min: f32,
+        max: f32,
+    ) -> bool {
         unsafe {
             sys::igDragFloat(
                 c(label).as_ptr(),
@@ -516,9 +541,7 @@ impl Ui<'_> {
     }
 
     pub fn slider_float(&mut self, label: &str, value: &mut f32, min: f32, max: f32) -> bool {
-        unsafe {
-            sys::igSliderFloat(c(label).as_ptr(), value, min, max, c("%.3f").as_ptr(), 0)
-        }
+        unsafe { sys::igSliderFloat(c(label).as_ptr(), value, min, max, c("%.3f").as_ptr(), 0) }
     }
 
     pub fn slider_int(&mut self, label: &str, value: &mut i32, min: i32, max: i32) -> bool {
@@ -546,16 +569,7 @@ impl Ui<'_> {
 
     /// A numeric text field, matching the Electron `input type="number"` controls.
     pub fn input_float(&mut self, label: &str, value: &mut f32, step: f32) -> bool {
-        unsafe {
-            sys::igInputFloat(
-                c(label).as_ptr(),
-                value,
-                step,
-                0.0,
-                c("%.3f").as_ptr(),
-                0,
-            )
-        }
+        unsafe { sys::igInputFloat(c(label).as_ptr(), value, step, 0.0, c("%.3f").as_ptr(), 0) }
     }
 
     pub fn input_int(&mut self, label: &str, value: &mut i32, step: i32) -> bool {
@@ -674,14 +688,7 @@ impl Ui<'_> {
     /// Bounds the next window's size. A combo uses this in place of its own cap, which is
     /// eight rows of Dear ImGui's row height rather than eight of the caller's.
     pub fn set_next_window_size_constraints(&mut self, min: Vec2, max: Vec2) {
-        unsafe {
-            sys::igSetNextWindowSizeConstraints(
-                v(min),
-                v(max),
-                None,
-                std::ptr::null_mut(),
-            )
-        }
+        unsafe { sys::igSetNextWindowSizeConstraints(v(min), v(max), None, std::ptr::null_mut()) }
     }
 
     /// Opens a combo's list. The caller draws the rows and calls [`Ui::end_combo`], which
@@ -706,9 +713,7 @@ impl Ui<'_> {
         if unsafe { sys::igBeginCombo(c(label).as_ptr(), preview.as_ptr(), 0) } {
             for (position, item) in items.iter().enumerate() {
                 let selected = position == index;
-                if unsafe {
-                    sys::igSelectable_Bool(c(item).as_ptr(), selected, 0, v([0.0, 0.0]))
-                } {
+                if unsafe { sys::igSelectable_Bool(c(item).as_ptr(), selected, 0, v([0.0, 0.0])) } {
                     *current = position;
                     changed = true;
                 }
@@ -724,14 +729,7 @@ impl Ui<'_> {
     // -- Images ----------------------------------------------------------------------
 
     pub fn image(&mut self, texture: u64, size: Vec2) {
-        unsafe {
-            sys::igImage(
-                texture_ref(texture),
-                v(size),
-                v([0.0, 0.0]),
-                v([1.0, 1.0]),
-            )
-        }
+        unsafe { sys::igImage(texture_ref(texture), v(size), v([0.0, 0.0]), v([1.0, 1.0])) }
     }
 
     pub fn image_button(&mut self, id: &str, texture: u64, size: Vec2) -> bool {
@@ -776,7 +774,13 @@ impl Ui<'_> {
     ///
     /// The plain target binds to the last item; a panel that draws itself has no such item,
     /// so the rectangle is named directly.
-    pub fn drag_target_rect(&mut self, kind: &str, min: Vec2, max: Vec2, id: &str) -> Option<String> {
+    pub fn drag_target_rect(
+        &mut self,
+        kind: &str,
+        min: Vec2,
+        max: Vec2,
+        id: &str,
+    ) -> Option<String> {
         let bb = sys::ImRect {
             Min: v(min),
             Max: v(max),
@@ -810,8 +814,7 @@ impl Ui<'_> {
             if !payload.is_null() {
                 unsafe {
                     let length = (*payload).DataSize.max(0) as usize;
-                    let bytes =
-                        std::slice::from_raw_parts((*payload).Data as *const u8, length);
+                    let bytes = std::slice::from_raw_parts((*payload).Data as *const u8, length);
                     result = Some(String::from_utf8_lossy(bytes).into_owned());
                 }
             }

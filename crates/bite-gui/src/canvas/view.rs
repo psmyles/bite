@@ -1,7 +1,7 @@
 //! Drawing and gesture handling for the node canvas.
 use super::{
     layout::{self, Card, CardContext, Row},
-    state::{Bounds, CanvasState, Gesture, PendingWire, WireEnd, nearest_port},
+    state::{nearest_port, Bounds, CanvasState, Gesture, PendingWire, WireEnd},
     viewport::Viewport,
     wire,
 };
@@ -10,10 +10,8 @@ use crate::{
     shell::Rect,
     theme,
 };
-use bite_core::{Registry, graph::WireType};
-use bite_imgui::{
-    Color, MouseButton, MouseCursor, Rounding, Ui, Vec2, WindowFlags,
-};
+use bite_core::{graph::WireType, Registry};
+use bite_imgui::{Color, MouseButton, MouseCursor, Rounding, Ui, Vec2, WindowFlags};
 use bite_schema::{BuiltinNodeKind, Graph, GraphNode, NodeKind, ParamValue, ProcessingNodeKind};
 use std::collections::BTreeMap;
 
@@ -195,9 +193,10 @@ impl Canvas {
                 if let Some(parent) = node.parent_id.as_deref().and_then(|id| positions.get(id)) {
                     position = [position[0] + parent[0], position[1] + parent[1]];
                 }
-                let enabled_wired = graph.edges.iter().any(|edge| {
-                    edge.target == node.id && edge.target_handle == "param:_enabled"
-                });
+                let enabled_wired = graph
+                    .edges
+                    .iter()
+                    .any(|edge| edge.target == node.id && edge.target_handle == "param:_enabled");
                 let resolved = context.resolved.get(&node.id);
                 let visible = |_name: &str| true;
                 let card = if matches!(
@@ -207,9 +206,7 @@ impl Canvas {
                     Card {
                         width: node.width.unwrap_or(280.0) as f32,
                         height: node.height.unwrap_or(120.0) as f32,
-                        header_height: if node.kind
-                            == NodeKind::Builtin(BuiltinNodeKind::Comment)
-                        {
+                        header_height: if node.kind == NodeKind::Builtin(BuiltinNodeKind::Comment) {
                             30.0
                         } else {
                             36.0
@@ -330,9 +327,10 @@ impl Canvas {
         let by_id: BTreeMap<&str, &Placed> =
             placed.iter().map(|node| (node.id.as_str(), node)).collect();
         for edge in &graph.edges {
-            let (Some(source), Some(target)) =
-                (by_id.get(edge.source.as_str()), by_id.get(edge.target.as_str()))
-            else {
+            let (Some(source), Some(target)) = (
+                by_id.get(edge.source.as_str()),
+                by_id.get(edge.target.as_str()),
+            ) else {
                 continue;
             };
             let (Some(from), Some(to)) = (
@@ -359,8 +357,7 @@ impl Canvas {
                         points[2],
                         points[3],
                         colour.with_alpha(0.12),
-                        theme::EDGE_WIDTH_SELECTED * self.state.viewport.zoom
-                            + step as f32 * 2.5,
+                        theme::EDGE_WIDTH_SELECTED * self.state.viewport.zoom + step as f32 * 2.5,
                     );
                 }
             }
@@ -417,7 +414,13 @@ impl Canvas {
         let list = ui.draw_list();
         let min = [origin[0].min(current[0]), origin[1].min(current[1])];
         let max = [origin[0].max(current[0]), origin[1].max(current[1])];
-        list.rect(min, max, theme::ACCENT.with_alpha(0.12), 0.0, Rounding::None);
+        list.rect(
+            min,
+            max,
+            theme::ACCENT.with_alpha(0.12),
+            0.0,
+            Rounding::None,
+        );
         list.rect_outline(
             min,
             max,
@@ -510,7 +513,10 @@ impl Canvas {
                 node.position[1] + node.card.height,
             ],
         );
-        if max[0] < rect.min[0] || min[0] > rect.max[0] || max[1] < rect.min[1] || min[1] > rect.max[1]
+        if max[0] < rect.min[0]
+            || min[0] > rect.max[0]
+            || max[1] < rect.min[1]
+            || min[1] > rect.max[1]
         {
             return;
         }
@@ -927,7 +933,10 @@ impl Canvas {
             );
         }
         let (text, color) = if body.is_empty() {
-            ("Double click to edit", theme::COMMENT_TEXT_BODY.with_alpha(0.55))
+            (
+                "Double click to edit",
+                theme::COMMENT_TEXT_BODY.with_alpha(0.55),
+            )
         } else {
             (body.as_str(), theme::COMMENT_TEXT_BODY)
         };
@@ -969,8 +978,8 @@ impl Canvas {
         let width = max[0] - min[0];
         let height = max[1] - min[1];
 
-        let hovered = rect.contains(ui.mouse_position())
-            && controls::point_in(ui.mouse_position(), min, max);
+        let hovered =
+            rect.contains(ui.mouse_position()) && controls::point_in(ui.mouse_position(), min, max);
         let alpha = if hovered { 1.0 } else { theme::OVERLAY_OPACITY };
         if hovered {
             ui.set_mouse_cursor(bite_imgui::MouseCursor::Hand);
@@ -1006,10 +1015,7 @@ impl Canvas {
         let text = format!("{}%", self.state.viewport.zoom_percent());
         let size = list.measure(theme::face::ZOOM_LABEL, &text);
         list.text_with_face(
-            [
-                min[0] - 12.0 - size[0],
-                min[1] + (height - size[1]) / 2.0,
-            ],
+            [min[0] - 12.0 - size[0], min[1] + (height - size[1]) / 2.0],
             theme::ZOOM_LABEL_COLOR,
             theme::face::ZOOM_LABEL,
             &text,
@@ -1102,13 +1108,13 @@ impl Canvas {
                         };
                         actions.push(Action::BeginDrag);
                     }
-                    if matches!(self.state.gesture, Gesture::MovingNodes { started: true, .. }) {
+                    if matches!(
+                        self.state.gesture,
+                        Gesture::MovingNodes { started: true, .. }
+                    ) {
                         let start_graph = self.graph_point(rect, origin);
                         let now_graph = self.graph_point(rect, pointer);
-                        let delta = [
-                            now_graph[0] - start_graph[0],
-                            now_graph[1] - start_graph[1],
-                        ];
+                        let delta = [now_graph[0] - start_graph[0], now_graph[1] - start_graph[1]];
                         let moves = self
                             .drag_start
                             .iter()
@@ -1155,7 +1161,11 @@ impl Canvas {
                     self.state.gesture = Gesture::Idle;
                 }
             }
-            Gesture::Resizing { node, origin, start } => {
+            Gesture::Resizing {
+                node,
+                origin,
+                start,
+            } => {
                 if ui.mouse_down(MouseButton::Left) {
                     let start_graph = self.graph_point(rect, origin);
                     let now_graph = self.graph_point(rect, pointer);
@@ -1504,14 +1514,7 @@ const BADGE_TRACKING: f32 = 0.08 * theme::FONT_SIZE_XS as f32;
 /// A badge floating over a card, laid out as the `.previewing-badge` rule lays it out: the
 /// box's top edge sits at `top: -22px`, so `anchor` is its top centre rather than its middle,
 /// and its height is a line box with two pixels of padding and a one pixel border around it.
-fn draw_badge(
-    ui: &Ui,
-    anchor: Vec2,
-    zoom: f32,
-    text: &str,
-    color: Color,
-    subtitle: Option<&str>,
-) {
+fn draw_badge(ui: &Ui, anchor: Vec2, zoom: f32, text: &str, color: Color, subtitle: Option<&str>) {
     let list = ui.draw_list().scaled(zoom);
     let size = controls::measure_tracked_scaled(ui, theme::face::BADGE, zoom, text, BADGE_TRACKING);
     let padding = [7.0 * zoom, 2.0 * zoom];
@@ -1523,7 +1526,13 @@ fn draw_badge(
         min[0] + size[0] + inset[0] * 2.0,
         min[1] + line + inset[1] * 2.0,
     ];
-    list.rect(min, max, theme::BG.with_alpha(0.85), 3.0 * zoom, Rounding::All);
+    list.rect(
+        min,
+        max,
+        theme::BG.with_alpha(0.85),
+        3.0 * zoom,
+        Rounding::All,
+    );
     list.rect_outline(min, max, color, 3.0 * zoom, Rounding::All, border);
     // Dear ImGui starts a run at the top of its own line box, which is shorter than the one the
     // browser lays out, so the two are centred on each other and the type sits where it does in
@@ -1653,11 +1662,9 @@ fn footer_text(node: &GraphNode, context: &CanvasContext) -> Option<String> {
         }
         NodeKind::Builtin(BuiltinNodeKind::FolderPath) => {
             Some(match node.data.params.get("folderPath") {
-                Some(ParamValue::String(path)) if !path.is_empty() => path
-                    .rsplit(['/', '\\'])
-                    .next()
-                    .unwrap_or(path)
-                    .to_string(),
+                Some(ParamValue::String(path)) if !path.is_empty() => {
+                    path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
+                }
                 _ => "not set".to_string(),
             })
         }
@@ -1687,7 +1694,11 @@ pub fn node_enabled(node: &GraphNode, graph: &Graph, _registry: &Registry) -> bo
         .iter()
         .find(|edge| edge.target == node.id && edge.target_handle == "param:_enabled");
     if let Some(edge) = wired {
-        let Some(source) = graph.nodes.iter().find(|candidate| candidate.id == edge.source) else {
+        let Some(source) = graph
+            .nodes
+            .iter()
+            .find(|candidate| candidate.id == edge.source)
+        else {
             return true;
         };
         let Some(name) = edge.source_handle.strip_prefix("param:") else {
@@ -1755,8 +1766,12 @@ mod tests {
 
     #[test]
     fn a_note_body_keeps_the_line_breaks_it_was_given() {
-        let lines = wrap_lines(measure, "first
-second", 100.0);
+        let lines = wrap_lines(
+            measure,
+            "first
+second",
+            100.0,
+        );
         assert_eq!(lines, vec!["first", "second"]);
     }
 
@@ -1854,7 +1869,10 @@ second", 100.0);
     fn built_in_cards_carry_their_own_titles() {
         let registry = Registry::default();
         assert_eq!(
-            card_label(&node("a", NodeKind::Builtin(BuiltinNodeKind::ImageOutput)), &registry),
+            card_label(
+                &node("a", NodeKind::Builtin(BuiltinNodeKind::ImageOutput)),
+                &registry
+            ),
             "Image Output"
         );
         assert_eq!(
