@@ -497,6 +497,40 @@ pub fn draw_tracked_text_scaled(
     }
 }
 
+/// Draws tracked text in a synthesized bold, the way a browser does for a family whose only
+/// `@font-face` is the regular one.
+///
+/// Skia thickens the outline by a fraction of the em and leaves the advances alone, so the
+/// run measures exactly as the regular face does. Drawing the glyphs twice a fraction apart
+/// widens the ink by the same amount without touching the metrics.
+pub fn draw_faux_bold_tracked_scaled(
+    ui: &Ui,
+    position: Vec2,
+    color: Color,
+    face: Face,
+    scale: f32,
+    text: &str,
+    tracking: f32,
+) {
+    let offset = FAUX_BOLD_EM * f32::from(face.size) * scale;
+    draw_tracked_text_scaled(ui, position, color, face, scale, text, tracking);
+    draw_tracked_text_scaled(
+        ui,
+        [position[0] + offset, position[1]],
+        color,
+        face,
+        scale,
+        text,
+        tracking,
+    );
+}
+
+/// How far a synthesized bold spreads the ink, as a fraction of the em.
+///
+/// Skia's fake-bold stroke runs from a twenty-fourth of the text size at small sizes to a
+/// thirty-second at large ones; every face drawn this way is at the small end.
+const FAUX_BOLD_EM: f32 = 1.0 / 24.0;
+
 /// The width of `text` in `face`, including letter spacing when given.
 pub fn measure(ui: &Ui, face: Face, text: &str) -> Vec2 {
     measure_scaled(ui, face, 1.0, text)

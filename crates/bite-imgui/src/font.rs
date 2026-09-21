@@ -232,14 +232,20 @@ impl Fonts {
     /// This goes straight to the font, so it works before any window has begun. Measuring
     /// through a draw list would need a current window, and asking for one outside a frame's
     /// windows leaves the context in a state that shows up as stray popups and clipped text.
+    ///
+    /// The size asked for here is the exact one, fraction and all, because that is the size the
+    /// draw path asks for. Dear ImGui rounds only the size it *rasterizes* at: `GetFontBaked`
+    /// picks a whole pixel bake, and then `CalcTextSizeA` and `RenderText` both scale what they
+    /// return by `size / baked->Size`, so the geometry comes back at the size that was asked
+    /// for. Rounding here would describe a bake that nothing draws - at eleven pixels the
+    /// interface face is 10.53, and calling that 11 made every box drawn around a run, and
+    /// every glyph position in letter-spaced text, four and a half per cent too wide.
     pub fn measure(&self, face: Face, scale: f32, text: &str) -> [f32; 2] {
         let id = self.id(face);
         let Some(handle) = self.handles.get(id.0).copied().filter(|h| !h.is_null()) else {
             return [0.0, 0.0];
         };
-        // Dear ImGui rounds the size it draws at (`GetRoundedFontSize`), so a measurement taken
-        // at the unrounded size would not describe the glyphs that land on screen.
-        let size = rounded(self.heights.get(id.0).copied().unwrap_or_default() * scale);
+        let size = self.heights.get(id.0).copied().unwrap_or_default() * scale;
         let text = std::ffi::CString::new(text).unwrap_or_default();
         let out = unsafe {
             sys::ImFont_CalcTextSizeA(
@@ -337,13 +343,4 @@ impl Fonts {
         self.scale = scale;
     }
 
-}
-
-/// The size Dear ImGui will actually draw at, given the one it is asked for.
-///
-/// `ImGui::GetRoundedFontSize` is `IM_ROUND`, applied to the size after every global scale
-/// factor. The layout system does not yet handle fractional sizes, so this is not something a
-/// caller can opt out of - it can only be matched, which is what measurement here does.
-pub(crate) fn rounded(size: f32) -> f32 {
-    (size + 0.5).floor()
 }

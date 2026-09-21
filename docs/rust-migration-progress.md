@@ -1094,3 +1094,43 @@ blocks, so no frame is drawn while it is open and the state cannot be seen.
 
 `resize-inspector` and `rename-inspector` capture scenes were added, bringing the set to
 twenty-four.
+
+## Correction 2026-09-21 — the badge, and the measurement behind it
+
+The previewing badge sat too high, and its letters were spaced too far apart. Three causes,
+of which the third is the one that mattered beyond the badge.
+
+- **Only the regular interface face exists.** `fonts.css` declares one `@font-face` for
+  `--font-ui`, Atkinson Hyperlegible Next Regular, so `font-weight: 700` on the badge is a
+  browser-synthesized bold: the outlines thicken and the advances stay regular, which is why
+  the stylesheet gives `PREVIEWING` 65.6 pixels. Drawing it in the real bold face ran 69.3
+  instead, and the extra three and a half pixels read as letter spacing. `face::BADGE` is the
+  regular face now and the weight is drawn on, twice a twenty-fourth of an em apart, which is
+  Skia's own fake bold.
+- **`top: -22px` is a top edge, not a centre.** The badge was centred on that point, so it
+  floated half its height above where the stylesheet puts it, and its box was built from Dear
+  ImGui's line box rather than `line-height: normal` - 13.17 pixels here, since the face sets
+  `USE_TYPO_METRICS` and a browser then lays out on the `OS/2` typographic metrics.
+- **Measurement did not describe what was drawn.** `Fonts::measure` rounded the size it asked
+  about, on the belief recorded above that Dear ImGui draws at a rounded size. It does not:
+  `GetFontBaked` rounds only the size a glyph is *rasterized* at, and `CalcTextSizeA` and
+  `RenderText` both scale their output by `size / baked->Size`, so the draw path was already
+  exact. The earlier note that `PREVIEWING` "measures 65.6 now" was measuring the rounded bake;
+  it measured 68.6. Nothing about the atlas needed changing - the rounding came out of
+  `measure` and the line went with it.
+
+That last one was never only the badge. Measurement feeds every box drawn around a run, every
+centred and right-aligned label, every ellipsis decision, and every glyph position in
+letter-spaced text, and the error was not a constant: the interface face came out 4.5 per cent
+wide at ten and eleven pixels and 4.2 per cent narrow at twelve, so `--font-size-xs` and
+`--font-size-sm` measured the same while drawing a size apart. It was worst under zoom, where
+the eleven pixel face rounded up at 100 per cent and down at 200, so a card's type changed
+proportion as it was zoomed.
+
+`crates/bite-imgui/tests/font_metrics.rs` holds the invariants: twelve pixel mono advances
+exactly 0.6 em per character, the badge string measures the stylesheet's 65.6, measuring at a
+scale is proportional to it, and each step of the type scale measures wider than the one below.
+All four fail against the rounded measurement.
+
+No atlas cost came with it. Bakes are still keyed on the rounded rasterizer size, so the set of
+rasterized sizes is exactly what it was.

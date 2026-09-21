@@ -126,6 +126,13 @@ pub const GROUP_LABEL_INPUT_BORDER: Color = Color([GREY_168, GREY_168, GREY_168,
 
 // -- Canvas node badges --------------------------------------------------------------
 
+/// `line-height: normal` for the interface face, as a multiple of the font size.
+///
+/// Atkinson Hyperlegible Next sets `USE_TYPO_METRICS`, so a browser lays a line out on the
+/// typographic ascent, descent and gap from its `OS/2` table: (796 + 251 + 150) / 1000. A box
+/// sized from Dear ImGui's line height instead would come out two pixels short.
+pub const UI_LINE_HEIGHT: f32 = 1.197;
+
 pub const BADGE_PREVIEW_COLOR: Color = Color::rgb(0x39, 0xff, 0x14);
 pub const BADGE_PROCESSING_COLOR: Color = COLOR_WARNING;
 
@@ -180,7 +187,12 @@ pub mod face {
     pub const VALUE: Face = Face::mono(FONT_SIZE_SM);
     pub const SMALL_MONO: Face = Face::mono(FONT_SIZE_XS);
     pub const TINY_MONO: Face = Face::mono(FONT_SIZE_XXS);
-    pub const BADGE: Face = Face::ui_weight(FONT_SIZE_XS, Weight::Bold);
+    /// `font-weight: 700` over a family that only ever loads its regular file, which is what
+    /// `fonts.css` declares: the browser synthesizes the bold by thickening the regular
+    /// outlines and keeps their advances, so the face here is the regular one and the weight
+    /// is drawn on, in [`crate::controls::draw_faux_bold_tracked_scaled`]. A real bold face
+    /// would run five per cent wide and read as extra letter spacing.
+    pub const BADGE: Face = Face::ui(FONT_SIZE_XS);
     pub const COMMENT_HEADING: Face = Face::ui_weight(FONT_SIZE_MD, Weight::Bold);
     pub const COMMENT_BODY: Face = Face::ui(FONT_SIZE_MD);
     pub const MODAL_TITLE: Face = Face::ui_weight(FONT_SIZE_BASE, Weight::SemiBold);

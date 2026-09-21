@@ -827,6 +827,8 @@ impl Canvas {
         }
         let min = self.screen(rect, node.position);
         let width = node.card.width * zoom;
+        // `top: -22px` on a badge is its top edge, and `left: 50%` with a half-width shift
+        // centres it, so this is the top centre of the box.
         if context.preview_node.as_deref() == Some(node.id.as_str()) {
             draw_badge(
                 ui,
@@ -1488,9 +1490,12 @@ fn resize_minimum(placed: &[Placed], id: &str) -> (f32, f32) {
 /// `letter-spacing: 0.08em` on the badge, in pixels at the badge's own size.
 const BADGE_TRACKING: f32 = 0.08 * theme::FONT_SIZE_XS as f32;
 
+/// A badge floating over a card, laid out as the `.previewing-badge` rule lays it out: the
+/// box's top edge sits at `top: -22px`, so `anchor` is its top centre rather than its middle,
+/// and its height is a line box with two pixels of padding and a one pixel border around it.
 fn draw_badge(
     ui: &Ui,
-    centre: Vec2,
+    anchor: Vec2,
     zoom: f32,
     text: &str,
     color: Color,
@@ -1499,19 +1504,23 @@ fn draw_badge(
     let list = ui.draw_list().scaled(zoom);
     let size = controls::measure_tracked_scaled(ui, theme::face::BADGE, zoom, text, BADGE_TRACKING);
     let padding = [7.0 * zoom, 2.0 * zoom];
-    let min = [
-        centre[0] - size[0] / 2.0 - padding[0],
-        centre[1] - size[1] / 2.0 - padding[1],
-    ];
+    let border = 1.0 * zoom;
+    let line = f32::from(theme::FONT_SIZE_XS) * theme::UI_LINE_HEIGHT * zoom;
+    let inset = [padding[0] + border, padding[1] + border];
+    let min = [anchor[0] - size[0] / 2.0 - inset[0], anchor[1]];
     let max = [
-        centre[0] + size[0] / 2.0 + padding[0],
-        centre[1] + size[1] / 2.0 + padding[1],
+        min[0] + size[0] + inset[0] * 2.0,
+        min[1] + line + inset[1] * 2.0,
     ];
     list.rect(min, max, theme::BG.with_alpha(0.85), 3.0 * zoom, Rounding::All);
-    list.rect_outline(min, max, color, 3.0 * zoom, Rounding::All, 1.0 * zoom);
-    controls::draw_tracked_text_scaled(
+    list.rect_outline(min, max, color, 3.0 * zoom, Rounding::All, border);
+    // Dear ImGui starts a run at the top of its own line box, which is shorter than the one the
+    // browser lays out, so the two are centred on each other and the type sits where it does in
+    // the stylesheet rather than riding high in the box.
+    let text_top = min[1] + inset[1] + (line - size[1]) / 2.0;
+    controls::draw_faux_bold_tracked_scaled(
         ui,
-        [min[0] + padding[0], min[1] + padding[1]],
+        [min[0] + inset[0], text_top],
         color,
         theme::face::BADGE,
         zoom,
@@ -1521,7 +1530,7 @@ fn draw_badge(
     if let Some(subtitle) = subtitle {
         controls::draw_ellipsized_scaled(
             ui,
-            [centre[0] - 90.0 * zoom, min[1] - 13.0 * zoom],
+            [anchor[0] - 90.0 * zoom, min[1] - 13.0 * zoom],
             theme::TEXT.with_alpha(0.75),
             theme::face::TINY_MONO,
             zoom,
