@@ -30,8 +30,8 @@ sokol = { path = "../../vendor/sokol-rust" }
 
 # The D3D11 device and DXGI flip-model swapchain sokol_gfx draws through (`render::d3d11`), and
 # the staging-texture readback `--capture` reads its pixels back with (`render::readback`). The
-# typed crate rather than raw `windows-sys` because these are COM calls; nothing else names it,
-# and the feature list is only what those two files use.
+# typed crate rather than raw `windows-sys` because these are COM calls. The feature list is what
+# those two files use, plus the one call `platform.rs` makes to read the launch show command.
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
     "Win32_Foundation",
@@ -39,6 +39,7 @@ windows = { version = "0.62", features = [
     "Win32_Graphics_Direct3D11",        # ID3D11Device / context / render-target view
     "Win32_Graphics_Dxgi",              # IDXGIFactory2 / swapchain / device / adapter
     "Win32_Graphics_Dxgi_Common",       # DXGI_FORMAT / sample desc
+    "Win32_System_Threading",           # GetStartupInfoW: the launch show command
 ] }
 
 [build-dependencies]

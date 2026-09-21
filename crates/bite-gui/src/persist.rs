@@ -6,6 +6,13 @@ use crate::theme;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// The outer window rectangle, in *physical* pixels - the same units the monitor list is in,
+/// which is what [`Session::window_within`] measures it against.
+///
+/// When `maximized` is set, the rectangle is the one the window had *before* it was maximized:
+/// what Windows calls the restored placement, and what unmaximizing after a restart should give
+/// back. Storing the maximized rectangle here instead would grow the window to the monitor on
+/// every launch and leave nothing to restore down to.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct WindowBounds {
     pub x: i32,
@@ -122,6 +129,14 @@ impl Session {
     }
 
     /// Discards remembered bounds that no longer land on a visible monitor.
+    ///
+    /// The test is an *overlap* of the title area with a monitor, not containment of the window's
+    /// top-left corner. A window sitting against the top or the left edge of its monitor has a
+    /// negative outer position - Windows counts the invisible resize border in it - and a rule
+    /// that insisted the corner be on the monitor threw those bounds away on every launch.
+    ///
+    /// Whatever the rectangle, `maximized` survives: a window that was maximized when it closed
+    /// comes back maximized even if the restored rectangle underneath it has to be replaced.
     pub fn window_within(&self, monitors: &[(i32, i32, u32, u32)]) -> WindowBounds {
         if monitors.is_empty() {
             return self.window;
@@ -130,10 +145,10 @@ impl Session {
         let visible = monitors.iter().any(|(x, y, width, height)| {
             let right = x + *width as i32;
             let bottom = y + *height as i32;
-            // At least part of the title area must remain reachable.
-            bounds.x + 80 >= *x
-                && bounds.x <= right - 80
-                && bounds.y >= *y - 8
+            // At least 80px of the title bar must stay grabbable, horizontally and vertically.
+            bounds.x + bounds.width as i32 - 80 >= *x
+                && bounds.x + 80 <= right
+                && bounds.y + 40 >= *y
                 && bounds.y <= bottom - 40
         });
         if visible {
@@ -142,6 +157,7 @@ impl Session {
             WindowBounds {
                 x: monitors[0].0 + 80,
                 y: monitors[0].1 + 60,
+                maximized: bounds.maximized,
                 ..WindowBounds::default()
             }
         }
@@ -190,6 +206,42 @@ mod tests {
         };
         let bounds = session.window_within(&[(0, 0, 1920, 1080)]);
         assert!(bounds.x >= 0 && bounds.y >= 0);
+    }
+
+    #[test]
+    fn bounds_against_the_screen_edge_survive_the_visibility_test() {
+        // What a maximized window reports on Windows: the resize border hangs off every side.
+        let session = Session {
+            window: WindowBounds {
+                x: -11,
+                y: -11,
+                width: 2582,
+                height: 1391,
+                maximized: true,
+            },
+            panels: PanelSizes::default(),
+        };
+        let bounds = session.window_within(&[(0, 0, 2560, 1369)]);
+        assert_eq!(bounds.x, -11);
+        assert_eq!(bounds.y, -11);
+        assert!(bounds.maximized);
+    }
+
+    #[test]
+    fn a_maximized_window_stays_maximized_even_when_its_rectangle_is_replaced() {
+        let session = Session {
+            window: WindowBounds {
+                x: -4000,
+                y: -3000,
+                width: 1280,
+                height: 800,
+                maximized: true,
+            },
+            panels: PanelSizes::default(),
+        };
+        let bounds = session.window_within(&[(0, 0, 1920, 1080)]);
+        assert!(bounds.x >= 0 && bounds.y >= 0);
+        assert!(bounds.maximized);
     }
 
     #[test]

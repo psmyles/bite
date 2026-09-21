@@ -267,19 +267,32 @@ impl App {
             .collect();
         let bounds = session.window_within(&monitors);
 
+        // Physical pixels, both of them: that is what the bounds were measured in when they were
+        // stored, and what the monitor rectangles they were just checked against are in. A
+        // logical size here would grow the window by the display scale on every launch, because
+        // the stored number has already been through that scale once.
         let attributes = Window::default_attributes()
             .with_title("Untitled - Bite")
             .with_window_icon(icon::window_icon())
-            .with_inner_size(winit::dpi::LogicalSize::new(bounds.width, bounds.height))
-            .with_position(winit::dpi::LogicalPosition::new(bounds.x, bounds.y));
+            .with_inner_size(winit::dpi::PhysicalSize::new(bounds.width, bounds.height))
+            .with_position(winit::dpi::PhysicalPosition::new(bounds.x, bounds.y));
         let window = Arc::new(
             event_loop
                 .create_window(attributes)
                 .map_err(|error| error.to_string())?,
         );
         window.set_ime_allowed(true);
-        if bounds.maximized {
-            window.set_maximized(true);
+        // How the editor was asked to start wins over how it was left: a shortcut set to run
+        // maximized or minimized, or a `start /max`, says so in the launch show command.
+        match startup_show() {
+            Some(StartupShow::Maximized) => window.set_maximized(true),
+            Some(StartupShow::Minimized) => {
+                // The remembered state still applies underneath, so restoring from the taskbar
+                // gives back the window the user left rather than a bare rectangle.
+                window.set_maximized(bounds.maximized);
+                window.set_minimized(true);
+            }
+            None => window.set_maximized(bounds.maximized),
         }
         timing::report("window created");
 
@@ -337,6 +350,9 @@ impl App {
 
     fn draw(&mut self, event_loop: &ActiveEventLoop) {
         let Some(state) = &mut self.state else { return };
+
+        // Where the window is, once per frame rather than per event; see `remember_bounds`.
+        remember_bounds(state);
 
         // Background results are applied before the frame that shows them.
         while let Some(message) = state.editor.jobs.try_recv() {
@@ -596,24 +612,100 @@ fn handle_drop(state: &mut State, path: PathBuf) {
     }
 }
 
+/// Records the window's rectangle while it is in its ordinary state.
+///
+/// A maximized window reports the monitor and a minimized one reports nothing useful, so neither
+/// rectangle is worth restoring to; what has to be kept is the last one before the window went
+/// there - what Windows calls `rcNormalPosition`. It is called from the frame rather than from
+/// the resize, because a maximize is not visible in the window's state until both of the
+/// messages it arrives as have been handled, and a rectangle read between them is the maximized
+/// one wearing the ordinary state's clothes.
+///
+/// The pair stored is the outer position with the inner size, which is the pair [`App::create`]
+/// restores with, so a window that is closed and reopened lands where it was rather than
+/// creeping down by a title bar each time.
+fn remember_bounds(state: &mut State) {
+    let window = &state.surface.window;
+    if window.is_maximized() || window.is_minimized().unwrap_or(false) {
+        return;
+    }
+    let size = window.inner_size();
+    if size.width == 0 || size.height == 0 {
+        return;
+    }
+    let Ok(position) = window.outer_position() else {
+        return;
+    };
+    state.editor.session.window = persist::WindowBounds {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+        maximized: false,
+    };
+}
+
 /// Stores the window bounds and panel sizes for the next launch.
 fn save_session(state: &mut State) {
-    let window = &state.surface.window;
-    let size = window.inner_size();
-    let scale = window.scale_factor();
-    let position = window
-        .outer_position()
-        .map(|position| (position.x, position.y))
-        .unwrap_or((80, 60));
-    state.editor.session.window = persist::WindowBounds {
-        x: position.0,
-        y: position.1,
-        width: (f64::from(size.width) / scale) as u32,
-        height: (f64::from(size.height) / scale) as u32,
-        maximized: window.is_maximized(),
-    };
+    // The rectangle is whichever one `remember_bounds` last saw the window in its ordinary state
+    // at; only the flag is read from the window here, for the reason given there.
+    remember_bounds(state);
+    state.editor.session.window.maximized = state.surface.window.is_maximized();
     state.editor.session.save();
     logging::info("Editor closed");
+}
+
+/// Which state the process was launched to start in, when its launcher asked for one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// Only Windows has a launch show command, so only there is either variant ever built.
+#[cfg_attr(not(windows), allow(dead_code))]
+enum StartupShow {
+    Minimized,
+    Maximized,
+}
+
+/// Reads the show command the process was started with.
+///
+/// A shortcut set to "Run: Maximized" or "Minimized", a `start /max`, and anything else that
+/// fills in `STARTUPINFO` hands its show command to the *process*, not to its windows, and winit
+/// never looks at it - it shows every window with a plain `SW_SHOW`. So the editor reads it
+/// itself, and the window that comes up is the one the shortcut asked for.
+///
+/// `None` when the launcher expressed no preference, which is the common case, and the
+/// remembered state decides instead.
+#[cfg(windows)]
+fn startup_show() -> Option<StartupShow> {
+    use windows::Win32::System::Threading::{GetStartupInfoW, STARTF_USESHOWWINDOW, STARTUPINFOW};
+
+    // The `SW_*` values, which live in a `windows` feature this crate does not otherwise need.
+    const SW_SHOWMINIMIZED: u16 = 2;
+    const SW_SHOWMAXIMIZED: u16 = 3;
+    const SW_MINIMIZE: u16 = 6;
+    const SW_SHOWMINNOACTIVE: u16 = 7;
+
+    let mut info = STARTUPINFOW {
+        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
+        ..Default::default()
+    };
+    // SAFETY: `info` is a correctly sized, zeroed STARTUPINFOW that the call only writes into.
+    unsafe { GetStartupInfoW(&mut info) };
+    // `wShowWindow` holds nothing unless the launcher said that it does.
+    if !info.dwFlags.contains(STARTF_USESHOWWINDOW) {
+        return None;
+    }
+    Some(match info.wShowWindow {
+        SW_SHOWMAXIMIZED => StartupShow::Maximized,
+        SW_SHOWMINIMIZED | SW_MINIMIZE | SW_SHOWMINNOACTIVE => StartupShow::Minimized,
+        // `SW_SHOWNORMAL` is what an ordinary shortcut carries, so it is not a request to come
+        // up unmaximized - it is the absence of one, and the remembered state answers it.
+        _ => return None,
+    })
+}
+
+/// No other platform hands the process a show command, so the remembered state is all there is.
+#[cfg(not(windows))]
+fn startup_show() -> Option<StartupShow> {
+    None
 }
 
 /// Maps a physical key to the interface's key set.
