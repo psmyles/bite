@@ -60,7 +60,7 @@ fn assert_value(actual: &Value, expected: &J, label: &str) {
 #[test]
 fn all_converted_definitions_compile_and_match_valid_reference_cases() {
     let mut count = 0;
-    for file in fs::read_dir(root().join("node-definitions-v2")).unwrap() {
+    for file in fs::read_dir(root().join("node-definitions")).unwrap() {
         let file = file.unwrap();
         let d: NodeDefinition =
             serde_json::from_str(&fs::read_to_string(file.path()).unwrap()).unwrap();
@@ -155,7 +155,7 @@ fn all_converted_definitions_compile_and_match_valid_reference_cases() {
 }
 #[test]
 fn formats_match_reference_with_documented_png_override() {
-    for file in fs::read_dir(root().join("format-definitions-v2")).unwrap() {
+    for file in fs::read_dir(root().join("format-definitions")).unwrap() {
         let d: FormatDefinition =
             serde_json::from_str(&fs::read_to_string(file.unwrap().path()).unwrap()).unwrap();
         d.validate().unwrap();

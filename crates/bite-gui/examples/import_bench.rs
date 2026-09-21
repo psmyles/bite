@@ -1,5 +1,5 @@
 //! Times a cached re-import, the way the filmstrip does one.
-use bite_gui_prototype::work;
+use bite_gui::work;
 use std::{path::PathBuf, sync::{Arc, atomic::AtomicBool}, time::Instant};
 
 fn main() {

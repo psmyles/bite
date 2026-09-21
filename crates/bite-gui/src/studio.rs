@@ -99,8 +99,8 @@ pub struct Studio {
 impl Studio {
     pub fn load_registry(root: &Path) -> Result<Registry, String> {
         Registry::load(
-            &root.join("node-definitions-v2"),
-            &root.join("format-definitions-v2"),
+            &root.join("node-definitions"),
+            &root.join("format-definitions"),
         )
     }
 

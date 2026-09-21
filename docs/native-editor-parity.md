@@ -16,7 +16,7 @@ reference behaviour.
 | Fonts | `assets/fonts.css` | Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and weight `theme.css` asks for, covering Latin-1 and General Punctuation. The interface is English and no other script is rasterized, so a name outside Latin draws as a question mark per character. Each face is rasterized so its em equals the token's pixel size, which is what `font-size` means; Dear ImGui's own parameter is the ascender-to-descender distance instead. The atlas is built at the nearest whole pixel and drawn at the exact one, and advances are left unsnapped, so a measured string is the width the stylesheet gives it |
 | Menu dropdowns | `MenuBar.svelte` | Rows padded five pixels above and below with the accelerator on the right, inside a dropdown padded four pixels above its first row and below its last |
 | Inspector dropdowns | `Dropdown.svelte` | The open list gives each row the five by ten padding `.dd-item` names, pads four pixels top and bottom, and scrolls after eight rows |
-| Design tokens | `assets/theme.css` | Transcribed into `crates/bite-gui-prototype/src/theme.rs`; drawing code reads tokens, never literals |
+| Design tokens | `assets/theme.css` | Transcribed into `crates/bite-gui/src/theme.rs`; drawing code reads tokens, never literals |
 | Canvas | `@xyflow/svelte` | A Rust-owned canvas drawn on ImGui draw lists, so gestures and visuals are not constrained by an add-on |
 | Panels | `App.svelte` | Fixed three-column shell with invisible six-pixel drag gaps; docking is removed |
 
@@ -189,9 +189,9 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
 Offscreen comparison shots are produced by:
 
 ```powershell
-cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity
-cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity-wf test-workflows/wf-05-meanlogic.bite
-cargo run --offline -p bite-gui-prototype -- --capture test-workflows/out/parity-2x test-workflows/wf-05-meanlogic.bite 2
+cargo run --offline -p bite-gui -- --capture test-workflows/out/parity
+cargo run --offline -p bite-gui -- --capture test-workflows/out/parity-wf test-workflows/wf-05-meanlogic.bite
+cargo run --offline -p bite-gui -- --capture test-workflows/out/parity-2x test-workflows/wf-05-meanlogic.bite 2
 ```
 
 Each run writes one image per scene: the seed document, a selected node, the creation menu,

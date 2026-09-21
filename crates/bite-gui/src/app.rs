@@ -102,7 +102,7 @@ pub fn definitions_root() -> PathBuf {
     // to the source tree.
     if let Ok(executable) = std::env::current_exe() {
         if let Some(directory) = executable.parent() {
-            if directory.join("node-definitions-v2").is_dir() {
+            if directory.join("node-definitions").is_dir() {
                 return directory.to_path_buf();
             }
         }

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/bite-schema", "crates/bite-expr", "crates/bite-core", "crates/bite-imagemagick", "crates/bite-cli", "crates/bite-imgui-sys", "crates/bite-imgui", "crates/bite-gui-prototype"]
+members = ["crates/bite-schema", "crates/bite-expr", "crates/bite-core", "crates/bite-imagemagick", "crates/bite-cli", "crates/bite-imgui-sys", "crates/bite-imgui", "crates/bite-gui"]
 
 # The product version, and what the GUI's update check compares against the latest
 # GitHub release. It was carried over from the package manifest the Electron build used.

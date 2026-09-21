@@ -5,8 +5,8 @@ fn root() -> PathBuf {
 }
 fn registry() -> Registry {
     Registry::load(
-        &root().join("node-definitions-v2"),
-        &root().join("format-definitions-v2"),
+        &root().join("node-definitions"),
+        &root().join("format-definitions"),
     )
     .unwrap()
 }

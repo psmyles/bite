@@ -349,8 +349,8 @@ mod tests {
     fn text_preview_uses_normal_text_output_resolution_without_configured_path() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let registry = Registry::load(
-            &root.join("node-definitions-v2"),
-            &root.join("format-definitions-v2"),
+            &root.join("node-definitions"),
+            &root.join("format-definitions"),
         )
         .unwrap();
         let node = |id: &str, kind: NodeKind, definition_id: &str, params| GraphNode {

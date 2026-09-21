@@ -119,10 +119,10 @@ else {
 
 # --- 4. Build the release binaries --------------------------------------------
 if (-not $SkipBuild) {
-    Write-Step 'Building release binaries (cargo build --release -p bite-gui-prototype -p bite-cli)'
+    Write-Step 'Building release binaries (cargo build --release -p bite-gui -p bite-cli)'
     Push-Location $RepoRoot
     try {
-        & cargo build --release -p bite-gui-prototype -p bite-cli
+        & cargo build --release -p bite-gui -p bite-cli
         if ($LASTEXITCODE -ne 0) { throw "cargo build failed (exit $LASTEXITCODE)." }
     }
     finally {
@@ -154,7 +154,7 @@ if ($magickSize -lt 1MB) {
     throw "$magickExe is only $magickSize bytes - that is a Git LFS pointer, not the binary. Run ``git lfs pull``."
 }
 
-foreach ($definitions in 'node-definitions-v2', 'format-definitions-v2') {
+foreach ($definitions in 'node-definitions', 'format-definitions') {
     $dir = Join-Path $RepoRoot $definitions
     $count = @(Get-ChildItem -Path $dir -Filter '*.json' -ErrorAction SilentlyContinue).Count
     if ($count -eq 0) { throw "No definitions found in $dir - the install would have no nodes." }

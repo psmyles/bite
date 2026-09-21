@@ -9,8 +9,8 @@ use std::{fs, path::PathBuf};
 fn concrete_plan_matches_original_commands_without_writing_outputs() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     let graph = workflow::load(
@@ -87,8 +87,8 @@ fn concrete_plan_matches_original_commands_without_writing_outputs() {
 fn analysis_dependencies_are_explicit_and_can_be_replayed() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     let fixture = fs::read_dir(root.join("test-workflows"))
@@ -197,8 +197,8 @@ fn analysis_dependencies_are_explicit_and_can_be_replayed() {
 fn format_and_atlas_plans_match_original_command_goldens() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     for id in ["wf-08", "wf-10"] {
@@ -331,8 +331,8 @@ fn native_copy_gate_rename_and_report_plans_preserve_fixture_behavior() {
     use bite_schema::{BuiltinNodeKind as B, NodeKind, ParamValue};
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     let baseline: Vec<Vec<String>> = serde_json::from_str(
@@ -457,8 +457,8 @@ fn solid_image_plan_records_the_documented_native_fill() {
     use bite_schema::ParamValue;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     let mut graph = workflow::load(
@@ -542,8 +542,8 @@ fn solid_only_output_uses_the_unique_workflow_input_for_dimensions() {
     use bite_schema::{BuiltinNodeKind as B, GraphEdge, NodeKind, ParamValue};
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     let mut graph = workflow::load(
@@ -655,8 +655,8 @@ fn channel_and_set_plans_record_fused_native_structure() {
     use bite_schema::{BuiltinNodeKind as B, NodeKind, ParamValue};
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     for (id, names) in [

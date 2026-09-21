@@ -7,7 +7,7 @@
 //! terminal is where the developer is already looking.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use bite_gui_prototype::smoke;
+use bite_gui::smoke;
 use std::path::{Path, PathBuf};
 
 /// Borrows the launching terminal's console, when the process was started from one.
@@ -56,7 +56,7 @@ fn main() {
         .iter()
         .find(|argument| !argument.starts_with("--"))
         .map(PathBuf::from);
-    if let Err(error) = bite_gui_prototype::app::run(initial) {
+    if let Err(error) = bite_gui::app::run(initial) {
         fail(&error, console);
     }
 }
@@ -70,7 +70,7 @@ fn fail(error: &str, console: bool) -> ! {
     if console {
         eprintln!("{error}");
     } else {
-        bite_gui_prototype::dialogs::message("Bite", error);
+        bite_gui::dialogs::message("Bite", error);
     }
     std::process::exit(1);
 }

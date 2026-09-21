@@ -3,8 +3,8 @@
 Run the editor from the repository root:
 
 ```powershell
-cargo run --offline -p bite-gui-prototype
-cargo run --offline -p bite-gui-prototype -- test-workflows\wf-01-fastpath.bite
+cargo run --offline -p bite-gui
+cargo run --offline -p bite-gui -- test-workflows\wf-01-fastpath.bite
 ```
 
 Use a copy of a workflow while checking save behavior. Electron stays the reference and
@@ -156,9 +156,9 @@ row, a colour row, a column of process cards, an open menu, an open inspector li
 and every dialog at both 1x and 2x scale:
 
 ```powershell
-cargo run --offline -p bite-gui-prototype -- --capture test-workflows\out\parity
-cargo run --offline -p bite-gui-prototype -- --capture test-workflows\out\parity-wf test-workflows\wf-05-meanlogic.bite
-cargo run --offline -p bite-gui-prototype -- --capture test-workflows\out\parity-2x test-workflows\wf-05-meanlogic.bite 2
+cargo run --offline -p bite-gui -- --capture test-workflows\out\parity
+cargo run --offline -p bite-gui -- --capture test-workflows\out\parity-wf test-workflows\wf-05-meanlogic.bite
+cargo run --offline -p bite-gui -- --capture test-workflows\out\parity-2x test-workflows\wf-05-meanlogic.bite 2
 ```
 
 The first clean-machine packaged run belongs to Phase 11, because no native package exists yet.

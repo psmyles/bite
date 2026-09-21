@@ -111,8 +111,8 @@ mod tests {
     fn registry() -> Registry {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         Registry::load(
-            &root.join("node-definitions-v2"),
-            &root.join("format-definitions-v2"),
+            &root.join("node-definitions"),
+            &root.join("format-definitions"),
         )
         .unwrap()
     }

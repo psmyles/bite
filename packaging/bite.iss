@@ -89,8 +89,8 @@ Name: "desktopicon"; GroupDescription: "Additional icons:"; \
 Source: "..\target\release\{#MyAppExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\target\release\{#MyAppCliExe}"; DestDir: "{app}"; Flags: ignoreversion
 ; Node and format definitions ship as plain JSON so users can add their own.
-Source: "..\node-definitions-v2\*.json"; DestDir: "{app}\node-definitions-v2"; Flags: ignoreversion
-Source: "..\format-definitions-v2\*.json"; DestDir: "{app}\format-definitions-v2"; Flags: ignoreversion
+Source: "..\node-definitions\*.json"; DestDir: "{app}\node-definitions"; Flags: ignoreversion
+Source: "..\format-definitions\*.json"; DestDir: "{app}\format-definitions"; Flags: ignoreversion
 ; Bundled ImageMagick. Both binaries resolve <exe dir>\magick\magick.exe first, so no PATH
 ; install of ImageMagick is needed.
 Source: "..\resources\win\magick\*"; DestDir: "{app}\magick"; \

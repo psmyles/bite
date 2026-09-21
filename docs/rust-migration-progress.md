@@ -909,7 +909,7 @@ every preview opened the source file twice over. Four costs, all of them process
 The header parser also names the format from the signature now, so a `.jpg` reads as `JPEG`
 rather than `JPG`, matching both `identify` and Electron's own header path.
 
-`cargo run -p bite-gui-prototype --example import_bench -- <folder>` times a cold and a warm
+`cargo run -p bite-gui --example import_bench -- <folder>` times a cold and a warm
 import of a folder, which is how the figures above were taken.
 
 ### What the Electron pipeline optimizes, and where the native one stands (2026-09-20)

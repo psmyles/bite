@@ -11,7 +11,7 @@
                                                   Setup wizard icon
     build/icons/icon.ico                        - the same ICO, kept beside the
                                                   master set
-    crates/bite-gui-prototype/assets/icon-256.png - the window / taskbar icon the
+    crates/bite-gui/assets/icon-256.png - the window / taskbar icon the
                                                   editor decodes at startup
 
   The macOS icon (build/icons/mac/) is compiled separately from
@@ -46,8 +46,8 @@ Copy-Item $icoOut (Join-Path $root 'build\icons\icon.ico') -Force
 # --- Runtime window icon -----------------------------------------------------
 # include_bytes!-embedded by the editor and decoded at startup (see icon.rs), so
 # it lives inside the crate rather than in the packaging assets.
-Write-Host '==> Generating crates\bite-gui-prototype\assets\icon-256.png' -ForegroundColor Cyan
-$assets = Join-Path $root 'crates\bite-gui-prototype\assets'
+Write-Host '==> Generating crates\bite-gui\assets\icon-256.png' -ForegroundColor Cyan
+$assets = Join-Path $root 'crates\bite-gui\assets'
 New-Item -ItemType Directory -Force -Path $assets | Out-Null
 & $magick $source -background none -resize 256x256 -strip (Join-Path $assets 'icon-256.png')
 if ($LASTEXITCODE -ne 0) { throw "magick failed to build icon-256.png (exit $LASTEXITCODE)" }
@@ -55,4 +55,4 @@ if ($LASTEXITCODE -ne 0) { throw "magick failed to build icon-256.png (exit $LAS
 Write-Host 'Done. Regenerated:' -ForegroundColor Green
 Write-Host '  build/icon.ico'
 Write-Host '  build/icons/icon.ico'
-Write-Host '  crates/bite-gui-prototype/assets/icon-256.png'
+Write-Host '  crates/bite-gui/assets/icon-256.png'

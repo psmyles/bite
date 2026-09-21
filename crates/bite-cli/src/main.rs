@@ -603,12 +603,10 @@ fn load_registry() -> Result<bite_core::Registry, String> {
     }
     roots.push(env::current_dir().map_err(|e| e.to_string())?);
     for root in roots {
-        for suffix in ["-v2", ""] {
-            let nodes = root.join(format!("node-definitions{suffix}"));
-            let formats = root.join(format!("format-definitions{suffix}"));
-            if nodes.is_dir() && formats.is_dir() {
-                return bite_core::Registry::load(&nodes, &formats);
-            }
+        let nodes = root.join("node-definitions");
+        let formats = root.join("format-definitions");
+        if nodes.is_dir() && formats.is_dir() {
+            return bite_core::Registry::load(&nodes, &formats);
         }
     }
     Err("Cannot find node and format definitions; set BITE_RESOURCES".into())

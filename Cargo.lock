@@ -276,7 +276,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bite-gui-prototype"
+name = "bite-gui"
 version = "0.5.0"
 dependencies = [
  "arboard",

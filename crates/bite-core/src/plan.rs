@@ -580,8 +580,8 @@ mod tests {
     fn fact_provenance_rejects_changed_files_tools_and_plans() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let registry = Registry::load(
-            &root.join("node-definitions-v2"),
-            &root.join("format-definitions-v2"),
+            &root.join("node-definitions"),
+            &root.join("format-definitions"),
         )
         .unwrap();
         let mut graph = crate::workflow::load(

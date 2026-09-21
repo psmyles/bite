@@ -2,7 +2,7 @@ use bite_schema::*;
 use serde_json::{json, Value};
 
 fn node() -> Value {
-    serde_json::from_str(include_str!("../../../node-definitions-v2/posterize.json")).unwrap()
+    serde_json::from_str(include_str!("../../../node-definitions/posterize.json")).unwrap()
 }
 fn workflow() -> Value {
     json!({"schema_version":2,"created_with":"test","graph":{"nodes":[{"id":"input","type":"inputNode","position":{"x":0,"y":0},"data":{"label":"Input","definitionId":"","params":{"thumbnailSize":256,"cliName":"in"}}}],"edges":[],"viewport":{"x":0,"y":0,"zoom":1}}})

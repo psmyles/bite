@@ -20,8 +20,8 @@ earlier Electron/Svelte renderer, kept on the `main` branch; it is not built fro
 - **Live preview** - real-time pipeline output on the selected image, node-level cached
 - **CLI export** - export any workflow as a standalone script (PowerShell, Bash, or Windows Command Prompt)
 - **Workflow files** - save and load pipelines as `.bite` JSON; double-clicking a `.bite` file opens it directly in the app; version compatibility is checked on open
-- **Per-format export settings** - format-specific encoding controls (JPEG quality/chroma/progressive, WebP lossless, PNG compression, AVIF effort, ...) driven by data files in `format-definitions-v2/`
-- **Extensible** - add new nodes by dropping a JSON file into `node-definitions-v2/`, no recompile needed
+- **Per-format export settings** - format-specific encoding controls (JPEG quality/chroma/progressive, WebP lossless, PNG compression, AVIF effort, ...) driven by data files in `format-definitions/`
+- **Extensible** - add new nodes by dropping a JSON file into `node-definitions/`, no recompile needed
 - **Pure-value graph** - math, logic, and value constant nodes with typed wires route parameters without touching the image pipeline
 - **Node groups & comments** - visually organise your graph with resizable containers and sticky notes
 - **Undo / redo** - full history for all graph edits
@@ -55,7 +55,7 @@ earlier Electron/Svelte renderer, kept on the `main` branch; it is not built fro
 ### Development
 
 ```bash
-cargo run -p bite-gui-prototype     # the editor
+cargo run -p bite-gui     # the editor
 cargo run -p bite-cli -- --help     # the CLI
 cargo test                          # unit, definition-parity and planning tests
 pwsh test-workflows/run-tests.ps1   # end-to-end ImageMagick execution (Windows)
@@ -83,8 +83,8 @@ the payload (bundled ImageMagick, node and format definitions, license notices) 
 files read it into the executables' Windows version resources, and the packaging script passes it
 to the installer. Bump it there and re-run the script.
 
-The installer lays both binaries out in one directory with `node-definitions-v2/`,
-`format-definitions-v2/` and `magick/` beside them, which is how each finds the other's
+The installer lays both binaries out in one directory with `node-definitions/`,
+`format-definitions/` and `magick/` beside them, which is how each finds the other's
 resources. It offers the `.bite` file association, a PATH entry for the CLI and a desktop
 shortcut, and installs per-user by default (`%LOCALAPPDATA%\Programs\Bite`, where the Unity
 integration in `unity-tools/` looks for it) or machine-wide when elevated.
@@ -93,7 +93,7 @@ integration in `unity-tools/` looks for it) or machine-wide when elevated.
 
 `build/icons/icon.png` is the one master. `scripts/generate-icons.ps1` renders it into
 `build/icon.ico` (embedded in both executables by their `build.rs`, and the installer's wizard
-icon) and `crates/bite-gui-prototype/assets/icon-256.png` (the window and taskbar icon). The
+icon) and `crates/bite-gui/assets/icon-256.png` (the window and taskbar icon). The
 packaging script runs it for you.
 
 #### macOS

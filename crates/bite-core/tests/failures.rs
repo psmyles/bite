@@ -43,8 +43,8 @@ impl ImageHost for FailingHost {
 fn failed_images_preserve_existing_outputs_and_cancellation_still_stops_batch() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     let graph = workflow::load(
@@ -101,8 +101,8 @@ fn failed_images_preserve_existing_outputs_and_cancellation_still_stops_batch() 
 fn text_output_matches_legacy_empty_and_fully_filtered_behavior() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     let mut graph = workflow::load(
@@ -221,8 +221,8 @@ fn text_output_matches_legacy_empty_and_fully_filtered_behavior() {
 fn failed_atlas_process_is_fatal_and_preserves_existing_output() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let registry = Registry::load(
-        &root.join("node-definitions-v2"),
-        &root.join("format-definitions-v2"),
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
     )
     .unwrap();
     let graph = workflow::load(

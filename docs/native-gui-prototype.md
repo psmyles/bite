@@ -27,7 +27,7 @@ reached; they remain on `main`.
   has no BITE schema or pipeline dependency. Its test builds the atlas, measures text, renders
   frames and rebuilds the atlas for a new display scale.
 
-- `bite-gui-prototype` is the editor, and builds as `bite-gui.exe` - the name the installer
+- `bite-gui` is the editor, and builds as `bite-gui.exe` - the name the installer
   ships and the `.bite` association points at: a winit window, an owned wgpu renderer, and the
   modules that mirror the Electron renderer. `build.rs` reads `product.json` for the version and
   embeds it with `build/icon.ico` into the executable; `icon.rs` decodes the window icon. `theme.rs` transcribes `src/renderer/assets/theme.css`,
@@ -68,8 +68,8 @@ request; with no chain to run, the thumbnail the filmstrip holds is shown direct
 ## Running
 
 ```
-cargo run -p bite-gui-prototype
-cargo run -p bite-gui-prototype -- workflow.bite
+cargo run -p bite-gui
+cargo run -p bite-gui -- workflow.bite
 ```
 
 ## Offscreen capture
@@ -79,9 +79,9 @@ with Electron. It writes one image per scene: the seed document, a selected node
 menu, a comment card, a slider row, a colour row, a column of process cards, an open menu, an open inspector list, a wire-drop menu, a tooltip, a previewing badge, the log window, the interface showcase, a folder path, an output inspector, the Resize inspector, the Rename inspector, and every dialog.
 
 ```
-cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity
-cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity-wf test-workflows/wf-05-meanlogic.bite
-cargo run -p bite-gui-prototype -- --capture test-workflows/out/parity-2x test-workflows/wf-05-meanlogic.bite 2
+cargo run -p bite-gui -- --capture test-workflows/out/parity
+cargo run -p bite-gui -- --capture test-workflows/out/parity-wf test-workflows/wf-05-meanlogic.bite
+cargo run -p bite-gui -- --capture test-workflows/out/parity-2x test-workflows/wf-05-meanlogic.bite 2
 ```
 
 A release build is a Windows GUI-subsystem binary, so it opens no console of its own (see
@@ -105,7 +105,7 @@ the same job threads.
 ## Timing an import
 
 ```
-cargo run -p bite-gui-prototype --example import_bench -- <folder of images>
+cargo run -p bite-gui --example import_bench -- <folder of images>
 ```
 
 It reports a cold pass, which makes the thumbnails, and a warm one, which should cost only
