@@ -1,5 +1,5 @@
 //! Direct drawing. The node canvas and every custom visual are painted through this.
-use crate::{Color, Face, Ui, Vec2, c, v};
+use crate::{Color, Face, Ui, Vec2, c, texture_ref, v};
 use bite_imgui_sys as sys;
 
 /// Which corners a rounded rectangle rounds.
@@ -64,8 +64,8 @@ impl DrawListRef<'_> {
                 v(max),
                 color.packed(),
                 radius,
-                corners.flags(),
                 thickness,
+                corners.flags(),
             )
         }
     }
@@ -191,7 +191,7 @@ impl DrawListRef<'_> {
         unsafe {
             sys::ImDrawList_AddImage(
                 self.raw,
-                texture as sys::ImTextureID,
+                texture_ref(texture),
                 v(min),
                 v(max),
                 v([0.0, 0.0]),
@@ -205,7 +205,7 @@ impl DrawListRef<'_> {
         unsafe {
             sys::ImDrawList_AddImageRounded(
                 self.raw,
-                texture as sys::ImTextureID,
+                texture_ref(texture),
                 v(min),
                 v(max),
                 v([0.0, 0.0]),

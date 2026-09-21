@@ -187,6 +187,33 @@ impl Renderer {
         );
     }
 
+    /// Honours the texture work Dear ImGui asked for after the frame it belongs to.
+    ///
+    /// Since 1.92 the font atlas is the library's to grow rather than the host's to build: a
+    /// frame that draws a size or a character no earlier frame did arrives with an upload
+    /// attached. The requests carry their own identifiers, in a half of the identifier space
+    /// that cannot collide with the editor's own images, so there is nothing to reconcile - an
+    /// upload replaces whatever was there and a destroy drops it.
+    pub fn apply_texture_requests(&mut self, requests: &[bite_imgui::TextureRequest]) {
+        for request in requests {
+            match &request.action {
+                bite_imgui::TextureAction::Upload {
+                    width,
+                    height,
+                    coverage,
+                    pixels,
+                } => {
+                    if *coverage {
+                        self.coverage_texture(request.id, *width, *height, pixels);
+                    } else {
+                        self.texture(request.id, *width, *height, pixels);
+                    }
+                }
+                bite_imgui::TextureAction::Destroy => self.free_texture(request.id),
+            }
+        }
+    }
+
     /// Releases a texture, which the filmstrip does when a branch's thumbnails are replaced.
     pub fn free_texture(&mut self, id: u64) {
         self.textures.remove(&id);

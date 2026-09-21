@@ -181,10 +181,17 @@ fn cli_name_section(
 }
 
 /// A label on the left with a checkbox against the right edge of the section.
+/// The gap a checkbox row leaves below itself.
+const ROW_GAP: f32 = 2.0;
+
 fn checkbox_row(ui: &mut Ui, id: &str, label: &str, width: f32, value: &mut bool) -> bool {
     let origin = ui.cursor_screen_position();
     let height = theme::CHECKBOX_SIZE;
-    ui.dummy([width, height]);
+    // The row reserves its own height *and* the two pixels of gap it leaves behind it, because
+    // the last thing it does is put the cursor there. Reserving only the height and then moving
+    // past it leaves the cursor outside the parent's content extent with no item to grow it,
+    // which since 1.92 Dear ImGui reports as the layout error it has always been.
+    ui.dummy([width, height + ROW_GAP]);
     let list = ui.draw_list();
     let text_size = list.measure(theme::face::LABEL, label);
     // `.log-toggle` and `.checkbox-label` take the bright text at full strength. This is a
@@ -198,7 +205,7 @@ fn checkbox_row(ui: &mut Ui, id: &str, label: &str, width: f32, value: &mut bool
     );
     ui.set_cursor_screen_position([origin[0] + width - theme::CHECKBOX_SIZE, origin[1]]);
     let changed = controls::checkbox(ui, id, value);
-    ui.set_cursor_screen_position([origin[0], origin[1] + height + 2.0]);
+    ui.set_cursor_screen_position([origin[0], origin[1] + height + ROW_GAP]);
     changed
 }
 

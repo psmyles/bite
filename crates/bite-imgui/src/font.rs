@@ -76,17 +76,6 @@ impl Face {
             size,
         }
     }
-
-    fn data(self) -> &'static [u8] {
-        match (self.family, self.weight) {
-            (Family::Ui, Weight::Regular) => UI_REGULAR,
-            (Family::Ui, Weight::SemiBold) => UI_SEMIBOLD,
-            (Family::Ui, Weight::Bold) => UI_BOLD,
-            (Family::Mono, Weight::Regular) => MONO_REGULAR,
-            (Family::Mono, Weight::SemiBold) => MONO_SEMIBOLD,
-            (Family::Mono, Weight::Bold) => MONO_BOLD,
-        }
-    }
 }
 
 /// Every face the interface needs, derived from the size and weight tokens in `theme.css`.
@@ -116,27 +105,30 @@ pub fn default_faces() -> Vec<Face> {
     faces
 }
 
-/// The codepoints every face is rasterized for.
+/// The codepoints the faces may be rasterized for: all of them.
 ///
-/// Dear ImGui's own default stops at the end of Latin-1, which leaves the em dash, the
-/// ellipsis and the curly quotes as missing-glyph boxes even in English text. General
-/// Punctuation adds those for seventeen glyphs in the interface face and thirty two in the
-/// monospaced one, which is nothing against an atlas this size.
+/// Since 1.92 Dear ImGui rasterizes a glyph the first time it is drawn, so a range is no longer a
+/// list of what to bake - it is only a filter on what *may* be baked. Passing none is the 1.92
+/// default: the interface is English, an unseen codepoint costs nothing until something asks for
+/// it, and a codepoint the font has no glyph for still falls back to a missing-glyph box.
 ///
-/// Nothing beyond Latin is covered. The interface is English, and a name that cannot be
-/// drawn falls back to a question mark per character rather than failing.
-static GLYPH_RANGES: [sys::ImWchar; 5] = [
-    0x0020, 0x00FF, // Basic Latin and Latin-1 Supplement
-    0x2000, 0x206F, // General Punctuation
-    0,
-];
+/// The old list stopped at the end of Latin-1 plus General Punctuation, chosen so the em dash,
+/// the ellipsis and the curly quotes would not be boxes in an atlas that had to be sized up
+/// front. On demand, that concern goes away.
+const NO_GLYPH_RANGES: *const sys::ImWchar = std::ptr::null();
+
+/// The size the six fonts are registered at.
+///
+/// Every draw names its own size, so this is only the value `ImFont::LegacySize` reports and is
+/// never what anything is drawn at.
+const REGISTERED_SIZE: f32 = 13.0;
 
 /// The factor between a face's CSS pixel size and the size Dear ImGui must be asked for.
 ///
-/// `ImFontConfig::SizePixels` is fed to `stbtt_ScaleForPixelHeight`, which scales the font so
-/// that ascender minus descender equals that many pixels. A stylesheet's `font-size` is the em
-/// size instead. The two differ by `(ascender - descender) / unitsPerEm`, which is 1.32 for
-/// JetBrains Mono: asking for twelve there would draw an em of nine, three quarters of the
+/// The size handed to `AddFontFromMemoryTTF` - and, since 1.92, to `igPushFont` - is fed to the
+/// rasterizer as "make ascender minus descender this many pixels". A stylesheet's `font-size` is
+/// the em size instead. The two differ by `(ascender - descender) / unitsPerEm`, which is 1.32
+/// for JetBrains Mono: asking for twelve there would draw an em of nine, three quarters of the
 /// size the stylesheet asked for. Multiplying by this factor makes the em come out right.
 fn em_to_pixel_height(data: &[u8]) -> f32 {
     fn u16_at(data: &[u8], offset: usize) -> Option<u16> {
@@ -169,18 +161,62 @@ fn em_to_pixel_height(data: &[u8]) -> f32 {
     parsed.unwrap_or(1.0)
 }
 
-/// Handle to one face inside the current atlas.
+/// Handle to one face in the face list.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct FontId(pub(crate) usize);
 
-/// The built atlas: the face list, the matching ImGui font pointers and the texture pixels.
+/// How many fonts are registered: the two families in three weights each.
+const REGISTERED: usize = 6;
+
+/// Which of the registered fonts a family and weight is.
+fn slot(family: Family, weight: Weight) -> usize {
+    let family = match family {
+        Family::Ui => 0,
+        Family::Mono => 1,
+    };
+    let weight = match weight {
+        Weight::Regular => 0,
+        Weight::SemiBold => 1,
+        Weight::Bold => 2,
+    };
+    family * 3 + weight
+}
+
+/// The font file behind one of the registered slots.
+fn slot_data(slot: usize) -> &'static [u8] {
+    match slot {
+        0 => UI_REGULAR,
+        1 => UI_SEMIBOLD,
+        2 => UI_BOLD,
+        3 => MONO_REGULAR,
+        4 => MONO_SEMIBOLD,
+        _ => MONO_BOLD,
+    }
+}
+
+/// The registered fonts: the face list the stylesheet names, and the `ImFont` and logical size
+/// each of those faces resolves to.
+///
+/// Since 1.92 a font is no longer a size. One `ImFont` per family and weight covers every size
+/// the stylesheet asks for, because the size is chosen at `igPushFont` time and the glyphs for it
+/// are rasterized when they are first drawn. So [`REGISTERED`] fonts are registered - not one per
+/// [`Face`] - and `handles` maps each face onto whichever of the six it draws through.
+///
+/// Registration rasterizes nothing, which is why there is no atlas to build at startup and none
+/// to rebuild when the display scale changes.
 pub struct Fonts {
     pub(crate) faces: Vec<Face>,
+    /// The `ImFont` each face draws through: one of the six, repeated.
     pub(crate) handles: Vec<*mut sys::ImFont>,
-    /// The size each face was asked for, in logical pixels. This is the face's CSS size
-    /// corrected by [`em_to_pixel_height`], and it is what drawing and measuring must use.
+    /// The size each face is pushed at, in logical pixels. This is the face's CSS size corrected
+    /// by [`em_to_pixel_height`], and it is what drawing and measuring must use.
     pub(crate) heights: Vec<f32>,
-
+    /// The display scale the interface is being drawn at, which the host reads back.
+    ///
+    /// It is baked into nothing. Glyph *metrics* stay logical because the pushed size is logical,
+    /// and glyph *bitmaps* follow `io.DisplayFramebufferScale`, which Dear ImGui turns into the
+    /// rasterizer density itself once the renderer claims
+    /// `ImGuiBackendFlags_RendererHasTextures` (`imgui.cpp`, `SetCurrentWindow`).
     scale: f32,
 }
 
@@ -201,12 +237,12 @@ impl Fonts {
         let Some(handle) = self.handles.get(id.0).copied().filter(|h| !h.is_null()) else {
             return [0.0, 0.0];
         };
-        let size = self.heights.get(id.0).copied().unwrap_or_default() * scale;
+        // Dear ImGui rounds the size it draws at (`GetRoundedFontSize`), so a measurement taken
+        // at the unrounded size would not describe the glyphs that land on screen.
+        let size = rounded(self.heights.get(id.0).copied().unwrap_or_default() * scale);
         let text = std::ffi::CString::new(text).unwrap_or_default();
-        let mut out = sys::ImVec2::default();
-        unsafe {
+        let out = unsafe {
             sys::ImFont_CalcTextSizeA(
-                &mut out,
                 handle,
                 size,
                 f32::MAX,
@@ -219,43 +255,41 @@ impl Fonts {
         [out.x, out.y]
     }
 
-    /// Rebuilds the atlas at `scale`, rasterizing every face at its physical size.
+    /// Registers the six fonts and maps every face onto one of them.
+    ///
+    /// Nothing is rasterized here: `AddFontFromMemoryTTF` in 1.92 reads the font tables and
+    /// returns. The first glyph of a given font and size is rasterized when it is first drawn and
+    /// uploaded by the renderer inside that frame, which is why the editor pays no atlas cost
+    /// before its first frame and none at all for text it never shows.
     pub(crate) fn build(faces: Vec<Face>, scale: f32) -> Self {
-        let atlas = unsafe { (*sys::igGetIO()).Fonts };
+        let atlas = unsafe { (*sys::igGetIO_Nil()).Fonts };
         unsafe { sys::ImFontAtlas_Clear(atlas) };
-        let mut handles = Vec::with_capacity(faces.len());
-        let mut heights = Vec::with_capacity(faces.len());
-        for face in &faces {
-            let data = face.data();
-            // The height that draws an em of exactly the size the stylesheet names, and the
-            // whole physical pixel the atlas is rasterized at. Dear ImGui truncates the size
-            // it is given, so the atlas can only be built at a whole number; rounding there
-            // and drawing at the exact height instead leaves the em right to the pixel, where
-            // taking the rounded height for both put it out by up to five per cent.
-            let exact = f32::from(face.size) * em_to_pixel_height(data);
-            let physical = (exact * scale).round().max(1.0);
-            heights.push(exact);
+
+        let mut registered = [std::ptr::null_mut(); REGISTERED];
+        for (index, handle) in registered.iter_mut().enumerate() {
+            let data = slot_data(index);
             let mut config = unsafe { *sys::ImFontConfig_ImFontConfig() };
             // The atlas must not free memory that Rust owns.
             config.FontDataOwnedByAtlas = false;
             config.PixelSnapH = false;
-            let handle = unsafe {
+            *handle = unsafe {
                 sys::ImFontAtlas_AddFontFromMemoryTTF(
                     atlas,
                     data.as_ptr() as *mut _,
                     data.len() as i32,
-                    physical,
+                    REGISTERED_SIZE,
                     &config,
-                    GLYPH_RANGES.as_ptr(),
+                    NO_GLYPH_RANGES,
                 )
             };
-            // Dear ImGui sizes its own widget text from the atlas size, which is the rounded
-            // one. This factor brings that back to the exact height, so a menu row and a
-            // label painted through a draw list are the same size.
-            if !handle.is_null() {
-                unsafe { (*handle).Scale = exact * scale / physical };
-            }
-            handles.push(handle);
+        }
+
+        let mut handles = Vec::with_capacity(faces.len());
+        let mut heights = Vec::with_capacity(faces.len());
+        for face in &faces {
+            let index = slot(face.family, face.weight);
+            handles.push(registered[index]);
+            heights.push(f32::from(face.size) * em_to_pixel_height(slot_data(index)));
         }
         Self {
             faces,
@@ -294,47 +328,33 @@ impl Fonts {
         self.scale
     }
 
-    /// Coverage for the atlas texture, one byte a pixel, with its dimensions.
+    /// Records the display scale the interface is being drawn at.
     ///
-    /// The single channel form is what Dear ImGui rasterizes into. Asking for the four
-    /// channel one instead would allocate a second copy four times the size, keep both for
-    /// the life of the process and quadruple the texture, all to store the same coverage in
-    /// three channels that are never read.
-    pub fn texture(&self) -> (u32, u32, Vec<u8>) {
-        let atlas = unsafe { (*sys::igGetIO()).Fonts };
-        let mut pixels: *mut u8 = std::ptr::null_mut();
-        let (mut width, mut height, mut bytes_per_pixel) = (0, 0, 0);
-        unsafe {
-            sys::ImFontAtlas_GetTexDataAsAlpha8(
-                atlas,
-                &mut pixels,
-                &mut width,
-                &mut height,
-                &mut bytes_per_pixel,
-            );
-            let len = width as usize * height as usize;
-            (
-                width as u32,
-                height as u32,
-                std::slice::from_raw_parts(pixels, len).to_vec(),
-            )
-        }
+    /// Nothing is rebuilt. The rasterizer density follows `io.DisplayFramebufferScale`, which the
+    /// frame sets, so a monitor change is this one assignment and the glyphs for the new density
+    /// are rasterized as they are next drawn.
+    pub(crate) fn set_scale(&mut self, scale: f32) {
+        self.scale = scale;
     }
 
-    /// Releases Dear ImGui's copy of the atlas pixels.
+    /// Asks Dear ImGui to rasterize into one byte a pixel rather than four.
     ///
-    /// Only the glyph metrics are needed once the texture is on the graphics device, and
-    /// [`Fonts::build`] rasterizes afresh whenever the scale changes, so nothing reads the
-    /// pixels again. Without this they stay allocated for the life of the process.
-    pub fn clear_texture_data(&self) {
-        unsafe { sys::ImFontAtlas_ClearTexData((*sys::igGetIO()).Fonts) };
-    }
-
-    /// Binds the uploaded texture identifier to the atlas.
-    pub fn set_texture_id(&self, id: u64) {
+    /// The atlas holds coverage: the four-channel form stores the same information in three
+    /// channels nothing reads, for four times the bytes and four times the upload. 1.92 defaults
+    /// to RGBA32, so this has to be asked for, before the first frame bakes anything.
+    pub(crate) fn prefer_coverage_texture() {
         unsafe {
-            let atlas = (*sys::igGetIO()).Fonts;
-            sys::ImFontAtlas_SetTexID(atlas, id as sys::ImTextureID);
+            let atlas = (*sys::igGetIO_Nil()).Fonts;
+            (*atlas).TexDesiredFormat = sys::ImTextureFormat_Alpha8;
         }
     }
+}
+
+/// The size Dear ImGui will actually draw at, given the one it is asked for.
+///
+/// `ImGui::GetRoundedFontSize` is `IM_ROUND`, applied to the size after every global scale
+/// factor. The layout system does not yet handle fractional sizes, so this is not something a
+/// caller can opt out of - it can only be matched, which is what measurement here does.
+pub(crate) fn rounded(size: f32) -> f32 {
+    (size + 0.5).floor()
 }

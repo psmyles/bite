@@ -108,9 +108,7 @@ impl ApplicationHandler<Wake> for App {
                     .configure(&state.surface.renderer.device, &state.surface.config);
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                if state.context.set_scale(scale_factor as f32).is_ok() {
-                    upload_font_atlas(state);
-                }
+                let _ = state.context.set_scale(scale_factor as f32);
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let scale = state.surface.window.scale_factor() as f32;
@@ -278,9 +276,6 @@ impl App {
             last_frame: Instant::now(),
             settle: 8,
         };
-        upload_font_atlas(&mut state);
-        timing::report("font atlas uploaded");
-
         if let Some(path) = self.initial.take() {
             commands::open_path(&mut state.editor, &path);
         }
@@ -321,6 +316,10 @@ impl App {
         ];
 
         let data = app::draw_frame(&mut state.editor, &mut state.context, size, scale, delta);
+        // Whatever glyphs this frame is the first to show were rasterized while it was built,
+        // and have to reach the device before the frame that names them is drawn.
+        let requests = state.context.texture_requests();
+        state.surface.renderer.apply_texture_requests(&requests);
 
         state
             .surface
@@ -401,19 +400,6 @@ pub fn graphics_instance() -> wgpu::Instance {
     let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
     descriptor.backends = native;
     wgpu::Instance::new(descriptor.with_env())
-}
-
-/// Uploads the font atlas and tells the interface which texture holds it.
-fn upload_font_atlas(state: &mut State) {
-    let (width, height, pixels) = state.context.fonts().texture();
-    state
-        .surface
-        .renderer
-        .coverage_texture(1, width, height, &pixels);
-    state.context.fonts().set_texture_id(1);
-    // The atlas lives on the graphics device now, so Dear ImGui's copy of it can go. A
-    // scale change rebuilds and re-uploads, which rasterizes the pixels afresh.
-    state.context.fonts().clear_texture_data();
 }
 
 /// Uploads whatever decoded images arrived since the last frame.

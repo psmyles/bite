@@ -471,10 +471,6 @@ pub fn capture(
 
     let mut context = Context::new(scale)?;
     theme::apply_base_style();
-    let (width, height, pixels) = context.fonts().texture();
-    renderer.coverage_texture(1, width, height, &pixels);
-    context.fonts().set_texture_id(1);
-    context.fonts().clear_texture_data();
 
     let physical = (
         (size.0 as f32 * scale) as u32,
@@ -517,6 +513,10 @@ pub fn capture(
             context.mouse_button(bite_imgui::MouseButton::Left, frame == 1);
         }
         data = app::draw_frame(&mut editor, &mut context, logical, scale, 1.0 / 60.0);
+        // Since 1.92 the atlas grows as glyphs are first drawn, so a scene's first frame asks
+        // for its own text. The warm-up frames above are what make that settled by the last
+        // one, which is the frame that gets rendered.
+        renderer.apply_texture_requests(&context.texture_requests());
     }
     renderer.render(&view, &data, physical.0, physical.1, scale);
 

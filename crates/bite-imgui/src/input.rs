@@ -129,9 +129,7 @@ impl Key {
 
 impl Ui<'_> {
     pub fn mouse_position(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetMousePos(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetMousePos() })
     }
 
     pub fn mouse_down(&self, button: MouseButton) -> bool {
@@ -156,9 +154,7 @@ impl Ui<'_> {
     }
 
     pub fn mouse_drag_delta(&self, button: MouseButton, threshold: f32) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetMouseDragDelta(&mut out, button as i32, threshold) };
-        from_v(out)
+        from_v(unsafe { sys::igGetMouseDragDelta(button as i32, threshold) })
     }
 
     pub fn reset_mouse_drag_delta(&self, button: MouseButton) {
@@ -167,7 +163,7 @@ impl Ui<'_> {
 
     pub fn mouse_wheel(&self) -> Vec2 {
         unsafe {
-            let io = sys::igGetIO();
+            let io = sys::igGetIO_Nil();
             [(*io).MouseWheelH, (*io).MouseWheel]
         }
     }
@@ -182,15 +178,15 @@ impl Ui<'_> {
 
     /// True when the platform's primary modifier is held: Control, or Command on macOS.
     pub fn primary_modifier(&self) -> bool {
-        unsafe { (*sys::igGetIO()).KeyCtrl || (*sys::igGetIO()).KeySuper }
+        unsafe { (*sys::igGetIO_Nil()).KeyCtrl || (*sys::igGetIO_Nil()).KeySuper }
     }
 
     pub fn shift_down(&self) -> bool {
-        unsafe { (*sys::igGetIO()).KeyShift }
+        unsafe { (*sys::igGetIO_Nil()).KeyShift }
     }
 
     pub fn alt_down(&self) -> bool {
-        unsafe { (*sys::igGetIO()).KeyAlt }
+        unsafe { (*sys::igGetIO_Nil()).KeyAlt }
     }
 
     pub fn item_hovered(&self) -> bool {

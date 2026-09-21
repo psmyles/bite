@@ -172,7 +172,7 @@ impl StyleColor {
             Self::ScrollbarGrabActive => sys::ImGuiCol_ScrollbarGrabActive,
             Self::TextSelectedBg => sys::ImGuiCol_TextSelectedBg,
             Self::ModalWindowDimBg => sys::ImGuiCol_ModalWindowDimBg,
-            Self::NavHighlight => sys::ImGuiCol_NavHighlight,
+            Self::NavHighlight => sys::ImGuiCol_NavCursor,
             Self::PlotHistogram => sys::ImGuiCol_PlotHistogram,
         }
     }
@@ -304,11 +304,16 @@ impl Ui<'_> {
     }
 
     /// Runs `body` with a face selected, then restores the previous one.
+    ///
+    /// Since 1.92 a font carries no size of its own, so the face's logical size goes with it -
+    /// the same number `Fonts::measure` uses, which is how a label painted through a draw list
+    /// and a widget's own text stay the same size.
     pub fn with_font<R>(&mut self, font: FontId, body: impl FnOnce(&mut Self) -> R) -> R {
         let handle = self.fonts.handles.get(font.0).copied();
+        let size = self.fonts.height(font);
         match handle {
             Some(handle) if !handle.is_null() => {
-                unsafe { sys::igPushFont(handle) };
+                unsafe { sys::igPushFont(handle, size) };
                 let result = body(self);
                 unsafe { sys::igPopFont() };
                 result

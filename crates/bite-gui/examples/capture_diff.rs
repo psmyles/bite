@@ -10,8 +10,13 @@
 //! and where the worst one is. A run where every scene is identical is the strong result; a run
 //! where every difference is 1 LSB is the acceptable one; anything else names the scene to open.
 //!
+//! A report is not always enough to judge a difference, so a second form magnifies one region of
+//! one scene into a before-and-after strip that can be looked at:
+//!
 //! ```text
 //! cargo run --release -p bite-gui --example capture_diff -- <before-dir> <after-dir>
+//! cargo run --release -p bite-gui --example capture_diff -- <before-dir> <after-dir> \
+//!     <scene.png> <x> <y> <w> <h> <zoom> <out.png>
 //! ```
 
 use std::path::{Path, PathBuf};
@@ -19,9 +24,23 @@ use std::path::{Path, PathBuf};
 fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let (Some(before), Some(after)) = (arguments.first(), arguments.get(1)) else {
-        eprintln!("usage: capture_diff <before-dir> <after-dir>");
+        eprintln!("usage: capture_diff <before-dir> <after-dir> [<scene.png> <x> <y> <w> <h> <zoom> <out.png>]");
         std::process::exit(2);
     };
+    if arguments.len() >= 9 {
+        let number = |index: usize| -> u32 { arguments[index].parse().unwrap_or(0) };
+        if let Err(error) = compare_region(
+            &Path::new(before).join(&arguments[2]),
+            &Path::new(after).join(&arguments[2]),
+            (number(3), number(4), number(5), number(6)),
+            number(7).max(1),
+            Path::new(&arguments[8]),
+        ) {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     match run(Path::new(before), Path::new(after)) {
         Ok(worst) => {
             if worst == 0 {
@@ -80,7 +99,9 @@ fn run(before: &Path, after: &Path) -> Result<u8, String> {
         let mut differing = 0usize;
         let mut worst = 0u8;
         let mut worst_at = (0u32, 0u32);
-        for (index, (left, right)) in a.0.chunks_exact(4).zip(b.0.chunks_exact(4)).enumerate() {
+        let (left_pixels, _) = a.0.as_chunks::<4>();
+        let (right_pixels, _) = b.0.as_chunks::<4>();
+        for (index, (left, right)) in left_pixels.iter().zip(right_pixels).enumerate() {
             if left == right {
                 continue;
             }
@@ -140,4 +161,47 @@ fn decode(path: &Path) -> Result<(Vec<u8>, u32, u32), String> {
         ));
     }
     Ok((buffer, info.width, info.height))
+}
+
+/// Writes a magnified before-and-after strip of one region of one scene, side by side with a gap
+/// between them, so a difference the report only counts can be looked at.
+fn compare_region(
+    before: &Path,
+    after: &Path,
+    region: (u32, u32, u32, u32),
+    zoom: u32,
+    out: &Path,
+) -> Result<(), String> {
+    let a = decode(before)?;
+    let b = decode(after)?;
+    let (x, y, w, h) = region;
+    let gap = 8u32;
+    let width = w * zoom * 2 + gap;
+    let height = h * zoom;
+    let mut canvas = vec![0u8; (width * height * 4) as usize];
+    for (panel, source) in [&a, &b].into_iter().enumerate() {
+        let offset = panel as u32 * (w * zoom + gap);
+        for row in 0..h * zoom {
+            for column in 0..w * zoom {
+                let sx = x + column / zoom;
+                let sy = y + row / zoom;
+                if sx >= source.1 || sy >= source.2 {
+                    continue;
+                }
+                let from = ((sy * source.1 + sx) * 4) as usize;
+                let to = (((row * width) + column + offset) * 4) as usize;
+                canvas[to..to + 4].copy_from_slice(&source.0[from..from + 4]);
+            }
+        }
+    }
+    let file = std::fs::File::create(out).map_err(|error| format!("{}: {error}", out.display()))?;
+    let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), width, height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder
+        .write_header()
+        .and_then(|mut writer| writer.write_image_data(&canvas))
+        .map_err(|error| format!("{}: {error}", out.display()))?;
+    println!("wrote {} ({width}x{height}, before | after)", out.display());
+    Ok(())
 }

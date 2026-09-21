@@ -1,5 +1,5 @@
 //! Windows, layout, measurement and the widget set the editor draws with.
-use crate::{Color, Guard, Ui, Vec2, c, from_v, v};
+use crate::{Color, Guard, Ui, Vec2, c, from_v, texture_ref, v};
 use bite_imgui_sys as sys;
 
 /// How a window behaves; the editor's panels are fixed, so most chrome is switched off.
@@ -173,7 +173,7 @@ impl Ui<'_> {
         body: impl FnOnce(&mut Self),
     ) {
         let child_flags = if border {
-            sys::ImGuiChildFlags_Border
+            sys::ImGuiChildFlags_Borders
         } else {
             0
         };
@@ -220,7 +220,7 @@ impl Ui<'_> {
     // -- Popups and modals -----------------------------------------------------------
 
     pub fn open_popup(&mut self, id: &str) {
-        unsafe { sys::igOpenPopup_Str(c(id).as_ptr(), 0) }
+        unsafe { sys::igOpenPopup_Str(c(id).as_ptr(), 0) };
     }
 
     pub fn popup(&mut self, id: &str, body: impl FnOnce(&mut Self)) {
@@ -268,15 +268,11 @@ impl Ui<'_> {
     // -- Layout and measurement ------------------------------------------------------
 
     pub fn content_region_available(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetContentRegionAvail(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetContentRegionAvail() })
     }
 
     pub fn cursor_screen_position(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetCursorScreenPos(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetCursorScreenPos() })
     }
 
     pub fn set_cursor_screen_position(&mut self, position: Vec2) {
@@ -284,9 +280,7 @@ impl Ui<'_> {
     }
 
     pub fn cursor_position(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetCursorPos(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetCursorPos() })
     }
 
     pub fn set_cursor_position(&mut self, position: Vec2) {
@@ -294,40 +288,28 @@ impl Ui<'_> {
     }
 
     pub fn window_position(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetWindowPos(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetWindowPos() })
     }
 
     pub fn window_size(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetWindowSize(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetWindowSize() })
     }
 
     pub fn item_rect_min(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetItemRectMin(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetItemRectMin() })
     }
 
     pub fn item_rect_max(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetItemRectMax(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetItemRectMax() })
     }
 
     pub fn item_rect_size(&self) -> Vec2 {
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igGetItemRectSize(&mut out) };
-        from_v(out)
+        from_v(unsafe { sys::igGetItemRectSize() })
     }
 
     pub fn calc_text_size(&self, text: &str) -> Vec2 {
         let text = c(text);
-        let mut out = sys::ImVec2::default();
-        unsafe { sys::igCalcTextSize(&mut out, text.as_ptr(), std::ptr::null(), false, -1.0) };
-        from_v(out)
+        from_v(unsafe { sys::igCalcTextSize(text.as_ptr(), std::ptr::null(), false, -1.0) })
     }
 
     pub fn text_line_height(&self) -> f32 {
@@ -744,17 +726,10 @@ impl Ui<'_> {
     pub fn image(&mut self, texture: u64, size: Vec2) {
         unsafe {
             sys::igImage(
-                texture as sys::ImTextureID,
+                texture_ref(texture),
                 v(size),
                 v([0.0, 0.0]),
                 v([1.0, 1.0]),
-                sys::ImVec4 {
-                    x: 1.0,
-                    y: 1.0,
-                    z: 1.0,
-                    w: 1.0,
-                },
-                sys::ImVec4::default(),
             )
         }
     }
@@ -763,7 +738,7 @@ impl Ui<'_> {
         unsafe {
             sys::igImageButton(
                 c(id).as_ptr(),
-                texture as sys::ImTextureID,
+                texture_ref(texture),
                 v(size),
                 v([0.0, 0.0]),
                 v([1.0, 1.0]),

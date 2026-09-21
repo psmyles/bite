@@ -257,6 +257,64 @@ diff is explained (font rasterization moved from stb_truetype to... no, it is th
 rasterizer; expect identical glyphs at the same size, and accept only what a side-by-side shows
 to be 1.92's own hinting or packing change).
 
+**Landed, with step 3's premise corrected.**
+
+**The legacy atlas path does not exist in this tree.** `cimgui.h` is a *generated* header, and
+`dear-imgui-sys 0.17.0` generated it with `IMGUI_DISABLE_OBSOLETE_FUNCTIONS` - which is why it
+has no `ImFontAtlas_GetTexDataAsAlpha8`, no `Build`, no `SetTexID`. Worse, that define also
+removes struct **fields** (`ImGuiIO::FontGlobalScale`, `ImDrawData::CmdListsCount`,
+`ImFontConfig::PixelSnapV`), so it is not optional: the C++ has to be compiled with the defines
+the header was generated with or the layouts Rust believes in disagree with the ones the library
+was built with. So `IMGUI_DISABLE_OBSOLETE_FUNCTIONS` goes on here, not in Phase 3, and the
+legacy path is gone with it. D3's byte-identity with fire's `simgui/cimgui.h` is confirmed (same
+file, different line endings) and is what forces this.
+
+The phase therefore carries what Phase 3 had assigned to it: the dynamic font model, and a host
+that honours the 1.92 texture protocol. Both were going to happen; doing them here keeps the
+property the phases exist for - the renderer is still wgpu, so every pixel of the capture diff
+has one cause, which is the ImGui version.
+
+- **`bite-imgui`** sets `ImGuiBackendFlags_RendererHasTextures` and asks for
+  `ImTextureFormat_Alpha8`. `Context::texture_requests()` hands the host a create-or-replace or a
+  destroy per texture, collected *inside* `Frame::render` before the draw commands are read -
+  `ImDrawCmd_GetTexID` asserts that the identifier has been filled in, so the order is not a
+  preference. Partial updates are reported as whole-texture uploads: ImGui keeps the full pixel
+  buffer either way, and a sub-rectangle path in a renderer being deleted is not worth writing.
+- **`font.rs`** registers six fonts (family x weight) instead of one per `Face`; `Face` and
+  `FontId` are unchanged as the public API, `handles` just maps a face onto one of the six and
+  `heights` onto the size to push. No glyph ranges, nothing rasterized at registration.
+- **Sizing in logical space cost nothing.** The plan budgeted `RasterizerDensity` fiddling for
+  this. It is not needed: with `RendererHasTextures` set, `imgui.cpp` drives the rasterizer
+  density from `io.DisplayFramebufferScale` itself (`SetCurrentWindow`), which bite already sets
+  to the display scale. Metrics stay logical, bitmaps follow the display, and `set_scale` is now
+  one field assignment with no rebuild and no re-upload.
+- **`app::texture_id` masks off the top bit**, which is now Dear ImGui's half of the identifier
+  space (`bite_imgui::IMGUI_TEXTURE_ID_BIT`). The atlas and a thumbnail share one map in the
+  renderer, and the two spaces are disjoint by construction rather than by the unlikelihood of a
+  hash collision.
+- **One real editor bug, found by a 1.92 assertion.** `checkbox_row` reserved its height but
+  then moved the cursor two pixels past it, leaving the cursor outside the parent's content
+  extent with no item to grow it. 1.92 reports that; it aborted four inspector scenes. Fixed by
+  reserving the gap the row actually uses, which is layout-neutral.
+
+**The capture diff: text only, and it is 1.92's.** All 50 scenes differ, 0.8-4.3% of pixels,
+worst per-channel delta 238. Every differing pixel is a glyph: magnified 12x, the port dots, card
+corners and every other piece of geometry are pixel-for-pixel identical, which is the evidence
+that the renderer did not change. Magnified 4x, the showcase scene's type-scale block - every
+stylesheet size, labelled - matches line for line in size, weight, position and advance width;
+1.92 is a shade lighter. Two causes, both upstream's:
+
+1. `ImFontConfig::OversampleH` defaulted to 3 in 1.90 and to auto (= 2 below 36 px) in 1.92.
+2. 1.90 rasterized at a rounded size and corrected the *drawn* size back to exact with
+   `ImFont::Scale`. 1.92 removed `ImFont::Scale` and rounds the drawn size unconditionally
+   (`GetRoundedFontSize` is `IM_ROUND`, applied after every global factor), so a face now draws
+   at a whole-pixel ascender-to-descender height - up to 0.48 px from where 1.90 put it.
+
+Neither is worth fighting: 2 is not reachable through the API at all, and 3 -> 2 oversampling is
+upstream's own judgement ("the difference between 2 and 3 is minimal") and saves atlas bytes the
+memory target wants. `test_images/goldens/imgui192` is the new reference Phase 4 is checked
+against.
+
 ### Phase 2 - The scaffolding, unwired
 
 1. Vendor `sokol-rust` at b22a545 into `vendor/sokol-rust` (copy fire's directory; 3.9 MB) and add
@@ -401,15 +459,15 @@ no shader step.
 - **The 1.90 → 1.92 API surface.** The wrapper touches more of ImGui than the list in Phase 1;
   the regenerated bindings and the compiler are the inventory, and Phase 1 exists so that
   inventory is worked through on a renderer that already works. Budget a day for it.
-- **Font sizing in logical space.** 1.92 sizes fonts as `FontSizeBase × FontScaleMain ×
-  FontScaleDpi` and rasterizes at that × `RasterizerDensity`. bite wants glyph *metrics* in
-  logical pixels and glyph *bitmaps* at physical resolution. The knob for that is
-  `RasterizerDensity = DisplayFramebufferScale` (which the 1.92 backends set from the
-  framebuffer scale) with `FontScaleDpi = 1`; if text comes out soft at 150 %, this is the first
-  place to look. The mono-advance test and the scale-2 goldens are the check.
+- ~~**Font sizing in logical space.**~~ Settled in Phase 1, and it costs nothing: with
+  `RendererHasTextures` set, `imgui.cpp` sets the rasterizer density from
+  `io.DisplayFramebufferScale` itself. Metrics are logical because the pushed size is logical;
+  bitmaps follow the display. The mono-advance test passes and the scale-2 captures agree.
 - **Atlas format and memory.** 1.92's default atlas is RGBA32 where 1.90's was Alpha8 - four
-  times the bytes for the same coverage. sokol_imgui accepts `ImTextureFormat_Alpha8` too
-  (`io.Fonts->TexDesiredFormat`); set it and confirm the working-set target still holds.
+  times the bytes for the same coverage. `Fonts::prefer_coverage_texture` sets
+  `TexDesiredFormat = Alpha8` in Phase 1 and the renderer's existing coverage path takes it
+  unchanged; sokol_imgui accepts the same. Confirm the working-set target still holds after
+  Phase 3.
 - **sokol-rust API drift.** The vendored revision uses the 2025 *views* API (`sg::View` for
   textures and attachments, `Bindings::views`/`samplers`). Read `vendor/sokol-rust/src/gfx.rs`
   rather than upstream docs when a name does not match this plan.
@@ -452,7 +510,7 @@ have settled; the first-frame instant flatters neither stack and compares neithe
 |---|---|---|---|
 | Baseline, wgpu + ImGui 1.90.9 (experiment, stderr sink) | 590 ms | 172 MB | 325 MB |
 | Phase 0 baseline, file sink | 424 ms | 168 MB | 326 MB |
-| Phase 1, ImGui 1.92.9b on wgpu | | | |
+| Phase 1, ImGui 1.92.9b on wgpu | 352 ms | 162 MB | 321 MB |
 | Phase 3, sokol_gfx + sokol_imgui shell | | | |
 | Phase 5.1, chores off the path | | | |
 | Phase 5.2, icon at build time | | | |

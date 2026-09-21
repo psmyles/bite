@@ -89,8 +89,12 @@ pub fn texture_id(key: &str) -> u64 {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
     }
-    // Zero and one are reserved for the font atlas.
-    hash | 2
+    // The top bit is Dear ImGui's half of the identifier space - since 1.92 it creates textures
+    // of its own, the font atlas among them, and both sides land in the one map the renderer
+    // keeps. Clearing the bit here and setting it there keeps the two disjoint by construction
+    // rather than by the unlikelihood of a hash collision. Zero and one stay out of the way of
+    // the "no texture" identifier.
+    (hash & !bite_imgui::IMGUI_TEXTURE_ID_BIT) | 2
 }
 
 /// Where the node and format definitions live.
@@ -1036,11 +1040,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn texture_identifiers_are_stable_and_avoid_the_font_slots() {
+    fn texture_identifiers_are_stable_and_stay_out_of_imguis_half() {
         let first = texture_id("thumbnail:a:0");
         assert_eq!(first, texture_id("thumbnail:a:0"));
         assert_ne!(first, texture_id("thumbnail:a:1"));
         assert!(first >= 2);
+        // Whatever the hash, the identifier must never carry Dear ImGui's bit: the font atlas
+        // and a thumbnail share the renderer's one texture map.
+        for key in ["thumbnail:a:0", "preview:node:3", "", "a very long key indeed"] {
+            assert_eq!(texture_id(key) & bite_imgui::IMGUI_TEXTURE_ID_BIT, 0);
+        }
     }
 
     /// An editor over the seeded workflow, for the checks that only read the graph.
