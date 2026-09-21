@@ -622,6 +622,12 @@ Rust. The 80-function hand-written C shim and the imgui-node-editor submodule ar
 only C++ compiled is Dear ImGui itself plus cimgui. `bite-imgui` is a new safe wrapper split
 into fonts, style, drawing, input and widgets.
 
+The shell underneath it changed in September 2026 (`docs/sokol-migration-plan.md`): winit still
+owns the window, the event loop and input, but the drawing API is sokol_gfx on a D3D11 device
+the shell creates, and Dear ImGui - now 1.92.9b - is drawn by sokol_imgui rather than by a
+renderer of ours. wgpu, pollster, `renderer.rs` and `shader.wgsl` are gone with it. A warm start
+reaches its first frame in 145 ms rather than 424, and settles at 57 MB rather than 168.
+
 Atkinson Hyperlegible Next and JetBrains Mono are embedded in the binary at every size and
 weight `theme.css` uses, with a platform fallback merged into the text-entry sizes so input
 methods render. Inter and the `BITE_UI_FONT` override are removed. `theme.rs` transcribes

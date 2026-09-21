@@ -91,7 +91,7 @@ RUST CRATES USED BY THE NATIVE BUILD
 
 Dear ImGui  (vendored, crates/bite-imgui-sys/vendor/)   - MIT
 cimgui      (vendored, crates/bite-imgui-sys/vendor/)   - MIT
-wgpu                                                    - MIT or Apache-2.0
+sokol       (vendored, vendor/sokol-rust/)              - zlib/libpng
 winit                                                   - Apache-2.0
 rfd                                                     - MIT
 arboard                                                 - MIT or Apache-2.0
@@ -99,7 +99,6 @@ ureq, rustls, webpki-roots                              - MIT or Apache-2.0
 serde, serde_json                                       - MIT or Apache-2.0
 png                                                     - MIT or Apache-2.0
 image-webp                                              - MIT or Apache-2.0
-pollster                                                - MIT or Apache-2.0
 schemars                                                - MIT
 ctrlc                                                   - MIT or Apache-2.0
 winresource (build only, not linked)                    - MIT

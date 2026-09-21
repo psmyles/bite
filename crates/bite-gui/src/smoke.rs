@@ -393,8 +393,8 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
             editor.modal = crate::modals::Modal::About {
                 versions: vec![
                     ("ImageMagick".into(), "7.1.1".into()),
-                    ("Dear ImGui".into(), "1.90.9".into()),
-                    ("wgpu".into(), "30.0".into()),
+                    ("Dear ImGui".into(), "1.92.9b".into()),
+                    ("sokol_gfx".into(), "b22a545".into()),
                     ("winit".into(), "0.30".into()),
                 ],
             };

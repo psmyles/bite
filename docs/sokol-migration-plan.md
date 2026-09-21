@@ -552,6 +552,16 @@ rather assert through `igGetDrawData` directly; either way delete `Vertex`, `Com
 `DrawList`, `DrawData` from the public API if nothing outside the crate names them. Delete the
 `Fonts` fields that only served the atlas (`handles`/`heights` stay; `scale` goes).
 
+**Landed.** `Vertex`, `Command`, `DrawList`, `DrawData` and `Frame::render` are gone - nothing
+outside the crate named them once `renderer.rs` did not exist. The wrapper's test asserts through
+`ImDrawData::TotalVtxCount` instead of a copy it makes itself, and closes its frame by dropping
+it, which is the path an unsubmitted frame takes in the editor.
+
+`Fonts::scale` **stays**. The plan expected it to go with the atlas, but it does not serve the
+atlas: `Context::set_scale` records it and the field is what `Fonts::scale()` answers, which is
+the display scale the faces are being drawn at. Nothing else in the struct was atlas-only -
+`handles` and `heights` are the face lookup and both are still load-bearing.
+
 ### Phase 7 - Remove wgpu
 
 - Delete `renderer.rs`, `shader.wgsl`, `graphics_instance`, and `wgpu` and `pollster` from
@@ -563,6 +573,26 @@ rather assert through `igGetDrawData` directly; either way delete `Vertex`, `Com
   `BITE-Rust-Migration-Plan.md`'s crate map loses `imgui-node-editor`.
 - `cargo clippy --workspace` clean; the installer (`packaging/bite.iss`) needs no change - it
   ships the one exe, and the D3D11 runtime is part of Windows.
+
+**Landed.** `renderer.rs`, `shader.wgsl` and `graphics_instance` are deleted, and `wgpu` and
+`pollster` are out of `bite-gui`'s manifest - `cargo tree` finds no wgpu, naga, gpu-allocator or
+pollster anywhere under it. The About dialog and the credits list name sokol_gfx; sokol_gfx is a
+single-header library with no version of its own, so what identifies it is the pinned
+`sokol-rust` revision, `b22a545`. `THIRD_PARTY_LICENSES` drops wgpu and pollster and gains sokol
+(zlib/libpng, vendored). The installer needed no change, as expected.
+
+The About and Credits scenes are the only two captures that move, because their text is what this
+phase edits - both are checked by eye and read correctly. The other 46 stay within the 2 counts
+Phase 4 established. Note that `smoke.rs` keeps its *own* fixed version list for the About scene,
+separate from `commands::about_versions`, so that a capture does not depend on which ImageMagick
+is installed; both have to be edited together.
+
+**Not done: Phase 8.** It is scoped in this plan as separate, and it cannot be compiled, let
+alone run, on the Windows machine this migration was done on - writing it here would put code in
+the tree that nothing has ever built. Everything it needs is in place for whoever picks it up:
+`render/mod.rs` already gates the Windows files on `cfg(windows)`, `build.rs::compile_simgui`
+already switches `SOKOL_METAL` on `target_os`, and `SWAPCHAIN_FORMAT` is the one constant a Metal
+twin has to agree on.
 
 ### Phase 8 - macOS (when it is next)
 
@@ -644,6 +674,7 @@ have settled; the first-frame instant flatters neither stack and compares neithe
 | Phase 3, sokol_gfx + sokol_imgui shell | 145 ms | 57 MB | 77 MB |
 | Phase 5, L3 + L4 (`Session::load` once, icon at build time, prune on a thread) | 148 ms | 57 MB | 77 MB |
 | ~~Phase 5.3, initial workflow on a thread~~ | not done - see Phase 5 | | |
+| Phases 6-7, wgpu removed | 147 ms | 57 MB | 77 MB |
 
 The last row is not a regression: 145 and 148 ms are the same number twice, which is the point.
 From Phase 3 on, the first frame is bounded by `D3D11CreateDevice` and nothing the editor does

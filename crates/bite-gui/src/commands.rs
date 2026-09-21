@@ -141,8 +141,10 @@ pub fn about_versions() -> Vec<(String, String)> {
         .unwrap_or_else(|| "unknown".into());
     vec![
         ("ImageMagick".into(), magick),
-        ("Dear ImGui".into(), "1.90.9".into()),
-        ("wgpu".into(), "30.0".into()),
+        ("Dear ImGui".into(), "1.92.9b".into()),
+        // sokol_gfx is a single-header library with no version number of its own, so the
+        // vendored revision of `sokol-rust` is what identifies it (see `vendor/sokol-rust`).
+        ("sokol_gfx".into(), "b22a545".into()),
         ("winit".into(), "0.30".into()),
         (
             "Rust".into(),

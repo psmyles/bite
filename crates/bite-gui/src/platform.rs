@@ -442,25 +442,6 @@ impl App {
     }
 }
 
-/// A wgpu instance limited to the backend this platform actually draws through.
-///
-/// The default instance enumerates every backend, which on Windows loads the Direct3D, the
-/// Vulkan and the OpenGL driver into the process to pick one of them. That cost twenty five
-/// megabytes and a slower start for nothing. `WGPU_BACKEND` still overrides it, so a driver
-/// problem can be stepped around without a rebuild.
-pub fn graphics_instance() -> wgpu::Instance {
-    let native = if cfg!(target_os = "windows") {
-        wgpu::Backends::DX12
-    } else if cfg!(target_os = "macos") {
-        wgpu::Backends::METAL
-    } else {
-        wgpu::Backends::VULKAN
-    };
-    let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
-    descriptor.backends = native;
-    wgpu::Instance::new(descriptor.with_env())
-}
-
 /// Uploads whatever decoded images arrived since the last frame.
 ///
 /// Two identifiers are in play and they are not the same number. The *key* is what the editor

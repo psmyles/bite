@@ -57,37 +57,6 @@ pub(crate) fn texture_ref(id: u64) -> sys::ImTextureRef {
     }
 }
 
-/// One vertex of the generated geometry, laid out for direct upload.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Vertex {
-    pub pos: [f32; 2],
-    pub uv: [f32; 2],
-    pub color: u32,
-}
-
-/// One draw call: a slice of the index buffer, a texture and a scissor rectangle.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Command {
-    pub count: u32,
-    pub index_offset: u32,
-    pub vertex_offset: u32,
-    /// Left, top, right and bottom in logical pixels.
-    pub clip: [f32; 4],
-    pub texture: u64,
-}
-
-/// The geometry of one ImGui draw list, owned by Rust.
-#[derive(Clone, Debug, Default)]
-pub struct DrawList {
-    pub vertices: Vec<Vertex>,
-    pub indices: Vec<u32>,
-    pub commands: Vec<Command>,
-}
-
-/// Everything produced by one frame.
-pub type DrawData = Vec<DrawList>;
-
 /// The identifier space Dear ImGui's own textures are given, so that they cannot collide with
 /// the host's.
 ///
@@ -380,7 +349,11 @@ impl Drop for Context {
     }
 }
 
-/// An in-progress frame. Dropping it renders and discards the geometry.
+/// An in-progress frame.
+///
+/// Handed to a renderer with [`Frame::submit`], which is what ends it. Dropping one that was
+/// never submitted closes it and discards the geometry, so a frame is never left open - which
+/// would make the next `igNewFrame` assert.
 pub struct Frame<'a> {
     context: &'a mut Context,
     rendered: bool,
@@ -401,88 +374,24 @@ impl Frame<'_> {
     /// Hands the frame over to a renderer that will end it itself.
     ///
     /// sokol_imgui's `simgui_render` is `igRender` *plus* the texture uploads *plus* the draw
-    /// calls, so with it there is nothing for this wrapper to do at the end of a frame and
-    /// nothing to copy out: calling [`Frame::render`] as well would run `igRender` twice. This
-    /// only marks the frame as handed over, so the drop guard does not close it a second time.
+    /// calls, so there is nothing for this wrapper to do at the end of a frame and nothing to
+    /// copy out of it. This only marks the frame as handed over, so the drop guard does not
+    /// close it a second time - which would run `igRender` twice.
     ///
     /// The caller must render before the next frame begins, which in practice means inside the
     /// pass it opened.
     pub fn submit(mut self) {
         self.rendered = true;
     }
-
-    /// Ends the frame and copies the geometry out of ImGui.
-    ///
-    /// Any texture work the frame generated is settled first and left for the host to pick up
-    /// with [`Context::texture_requests`] - see [`Context::collect_texture_requests`] for why
-    /// the order matters.
-    pub fn render(mut self) -> DrawData {
-        unsafe { sys::igRender() };
-        self.rendered = true;
-        self.context.collect_texture_requests();
-        let data = unsafe { sys::igGetDrawData() };
-        if data.is_null() || !unsafe { (*data).Valid } {
-            return Vec::new();
-        }
-        let mut out = Vec::new();
-        unsafe {
-            let count = (*data).CmdLists.Size.max(0) as usize;
-            let lists = (*data).CmdLists.Data;
-            for index in 0..count {
-                let list = *lists.add(index);
-                if list.is_null() {
-                    continue;
-                }
-                let vertex_count = (*list).VtxBuffer.Size.max(0) as usize;
-                let index_count = (*list).IdxBuffer.Size.max(0) as usize;
-                let vertices = std::slice::from_raw_parts((*list).VtxBuffer.Data, vertex_count)
-                    .iter()
-                    .map(|vertex| Vertex {
-                        pos: [vertex.pos.x, vertex.pos.y],
-                        uv: [vertex.uv.x, vertex.uv.y],
-                        color: vertex.col,
-                    })
-                    .collect();
-                let indices = std::slice::from_raw_parts((*list).IdxBuffer.Data, index_count)
-                    .iter()
-                    .map(|value| u32::from(*value))
-                    .collect();
-                let command_count = (*list).CmdBuffer.Size.max(0) as usize;
-                let commands = std::slice::from_raw_parts((*list).CmdBuffer.Data, command_count)
-                    .iter()
-                    .filter(|command| command.UserCallback.is_none() && command.ElemCount > 0)
-                    .map(|command| Command {
-                        count: command.ElemCount,
-                        index_offset: command.IdxOffset,
-                        vertex_offset: command.VtxOffset,
-                        clip: [
-                            command.ClipRect.x,
-                            command.ClipRect.y,
-                            command.ClipRect.z,
-                            command.ClipRect.w,
-                        ],
-                        texture: sys::ImDrawCmd_GetTexID(
-                            command as *const sys::ImDrawCmd as *mut _,
-                        ) as u64,
-                    })
-                    .collect();
-                out.push(DrawList {
-                    vertices,
-                    indices,
-                    commands,
-                });
-            }
-        }
-        out
-    }
 }
 
 impl Drop for Frame<'_> {
     fn drop(&mut self) {
         if !self.rendered {
+            // Nothing took this frame, so close it here rather than leave the context between
+            // `NewFrame` and `Render`. A frame nobody drew still baked whatever glyphs it asked
+            // for, and Dear ImGui keeps asking until the host has been told.
             unsafe { sys::igRender() };
-            // A frame nobody asked the geometry of still baked whatever glyphs it drew, and
-            // Dear ImGui will keep asking until the host has been told.
             self.context.collect_texture_requests();
         }
     }
@@ -535,7 +444,7 @@ mod tests {
         assert_eq!(context.fonts().faces[missing.0].family, Family::Ui);
         assert_eq!(context.fonts().faces[missing.0].weight, Weight::Regular);
 
-        let mut data = Vec::new();
+        let mut vertices = 0;
         let mut uploads = Vec::new();
         for _ in 0..3 {
             let mut frame = context.frame(1280.0, 720.0, 1.0, 1.0 / 60.0);
@@ -564,15 +473,22 @@ mod tests {
                     );
                 }
             });
-            data = frame.render();
+            // Nothing here renders, so dropping the frame is what closes it - the same path
+            // an unsubmitted frame takes in the editor.
+            drop(frame);
+            // What the frame produced, read from Dear ImGui rather than copied out of it: the
+            // owned `DrawData` this used to assert on existed only for the renderer that has
+            // been replaced.
+            vertices = unsafe { (*sys::igGetDrawData()).TotalVtxCount };
             uploads.extend(context.texture_requests());
         }
-        assert!(data.iter().any(|list| !list.vertices.is_empty()));
+        assert!(vertices > 0, "three frames of widgets drew no geometry");
 
         // Drawing text rasterized glyphs, which is a texture the host has to create. It must be
-        // coverage, one byte a pixel - the four-channel form is 1.92's default and four times
-        // the upload for the same information - and it must be in Dear ImGui's half of the
-        // identifier space, so it can never be mistaken for one of the editor's own images.
+        // RGBA32, which is 1.92's default and the only format sokol_imgui accepts - it hardcodes
+        // `SG_PIXELFORMAT_RGBA8` and asserts on anything else. It must also be in Dear ImGui's
+        // half of the identifier space, so it can never be mistaken for one of the editor's own
+        // images.
         let upload = uploads
             .iter()
             .find_map(|request| match &request.action {
@@ -587,13 +503,16 @@ mod tests {
             .expect("drawing text must ask the host to create the atlas texture");
         let (id, width, height, coverage, length) = upload;
         assert!(id & IMGUI_TEXTURE_ID_BIT != 0, "atlas id {id:#x} is host-side");
-        assert!(coverage, "the atlas must be asked for as coverage");
-        assert_eq!(length, (width * height) as usize);
+        assert!(!coverage, "the atlas must be four channels for sokol_imgui");
+        assert_eq!(length, (width * height * 4) as usize);
 
         // A scale change rebuilds nothing; glyphs for the new density are rasterized as they are
         // next drawn. Before 1.92 this rebuilt every face and the host re-uploaded the atlas.
         context.set_scale(2.0).unwrap();
         assert_eq!(context.fonts().scale(), 2.0);
         assert!(context.texture_requests().is_empty());
+        // The faces still resolve at the new scale, and to the same handles: one `ImFont` per
+        // family and weight covers every size and every density.
+        assert_eq!(context.fonts().id(Face::ui(13)), exact);
     }
 }

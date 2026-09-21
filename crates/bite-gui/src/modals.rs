@@ -428,7 +428,7 @@ pub fn credit_entries() -> Vec<CreditSection> {
             "Open Source Libraries",
             vec![
                 ("Dear ImGui", "MIT", "https://github.com/ocornut/imgui"),
-                ("wgpu", "MIT/Apache-2.0", "https://github.com/gfx-rs/wgpu"),
+                ("sokol", "zlib/libpng", "https://github.com/floooh/sokol"),
                 ("winit", "Apache-2.0", "https://github.com/rust-windowing/winit"),
                 ("Rust", "MIT/Apache-2.0", "https://www.rust-lang.org"),
                 (

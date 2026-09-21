@@ -18,6 +18,7 @@ reference behaviour.
 | Inspector dropdowns | `Dropdown.svelte` | The open list gives each row the five by ten padding `.dd-item` names, pads four pixels top and bottom, and scrolls after eight rows |
 | Design tokens | `assets/theme.css` | Transcribed into `crates/bite-gui/src/theme.rs`; drawing code reads tokens, never literals |
 | Canvas | `@xyflow/svelte` | A Rust-owned canvas drawn on ImGui draw lists, so gestures and visuals are not constrained by an add-on |
+| Shell | `electron/main.ts` | winit owns the window, the event loop and input; sokol_gfx draws, on a D3D11 device and flip-model swapchain the shell creates, with Dear ImGui rendered by sokol_imgui (`docs/sokol-migration-plan.md`) |
 | Panels | `App.svelte` | Fixed three-column shell with invisible six-pixel drag gaps; docking is removed |
 
 ## Shell and layout

@@ -36,9 +36,9 @@ bite/
 │   ├── bite-core/            Graphs, workflows, planning, and execution
 │   ├── bite-imagemagick/     ImageMagick process integration
 │   ├── bite-cli/             Headless CLI
-│   ├── bite-imgui-sys/       Vendored Dear ImGui + imgui-node-editor, C shim, generated bindings
+│   ├── bite-imgui-sys/       Vendored Dear ImGui + cimgui, generated bindings
 │   ├── bite-imgui/           Thin safe wrapper over the parts bite-gui uses
-│   └── bite-gui/             Dear ImGui application
+│   └── bite-gui/             Dear ImGui application, on winit + sokol_gfx
 │
 ├── schemas/
 ├── node-definitions/
