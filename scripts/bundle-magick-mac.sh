@@ -9,7 +9,11 @@
 # unsigned Mach-O).
 #
 # The binaries look for it at resources/mac/magick/bin/magick relative to the working
-# directory, and at magick/bin/magick beside the executable once a bundle exists.
+# directory, which is how a `cargo run` finds it, and at ../Resources/magick/bin/magick
+# relative to the executable, which is where the packaged app carries it (see
+# Magick::discover in crates/bite-imagemagick/src/lib.rs). packaging/mac-common.sh runs
+# this as part of either macOS build script and copies the tree into the bundle as it
+# stands - it is signed here, not there.
 #
 # Layout produced:
 #

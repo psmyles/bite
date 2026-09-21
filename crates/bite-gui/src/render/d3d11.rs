@@ -3,8 +3,9 @@
 //! sokol_gfx does not own a window: it is handed a device at `sg_setup` (through
 //! `sg_environment`) and a render-target view per frame (through `sg_swapchain`), and the shell
 //! owns everything around them. This module is that glue, and the one place in the editor that
-//! names D3D11 or DXGI. The macOS twin will be a `CAMetalLayer` on the winit window, handing
-//! sokol_gfx its `MTLDevice` and per-frame drawable.
+//! names D3D11 or DXGI. Its macOS twin is [`crate::render::metal`] - a `CAMetalLayer` on the
+//! winit window, handing sokol_gfx its `MTLDevice` and per-frame drawable - and the two keep the
+//! same contract, which `render::mod` states.
 //!
 //! The backbuffer is plain `R8G8B8A8_UNORM`: the flip model disallows `*_SRGB` swapchain formats,
 //! and the interface's colours are authored as sRGB already - which is also what the wgpu surface
@@ -202,6 +203,13 @@ impl Swapchain {
             logging::warn(format!("Swapchain resize failed: {error}"));
         }
     }
+
+    /// Follows the window onto a display with a different backing scale, which on DXGI is
+    /// nothing at all: a swapchain's buffers are sized in pixels and it has no notion of a scale
+    /// between them and the window, so the resize the same event brings is the whole story. The
+    /// Metal twin has real work to do here (`metal::Swapchain::set_scale_factor`), and the shell
+    /// calls one method on both.
+    pub fn set_scale_factor(&mut self, _scale: f64) {}
 
     /// Acquires this frame's render target and points `swapchain` at it, answering whether there
     /// is a frame to draw at all.

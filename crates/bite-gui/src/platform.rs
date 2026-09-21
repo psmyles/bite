@@ -31,9 +31,19 @@ use winit::{
     window::{Fullscreen, Window, WindowId},
 };
 
-/// The event a background job sends to wake the loop.
-#[derive(Debug, Clone, Copy)]
-pub struct Wake;
+/// What reaches the editor from outside a window event.
+///
+/// The event loop is the only place editor state may be touched, so everything that arrives on
+/// another thread or from AppKit is funnelled through here rather than acting where it lands.
+#[derive(Debug, Clone)]
+pub enum AppEvent {
+    /// A background job has a result ready, or wants a frame drawn.
+    Wake,
+    /// A menu item the system menu bar owns was chosen (macOS; see `menubar`).
+    Menu(crate::menu::Command),
+    /// A workflow Launch Services asked the editor to open (macOS; see `openfiles`).
+    Open(PathBuf),
+}
 
 struct Surface {
     window: Arc<Window>,
@@ -50,13 +60,15 @@ struct State {
     last_frame: Instant,
     /// A short burst of extra frames after input, so animations settle.
     settle: u8,
+    /// Whether the session has already been written, which closes the door behind `save_session`.
+    saved: bool,
     /// Kept only so the device outlives sokol_gfx: `sg::shutdown` runs against it.
     _device: Device,
 }
 
 struct App {
     state: Option<State>,
-    proxy: EventLoopProxy<Wake>,
+    proxy: EventLoopProxy<AppEvent>,
     initial: Option<PathBuf>,
     /// The GPU bring-up, started at the top of [`run`] and joined once the window exists.
     gpu: Option<JoinHandle<Result<Device, String>>>,
@@ -77,12 +89,44 @@ pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
         .name("bite-cache-prune".into())
         .spawn(work::prune_cache)
         .map_err(|error| error.to_string())?;
-    let event_loop = EventLoop::<Wake>::with_user_event()
-        .build()
-        .map_err(|error| error.to_string())?;
+    let mut builder = EventLoop::<AppEvent>::with_user_event();
+    // winit installs a default macOS menu bar of its own during `applicationDidFinishLaunching`,
+    // which is *after* this point and would replace whatever was built here. Turning it off is
+    // what lets `menubar`'s survive. It is not a pure loss: winit's default is where Cmd+Q came
+    // from, so the replacement has to carry Quit itself - and it does, routed through the
+    // editor's exit path rather than AppKit's `terminate:`.
+    #[cfg(target_os = "macos")]
+    {
+        use winit::platform::macos::EventLoopBuilderExtMacOS as _;
+        builder.with_default_menu(false);
+    }
+    let event_loop = builder.build().map_err(|error| error.to_string())?;
     timing::report("event loop built");
     event_loop.set_control_flow(ControlFlow::Wait);
     let proxy = event_loop.create_proxy();
+
+    // The menu bar, built after the event loop exists (`NSApplication` has to be up) and held to
+    // the end of this function, because dropping the menu takes the menu bar with it. A failure
+    // is not worth refusing to start over - the editor is merely harder to quit - so it degrades
+    // to no menu and a line in the log.
+    #[cfg(target_os = "macos")]
+    let _menu = {
+        let menu = crate::menubar::install(proxy.clone());
+        if menu.is_none() {
+            logging::warn("Could not build the macOS menu bar; Cmd+Q will not work");
+        }
+        menu
+    };
+
+    // Finder opens. macOS delivers a double-clicked workflow as an Apple event rather than as an
+    // argument, so without this hook the bundle opens blank from Finder and a running editor
+    // ignores every later open. It goes in after the event loop is built - the delegate it
+    // extends is winit's - and before the loop runs, because a launch-by-open fires early.
+    #[cfg(target_os = "macos")]
+    if !crate::openfiles::install(proxy.clone()) {
+        logging::warn("Could not hook Finder opens; only command-line paths will open");
+    }
+
     let mut app = App {
         state: None,
         proxy,
@@ -129,7 +173,7 @@ fn start_gpu() -> JoinHandle<Result<Device, String>> {
         .expect("the GPU bring-up thread must start")
 }
 
-impl ApplicationHandler<Wake> for App {
+impl ApplicationHandler<AppEvent> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.state.is_some() {
             return;
@@ -145,11 +189,26 @@ impl ApplicationHandler<Wake> for App {
         }
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: Wake) {
-        if let Some(state) = &mut self.state {
-            state.settle = state.settle.max(2);
-            state.surface.window.request_redraw();
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppEvent) {
+        let Some(state) = &mut self.state else { return };
+        match event {
+            AppEvent::Wake => {}
+            // A menu command runs exactly as the in-window menu bar's would, including the exit
+            // path: `Command::Exit` is what asks about unsaved work, and `should_exit` is its
+            // answer. Cmd+Q arrives here rather than as AppKit's `terminate:` for that reason -
+            // see `menubar`.
+            AppEvent::Menu(command) => {
+                commands::run(&mut state.editor, command);
+                if state.editor.should_exit {
+                    save_session(state);
+                    event_loop.exit();
+                    return;
+                }
+            }
+            AppEvent::Open(path) => open_workflow(state, path),
         }
+        state.settle = state.settle.max(2);
+        state.surface.window.request_redraw();
     }
 
     fn window_event(
@@ -175,6 +234,12 @@ impl ApplicationHandler<Wake> for App {
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 let _ = state.context.set_scale(scale_factor as f32);
+                // The swapchain has to hear about this too, not just the interface. On Metal the
+                // layer maps its point bounds onto the drawable's pixels by `contentsScale`, so
+                // a window dragged between a Retina display and a 1x one needs both that and the
+                // resize the same move brings - see `render::metal::Swapchain::set_scale_factor`.
+                // On DXGI there is no such mapping and the call does nothing.
+                state.surface.swapchain.set_scale_factor(scale_factor);
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let scale = state.surface.window.scale_factor() as f32;
@@ -316,7 +381,7 @@ impl App {
 
         let proxy = self.proxy.clone();
         editor.jobs.set_waker(Arc::new(move || {
-            let _ = proxy.send_event(Wake);
+            let _ = proxy.send_event(AppEvent::Wake);
         }));
         editor.sync_active_input();
 
@@ -330,9 +395,27 @@ impl App {
             editor,
             last_frame: Instant::now(),
             settle: 8,
+            saved: false,
             _device: device,
         };
-        if let Some(path) = self.initial.take() {
+        // On macOS a launch-by-open arrives as an Apple event *before* this point, not as an
+        // argument (see `openfiles`), so the workflow to show may be waiting there rather than
+        // in `initial`. Either way it is opened as the window is created: opening blank and
+        // loading a frame later would be a visible flash.
+        #[cfg(target_os = "macos")]
+        let mut opens = crate::openfiles::start().into_iter();
+        #[cfg(target_os = "macos")]
+        let initial = self.initial.take().or_else(|| opens.next());
+        #[cfg(not(target_os = "macos"))]
+        let initial = self.initial.take();
+        if let Some(path) = initial {
+            commands::open_path(&mut state.editor, &path);
+        }
+        // Several workflows opened at once - a multi-select in Finder - are not several
+        // documents: the editor holds one, so the last one asked for is the one shown, exactly
+        // as opening them one after another would leave it.
+        #[cfg(target_os = "macos")]
+        for path in opens {
             commands::open_path(&mut state.editor, &path);
         }
         // The startup check reports only when a newer release exists.
@@ -587,19 +670,11 @@ fn update_progress(state: &mut State) {
 
 /// Handles a file dropped on the window.
 fn handle_drop(state: &mut State, path: PathBuf) {
-    let editor = &mut state.editor;
     if path.extension().and_then(|extension| extension.to_str()) == Some("bite") {
-        editor.pending_open = Some(path);
-        if editor.studio.dirty {
-            editor.modal = modals::Modal::Confirm {
-                message: modals::confirm_message(modals::PendingAction::OpenPath),
-                pending: modals::PendingAction::OpenPath,
-            };
-        } else {
-            commands::perform_pending(editor, modals::PendingAction::OpenPath);
-        }
+        open_workflow(state, path);
         return;
     }
+    let editor = &mut state.editor;
     let Some(node) = editor.active_input.clone() else {
         return;
     };
@@ -609,6 +684,24 @@ fn handle_drop(state: &mut State, path: PathBuf) {
     }
     if dialogs::is_image_path(&path) {
         commands::add_paths(editor, &node, vec![path]);
+    }
+}
+
+/// Opens a workflow the user pointed the editor at, asking about unsaved work first.
+///
+/// Shared by the two ways one arrives without a dialog: dropped on the window, and handed over
+/// by Launch Services on macOS (`openfiles`). Both have to go through the same prompt, because
+/// either can land on a document with unsaved changes.
+fn open_workflow(state: &mut State, path: PathBuf) {
+    let editor = &mut state.editor;
+    editor.pending_open = Some(path);
+    if editor.studio.dirty {
+        editor.modal = modals::Modal::Confirm {
+            message: modals::confirm_message(modals::PendingAction::OpenPath),
+            pending: modals::PendingAction::OpenPath,
+        };
+    } else {
+        commands::perform_pending(editor, modals::PendingAction::OpenPath);
     }
 }
 
@@ -647,6 +740,16 @@ fn remember_bounds(state: &mut State) {
 
 /// Stores the window bounds and panel sizes for the next launch.
 fn save_session(state: &mut State) {
+    // Exactly once, however many ways the teardown is reached. `event_loop.exit()` is a request,
+    // not a stop: winit still delivers what it has already queued, so the redraw that was in
+    // flight when the editor decided to leave arrives afterwards and finds `should_exit` still
+    // set. Without this the session is written twice and the log says "Editor closed" twice -
+    // harmless on its own, but the second write happens after the window has begun to go away,
+    // which is not a state worth reading the bounds in.
+    if state.saved {
+        return;
+    }
+    state.saved = true;
     // The rectangle is whichever one `remember_bounds` last saw the window in its ordinary state
     // at; only the flag is read from the window here, for the reason given there.
     remember_bounds(state);

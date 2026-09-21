@@ -142,6 +142,10 @@ impl Magick {
             if let Some(dir) = exe.parent() {
                 candidates.push(dir.join("magick/magick.exe"));
                 candidates.push(dir.join("ImageMagick/magick.exe"));
+                // The macOS bundle: `Contents/MacOS` holds the executables and everything else
+                // lives beside them in `Contents/Resources`, which is where the packaging script
+                // puts the tree `scripts/bundle-magick-mac.sh` built.
+                candidates.push(dir.join("../Resources/magick/bin/magick"));
                 candidates.push(dir.join("../Resources/ImageMagick/bin/magick"));
                 candidates.push(dir.join("magick/bin/magick"));
             }

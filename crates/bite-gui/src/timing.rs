@@ -149,12 +149,51 @@ pub fn ms_since_start() -> f64 {
     now.saturating_sub(created) as f64 / 10_000.0
 }
 
+/// Milliseconds from the kernel's process-creation time to now.
+///
+/// `proc_pidinfo(PROC_PIDTBSDINFO)` is the true equivalent of the Windows arm's
+/// `GetProcessTimes`: the kernel's own record of when this process began, so - unlike an
+/// `Instant` taken at the top of `main` - it includes dyld, which on a first, cold launch of a
+/// bundle is a real share of the number. Both halves of the subtraction read the same wall
+/// clock: `pbi_start_tv*` is the `gettimeofday` value at exec, and so is `SystemTime::now`.
+#[cfg(target_os = "macos")]
+pub fn ms_since_start() -> f64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    // SAFETY: the buffer is a `proc_bsdinfo` and the size passed is its own; `proc_pidinfo`
+    // writes at most that many bytes and reports how many it wrote.
+    let (info, wrote) = unsafe {
+        let mut info: libc::proc_bsdinfo = std::mem::zeroed();
+        let wrote = libc::proc_pidinfo(
+            libc::getpid(),
+            libc::PROC_PIDTBSDINFO,
+            0,
+            std::ptr::addr_of_mut!(info).cast(),
+            std::mem::size_of::<libc::proc_bsdinfo>() as libc::c_int,
+        );
+        (info, wrote)
+    };
+    if wrote != std::mem::size_of::<libc::proc_bsdinfo>() as libc::c_int {
+        // No origin means no measurement, and a plausible-looking number would be worse than
+        // none - see the arm below.
+        return f64::NAN;
+    }
+    let started = info.pbi_start_tvsec as f64 * 1e3 + info.pbi_start_tvusec as f64 / 1e3;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64()
+        * 1e3;
+    now - started
+}
+
 /// No process-creation clock here, and no honest way to fake one.
 ///
 /// A `OnceLock<Instant>` initialised inside the measurement would report ~0 ms on every run - a
 /// number that looks like a result. NaN is what "not measured on this platform" should look like,
-/// and the harness rejects it. The editor ships on Windows; macOS gets a real arm with Phase 8.
-#[cfg(not(windows))]
+/// and the harness rejects it. The editor ships on Windows and macOS, both of which have a real
+/// arm above.
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn ms_since_start() -> f64 {
     f64::NAN
 }
@@ -200,8 +239,42 @@ fn memory() -> (u64, u64) {
     }
 }
 
+/// This process's resident size and physical footprint, in bytes.
+///
+/// The pair the Windows arm reports is working set and commit charge. The nearest honest
+/// equivalents here are `ri_resident_size` - the pages actually in RAM, as the working set is -
+/// and `ri_phys_footprint`, which is what Activity Monitor calls Memory and what Apple counts a
+/// process against: resident memory plus its compressed pages and IOKit mappings. Neither is the
+/// same quantity as its Windows counterpart, so the two platforms' numbers are comparable in
+/// shape rather than exactly.
+#[cfg(target_os = "macos")]
+fn memory() -> (u64, u64) {
+    // `rusage_info_t` is a `void *` typedef and the parameter is declared `rusage_info_t *`, but
+    // the pointer passed is the *destination*, not a pointer to one: the call writes the selected
+    // struct at that address. So what goes in is the struct's own address cast through the
+    // typedef, which is what the C callers do. Passing the address of a `rusage_info_t` variable
+    // instead type-checks and smashes the stack.
+    //
+    // SAFETY: the buffer is a `rusage_info_v2`, which is the struct `RUSAGE_INFO_V2` selects, so
+    // the call writes exactly its size into storage that large.
+    let (info, ok) = unsafe {
+        let mut info: libc::rusage_info_v2 = std::mem::zeroed();
+        let ok = libc::proc_pid_rusage(
+            libc::getpid(),
+            libc::RUSAGE_INFO_V2,
+            std::ptr::addr_of_mut!(info).cast::<libc::rusage_info_t>(),
+        ) == 0;
+        (info, ok)
+    };
+    if ok {
+        (info.ri_resident_size, info.ri_phys_footprint)
+    } else {
+        (0, 0)
+    }
+}
+
 /// No per-process counters here; the lines still carry their timings.
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 fn memory() -> (u64, u64) {
     (0, 0)
 }
@@ -212,7 +285,7 @@ mod tests {
 
     /// The clock must be running and plausible: a test process is milliseconds to seconds old,
     /// never zero - which is what a broken arm reports - and never hours.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     #[test]
     fn the_process_clock_reports_a_plausible_age() {
         let ms = ms_since_start();
@@ -224,7 +297,7 @@ mod tests {
     }
 
     /// Working set and commit must both read as something for a live process.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     #[test]
     fn the_memory_counters_report_something() {
         let (working_set, commit) = memory();

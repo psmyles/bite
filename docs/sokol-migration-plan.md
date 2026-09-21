@@ -58,7 +58,7 @@ crates/bite-gui/
 ├── src/platform.rs      window + event loop; owns the swapchain and the frame
 ├── src/render/
 │   ├── d3d11.rs         Device (create, fill_environment) + Swapchain (new, resize, acquire, present)
-│   ├── metal.rs         the macOS twin, later (Phase 8)
+│   ├── metal.rs         the macOS twin: CAMetalLayer, MTLDevice, nextDrawable
 │   ├── imgui.rs         simgui_setup once, simgui_render per frame, simgui_imtextureid
 │   ├── textures.rs      the UI's image store: key → (sg::Image, sg::View, ImTextureID)
 │   └── readback.rs      render target → Vec<u8> through sg::d3d11_query_image_info (for smoke)
@@ -587,20 +587,46 @@ Phase 4 established. Note that `smoke.rs` keeps its *own* fixed version list for
 separate from `commands::about_versions`, so that a capture does not depend on which ImageMagick
 is installed; both have to be edited together.
 
-**Not done: Phase 8.** It is scoped in this plan as separate, and it cannot be compiled, let
-alone run, on the Windows machine this migration was done on - writing it here would put code in
-the tree that nothing has ever built. Everything it needs is in place for whoever picks it up:
-`render/mod.rs` already gates the Windows files on `cfg(windows)`, `build.rs::compile_simgui`
-already switches `SOKOL_METAL` on `target_os`, and `SWAPCHAIN_FORMAT` is the one constant a Metal
-twin has to agree on.
+### Phase 8 - macOS: done
 
-### Phase 8 - macOS (when it is next)
+Done on a Mac afterwards, as scoped. `render/metal.rs` is fire's, near-verbatim: a `CAMetalLayer`
+on winit's `NSView`, `MTLCreateSystemDefaultDevice`, `nextDrawable` per frame. The seams the
+earlier phases left were the right ones - `render/mod.rs` already gated the Windows files,
+`compile_simgui` already switched `SOKOL_METAL` on `target_os`, and `SWAPCHAIN_FORMAT` was
+indeed the one constant that had to be agreed. First frame from the packaged bundle is **163 ms**
+at a 95 MB resident size, against the 300 ms target this migration set.
 
-`render/metal.rs` from fire (a `CAMetalLayer` on winit's view, `MTLCreateSystemDefaultDevice`,
-`nextDrawable` per frame), the objc2 feature list from fire's `Cargo.toml`, `SOKOL_METAL` for
-the simgui compile (fire's `compile_simgui` already switches on `target_os`), and the metal arm
-of `readback.rs` from 3d-review's `metal.rs:490`. sokol_imgui's Metal shaders are embedded, so
-no shader step.
+Four things differed from what this plan predicted, and they are worth recording:
+
+- **`SWAPCHAIN_FORMAT` is `Bgra8` on macOS**, not `Rgba8`: a `CAMetalLayer` accepts a short list
+  of formats and RGBA8 is not on it. That reaches further than the swapchain, because `smoke.rs`
+  builds its offscreen capture target from the same constant - it has to, since sokol_imgui's
+  pipeline is created once with it and a pass whose attachment disagrees fails validation. So
+  `readback` swaps red and blue on the way out and the goldens stay one set of RGBA images for
+  both platforms. `tests/render_stack.rs` is what holds this honest: its clear and rectangle
+  colours have no two channels alike, so a swizzle missed or applied twice fails it.
+
+- **The readback is a blit, not a map.** 3d-review's `getBytes` was not usable: sokol creates
+  every colour-attachment image with `MTLResourceStorageModePrivate`, so the texture is not
+  CPU-addressable at all. The Metal arm encodes a blit into a `StorageModeShared` buffer on
+  sokol's own command queue and waits on it.
+
+- **objc2 0.5 / 0.2, not the newest.** `rfd` and `arboard` pull objc2 0.6 and app-kit 0.3, but
+  winit 0.30.13 pulls 0.5 with metal and quartz-core 0.2 - and `muda` is on the same family. So
+  the older one costs nothing to depend on and let fire's files come across unedited; the newer
+  one would have meant two families and a rewrite of every call.
+
+- **`sg_swapchain` only needs the drawable.** `present` has no present call in it: `sg_end_pass`
+  schedules `presentDrawable:` and `sg_commit` commits it, so the module only releases its own
+  hold. Presenting again is a double present.
+
+Beyond the renderer, macOS needed what no `cfg` had stood in for yet: a system menu bar whose
+Quit routes through `Command::Exit` rather than AppKit's `terminate:` (`menubar.rs` - otherwise
+Cmd+Q ends the process with the unsaved-document prompt unasked and the session unwritten), the
+`application:openURLs:` hook that is the only way a double-clicked workflow reaches the app
+(`openfiles.rs`), `../Resources` probes in `definitions_root` and `Magick::discover` for the
+bundle layout, and real `timing.rs` arms (`proc_pidinfo`, `proc_pid_rusage`) in place of the NaN
+this plan left there.
 
 ## Risks and things to check
 
@@ -656,7 +682,7 @@ no shader step.
 Phase 0 half a day; Phase 1 one to two days (the bindings regenerate in minutes; the wrapper
 fixes and the font rework are the work); Phases 2-3 two days (transplanting fire's files, then
 the shell and the texture store); Phase 4 half a day; Phase 5 half a day; Phases 6-7 half a day.
-Phase 8 is separate and about a day given fire's `metal.rs`.
+Phase 8 was separate and took about a day, as estimated, given fire's `metal.rs`.
 
 ## Results
 

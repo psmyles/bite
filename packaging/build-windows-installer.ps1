@@ -3,8 +3,7 @@
     Build the Bite release binaries and package them into a Windows installer with Inno Setup.
 
 .DESCRIPTION
-    The one-command distribution build, replacing the old `npm run build` (Vite + pkg +
-    electron-builder):
+    The one-command distribution build, and the Windows twin of packaging/build-mac-dmg.sh:
 
       1. Reads product.json - the canonical source of product name, version and publisher.
       2. Syncs the [workspace.package] version in Cargo.toml to product.json and refreshes

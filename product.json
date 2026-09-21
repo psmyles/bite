@@ -6,6 +6,7 @@
   "description": "Bite (Batch Image Transformation Editor) - a GUI batch image workflow builder powered by ImageMagick",
   "copyright": "Copyright (c) 2026 Chandan Singh",
   "homepage": "https://github.com/psmyles/bite",
+  "bundleId": "com.bite.app",
   "exeName": "bite-gui",
   "cliName": "bite",
   "fileAssociation": {

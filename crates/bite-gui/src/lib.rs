@@ -10,7 +10,13 @@ pub mod icon;
 pub mod log_window;
 pub mod logging;
 pub mod menu;
+/// The macOS system menu bar, which is where Cmd+Q lives.
+#[cfg(target_os = "macos")]
+pub mod menubar;
 pub mod modals;
+/// Workflows handed over by Launch Services rather than on the command line.
+#[cfg(target_os = "macos")]
+pub mod openfiles;
 pub mod panels;
 pub mod persist;
 pub mod platform;

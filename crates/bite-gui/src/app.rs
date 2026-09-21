@@ -102,12 +102,23 @@ pub fn definitions_root() -> PathBuf {
     if let Some(explicit) = std::env::var_os("BITE_DEFINITIONS_ROOT") {
         return PathBuf::from(explicit);
     }
-    // A packaged build keeps them beside the executable; a development build falls back
-    // to the source tree.
+    // A packaged build keeps them beside the executable - or, in a macOS bundle, one level up in
+    // `Contents/Resources`, since `Contents/MacOS` holds only executables. A development build
+    // falls back to the source tree.
+    //
+    // The order matters on neither platform (only one of the two can exist) but the `Resources`
+    // probe is what makes a bundle launched from Finder work at all: its working directory is
+    // `/`, so nothing relative is any help, and without this the fallback below points at a
+    // source tree that is not on the user's machine. `bite-cli`'s `load_registry` has the same
+    // list for the same reason.
     if let Ok(executable) = std::env::current_exe() {
         if let Some(directory) = executable.parent() {
             if directory.join("node-definitions").is_dir() {
                 return directory.to_path_buf();
+            }
+            let resources = directory.join("../Resources");
+            if resources.join("node-definitions").is_dir() {
+                return resources;
             }
         }
     }

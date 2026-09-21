@@ -2,8 +2,9 @@
 
 ## Execution policy
 
-The 2026-09-19 user decision permits progression after Windows checks pass;
-macOS checks remain pending and do not constitute verified parity. Use
+The 2026-09-19 user decision permits progression after Windows checks pass.
+macOS was stubbed until 2026-09-21 and now builds, runs and packages; its
+remaining checks are the interactive ones, listed under Status. Use
 `test_images` and generated deterministic fixtures for benchmarks. Keep Electron
 usable until parity and cutover gates pass.
 
@@ -47,7 +48,13 @@ usable until parity and cutover gates pass.
 - Phase 10: editor-parity implementation is complete; the Windows hands-on
   interaction checklist remains before M4 can pass. Electron remains intact.
 - Phases 11–13: pending.
-- macOS automated, GUI, packaging, and clean-machine checks: pending.
+- macOS: **builds, runs and packages** as of 2026-09-21 — see the entry at the end of this
+  file. Automated checks pass there (workspace tests, the Metal render-stack test, all 25
+  capture scenes, a real workflow through the packaged CLI) and
+  `packaging/build-mac-dmg.sh` produces a signed image. Still pending: anything needing a real
+  pointer (display-scale changes, live resize, full screen, dialogs, drag-and-drop), a
+  notarized build (`packaging/build-mac-release.sh` has not been run), and a clean-machine
+  install.
 - Windows GUI, mixed-DPI/IME, packaging, and clean-machine checks: pending.
 
 Current source, rather than stale fixture documentation, is authoritative: `flip`
@@ -1134,3 +1141,130 @@ All four fail against the rounded measurement.
 
 No atlas cost came with it. Bakes are still keyed on the rounded rasterizer size, so the set of
 rasterized sizes is exactly what it was.
+
+## macOS 2026-09-21 — the platform the migration had left stubbed
+
+The editor shipped on Windows and did not compile on macOS. `render/mod.rs` gated the D3D11
+device, swapchain and readback on `cfg(windows)` while `platform.rs` and `smoke.rs` imported
+them unconditionally, which is the state the sokol migration deliberately stopped at: its
+Phase 8 could not be written, let alone run, on the Windows machine that work was done on.
+
+It builds, runs, captures and packages now. `docs/sokol-migration-plan.md` records what the
+renderer half cost and where it diverged from what that plan predicted — a `Bgra8` swapchain
+that reaches into the capture goldens, a blit readback because sokol's attachments are private
+storage, and the objc2 0.5/0.2 family rather than the newer one. What follows is the rest.
+
+**What a Mac needed that no `cfg` had stood in for.**
+
+- **The menu bar, because of Cmd+Q.** winit installs a default macOS menu whose Quit is AppKit's
+  `terminate:`, which ends the process where it stands: no unsaved-changes prompt, no
+  `save_session`, so the window bounds and panel sizes of that session are gone. The editor
+  suppresses that menu (`with_default_menu(false)`) and builds its own, in which Quit is an
+  ordinary item carrying Cmd+Q and routed through the event loop to `Command::Exit` — the same
+  path the File menu's Exit and the red close button take. Everything else in it is a muda
+  predefined item, mapping onto AppKit's own selectors.
+
+  It carries exactly **one** accelerator, and that is the design rather than an omission. A muda
+  accelerator intercepts the key before winit sees it and sends it down a responder chain winit's
+  view does not forward to Dear ImGui, so a File menu with Cmd+N or an Edit menu with Cmd+C would
+  have produced shortcuts that look bound and do nothing. ImGui already implements those chords,
+  and with Cmd rather than Ctrl, because sokol_imgui sets `ConfigMacOSXBehaviors`.
+
+- **Finder opens, which are not arguments.** On Windows a double-clicked workflow is `argv[1]`.
+  On macOS Launch Services delivers it as an Apple event, so a fresh launch gets no arguments and
+  a running editor gets no new process. `openfiles.rs` adds `application:openURLs:` to winit's
+  delegate class at run time — the only one of the three available approaches that leaves winit's
+  own dispatch intact — and re-sets the delegate so AppKit re-reads which methods it has. A
+  launch-by-open arrives before `resumed`, so those are queued and handed to the window as it is
+  created rather than opening blank and loading a frame later.
+
+- **The bundle layout.** `definitions_root` probed only beside the executable; a bundle keeps its
+  payload in `Contents/Resources`, and a bundle launched from Finder has working directory `/`,
+  so without the `../Resources` probe the fallback pointed at a source tree that is not on the
+  user's machine. `Magick::discover` gained the matching candidate.
+
+- **`timing.rs` reported NaN off Windows**, which the sokol plan noted and left. It has real arms
+  now: `proc_pidinfo(PROC_PIDTBSDINFO)` for the kernel's process-creation time, which is the true
+  equivalent of `GetProcessTimes` because it includes dyld, and `proc_pid_rusage` for resident
+  size and physical footprint. Note that `rusage_info_t` is a `void *` typedef and the parameter
+  is declared `rusage_info_t *`, but the pointer passed is the destination, not a pointer to one;
+  passing the address of a `rusage_info_t` variable type-checks and smashes the stack. The test
+  that insists the counters read non-zero is what caught it.
+
+**Packaging.** There was none on this branch — the Electron-era `scripts/build-mac.sh` went with
+the rest of that tree. `packaging/build-mac-dmg.sh` and `packaging/build-mac-release.sh` differ
+only in whether the notary service is involved, and share `packaging/mac-common.sh`. The two
+inputs that are not in git are unchanged and still correct: `scripts/bundle-magick-mac.sh` and
+`scripts/build-icon-mac.sh`.
+
+Three things in there are worth keeping rather than rediscovering:
+
+- **The `.dmg` needs its own signature, ticket and staple.** The one on the `.app` is what lets it
+  launch offline after a drag-install; the one on the `.dmg` is what the download itself is
+  checked against. So the app is notarized and stapled *before* the image is built around it —
+  stapling rewrites the bundle, and an image built first would carry the unstapled copy. This is
+  the same lesson the Electron script had learned, where electron-builder notarized the app and
+  left the container it shipped unsigned.
+
+- **`magick --version` is not a smoke test.** It prints happily from a tree whose coder modules
+  cannot be loaded, which is a bundle that ships and then fails on the first image opened.
+  Homebrew builds ImageMagick with loadable coders, so the script encodes a real PNG under
+  `env -i` with exactly the four `MAGICK_*` variables `Magick::discover` sets, from inside the
+  signed bundle — which is also where library validation would reject a mis-signed module.
+
+- **`set -o pipefail` and `grep -q` do not mix.** `codesign -dvv | grep -q` reports *failure* on
+  a match: grep leaves as soon as it has one, codesign takes a SIGPIPE writing the rest, and
+  pipefail surfaces that. It read as "the bundled ImageMagick is not hardened" about a tree that
+  was. Read once into a variable and match against that.
+
+**One bug this found in shared code.** `save_session` ran twice on exit, so the log said "Editor
+closed" twice and the session was written twice. `event_loop.exit()` is a request rather than a
+stop: winit still delivers what it has already queued, so the redraw in flight when the editor
+decided to leave arrives afterwards and finds `should_exit` still set. The second write happened
+while the window was going away, which is not a state worth reading the bounds in. It is guarded
+now, and the guard covers all four exit paths on both platforms.
+
+**Verified here, automated.** `cargo test --workspace` and `cargo clippy --workspace
+--all-targets` clean. `tests/render_stack.rs` runs on Metal — device, sokol_gfx, sokol_imgui, an
+offscreen pass and the blit readback, with the channel order checked. All 25 `--capture` scenes
+render, from the source tree and from inside the bundle with `env -i` and working directory `/`.
+The packaged CLI runs a real resize workflow end to end with no Homebrew and nothing on `PATH`,
+64x64 in and 32x32 out, which is `Magick::discover` and the relocated coder modules together.
+The bundled editor reaches its first frame in 163 ms. The system menu bar reads `Bite` and
+`Window` with the expected items; Cmd+Q on a clean document quits and writes the session once;
+Cmd+Q on a dirty one raises "You have unsaved changes. Exit anyway?"; a double-clicked workflow
+opens both on launch and into a running instance, and the running instance asks before replacing
+a dirty document. `packaging/build-mac-dmg.sh` produces a signed, verified 20 MB image.
+
+**Not verified here, and needing hands on a Mac.** Everything that wants a real pointer:
+AppleScript's synthetic clicks do not reach a Dear ImGui surface, so no mouse interaction was
+exercised. Specifically still open — dragging the window between a Retina and a 1x display
+(`set_scale_factor` is written and unexercised), live resize and minimise/restore, full screen,
+the file dialogs and clipboard, drag-and-drop, and a clean-machine install from a notarized
+image. `packaging/build-mac-release.sh` has not been run: it needs the notary service, so it is
+the user's to run first.
+
+**The Electron tree went with it.** The branch carried no tracked Electron sources any more, but
+1.2 GB of its build output was still in the working tree — `node_modules`, `dist-cli`,
+`dist-electron`, `dist-web`, the Vite bundle left inside `dist/`, and `release/0.5.0` with the
+last signed 0.5.0 macOS installer. All removed. That installer was never published (GitHub
+releases stop at v0.4.4, Windows-only, under the old `imgplex` name) and cannot be rebuilt now,
+which is why it was a decision rather than a tidy-up; the user made it.
+
+Two live dependencies went too. `scripts/build-icon-mac.sh` validated the compiled `.icns` by
+walking its chunk table in `node -e`, which put a JavaScript runtime on the macOS release path;
+it now converts the icns back to an iconset with `iconutil` — already required three lines above —
+and checks for `icon_512x512@2x.png`, which is the same `ic10` entry by another name. A tracked
+`imgui.ini` was also deleted: the editor sets `IniFilename` to null and keeps its layout in
+`persist::Session`, so nothing had written that file for some time.
+
+What stayed is the parity record. Forty-five comments across twenty-eight files still name
+Electron, and they are the reason each module is shaped as it is — `README.md` keeps
+`docs/spec.md` as the behavioural contract precisely so those can be checked against something.
+None of them points at a path that no longer exists; the one that did, `menu.rs`'s reference to
+`electron/main.ts`, was reworded.
+
+**Known and deliberate.** Full screen is still F11, which is a Windows binding — macOS expects
+Cmd+Ctrl+F, and changing it touches the key map rather than only a label, so it was left. The
+`.bite` association claims `LSHandlerRank Owner`, since the editor defines the type. The CLI ships
+at `Contents/MacOS/bite` with no PATH entry, where the Windows installer offers one.

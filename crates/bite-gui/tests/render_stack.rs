@@ -12,10 +12,15 @@
 //! its tests in one process.
 //!
 //! On a machine with no Direct3D 11 at all the device creation falls back to WARP, which is the
-//! same fallback the editor ships for RDP, so there is no configuration in which this is
-//! expected to be skipped.
+//! same fallback the editor ships for RDP; on macOS every supported Mac has a Metal device. So
+//! there is no configuration on either platform in which this is expected to be skipped.
+//!
+//! It runs on both because the backends differ in exactly the way this checks. The macOS
+//! swapchain format is `BGRA8` where Windows is `RGBA8`, and `readback` puts the channels back
+//! in RGBA order for the caller - so the colour assertions below are what catches a swizzle that
+//! was missed or applied twice, which is why [`CLEAR`] and [`RECT`] have no two channels alike.
 
-#![cfg(windows)]
+#![cfg(any(windows, target_os = "macos"))]
 
 use bite_gui::render::{Device, SWAPCHAIN_FORMAT, imgui, readback};
 use sokol::gfx as sg;

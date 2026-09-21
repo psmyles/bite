@@ -1,7 +1,12 @@
-//! The application menu, matching `electron/main.ts` label for label.
+//! The application menu.
 //!
-//! Every item in the Electron menu is always enabled, and the only dynamic label is the
-//! performance timer toggle, so the native menu behaves the same way.
+//! Every item is always enabled and the only dynamic label is the performance timer toggle,
+//! which is the shape the menu has always had; `docs/spec.md` is where that contract is
+//! written down.
+//!
+//! On macOS the system menu bar beside this one (`crate::menubar`) carries only what AppKit
+//! must own - the application menu and Quit. This is the editor's menu on both platforms, so
+//! the two must not both claim an accelerator; see that module.
 use crate::{controls, theme};
 use bite_imgui::{Color, StyleColor, StyleVar, Ui};
 
@@ -125,6 +130,39 @@ fn draw_title(ui: &mut Ui, title: &str) {
     );
 }
 
+/// Spells an accelerator whose modifier is the platform's primary one: Cmd on macOS, Ctrl
+/// everywhere else. `primary!("N")` is `"Cmd+N"` or `"Ctrl+N"`, decided at compile time, so the
+/// menu rows below stay one list rather than two.
+///
+/// This is only how the chord is *written*. What the editor acts on is [`shortcut`], which takes
+/// `Modifiers::primary` - and `Ui::primary_modifier` is already Ctrl-or-Cmd, so the Mac chords
+/// worked before these labels admitted it.
+#[cfg(target_os = "macos")]
+macro_rules! primary {
+    ($keys:literal) => {
+        concat!("Cmd+", $keys)
+    };
+}
+#[cfg(not(target_os = "macos"))]
+macro_rules! primary {
+    ($keys:literal) => {
+        concat!("Ctrl+", $keys)
+    };
+}
+
+/// Quitting is the one row whose chord is not the same key on both platforms: Alt+F4 is a
+/// Windows window-manager binding, and on macOS the menu bar owns Cmd+Q (see `menubar`).
+#[cfg(target_os = "macos")]
+const EXIT_ACCELERATOR: &str = "Cmd+Q";
+#[cfg(not(target_os = "macos"))]
+const EXIT_ACCELERATOR: &str = "Alt+F4";
+
+/// What the Exit row is called. The Mac convention names the application; Windows does not.
+#[cfg(target_os = "macos")]
+const EXIT_LABEL: &str = "Quit Bite";
+#[cfg(not(target_os = "macos"))]
+const EXIT_LABEL: &str = "Exit";
+
 fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Option<Command> {
     let mut command = None;
     // A free function keeps the accumulator out of a closure the menu bodies also borrow.
@@ -141,13 +179,13 @@ fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Optio
     }
 
     ui.menu("File", |ui| {
-        item(ui, &mut command, "New", "Ctrl+N", Command::New);
+        item(ui, &mut command, "New", primary!("N"), Command::New);
         ui.separator();
-        item(ui, &mut command, "Run Workflow", "Ctrl+R", Command::RunWorkflow);
+        item(ui, &mut command, "Run Workflow", primary!("R"), Command::RunWorkflow);
         ui.separator();
-        item(ui, &mut command, "Open Workflow", "Ctrl+O", Command::OpenWorkflow);
-        item(ui, &mut command, "Save Workflow", "Ctrl+S", Command::SaveWorkflow);
-        item(ui, &mut command, "Save Workflow As", "Ctrl+Shift+S", Command::SaveWorkflowAs);
+        item(ui, &mut command, "Open Workflow", primary!("O"), Command::OpenWorkflow);
+        item(ui, &mut command, "Save Workflow", primary!("S"), Command::SaveWorkflow);
+        item(ui, &mut command, "Save Workflow As", primary!("Shift+S"), Command::SaveWorkflowAs);
         ui.separator();
         let mut nested = None;
         ui.menu("Export CLI Script", |ui| {
@@ -165,27 +203,27 @@ fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Optio
             command = Some(nested);
         }
         ui.separator();
-        item(ui, &mut command, "Exit", "Alt+F4", Command::Exit);
+        item(ui, &mut command, EXIT_LABEL, EXIT_ACCELERATOR, Command::Exit);
     });
 
     ui.menu("Edit", |ui| {
-        item(ui, &mut command, "Undo", "Ctrl+Z", Command::Undo);
-        item(ui, &mut command, "Redo", "Ctrl+Y", Command::Redo);
+        item(ui, &mut command, "Undo", primary!("Z"), Command::Undo);
+        item(ui, &mut command, "Redo", primary!("Y"), Command::Redo);
         ui.separator();
-        item(ui, &mut command, "Cut", "Ctrl+X", Command::Cut);
-        item(ui, &mut command, "Copy", "Ctrl+C", Command::Copy);
-        item(ui, &mut command, "Paste", "Ctrl+V", Command::Paste);
+        item(ui, &mut command, "Cut", primary!("X"), Command::Cut);
+        item(ui, &mut command, "Copy", primary!("C"), Command::Copy);
+        item(ui, &mut command, "Paste", primary!("V"), Command::Paste);
         ui.separator();
-        item(ui, &mut command, "Duplicate", "Ctrl+D", Command::Duplicate);
+        item(ui, &mut command, "Duplicate", primary!("D"), Command::Duplicate);
         item(ui, &mut command, "Delete", "Delete", Command::Delete);
         ui.separator();
-        item(ui, &mut command, "Select All", "Ctrl+A", Command::SelectAll);
+        item(ui, &mut command, "Select All", primary!("A"), Command::SelectAll);
     });
 
     ui.menu("View", |ui| {
-        item(ui, &mut command, "Actual Size", "Ctrl+0", Command::ActualSize);
-        item(ui, &mut command, "Zoom In", "Ctrl+Plus", Command::ZoomIn);
-        item(ui, &mut command, "Zoom Out", "Ctrl+-", Command::ZoomOut);
+        item(ui, &mut command, "Actual Size", primary!("0"), Command::ActualSize);
+        item(ui, &mut command, "Zoom In", primary!("Plus"), Command::ZoomIn);
+        item(ui, &mut command, "Zoom Out", primary!("-"), Command::ZoomOut);
         ui.separator();
         item(ui, &mut command, "Toggle Full Screen", "F11", Command::ToggleFullScreen);
     });
@@ -220,7 +258,7 @@ fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Optio
     command
 }
 
-/// The web addresses the Help menu opens, from the Electron menu definition.
+/// The web addresses the Help menu opens.
 pub const DOCUMENTATION_URL: &str = "https://github.com/psmyles/bite/tree/main/docs";
 pub const REPORT_BUG_URL: &str = "https://github.com/psmyles/bite/issues/new";
 pub const RELEASES_URL: &str = "https://github.com/psmyles/bite/releases";

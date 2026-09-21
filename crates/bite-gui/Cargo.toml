@@ -42,6 +42,53 @@ windows = { version = "0.62", features = [
     "Win32_System_Threading",           # GetStartupInfoW: the launch show command
 ] }
 
+# The Metal device and `CAMetalLayer` sokol_gfx draws through (`render::metal`), the blit
+# readback `--capture` reads pixels back with (`render::readback`), the menu bar, and the
+# Finder-open hook. This is the **0.5/0.2** objc2 family, not the 0.6/0.3 one `rfd` and
+# `arboard` pull: winit already depends on exactly these versions, so nothing new is resolved,
+# and `muda` is on the same family. The feature lists are what these four files use - each crate
+# gates every class behind one, so an omission is a missing type rather than a smaller build.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.5"
+objc2-foundation = { version = "0.2", features = [
+    "NSGeometry",                   # CGSize, for the layer's drawable size
+    "NSArray",                      # the `openURLs:` argument
+    "NSString",
+    "NSURL",                        # what a Finder open arrives as
+    "NSThread",                     # MainThreadMarker
+] }
+objc2-metal = { version = "0.2", features = [
+    "MTLDevice",                    # MTLCreateSystemDefaultDevice: the device sokol_gfx runs on
+    "MTLPixelFormat",               # the layer's BGRA8Unorm backbuffer format
+    "MTLDrawable",                  # CAMetalDrawable's base protocol
+    "MTLTexture",                   # the drawable's texture, and the capture's source
+    "MTLResource",                  # storage modes
+    "MTLBuffer",                    # the shared buffer a capture is blitted into
+    "MTLCommandQueue",              # sokol's queue, which the capture's blit is encoded on
+    "MTLCommandBuffer",
+    "MTLCommandEncoder",
+    "MTLBlitCommandEncoder",        # texture -> buffer, the only way back from a private texture
+    "MTLTypes",                     # MTLOrigin / MTLSize
+] }
+objc2-quartz-core = { version = "0.2", features = [
+    "CALayer",                      # contentsScale, the layer the view hosts
+    "CAMetalLayer",                 # the layer itself: device, format, nextDrawable
+    "objc2-metal",                  # enables CAMetalLayer's MTLDevice-typed accessors
+] }
+objc2-app-kit = { version = "0.2", features = [
+    "NSView",                       # setLayer:/setWantsLayer: on winit's view
+    "NSResponder",                  # NSView's superclass chain
+    "objc2-quartz-core",            # setLayer: takes a CALayer, so NSView needs the type
+    "NSApplication",                # the delegate `openfiles` extends with openURLs:
+] }
+# The system menu bar. Without one a Mac app cannot be quit from the keyboard at all: Cmd+Q is
+# the menu's, not the window's. Default features off - the tray icon and its image decoders are
+# a third of the crate and nothing here wants them.
+muda = { version = "0.19.3", default-features = false }
+# `timing`'s macOS arm: proc_pidinfo for the process-creation clock, proc_pid_rusage for the
+# footprint. The Windows arm calls GetProcessTimes for the same two numbers.
+libc = "0.2"
+
 [build-dependencies]
 # Compiles `simgui/simgui.c`; see `compile_simgui` in build.rs.
 cc = "1"

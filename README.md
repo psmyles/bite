@@ -46,7 +46,7 @@ earlier Electron/Svelte renderer, kept on the `main` branch; it is not built fro
 - [Rust](https://www.rust-lang.org/tools/install) 1.87+ (stable)
 - A C++ toolchain for the vendored Dear ImGui: MSVC build tools on Windows, Xcode command line
   tools on macOS
-- [ImageMagick](https://imagemagick.org) 7+ - the Windows installer bundles its own binary;
+- [ImageMagick](https://imagemagick.org) 7+ - both packaged builds bundle their own binary;
   building from source needs `magick` on your PATH (or `resources/win/magick/`,
   `resources/mac/magick/`, which the binaries check first)
 - The submodules: `git submodule update --init --recursive`
@@ -71,6 +71,7 @@ asserting the actual encoded output; see `test-workflows/README.md`.
 ```bash
 cargo build --release                                # both binaries
 pwsh packaging/build-windows-installer.ps1           # Windows: installer in dist/
+packaging/build-mac-release.sh                       # macOS: signed, notarized .dmg in dist/
 ```
 
 `packaging/build-windows-installer.ps1` is the whole distribution build: it syncs the crate
@@ -98,11 +99,42 @@ packaging script runs it for you.
 
 #### macOS
 
-macOS builds from source with `cargo build --release`; there is no packaged .app yet. Two
-inputs for one are kept ready: `scripts/bundle-magick-mac.sh` vendors a relocatable, signed
-ImageMagick into `resources/mac/magick/` (upstream publishes none, so it copies `magick` plus its
-dylibs and coder modules out of Homebrew, rewrites their install names and re-signs them), and
+Apple Silicon only - the bundled ImageMagick is arm64. Two scripts, differing only in whether
+Apple's notary service is involved:
+
+```bash
+packaging/build-mac-dmg.sh        # signed .dmg, for testing the real packaged app
+packaging/build-mac-release.sh    # signed, notarized and stapled .dmg - the one to ship
+```
+
+Both produce `dist/Bite-Mac-<version>-arm64.dmg`. They sync the crate version to `product.json`,
+build `bite-gui` and `bite`, assemble `Bite.app`, check that nothing in it links against the
+build machine's Homebrew, sign it with your Developer ID and smoke-test the bundled ImageMagick
+from inside the signed bundle. `packaging/mac-common.sh` holds the steps both share. Pass
+`--skip-magick --skip-icon --skip-build` to reuse what is already built; `--help` lists the rest.
+
+`build-mac-dmg.sh` stops there, so its output is signed but **not notarized**: it opens on this
+Mac and on another one only through System Settings -> Privacy & Security -> Open Anyway. Use
+`build-mac-release.sh` for anything you send to someone. That one notarizes and staples the
+`.app` before wrapping it, then notarizes and staples the `.dmg` too, and ends by asking
+Gatekeeper the same questions a downloader's Mac will. It needs credentials once:
+
+```bash
+xcrun notarytool store-credentials bite --apple-id <your-apple-id> \
+    --team-id <your-team-id> --password <app-specific-password>
+echo 'APPLE_KEYCHAIN_PROFILE=bite' >> .env.mac    # gitignored
+```
+
+`APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD`, or the `APPLE_API_KEY` trio, work instead.
+
+Two inputs are built by the scripts but can be refreshed on their own, and neither is in git:
+`scripts/bundle-magick-mac.sh` vendors a relocatable, signed ImageMagick into
+`resources/mac/magick/` (upstream publishes none, so it copies `magick` plus its dylibs and coder
+modules out of Homebrew, rewrites their install names and re-signs them), and
 `scripts/build-icon-mac.sh` compiles `build/icons/bite.icon` into the layered icon catalogue plus
-an `.icns` fallback. Both need an Apple Silicon Mac; the icon script also needs full Xcode.
+an `.icns` fallback. The icon script needs full Xcode, not just the command line tools.
+
+The bundle carries the CLI at `Bite.app/Contents/MacOS/bite`; there is no PATH entry, so either
+call it by that path or symlink it somewhere yourself.
 
 ---
