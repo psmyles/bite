@@ -20,6 +20,7 @@ pub mod showcase;
 pub mod smoke;
 pub mod studio;
 pub mod theme;
+pub mod timing;
 pub mod timings;
 pub mod updates;
 pub mod work;

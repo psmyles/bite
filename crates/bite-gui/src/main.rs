@@ -43,6 +43,10 @@ fn attach_parent_console() -> bool {
 }
 
 fn main() {
+    // The first mark of the startup breakdown (`BITE_TIMING`). Everything before it - the
+    // loader, the CRT, the static initializers - is already counted: the clock is the kernel's
+    // process-creation time, not this instant. See `bite_gui::timing`.
+    bite_gui::timing::report("main");
     let console = attach_parent_console();
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if let Some(position) = arguments.iter().position(|value| value == "--capture") {

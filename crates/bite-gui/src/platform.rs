@@ -1,5 +1,5 @@
 //! The window, the graphics surface and the event loop.
-use crate::{app, commands, dialogs, icon, logging, modals, persist, renderer::Renderer, work};
+use crate::{app, commands, dialogs, icon, logging, modals, persist, renderer::Renderer, timing, work};
 use bite_imgui::{Context, Key, MouseButton, Vec2};
 use std::{
     path::PathBuf,
@@ -42,11 +42,14 @@ struct App {
 
 /// Starts the editor.
 pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
+    timing::report("run()");
     logging::start_session();
     work::prune_cache();
+    timing::report("prune_cache done");
     let event_loop = EventLoop::<Wake>::with_user_event()
         .build()
         .map_err(|error| error.to_string())?;
+    timing::report("event loop built");
     event_loop.set_control_flow(ControlFlow::Wait);
     let proxy = event_loop.create_proxy();
     let mut app = App {
@@ -62,6 +65,7 @@ impl ApplicationHandler<Wake> for App {
         if self.state.is_some() {
             return;
         }
+        timing::report("resumed");
         match self.create(event_loop) {
             Ok(state) => self.state = Some(state),
             Err(error) => {
@@ -185,6 +189,7 @@ impl ApplicationHandler<Wake> for App {
 impl App {
     fn create(&mut self, event_loop: &ActiveEventLoop) -> Result<State, String> {
         let mut editor = app::Editor::new()?;
+        timing::report("Editor::new");
         let session = persist::Session::load();
         let monitors: Vec<(i32, i32, u32, u32)> = event_loop
             .available_monitors()
@@ -210,16 +215,20 @@ impl App {
         if bounds.maximized {
             window.set_maximized(true);
         }
+        timing::report("window created");
 
         let instance = graphics_instance();
+        timing::report("wgpu Instance");
         let surface = instance
             .create_surface(window.clone())
             .map_err(|error| error.to_string())?;
+        timing::report("create_surface");
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             compatible_surface: Some(&surface),
             ..Default::default()
         }))
         .map_err(|error| error.to_string())?;
+        timing::report("request_adapter");
         let capabilities = surface.get_capabilities(&adapter);
         // A non-sRGB target keeps the interface colors exactly as authored.
         let format = capabilities
@@ -229,6 +238,7 @@ impl App {
             .find(|format| !format.is_srgb())
             .unwrap_or(capabilities.formats[0]);
         let renderer = pollster::block_on(Renderer::new(&adapter, format))?;
+        timing::report("device + pipelines");
         let size = window.inner_size();
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -242,9 +252,11 @@ impl App {
             color_space: wgpu::SurfaceColorSpace::Srgb,
         };
         surface.configure(&renderer.device, &config);
+        timing::report("surface configured");
 
         let scale = window.scale_factor() as f32;
         let context = Context::new(scale)?;
+        timing::report("imgui Context (fonts)");
         crate::theme::apply_base_style();
 
         let proxy = self.proxy.clone();
@@ -267,6 +279,7 @@ impl App {
             settle: 8,
         };
         upload_font_atlas(&mut state);
+        timing::report("font atlas uploaded");
 
         if let Some(path) = self.initial.take() {
             commands::open_path(&mut state.editor, &path);
@@ -337,6 +350,7 @@ impl App {
                 );
                 state.surface.window.pre_present_notify();
                 state.surface.renderer.queue.present(frame);
+                timing::stamp_first_frame();
             }
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost => {
                 state
