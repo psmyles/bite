@@ -489,7 +489,10 @@ pub fn add_individual_images(editor: &mut Editor, node: &str) {
 }
 
 /// Imports a set of files into a branch, generating thumbnails off the interface thread.
+///
+/// The files join whatever the branch already holds; one it holds already is not imported again.
 pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
+    let paths = new_paths(editor.branches.get(node), paths);
     if paths.is_empty() {
         return;
     }
@@ -589,6 +592,17 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
             skipped,
         });
     });
+}
+
+/// The requested files a branch does not already hold, each once, in the order given.
+fn new_paths(branch: Option<&crate::app::Branch>, paths: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut seen: std::collections::HashSet<PathBuf> = branch
+        .map(|branch| branch.paths.iter().cloned().collect())
+        .unwrap_or_default();
+    paths
+        .into_iter()
+        .filter(|path| seen.insert(path.clone()))
+        .collect()
 }
 
 /// Decodes a cached thumbnail, converting it through ImageMagick when it is not already a
@@ -857,35 +871,49 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
         }
         work::Message::ImportFinished {
             node,
-            paths,
+            // The thumbnails' own paths, so the thumbnails carry everything needed here.
+            paths: _,
             thumbnails,
             skipped,
         } => {
+            // The import joins what the branch already shows. Two imports can overlap - a
+            // drop while a scan is still running - and replacing the list here let whichever
+            // finished last discard the other's files.
             let branch = editor.branches.entry(node.clone()).or_default();
-            branch.paths = paths;
-            branch.thumbnails = thumbnails
-                .iter()
-                .map(|thumbnail| crate::panels::filmstrip::Thumbnail {
+            let first = branch.paths.len();
+            let thumbnails: Vec<work::Thumbnail> = thumbnails
+                .into_iter()
+                .filter(|thumbnail| !branch.paths.contains(&thumbnail.path))
+                .collect();
+            for thumbnail in &thumbnails {
+                branch.paths.push(thumbnail.path.clone());
+                branch.thumbnails.push(crate::panels::filmstrip::Thumbnail {
                     path: thumbnail.path.to_string_lossy().into_owned(),
                     name: crate::panels::filmstrip::display_name(&thumbnail.path.to_string_lossy()),
                     texture: None,
                     size: [thumbnail.image.width, thumbnail.image.height],
                     source: thumbnail.source,
-                })
-                .collect();
-            branch.selected = if branch.paths.is_empty() {
-                None
-            } else {
-                Some(0)
-            };
+                });
+            }
+            if branch.selected.is_none() && !thumbnails.is_empty() {
+                branch.selected = Some(first);
+            }
             editor.progress.completed = editor.progress.total;
             editor.progress.skipped = skipped;
             editor.finish_import_timing();
-            editor.pending_uploads = thumbnails
-                .into_iter()
-                .enumerate()
-                .map(|(index, thumbnail)| (format!("thumbnail:{node}:{index}"), thumbnail.image))
-                .collect();
+            editor
+                .pending_uploads
+                .extend(
+                    thumbnails
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, thumbnail)| {
+                            (
+                                format!("thumbnail:{node}:{}", first + index),
+                                thumbnail.image,
+                            )
+                        }),
+                );
             editor.request_preview();
         }
         work::Message::ImportFailed { error, .. } => {
@@ -911,7 +939,13 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
                 .into_iter()
                 .map(|(id, params)| (id, params.into_iter().collect()))
                 .collect();
-            editor.pending_uploads = vec![(format!("preview:{node}:{index}"), image)];
+            // A newer preview supersedes one still waiting, but not thumbnails still waiting.
+            editor
+                .pending_uploads
+                .retain(|(key, _)| !key.starts_with("preview:"));
+            editor
+                .pending_uploads
+                .push((format!("preview:{node}:{index}"), image));
         }
         work::Message::ValuesResolved { resolved } => {
             editor.resolved = resolved;

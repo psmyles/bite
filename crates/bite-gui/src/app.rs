@@ -690,12 +690,14 @@ pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
 pub fn canvas_context<'a>(
     editor: &'a Editor,
     counts: &'a BTreeMap<String, usize>,
+    names: &'a [String],
     delta: f32,
 ) -> CanvasContext<'a> {
     CanvasContext {
         registry: &editor.studio.registry,
         resolved: &editor.resolved,
         image_counts: counts,
+        image_names: names,
         preview_node: editor.effective_preview_node(),
         running_node: editor.run.as_ref().and_then(|run| run.node.clone()),
         running_file: editor.run.as_ref().and_then(|run| run.file.clone()),
@@ -744,6 +746,7 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
 
     let layout = shell::compute(size, bar.height, editor.session.panels);
     let counts = editor.image_counts();
+    let names = editor.active_names();
 
     // Panels.
     if let Some(entry) = panels::library::draw(
@@ -766,7 +769,7 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
     let graph = editor.studio.workflow.graph.clone();
     let mut canvas = std::mem::take(&mut editor.canvas);
     let actions = {
-        let context = canvas_context(editor, &counts, delta);
+        let context = canvas_context(editor, &counts, &names, delta);
         canvas.run(&mut ui, layout.canvas, &graph, &context)
     };
     editor.canvas = canvas;
@@ -1105,6 +1108,65 @@ mod tests {
             next_texture: 2,
             pending_uploads: Vec::new(),
         }
+    }
+
+    fn finished_import(names: &[&str]) -> work::Message {
+        let thumbnails: Vec<work::Thumbnail> = names
+            .iter()
+            .map(|name| work::Thumbnail {
+                path: PathBuf::from(name),
+                image: work::DecodedImage {
+                    width: 1,
+                    height: 1,
+                    pixels: vec![0; 4],
+                    bytes: 4,
+                },
+                source: work::SourceImage {
+                    width: 1,
+                    height: 1,
+                    bytes: 4,
+                },
+            })
+            .collect();
+        work::Message::ImportFinished {
+            node: "input".into(),
+            paths: thumbnails.iter().map(|t| t.path.clone()).collect(),
+            thumbnails,
+            skipped: 0,
+        }
+    }
+
+    /// Imports join the filmstrip rather than replacing it. Several files dropped from
+    /// Explorer used to arrive as one import each, and whichever finished last was all the
+    /// strip kept.
+    #[test]
+    fn a_finished_import_joins_the_images_already_in_the_strip() {
+        let mut editor = bare_editor();
+        crate::commands::apply_message(&mut editor, finished_import(&["a.png", "b.png"]));
+        crate::commands::apply_message(&mut editor, finished_import(&["b.png", "c.png"]));
+        let branch = &editor.branches["input"];
+        assert_eq!(
+            branch.paths,
+            ["a.png", "b.png", "c.png"].map(PathBuf::from).to_vec()
+        );
+        assert_eq!(branch.thumbnails.len(), 3);
+        assert_eq!(branch.thumbnails[2].path, "c.png");
+        // The first import chose the selection; the second leaves it alone.
+        assert_eq!(branch.selected, Some(0));
+        // Each new thumbnail uploads into its own slot, after the ones already there.
+        let keys: Vec<&str> = editor
+            .pending_uploads
+            .iter()
+            .map(|(key, _)| key.as_str())
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                "thumbnail:input:0",
+                "thumbnail:input:1",
+                "thumbnail:input:2"
+            ]
+        );
     }
 
     /// A wire dropped on empty canvas opens the menu, and the node the menu creates is

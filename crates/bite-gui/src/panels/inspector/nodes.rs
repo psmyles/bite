@@ -1271,7 +1271,7 @@ fn set_input_node(
                 ui,
                 "set-prefix-field",
                 &mut prefix,
-                "e.g. T_",
+                "Optional, e.g. T_",
                 width - 24.0 - label_width - 8.0,
             ) {
                 edits.push(Edit::SetParam {
@@ -1300,6 +1300,7 @@ fn set_input_node(
 
     let suffixes = set_suffixes(node);
     for (index, suffix) in suffixes.iter().enumerate() {
+        let _id = ui.push_id(&format!("suffix-row-{index}"));
         ui.set_cursor_screen_position([
             ui.cursor_screen_position()[0] + 12.0,
             ui.cursor_screen_position()[1],
@@ -2515,6 +2516,22 @@ mod tests {
         let names = vec!["X_rock_AO.png".to_string()];
         let suffixes = vec!["_AO".to_string()];
         assert!(matched_sets(&names, "T_", &suffixes).is_empty());
+    }
+
+    #[test]
+    fn an_empty_prefix_matches_on_suffixes_alone() {
+        let names = vec![
+            "Rock_Base_Color.png".to_string(),
+            "Rock_Ambient_Occlusion.png".to_string(),
+            "T_wood_Base_Color.png".to_string(),
+        ];
+        let suffixes = vec!["_Ambient_Occlusion".to_string(), "_Base_Color".to_string()];
+        let sets = matched_sets(&names, "", &suffixes);
+        assert_eq!(sets.len(), 2);
+        let rock = sets.iter().find(|(name, _)| name == "Rock").unwrap();
+        assert_eq!(rock.1, vec![true, true]);
+        let wood = sets.iter().find(|(name, _)| name == "T_wood").unwrap();
+        assert_eq!(wood.1, vec![false, true]);
     }
 
     #[test]

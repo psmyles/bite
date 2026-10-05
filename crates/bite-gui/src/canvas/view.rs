@@ -22,6 +22,9 @@ pub struct CanvasContext<'a> {
     pub resolved: &'a BTreeMap<String, BTreeMap<String, ParamValue>>,
     /// Image counts per Input node, for the card footer.
     pub image_counts: &'a BTreeMap<String, usize>,
+    /// The file names of the active branch, which the Process As Set card matches its sets
+    /// against - the same names the inspector's matched-set list reads.
+    pub image_names: &'a [String],
     pub preview_node: Option<String>,
     pub running_node: Option<String>,
     pub running_file: Option<String>,
@@ -1674,17 +1677,29 @@ fn footer_text(node: &GraphNode, context: &CanvasContext) -> Option<String> {
 }
 
 /// The matched-set count the Process As Set card shows.
-fn set_footer(node: &GraphNode, _context: &CanvasContext) -> String {
+fn set_footer(node: &GraphNode, context: &CanvasContext) -> String {
     let suffixes = match node.data.params.get("suffixes") {
         Some(ParamValue::Structured(bite_schema::StructuredParam::SetSuffixes { suffixes })) => {
             suffixes.clone()
         }
         _ => Vec::new(),
     };
-    if suffixes.iter().all(|suffix| suffix.is_empty()) {
-        return "no sets matched".into();
+    let prefix = match node.data.params.get("prefix") {
+        Some(ParamValue::String(prefix)) => prefix.as_str(),
+        _ => "",
+    };
+    let sets =
+        crate::panels::inspector::nodes::matched_sets(context.image_names, prefix, &suffixes);
+    set_footer_label(sets.len())
+}
+
+/// Electron's `setLabel`: the count of sets, singular for one.
+fn set_footer_label(count: usize) -> String {
+    match count {
+        0 => "no sets matched".into(),
+        1 => "1 set matched".into(),
+        count => format!("{count} sets matched"),
     }
-    "no sets matched".into()
 }
 
 /// Whether a node is active, following the truthiness rule the Svelte helper applies.
@@ -1751,7 +1766,14 @@ fn wrap_lines(measure: impl Fn(&str) -> f32, text: &str, width: f32) -> Vec<Stri
 
 #[cfg(test)]
 mod tests {
-    use super::wrap_lines;
+    use super::{set_footer_label, wrap_lines};
+
+    #[test]
+    fn the_set_card_counts_its_matched_sets() {
+        assert_eq!(set_footer_label(0), "no sets matched");
+        assert_eq!(set_footer_label(1), "1 set matched");
+        assert_eq!(set_footer_label(3), "3 sets matched");
+    }
 
     /// A stand-in for the font: every character is two units wide.
     fn measure(text: &str) -> f32 {
