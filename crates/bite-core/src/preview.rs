@@ -358,8 +358,6 @@ pub fn render_from(
                 ("customPath".into(), ParamValue::String(String::new())),
                 ("overwrite".into(), ParamValue::String("overwrite".into())),
                 ("generateLog".into(), ParamValue::Bool(false)),
-                ("setOutputPrefix".into(), ParamValue::String(String::new())),
-                ("setOutputSuffix".into(), ParamValue::String(String::new())),
             ]),
             inputs: Vec::new(),
             outputs: Vec::new(),

@@ -864,29 +864,32 @@ fn resolve_item(
             let Some(image) = image else {
                 return Ok(ItemResult::new(ItemOutput::Skipped, values, stopped));
             };
-            // Legacy batch naming uses the first rename in global topological
-            // order, including disabled or disconnected rename nodes.
-            let mut name = filename(file);
-            if let Some(node) = plan
-                .execution_order
-                .iter()
-                .filter_map(|id| g.nodes.iter().find(|n| n.id == *id))
-                .find(|n| n.data.definition_id == "rename")
-            {
+            // A set is named for what its files share, and a rename works on that name
+            // just as it would on a single file's.
+            let mut name = match set_name {
+                Some(set) => match file.extension() {
+                    Some(ext) => format!("{set}.{}", ext.to_string_lossy()),
+                    None => set.clone(),
+                },
+                None => filename(file),
+            };
+            // The rename that names this output is the nearest one on its image path that
+            // is not bypassed, so outputs in different chains can be named differently.
+            let renamer = graph::image_upstream(g, &output.id)
+                .into_iter()
+                .filter_map(|id| g.nodes.iter().find(|n| n.id == id))
+                .filter(|n| n.data.definition_id == "rename")
+                .find(|n| {
+                    resolved
+                        .get(&n.id)
+                        .is_none_or(|params| bool_param(params, "_enabled", true))
+                });
+            if let Some(node) = renamer {
                 if let Some(ParamValue::Structured(StructuredParam::RenameBlocks { blocks })) =
                     node.data.params.get("blocks")
                 {
                     name = rename(&name, blocks, index);
                 }
-            }
-            if let Some(set) = set_name {
-                name = format!(
-                    "{}{}{}.{}",
-                    text(output_params, "setOutputPrefix", ""),
-                    set,
-                    text(output_params, "setOutputSuffix", ""),
-                    file.extension().unwrap_or_default().to_string_lossy()
-                );
             }
             if let Some(format) = &image.format {
                 let ext = &registry.formats[format].0.extension;
@@ -1122,7 +1125,9 @@ pub fn run_workflow(
                         .entry(format!("suffix_{i}"))
                         .or_insert_with(|| reference.clone());
                 }
-                work.push((reference, Some(name), group));
+                // The set's name is the stem its files share: the prefix and the middle,
+                // which is how the Process As Set inspector lists it.
+                work.push((reference, Some(format!("{prefix}{name}")), group));
             }
         } else {
             work = files

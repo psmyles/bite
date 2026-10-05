@@ -802,6 +802,145 @@ fn channel_and_set_plans_record_fused_native_structure() {
     }
 }
 
+/// A Rename names only the outputs on its own image path, and behind a Process As Set it
+/// renames the set's full name. One set can so be written under two names by two chains,
+/// while a Rename that feeds no output - which used to rename every output - changes none.
+#[test]
+fn each_output_is_named_by_the_rename_in_its_own_chain() {
+    use bite_core::execution::OutputOperation;
+    use bite_schema::{
+        BuiltinNodeKind as B, GraphEdge, NodeKind, ParamValue, RenameBlock, StructuredParam,
+    };
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let registry = Registry::load(
+        &root.join("node-definitions"),
+        &root.join("format-definitions"),
+    )
+    .unwrap();
+    let mut graph = workflow::load(
+        &fs::read_to_string(root.join("test-workflows/wf-06-setmode.bite")).unwrap(),
+        &registry,
+    )
+    .unwrap()
+    .workflow
+    .graph;
+    let rename = |id: &str, blocks: Vec<RenameBlock>| {
+        let mut node = graph
+            .nodes
+            .iter()
+            .find(|n| n.id == "rename-set-1")
+            .unwrap()
+            .clone();
+        node.id = id.into();
+        node.data.params.insert(
+            "blocks".into(),
+            ParamValue::Structured(StructuredParam::RenameBlocks { blocks }),
+        );
+        node
+    };
+    // A second output, behind its own Rename, takes the diffuse stream straight from the set.
+    let second_rename = rename(
+        "rename-b",
+        vec![
+            RenameBlock::Oldname {
+                find: String::new(),
+                replace_with: String::new(),
+            },
+            RenameBlock::Text { value: "_D".into() },
+        ],
+    );
+    // And a Rename wired into nothing at all.
+    let stray = rename(
+        "rename-stray",
+        vec![RenameBlock::Text {
+            value: "stray".into(),
+        }],
+    );
+    let mut second = graph
+        .nodes
+        .iter()
+        .find(|n| n.id == "imageOutput-1")
+        .unwrap()
+        .clone();
+    second.id = "imageOutput-2".into();
+    second
+        .data
+        .params
+        .insert("cliName".into(), ParamValue::String("out2".into()));
+    graph.nodes.extend([second_rename, stray, second]);
+    let edge = |id: &str, source: &str, handle: &str, target: &str| GraphEdge {
+        id: id.into(),
+        source: source.into(),
+        source_handle: handle.into(),
+        target: target.into(),
+        target_handle: "in:input".into(),
+    };
+    graph.edges.extend([
+        edge("e-b", "set-1", "out:suffix_0", "rename-b"),
+        edge("e-b-out", "rename-b", "out:output", "imageOutput-2"),
+    ]);
+
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("input");
+    let output = dir.path().join("output");
+    fs::create_dir(&input).unwrap();
+    for set in ["alpha", "beta"] {
+        for suffix in ["diffuse", "normal", "rough"] {
+            fs::write(
+                input.join(format!("set_{set}_{suffix}.png")),
+                b"planning only",
+            )
+            .unwrap();
+        }
+    }
+    let mut options = RunOptions::default();
+    for node in &graph.nodes {
+        if let Some(ParamValue::String(name)) = node.data.params.get("cliName") {
+            let path = if node.kind == NodeKind::Builtin(B::Input) {
+                input.clone()
+            } else {
+                output.clone()
+            };
+            options.named_paths.insert(name.clone(), path);
+        }
+    }
+    let mut metadata = |_: &std::path::Path, _: bool| Ok(bite_expr::Context::new());
+    let result = plan::concrete(
+        &graph,
+        &registry,
+        &options,
+        &PlanningFacts::default(),
+        &mut metadata,
+    )
+    .unwrap();
+    let mut names: Vec<String> = result
+        .events
+        .into_iter()
+        .filter_map(|event| match event {
+            // The second chain does no processing, so its files are copied.
+            PlannedEvent::Output { operation, .. } => matches!(
+                operation,
+                OutputOperation::Image { .. } | OutputOperation::Copy { .. }
+            )
+            .then(|| {
+                let output = operation.output();
+                output.file_name().unwrap().to_string_lossy().into_owned()
+            }),
+            _ => None,
+        })
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        [
+            "packed_alpha.png",
+            "packed_beta.png",
+            "set_alpha_D.png",
+            "set_beta_D.png"
+        ]
+    );
+}
+
 #[test]
 fn a_listed_input_selection_runs_without_an_input_folder() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

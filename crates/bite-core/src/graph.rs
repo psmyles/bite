@@ -80,6 +80,28 @@ pub fn trace_input(graph: &Graph, output: &str) -> Option<String> {
     }
     None
 }
+/// The nodes upstream of `node` along image wires, nearest first, without `node` itself.
+///
+/// Value wires (`param:` on either end) are not followed: a node that only feeds a number
+/// into the chain is not part of the image's path.
+pub fn image_upstream(graph: &Graph, node: &str) -> Vec<String> {
+    let mut queue = VecDeque::from([node.to_owned()]);
+    let mut seen = BTreeSet::from([node.to_owned()]);
+    let mut result = Vec::new();
+    while let Some(id) = queue.pop_front() {
+        for e in &graph.edges {
+            if e.target == id
+                && !e.source_handle.starts_with("param:")
+                && !e.target_handle.starts_with("param:")
+                && seen.insert(e.source.clone())
+            {
+                result.push(e.source.clone());
+                queue.push_back(e.source.clone());
+            }
+        }
+    }
+    result
+}
 /// The folder a Folder Path node wired into this output's `in:folder` port names.
 ///
 /// An output whose folder arrives over a wire takes it from there rather than from its own

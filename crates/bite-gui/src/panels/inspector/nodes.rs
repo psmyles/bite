@@ -49,26 +49,22 @@ pub fn cli_name_hint(name: &str, node_id: &str, graph: &bite_schema::Graph) -> (
     }
 }
 
-/// True when a Process As Set node appears anywhere upstream of `node_id`.
+/// True when a node of `definition_id` is on the image path upstream of `node_id`.
 pub fn upstream_contains(graph: &bite_schema::Graph, node_id: &str, definition_id: &str) -> bool {
-    let mut pending = vec![node_id];
-    let mut visited = std::collections::BTreeSet::new();
-    while let Some(target) = pending.pop() {
-        for edge in graph.edges.iter().filter(|edge| edge.target == target) {
-            if !visited.insert(edge.source.as_str()) {
-                continue;
-            }
-            if let Some(node) = graph.nodes.iter().find(|node| node.id == edge.source) {
-                if node.data.definition_id == definition_id
-                    || node.kind == NodeKind::Processing(ProcessingNodeKind::SetInput)
-                {
-                    return true;
-                }
-                pending.push(&node.id);
-            }
-        }
-    }
-    false
+    upstream_node(graph, node_id, definition_id).is_some()
+}
+
+/// The nearest node of `definition_id` on the image path upstream of `node_id`. Value wires
+/// are not followed, as in Electron's `hasSetInputInChain`, and as the run names its outputs.
+fn upstream_node<'a>(
+    graph: &'a bite_schema::Graph,
+    node_id: &str,
+    definition_id: &str,
+) -> Option<&'a GraphNode> {
+    bite_core::graph::image_upstream(graph, node_id)
+        .iter()
+        .filter_map(|id| graph.nodes.iter().find(|node| node.id == *id))
+        .find(|node| node.data.definition_id == definition_id)
 }
 
 /// Dispatches to the right inspector, following the order in `Inspector.svelte`.
@@ -599,36 +595,7 @@ fn image_output_node(
     });
 
     edits.extend(overwrite_section(ui, width, node));
-
-    if upstream_contains(context.graph, &node.id, "process_as_set") {
-        section(ui, width, "Set Naming", |ui| {
-            let half = (width - 24.0 - 8.0) / 2.0;
-            ui.group(|ui| {
-                field_label(ui, "Prefix");
-                let mut value = string_param(node, "setOutputPrefix", "");
-                if controls::text_input(ui, "set-prefix", &mut value, "e.g. T_", half) {
-                    edits.push(Edit::SetParam {
-                        node: node.id.clone(),
-                        name: "setOutputPrefix".into(),
-                        value: ParamValue::String(value),
-                    });
-                }
-            });
-            ui.same_line_at(0.0, 8.0);
-            ui.group(|ui| {
-                field_label(ui, "Suffix");
-                let mut value = string_param(node, "setOutputSuffix", "");
-                if controls::text_input(ui, "set-suffix", &mut value, "e.g. _ORM", half) {
-                    edits.push(Edit::SetParam {
-                        node: node.id.clone(),
-                        name: "setOutputSuffix".into(),
-                        value: ParamValue::String(value),
-                    });
-                }
-            });
-        });
-    }
-
+    // A set is named by a Rename node in its chain, as a single file is.
     edits.extend(output_log_section(ui, width, node));
     edits
 }
@@ -1535,8 +1502,24 @@ fn rename_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
         }
     });
 
-    let examples = rename_preview_names(context.image_names);
-    let title = rename_preview_title(context.image_names.len());
+    // Behind a Process As Set the rename names whole sets, so the preview lists those.
+    let sets = upstream_node(context.graph, &node.id, "process_as_set").map(|set| {
+        set_names(
+            context.image_names,
+            &string_param(set, "prefix", ""),
+            &set_suffixes(set),
+        )
+    });
+    let (examples, title) = match &sets {
+        Some(sets) => (
+            sets.iter().take(10).cloned().collect(),
+            rename_set_preview_title(sets.len()),
+        ),
+        None => (
+            rename_preview_names(context.image_names),
+            rename_preview_title(context.image_names.len()),
+        ),
+    };
     section(ui, width, &title, |ui| {
         let half = (width - 36.0) / 2.0;
         // `.preview-head` names the two columns in tracked upper case before the rows.
@@ -1586,7 +1569,7 @@ fn rename_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
             );
             ui.dummy([width - 24.0, 18.0]);
         }
-        if context.image_names.is_empty() {
+        if sets.is_none() && context.image_names.is_empty() {
             // `.preview-example-note` is centred under the table, not ranged left.
             let note = "Example filenames shown above";
             let origin = ui.cursor_screen_position();
@@ -1612,6 +1595,39 @@ pub fn rename_preview_title(images: usize) -> String {
         count if count > 10 => format!("Preview - first 10 of {count} files"),
         count => format!("Preview - {count} files"),
     }
+}
+
+/// The heading over the rename preview when it names sets rather than files.
+pub fn rename_set_preview_title(sets: usize) -> String {
+    match sets {
+        0 => "Preview (no sets matched)".to_string(),
+        1 => "Preview - 1 set".to_string(),
+        count if count > 10 => format!("Preview - first 10 of {count} sets"),
+        count => format!("Preview - {count} sets"),
+    }
+}
+
+/// The name each matched set is written under before any rename: the stem its files share,
+/// with the extension of the first file found for it. This is the name the run hands the
+/// rename, so the preview shows exactly what a run would write.
+pub fn set_names(names: &[String], prefix: &str, suffixes: &[String]) -> Vec<String> {
+    matched_sets(names, prefix, suffixes)
+        .into_iter()
+        .map(|(set, _)| {
+            let extension = names.iter().find_map(|name| {
+                let (stem, extension) = name.rsplit_once('.')?;
+                let rest = stem.strip_prefix(set.as_str())?;
+                suffixes
+                    .iter()
+                    .any(|suffix| !suffix.is_empty() && rest == suffix)
+                    .then_some(extension)
+            });
+            match extension {
+                Some(extension) => format!("{set}.{extension}"),
+                None => set,
+            }
+        })
+        .collect()
 }
 
 /// The names the rename preview uses when nothing has been imported.
@@ -2604,9 +2620,26 @@ mod tests {
     fn a_process_as_set_upstream_is_detected_through_the_chain() {
         let mut set_node = node_with("s", vec![]);
         set_node.kind = NodeKind::Processing(ProcessingNodeKind::SetInput);
+        set_node.data.definition_id = "process_as_set".into();
         let middle = node_with("m", vec![]);
         let output = node_with("o", vec![]);
+        let value = node_with("v", vec![]);
         let edges = vec![
+            // A set that only feeds a number into the chain is not on the image's path.
+            GraphEdge {
+                id: "e0".into(),
+                source: "s".into(),
+                source_handle: "out:suffix_0".into(),
+                target: "v".into(),
+                target_handle: "in:input".into(),
+            },
+            GraphEdge {
+                id: "e3".into(),
+                source: "v".into(),
+                source_handle: "param:value".into(),
+                target: "o".into(),
+                target_handle: "param:value".into(),
+            },
             GraphEdge {
                 id: "e1".into(),
                 source: "s".into(),
@@ -2622,8 +2655,35 @@ mod tests {
                 target_handle: "in:input".into(),
             },
         ];
-        let graph = graph(vec![set_node, middle, output], edges);
-        assert!(upstream_contains(&graph, "o", "process_as_set"));
-        assert!(!upstream_contains(&graph, "s", "process_as_set"));
+        let chained = graph(
+            vec![set_node.clone(), middle.clone(), output.clone(), value],
+            edges.clone(),
+        );
+        assert!(upstream_contains(&chained, "o", "process_as_set"));
+        assert!(!upstream_contains(&chained, "s", "process_as_set"));
+        let value_only = graph(
+            vec![set_node, middle, output, node_with("v", vec![])],
+            edges.into_iter().filter(|edge| edge.id != "e2").collect(),
+        );
+        assert!(!upstream_contains(&value_only, "o", "process_as_set"));
+    }
+
+    /// The rename preview behind a set lists the names a run hands the rename: the set's
+    /// full stem, with the extension of its files.
+    #[test]
+    fn set_names_carry_the_prefix_and_the_extension() {
+        let names = vec![
+            "T_rock_AO.png".to_string(),
+            "T_rock_N.png".to_string(),
+            "T_wood_N.tga".to_string(),
+            "other.png".to_string(),
+        ];
+        let suffixes = vec!["_AO".to_string(), "_N".to_string()];
+        assert_eq!(
+            set_names(&names, "T_", &suffixes),
+            ["T_rock.png", "T_wood.tga"]
+        );
+        assert_eq!(rename_set_preview_title(2), "Preview - 2 sets");
+        assert_eq!(rename_set_preview_title(0), "Preview (no sets matched)");
     }
 }

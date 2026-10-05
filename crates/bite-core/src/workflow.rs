@@ -1,12 +1,15 @@
 use crate::{graph, Registry};
 use bite_schema::*;
 use serde_json::{json, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug)]
 pub struct LoadedWorkflow {
     pub workflow: Workflow,
     pub migrated: bool,
+    /// The graph was changed on load to keep its behaviour (see [`migrate_set_naming`]), so
+    /// it differs from the file even when the schema did not.
+    pub rewritten: bool,
     pub warnings: Vec<String>,
 }
 fn semver(s: &str) -> Option<Vec<u64>> {
@@ -58,14 +61,151 @@ pub fn load(text: &str, registry: &Registry) -> Result<LoadedWorkflow, String> {
         doc = json!({"schema_version":2,"created_with":created,"graph":graph});
         migrate_graph(&mut doc["graph"], registry, &mut warnings)?;
     }
-    let workflow: Workflow = serde_json::from_value(doc).map_err(|e| format!("workflow: {e}"))?;
+    let mut workflow: Workflow =
+        serde_json::from_value(doc).map_err(|e| format!("workflow: {e}"))?;
+    let rewritten = migrate_set_naming(&mut workflow.graph, &mut warnings);
     workflow.validate().map_err(|e| e.join("\n"))?;
     graph::validate(&workflow.graph, registry)?;
     Ok(LoadedWorkflow {
         workflow,
         migrated,
+        rewritten,
         warnings,
     })
+}
+
+/// Moves an Image Output's set naming fields into a Rename node in front of it.
+///
+/// Set outputs used to be named `setOutputPrefix + middle + setOutputSuffix` by the output
+/// itself, ignoring any Rename node. A Rename node now names them, working on the set's
+/// full name (the input prefix plus the middle), so an output whose name would change gets
+/// a Rename that produces the old one: the output prefix, the set's name with the input
+/// prefix taken out, then the output suffix. The fields are cleared either way.
+///
+/// It also warns about Rename nodes that are not on an output's image path. Those used to
+/// rename every output and now rename none.
+fn migrate_set_naming(graph: &mut Graph, warnings: &mut Vec<String>) -> bool {
+    let text = |params: &Params, name: &str| match params.get(name) {
+        Some(ParamValue::String(value)) => value.clone(),
+        _ => String::new(),
+    };
+    let mut changed = false;
+    let outputs: Vec<String> = graph
+        .nodes
+        .iter()
+        .filter(|n| n.kind == NodeKind::Builtin(BuiltinNodeKind::ImageOutput))
+        .map(|n| n.id.clone())
+        .collect();
+    for output_id in &outputs {
+        let index = graph.nodes.iter().position(|n| n.id == *output_id).unwrap();
+        let params = &graph.nodes[index].data.params;
+        let out_prefix = text(params, "setOutputPrefix");
+        let out_suffix = text(params, "setOutputSuffix");
+        // The fields mark a file saved under the old naming; one saved since has neither,
+        // and its outputs are already named by their Rename nodes.
+        let legacy =
+            params.contains_key("setOutputPrefix") || params.contains_key("setOutputSuffix");
+        // Empty fields are what every output used to be saved with; dropping them changes
+        // nothing a run does, so it does not count as a change to the document.
+        let had_fields = !out_prefix.is_empty() || !out_suffix.is_empty();
+        let set_prefix = graph::image_upstream(graph, output_id)
+            .iter()
+            .filter_map(|id| graph.nodes.iter().find(|n| n.id == *id))
+            .find(|n| n.data.definition_id == "process_as_set")
+            .map(|set| text(&set.data.params, "prefix"));
+        let params = &mut graph.nodes[index].data.params;
+        params.remove("setOutputPrefix");
+        params.remove("setOutputSuffix");
+        changed |= had_fields;
+        let Some(set_prefix) = set_prefix.filter(|_| legacy) else {
+            continue;
+        };
+        if out_prefix.is_empty() && out_suffix.is_empty() && set_prefix.is_empty() {
+            continue;
+        }
+        let Some(edge) = graph
+            .edges
+            .iter()
+            .position(|e| e.target == *output_id && e.target_handle == "in:input")
+        else {
+            continue;
+        };
+        let mut blocks = Vec::new();
+        if !out_prefix.is_empty() {
+            blocks.push(RenameBlock::Text { value: out_prefix });
+        }
+        blocks.push(RenameBlock::Oldname {
+            find: set_prefix,
+            replace_with: String::new(),
+        });
+        if !out_suffix.is_empty() {
+            blocks.push(RenameBlock::Text { value: out_suffix });
+        }
+        let id = unique_id(graph, "rename-set");
+        let output = &graph.nodes[index];
+        let node = GraphNode {
+            id: id.clone(),
+            kind: NodeKind::Processing(ProcessingNodeKind::Process),
+            // Under the output, where it does not sit on the wire it now interrupts.
+            position: Position {
+                x: output.position.x - 40.0,
+                y: output.position.y + 150.0,
+            },
+            parent_id: output.parent_id.clone(),
+            extent: output.extent.clone(),
+            width: None,
+            height: None,
+            data: NodeData {
+                label: "Rename".into(),
+                definition_id: "rename".into(),
+                params: Params::from([(
+                    "blocks".into(),
+                    ParamValue::Structured(StructuredParam::RenameBlocks { blocks }),
+                )]),
+                inputs: Vec::new(),
+                outputs: Vec::new(),
+            },
+        };
+        graph.nodes.push(node);
+        graph.edges[edge].target = id.clone();
+        let edge_id = unique_id(graph, "e-rename-set");
+        graph.edges.push(GraphEdge {
+            id: edge_id,
+            source: id.clone(),
+            source_handle: "out:output".into(),
+            target: output_id.clone(),
+            target_handle: "in:input".into(),
+        });
+        warnings.push(format!(
+            "Image Output {output_id}: its set naming fields now live in Rename node {id}"
+        ));
+        changed = true;
+    }
+    if !outputs.is_empty() {
+        let on_a_path: BTreeSet<String> = outputs
+            .iter()
+            .flat_map(|output| graph::image_upstream(graph, output))
+            .collect();
+        for node in &graph.nodes {
+            if node.data.definition_id == "rename" && !on_a_path.contains(&node.id) {
+                warnings.push(format!(
+                    "Rename node {} is not wired into an Image Output, so it renames nothing",
+                    node.id
+                ));
+            }
+        }
+    }
+    changed
+}
+
+/// An id made from `stem` that no node or edge in the graph uses yet.
+fn unique_id(graph: &Graph, stem: &str) -> String {
+    (1..)
+        .map(|n| format!("{stem}-{n}"))
+        .find(|id| {
+            !graph.nodes.iter().any(|n| n.id == *id) && !graph.edges.iter().any(|e| e.id == *id)
+        })
+        .unwrap()
 }
 fn migrate_graph(
     graph: &mut Value,
