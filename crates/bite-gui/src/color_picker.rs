@@ -313,13 +313,22 @@ impl State {
     }
 }
 
-/// The pickers a panel has on screen, one per parameter.
+/// The pickers a panel has on screen, one per node and parameter.
 #[derive(Default)]
 pub struct States(HashMap<String, State>);
 
 impl States {
     pub fn get(&mut self, id: &str) -> &mut State {
         self.0.entry(id.to_string()).or_default()
+    }
+
+    /// The id one node's picker for one parameter is kept under.
+    ///
+    /// The parameter name alone is not enough: two Tint nodes both have a `color`, and
+    /// keyed by that they shared one mode and one hue, so switching one to HSV switched
+    /// the other. Each Svelte `ColorPicker` was its own component with its own state.
+    pub fn key(node: &str, param: &str) -> String {
+        format!("{node}/{param}")
     }
 }
 
@@ -985,5 +994,16 @@ mod tests {
         states.get("background").mode = Mode::Hsv;
         assert_eq!(states.get("background").mode, Mode::Hsv);
         assert_eq!(states.get("tint").mode, Mode::Rgb01);
+    }
+
+    #[test]
+    fn two_nodes_with_the_same_parameter_keep_their_own_picker() {
+        let mut states = States::default();
+        states.get(&States::key("tint-1", "color")).mode = Mode::Hsv;
+        assert_eq!(
+            states.get(&States::key("tint-2", "color")).mode,
+            Mode::Rgb01
+        );
+        assert_eq!(states.get(&States::key("tint-1", "color")).mode, Mode::Hsv);
     }
 }

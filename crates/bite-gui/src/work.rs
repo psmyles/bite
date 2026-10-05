@@ -6,7 +6,7 @@ use bite_core::execution::BatchResult;
 use std::{
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc::{channel, Receiver, Sender},
         Arc,
     },
@@ -33,7 +33,9 @@ pub enum Message {
         error: String,
     },
     ScanFinished {
-        node: String,
+        /// The scan it answers. Toggling format chips quickly starts scans that can finish
+        /// out of order, and only the newest one's count is current - Electron's `scanSeq`.
+        generation: u64,
         count: usize,
     },
     PreviewFinished {
@@ -56,6 +58,8 @@ pub enum Message {
         resolved: std::collections::BTreeMap<String, bite_schema::Params>,
     },
     TextPreview {
+        /// The request it answers; a result for an older one is dropped.
+        generation: u64,
         lines: Vec<String>,
     },
     RunProgress {
@@ -124,6 +128,22 @@ pub struct Jobs {
     pub preview_generation: u64,
     /// Set while a waker is available, so jobs can nudge the event loop.
     waker: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// What the last Text Output preview was asked for, so an unchanged request is not
+    /// made again on every frame.
+    pub text_preview_key: Option<u64>,
+    /// The newest Text Output preview request. A job that finds itself superseded while it
+    /// waits out the debounce gives up, and a late result for an older one is dropped.
+    pub text_preview_generation: Arc<AtomicU64>,
+    /// The newest folder scan, whose count is the one to show.
+    pub scan_generation: u64,
+}
+
+/// A Text Output preview: the lines a run would write for the first few images.
+pub struct TextPreviewJob {
+    pub graph: bite_schema::Graph,
+    pub registry: Arc<bite_core::Registry>,
+    pub images: Vec<PathBuf>,
+    pub node: String,
 }
 
 impl Default for Jobs {
@@ -137,6 +157,9 @@ impl Default for Jobs {
             import_cancelled: Arc::new(AtomicBool::new(false)),
             preview_generation: 0,
             waker: None,
+            text_preview_key: None,
+            text_preview_generation: Arc::new(AtomicU64::new(0)),
+            scan_generation: 0,
         }
     }
 }
@@ -177,6 +200,39 @@ impl Jobs {
             sender
         });
         let _ = sender.send(job);
+    }
+
+    /// Supersedes any Text Output preview in flight, returning the new request's number.
+    pub fn next_text_preview(&self) -> u64 {
+        self.text_preview_generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    /// Computes a Text Output preview after a short pause, unless a newer request arrives
+    /// first. Electron waited 350 ms after the last change, so typing a separator does not
+    /// run the graph once per keystroke.
+    pub fn submit_text_preview(&self, job: TextPreviewJob, generation: u64) {
+        let handle = self.handle();
+        let current = self.text_preview_generation.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(350));
+            if current.load(Ordering::SeqCst) != generation {
+                return;
+            }
+            let mut magick = bite_imagemagick::Magick::discover(Arc::new(AtomicBool::new(false)));
+            let lines = bite_core::preview::render_text(
+                &job.graph,
+                &job.registry,
+                &mut magick,
+                &job.images,
+                &job.node,
+            )
+            .unwrap_or_else(|error| {
+                // Electron showed an empty preview for a graph that fails; the log says why.
+                crate::logging::warn(format!("Text preview failed: {error}"));
+                Vec::new()
+            });
+            handle.send(Message::TextPreview { generation, lines });
+        });
     }
 
     /// Takes the pending preview request, if there is one.
@@ -540,7 +596,11 @@ fn render_preview(
         &thumbnail.thumbnail,
         &job.path,
         &companions,
-        job.target.as_deref().map(|target| (target, "out:output")),
+        job.target
+            .as_deref()
+            .map(|target| (target, preview_handle(&job.graph, &job.registry, target)))
+            .as_ref()
+            .map(|(target, handle)| (*target, handle.as_str())),
     )?;
     Ok(RenderedPreview {
         image: result.png.as_deref().map(decode_png).transpose()?,
@@ -550,13 +610,45 @@ fn render_preview(
     })
 }
 
+/// The output a previewed node is shown through: its first image port.
+///
+/// Most nodes call it `output`, but not all. A Channel Split has one port per channel and
+/// a Process As Set one per suffix, and asking either for `out:output` found nothing, so
+/// the preview walked upstream and showed the unsplit input. Electron showed the first
+/// port's buffer - the red channel, the first suffix.
+fn preview_handle(
+    graph: &bite_schema::Graph,
+    registry: &bite_core::Registry,
+    node: &str,
+) -> String {
+    use bite_schema::PortType;
+    let first_image = |ports: &[bite_schema::PortDefinition]| {
+        ports
+            .iter()
+            .find(|port| matches!(port.kind, PortType::Image | PortType::Mask))
+            .map(|port| format!("out:{}", port.name))
+    };
+    graph
+        .nodes
+        .iter()
+        .find(|candidate| candidate.id == node)
+        .and_then(|node| {
+            first_image(&node.data.outputs).or_else(|| {
+                registry
+                    .nodes
+                    .get(&node.data.definition_id)
+                    .and_then(|entry| first_image(&entry.definition.outputs))
+            })
+        })
+        .unwrap_or_else(|| "out:output".into())
+}
+
 /// The files a Process As Set reads beside the selected one.
 ///
 /// A set names its streams by suffix, so the companions are the siblings whose names
 /// differ only there. The Electron preview located them the same way, from the selected
 /// file's own name.
 fn set_companions(graph: &bite_schema::Graph, path: &Path) -> Vec<PathBuf> {
-    use bite_schema::{ParamValue, StructuredParam};
     let Some(node) = graph
         .nodes
         .iter()
@@ -564,15 +656,8 @@ fn set_companions(graph: &bite_schema::Graph, path: &Path) -> Vec<PathBuf> {
     else {
         return Vec::new();
     };
-    let prefix = match node.data.params.get("prefix") {
-        Some(ParamValue::String(text)) => text.clone(),
-        _ => String::new(),
-    };
-    let Some(ParamValue::Structured(StructuredParam::SetSuffixes { suffixes })) =
-        node.data.params.get("suffixes")
-    else {
-        return Vec::new();
-    };
+    // A prefix or suffix wired in from a value node names the files as the typed one would.
+    let (prefix, suffixes) = bite_core::graph::set_pattern(graph, node);
     let suffixes: Vec<&String> = suffixes
         .iter()
         .filter(|suffix| !suffix.is_empty())
@@ -691,6 +776,30 @@ pub fn prune_cache() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A previewed node is shown through its first image port, which is not always
+    /// `output`: a Channel Split's first is its red channel.
+    #[test]
+    fn a_preview_follows_the_first_image_port() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = bite_core::Registry::load(
+            &root.join("node-definitions"),
+            &root.join("format-definitions"),
+        )
+        .unwrap();
+        let mut job = preview_job();
+        assert_eq!(preview_handle(&job.graph, &registry, "one"), "out:output");
+        job.graph.nodes[0].data.definition_id = "channel_split".into();
+        assert_eq!(preview_handle(&job.graph, &registry, "one"), "out:r");
+        // A set's ports are its own, one per suffix.
+        job.graph.nodes[0].data.definition_id = "process_as_set".into();
+        job.graph.nodes[0].data.outputs = vec![bite_schema::PortDefinition {
+            name: "suffix_0".into(),
+            kind: bite_schema::PortType::Image,
+            label: "_AO".into(),
+        }];
+        assert_eq!(preview_handle(&job.graph, &registry, "one"), "out:suffix_0");
+    }
 
     /// A job over a one node graph, for the cache key checks.
     fn preview_job() -> PreviewJob {

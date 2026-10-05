@@ -6,6 +6,7 @@ use super::{Edit, InspectorContext};
 use crate::{color_picker, controls, theme};
 use bite_imgui::{Rounding, StyleColor, Ui};
 use bite_schema::{GraphNode, ParamDefinition, ParamType, ParamValue, WidgetType};
+use std::collections::BTreeMap;
 
 /// The state of one row, which decides how the value is presented.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -53,11 +54,18 @@ pub fn is_computed(implementation: &bite_schema::Implementation, name: &str) -> 
     }
 }
 
-/// The value an incoming wire supplies, read from the source node's parameter.
+/// The value an incoming wire supplies.
+///
+/// A source that works its value out, such as an Add's `result`, stores nothing worth
+/// showing, so the live value from the preview comes first. Then the source's stored
+/// parameter, then `local`, the row's own value, which is what `getWiredValue` fell back
+/// to when the source had no such parameter.
 pub fn wired_value(
     definition: &ParamDefinition,
     node: &GraphNode,
     graph: &bite_schema::Graph,
+    resolved: &BTreeMap<String, BTreeMap<String, ParamValue>>,
+    local: Option<&ParamValue>,
 ) -> Option<String> {
     let handle = format!("param:{}", definition.name);
     let edge = graph
@@ -67,9 +75,16 @@ pub fn wired_value(
     let source = graph
         .nodes
         .iter()
-        .find(|candidate| candidate.id == edge.source)?;
-    let name = edge.source_handle.strip_prefix("param:")?;
-    let value = source.data.params.get(name)?;
+        .find(|candidate| candidate.id == edge.source);
+    let name = edge.source_handle.strip_prefix("param:");
+    let value = name
+        .and_then(|name| {
+            resolved
+                .get(&edge.source)
+                .and_then(|values| values.get(name))
+                .or_else(|| source.and_then(|source| source.data.params.get(name)))
+        })
+        .or(local)?;
     Some(match value {
         // The Svelte editor prints array components at three decimal places.
         ParamValue::Vector(values) => values
@@ -90,12 +105,61 @@ pub fn shows_reset(definition: &ParamDefinition, state: RowState) -> bool {
 }
 
 /// Whether the stored value already equals the definition default.
+///
+/// A parameter the node has never stored reads as its default, as `getValue` gave it, so
+/// an untouched row offers no reset.
 pub fn at_default(definition: &ParamDefinition, value: Option<&ParamValue>) -> bool {
     match (&definition.default, value) {
         (Some(default), Some(current)) => default == current,
-        (Some(_), None) => false,
+        (Some(_), None) => true,
         (None, _) => false,
     }
+}
+
+/// The value a row shows: the node's own, or the definition default when the node has
+/// none, as `getValue` read `p.name in params ? params[p.name] : p.default`.
+///
+/// Convert Format's encoding options come from the format definitions rather than the
+/// node's, so a node can lack them; reading those as false or as the first option showed
+/// TGA's run-length encoding off and JPEG's sampling as 4:4:4, neither of which the run
+/// used.
+pub fn current_value<'a>(
+    definition: &'a ParamDefinition,
+    node: &'a GraphNode,
+) -> Option<&'a ParamValue> {
+    node.data
+        .params
+        .get(&definition.name)
+        .or(definition.default.as_ref())
+}
+
+/// Evaluates a format parameter's `visible_when` against the node's parameters.
+///
+/// The registry compiles the rules of node definitions only, so a format's are compiled
+/// here against that format's parameters. Unset ones read as their defaults, the way the
+/// format's arguments resolve them.
+pub fn format_param_visible(
+    definition: &ParamDefinition,
+    format_params: &[ParamDefinition],
+    node: &GraphNode,
+) -> bool {
+    let Some(source) = &definition.visible_when else {
+        return true;
+    };
+    let types = bite_expr::definition::parameter_types(format_params);
+    let Ok(expression) = bite_expr::Expression::compile(source, &types) else {
+        return true;
+    };
+    let mut context = bite_expr::definition::default_context(format_params);
+    for (name, value) in &node.data.params {
+        if let Some(value) = bite_expr::definition::to_value(value) {
+            context.insert(name.clone(), value);
+        }
+    }
+    expression
+        .evaluate(&context)
+        .map(|value| value.truthy())
+        .unwrap_or(true)
 }
 
 /// Evaluates a `visible_when` rule against the node's parameters.
@@ -174,7 +238,7 @@ pub fn row(
 ) -> Vec<Edit> {
     let mut edits = Vec::new();
     let state = row_state(definition, node, context.graph, computed);
-    let stored = node.data.params.get(&definition.name);
+    let stored = current_value(definition, node);
     let padding = theme::INSPECTOR_PARAM_PADDING;
     let _id = ui.push_id(&definition.name);
 
@@ -234,7 +298,8 @@ pub fn row(
 
     match state {
         RowState::Wired => {
-            let value = wired_value(definition, node, context.graph).unwrap_or_default();
+            let value = wired_value(definition, node, context.graph, context.resolved, stored)
+                .unwrap_or_default();
             ui.with_face(theme::face::VALUE, |ui| {
                 ui.with_colors(
                     &[(StyleColor::Text, theme::PORT_COLOR_NUMBER.with_alpha(0.8))],
@@ -244,7 +309,7 @@ pub fn row(
         }
         RowState::Computed => {
             let live = context
-                .resolved
+                .resolved_for(&node.id)
                 .and_then(|values| values.get(&definition.name))
                 .or(stored);
             let text = live
@@ -296,24 +361,30 @@ fn control(
 
     match definition.widget {
         Some(WidgetType::Slider) => {
-            let mut value = number_of(stored).unwrap_or_else(|| default_number(definition));
-            let min = definition.min.unwrap_or(0.0) as f32;
-            let max = definition.max.unwrap_or(100.0) as f32;
+            let current = number_of(stored).unwrap_or_else(|| default_number(definition));
+            let mut value = current;
+            let min = definition.min.unwrap_or(0.0);
+            let max = definition.max.unwrap_or(100.0);
             let slider_width = width - theme::SLIDER_VAL_WIDTH - theme::SLIDER_WRAP_GAP;
             // The track centres itself in the number box's height, so the two line up.
             if controls::slider(
                 ui,
                 &definition.name,
                 &mut value,
-                min,
-                max,
+                min as f32,
+                max as f32,
                 slider_width,
                 theme::INPUT_HEIGHT,
             ) {
-                emit(number_value(definition, value));
+                // The range input moved in whole steps; the pointer does not.
+                let snapped =
+                    controls::snap_to_step(f64::from(value), min, max, slider_step(definition));
+                if (snapped - f64::from(current)).abs() > 1e-9 {
+                    emit(number_value(definition, snapped));
+                }
             }
             ui.same_line_at(0.0, theme::SLIDER_WRAP_GAP);
-            let mut text = trim_number(value);
+            let mut text = trim_number(current);
             if controls::text_input(
                 ui,
                 &format!("{}-value", definition.name),
@@ -321,7 +392,7 @@ fn control(
                 "",
                 theme::SLIDER_VAL_WIDTH,
             ) {
-                if let Ok(parsed) = text.trim().parse::<f32>() {
+                if let Ok(parsed) = text.trim().parse::<f64>() {
                     emit(number_value(definition, parsed.clamp(min, max)));
                 }
             }
@@ -342,7 +413,7 @@ fn control(
             let mut rgba = [parsed[0], parsed[1], parsed[2], 1.0];
             if color_picker::draw(
                 ui,
-                &definition.name,
+                &color_picker::States::key(&node.id, &definition.name),
                 &mut rgba,
                 width,
                 false,
@@ -364,7 +435,7 @@ fn control(
             ];
             if color_picker::draw(
                 ui,
-                &definition.name,
+                &color_picker::States::key(&node.id, &definition.name),
                 &mut rgba,
                 width,
                 false,
@@ -400,7 +471,7 @@ fn control(
                     "",
                     width,
                 ) {
-                    if let Ok(parsed) = text.trim().parse::<f32>() {
+                    if let Ok(parsed) = text.trim().parse::<f64>() {
                         emit(number_value(definition, parsed));
                     }
                 }
@@ -530,12 +601,26 @@ fn default_number(definition: &ParamDefinition) -> f32 {
 }
 
 /// Stores a number back in the shape the definition expects.
-pub fn number_value(definition: &ParamDefinition, value: f32) -> ParamValue {
+///
+/// It takes the number at full width: a typed `37.2` that went through an `f32` came back
+/// stored as `37.20000076293945`.
+pub fn number_value(definition: &ParamDefinition, value: f64) -> ParamValue {
     if definition.kind == ParamType::Int {
         ParamValue::Int(value.round() as i64)
     } else {
-        ParamValue::Number(f64::from(value))
+        ParamValue::Number(value)
     }
+}
+
+/// The step a slider moves in, as the range input's `p.step ?? (float ? 0.01 : 1)`.
+pub fn slider_step(definition: &ParamDefinition) -> f64 {
+    definition
+        .step
+        .unwrap_or(if definition.kind == ParamType::Float {
+            0.01
+        } else {
+            1.0
+        })
 }
 
 /// Reads a vector parameter, padding to the requested length.
@@ -741,7 +826,62 @@ mod tests {
         let definition = definition("width", ParamType::Int, Some(ParamValue::Int(10)));
         assert!(at_default(&definition, Some(&ParamValue::Int(10))));
         assert!(!at_default(&definition, Some(&ParamValue::Int(20))));
-        assert!(!at_default(&definition, None));
+        // Never stored reads as the default, so an untouched row offers no reset.
+        assert!(at_default(&definition, None));
+    }
+
+    /// Convert Format's encoding options live in the format definitions, so a node made
+    /// before they were filled in has none of them stored. Each row must still read as
+    /// the default the run uses, not as false or the first option.
+    #[test]
+    fn an_unset_parameter_reads_as_its_definition_default() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = crate::studio::Studio::load_registry(&root).unwrap();
+        let param = |format: &str, name: &str| {
+            registry.formats[format]
+                .0
+                .params
+                .iter()
+                .find(|param| param.name == name)
+                .unwrap()
+                .clone()
+        };
+        let node = node("a");
+        let rle = param("TGA", "tga_rle");
+        assert_eq!(current_value(&rle, &node), Some(&ParamValue::Bool(true)));
+        let sampling = param("JPEG", "jpeg_sampling");
+        assert_eq!(current_value(&sampling, &node), sampling.default.as_ref());
+        assert_ne!(
+            current_value(&sampling, &node),
+            Some(&ParamValue::String(sampling.options[0].clone()))
+        );
+        assert!(at_default(&sampling, current_value(&sampling, &node)));
+    }
+
+    #[test]
+    fn a_format_parameter_follows_its_visible_when_rule() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = crate::studio::Studio::load_registry(&root).unwrap();
+        let params = &registry.formats["WEBP"].0.params;
+        let quality = params.iter().find(|p| p.name == "webp_quality").unwrap();
+        let mut node = node("a");
+        // Lossless defaults to off, so the quality shows on an untouched node.
+        assert!(format_param_visible(quality, params, &node));
+        node.data
+            .params
+            .insert("webp_lossless".into(), ParamValue::Bool(true));
+        assert!(!format_param_visible(quality, params, &node));
+        let method = params.iter().find(|p| p.name == "webp_method").unwrap();
+        assert!(format_param_visible(method, params, &node));
+    }
+
+    #[test]
+    fn a_slider_steps_by_hundredths_for_floats_and_ones_otherwise() {
+        let mut float = definition("amount", ParamType::Float, None);
+        assert_eq!(slider_step(&float), 0.01);
+        float.step = Some(0.5);
+        assert_eq!(slider_step(&float), 0.5);
+        assert_eq!(slider_step(&definition("count", ParamType::Int, None)), 1.0);
     }
 
     #[test]
@@ -762,8 +902,53 @@ mod tests {
         let graph = graph(vec![source, target.clone()], vec![edge]);
         let definition = definition("width", ParamType::Int, None);
         assert_eq!(
-            wired_value(&definition, &target, &graph),
+            wired_value(&definition, &target, &graph, &BTreeMap::new(), None),
             Some("2.5".to_string())
+        );
+    }
+
+    /// An Add stores no `result`; what it works out comes from the preview. Shown from
+    /// its stored parameters alone, a Blur radius wired from 2 + 3 read nothing useful.
+    #[test]
+    fn the_wired_value_of_a_computed_source_is_the_live_one() {
+        let target = node("b");
+        let edge = GraphEdge {
+            id: "e".into(),
+            source: "add".into(),
+            source_handle: "param:result".into(),
+            target: "b".into(),
+            target_handle: "param:radius".into(),
+        };
+        let mut add = node("add");
+        add.data
+            .params
+            .insert("result".into(), ParamValue::Number(0.0));
+        let graph = graph(vec![add, target.clone()], vec![edge]);
+        let definition = definition("radius", ParamType::Float, None);
+        let resolved = BTreeMap::from([(
+            "add".to_string(),
+            BTreeMap::from([("result".to_string(), ParamValue::Number(5.0))]),
+        )]);
+        assert_eq!(
+            wired_value(&definition, &target, &graph, &resolved, None),
+            Some("5".to_string())
+        );
+        // Without a live value it falls back to the source's stored one...
+        assert_eq!(
+            wired_value(&definition, &target, &graph, &BTreeMap::new(), None),
+            Some("0".to_string())
+        );
+        // ...and without either to the row's own value, as `getWiredValue` did.
+        let bare = self::graph(vec![node("add"), target.clone()], graph.edges.clone());
+        assert_eq!(
+            wired_value(
+                &definition,
+                &target,
+                &bare,
+                &BTreeMap::new(),
+                Some(&ParamValue::Number(1.5))
+            ),
+            Some("1.5".to_string())
         );
     }
 

@@ -22,6 +22,36 @@ traversal check ignores those inserted nodes; every other node must traverse as
 the golden records. A Rename that feeds no output now renames nothing, and the
 load reports it.
 
+Wired colours (`nodes/tint.json`, `nodes/outline.json`, `nodes/rotate.json`):
+legacy builders stringified a colour parameter, so a Color node wired into Tint,
+Outline or Rotate emitted its components as `1,0,0,1`, which ImageMagick rejects
+as a colour. Rust passes these parameters through `rgba()`: text (`#ff0000`,
+`red`) is emitted unchanged, so every golden case - all text - still matches as
+recorded, and components become `rgba(255,0,0,1)` (channels 0-255, alpha 0-1).
+`crates/bite-core/tests/semantics.rs` covers the wired case.
+
+Flipbook Output (`workflows/wf-10-*`): the legacy batch tiled every input path
+without walking the graph, so a Gate in front of the Flipbook never kept a file
+out, and the Columns, Rows, Cell Width and Cell Height ports accepted wires that
+only the inspector read (the batch resolved a wired background colour alone).
+Rust leaves out a file whose stream a Gate shut and uses wired grid and cell
+numbers. The golden workflow has neither a Gate nor a wired number, so its
+montage command is unchanged.
+
+Wired Process As Set prefix or suffix (`workflows/wf-06-setmode.json` traversal is
+unaffected): legacy `getWiredPrefixValue` read the wired source node's stored
+parameter. Rust groups by the value the wire carries when it can be worked out
+before any file is read (a String node, or values computed from such nodes alone)
+and otherwise falls back to the stored parameter as legacy did. The set's name
+uses the same effective prefix.
+
+Image dimensions in a run: when only cheap properties were needed, the legacy
+batch read width and height from the file header alone, which reports nothing for
+TIFF, GIF, PSD, EXR, AVIF and similar, so a Resize wired from Dimensions ran at
+one pixel (the legacy preview inspected the file fully and showed the real size).
+Rust runs inspect such a file fully whenever something in the output's chain reads
+the width or height, so a run resolves what its preview showed.
+
 Additional discrepancies must be documented with a specific case before changing
 compatibility expectations. The old workflow README's flip and CLI sanitization
 warnings are stale; current source has already fixed both.

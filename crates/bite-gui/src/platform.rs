@@ -462,6 +462,7 @@ impl App {
         if state.editor.jobs.take_preview_request() {
             refresh_preview(state);
         }
+        commands::refresh_text_preview(&mut state.editor);
         update_progress(state);
 
         // The render target is acquired *before* the frame is built, not after.

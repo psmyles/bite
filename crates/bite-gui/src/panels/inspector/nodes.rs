@@ -94,7 +94,7 @@ pub fn draw(
             set_input_node(ui, width, node, context)
         }
         _ => match node.data.definition_id.as_str() {
-            "rename" => rename_node(ui, width, node, context),
+            "rename" => rename_node(ui, width, node, &mut state.reorder, context),
             "resize" => resize_node(ui, width, node, context),
             "format_convert" => format_convert_node(ui, width, node, context, &mut state.pickers),
             _ => generic::draw(ui, width, node, context, &mut state.pickers),
@@ -250,7 +250,7 @@ fn input_node(
     });
 
     if context.image_names.is_empty() {
-        edits.extend(input_empty_state(ui, width, node, state));
+        edits.extend(input_empty_state(ui, width, node, state, context));
     } else {
         edits.extend(input_loaded_state(ui, width, node, context));
     }
@@ -263,6 +263,7 @@ fn input_empty_state(
     width: f32,
     node: &GraphNode,
     state: &mut InspectorState,
+    context: &InspectorContext,
 ) -> Vec<Edit> {
     let mut edits = Vec::new();
     section(ui, width, "Folder", |ui| {
@@ -277,10 +278,13 @@ fn input_empty_state(
             });
         }
 
-        if !state.scan_folder.is_empty() {
-            ui.dummy([width - 24.0, 8.0]);
-            folder_card(ui, width - 24.0, &state.scan_folder);
+        // The scan options and the import only mean something once there is a folder to
+        // scan, so the Svelte section kept them behind `{#if folderPath}`.
+        if state.scan_folder.is_empty() {
+            return;
         }
+        ui.dummy([width - 24.0, 8.0]);
+        folder_card(ui, width - 24.0, &state.scan_folder);
 
         ui.dummy([width - 24.0, 8.0]);
         let mut recursive = state.scan_recursive;
@@ -306,7 +310,7 @@ fn input_empty_state(
             "Scanning...".to_string()
         } else {
             match state.scan_count {
-                Some(count) => format!("{count} file(s) found"),
+                Some(count) => format!("{count} {} found", plural(count, "file", "files")),
                 None => String::new(),
             }
         };
@@ -324,12 +328,8 @@ fn input_empty_state(
         }
 
         let count = state.scan_count.unwrap_or(0);
-        let enabled = !state.scanning && count > 0;
-        let label = if state.scanning {
-            "Importing...".to_string()
-        } else {
-            format!("Import {count} Image(s)")
-        };
+        let enabled = !context.importing && !state.scanning && count > 0;
+        let label = import_label(context.importing, count);
         if controls::button(ui, &label, ButtonKind::Primary, width - 24.0, enabled) {
             edits.push(Edit::ImportImages {
                 node: node.id.clone(),
@@ -362,6 +362,25 @@ fn input_empty_state(
         ui.dummy([width - 24.0, size[1]]);
     });
     edits
+}
+
+/// The Import button's label. It says "Importing..." only while an import runs; a rescan
+/// leaves the count in place and just disables the button, as the Svelte one did.
+pub fn import_label(importing: bool, count: usize) -> String {
+    if importing {
+        "Importing...".into()
+    } else {
+        format!("Import {count} {}", plural(count, "Image", "Images"))
+    }
+}
+
+/// The singular for one, the plural for any other count.
+fn plural<'a>(count: usize, one: &'a str, many: &'a str) -> &'a str {
+    if count == 1 {
+        one
+    } else {
+        many
+    }
 }
 
 /// The folder card showing the name above the full path.
@@ -485,11 +504,13 @@ fn input_loaded_state(
         let clicked = ui.invisible_button(&format!("##file-{index}"), [width, height]);
         let hovered = ui.item_hovered();
         let list = ui.draw_list();
-        if hovered {
+        // `.file-entry.active` marks the filmstrip's selection more strongly than a hover.
+        let active = context.selected_index == Some(index);
+        if active || hovered {
             list.rect(
                 origin,
                 [origin[0] + width, origin[1] + height],
-                theme::ACCENT.mix(10.0, theme::PANEL_BG),
+                theme::ACCENT.mix(if active { 18.0 } else { 10.0 }, theme::PANEL_BG),
                 0.0,
                 Rounding::None,
             );
@@ -693,7 +714,8 @@ fn text_output_node(
             "Tab".into(),
             "Custom...".into(),
         ];
-        let current = string_param(node, "separatorType", "space");
+        // The run and the Svelte inspector both take a missing separator as a comma.
+        let current = string_param(node, "separatorType", "comma");
         let mut index = options
             .iter()
             .position(|option| *option == current)
@@ -724,13 +746,21 @@ fn text_output_node(
         }
     });
 
+    let connected = connected_text_slots(node, context.graph);
     section(ui, width, "Port Order", |ui| {
-        let slots = text_slots(node);
-        let connected: Vec<(String, String)> = slots
+        if connected.is_empty() {
+            ui.with_face(theme::face::SMALL_MONO, |ui| {
+                ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.35))], |ui| {
+                    ui.text_wrapped("Connect nodes to the Text Output's input ports.")
+                })
+            });
+            return;
+        }
+        let labels: Vec<String> = connected
             .iter()
             .map(|slot| {
                 let handle = format!("txo:{slot}");
-                let label = context
+                context
                     .graph
                     .edges
                     .iter()
@@ -743,44 +773,77 @@ fn text_output_node(
                             .find(|candidate| candidate.id == edge.source)
                     })
                     .map(|source| crate::canvas::view::card_label(source, context.registry))
-                    .unwrap_or_else(|| "(unconnected)".into());
-                (slot.clone(), label)
+                    .unwrap_or_else(|| slot.clone())
             })
             .collect();
-        if connected.iter().all(|(_, label)| label == "(unconnected)") {
-            ui.with_face(theme::face::SMALL_MONO, |ui| {
-                ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.35))], |ui| {
-                    ui.text_wrapped("Connect nodes to the Text Output's input ports.")
-                })
-            });
-            return;
-        }
-        for (slot, label) in &connected {
+
+        // `.port-row` is four pixels of padding around an eleven-pixel line, three apart.
+        let (row_height, gap) = (22.0, 3.0);
+        let row_width = width - 24.0;
+        let key = format!("ports:{}", node.id);
+        let order = reorder_order(
+            ui,
+            &mut state.reorder,
+            &key,
+            connected.len(),
+            ui.cursor_screen_position()[1],
+            row_height + gap,
+        );
+        let mut grabbed = None;
+        for &index in &order {
+            let _id = ui.push_id(&format!("port-{}", connected[index]));
             let origin = ui.cursor_screen_position();
-            ui.dummy([width - 24.0, 22.0]);
+            // The whole row is the handle, as the Svelte row was `draggable` end to end.
+            ui.invisible_button("##port-row", [row_width, row_height]);
+            let hovered = ui.item_hovered();
+            if hovered || ui.item_active() {
+                ui.set_mouse_cursor(bite_imgui::MouseCursor::Hand);
+            }
+            if ui.item_active() && ui.mouse_dragging(bite_imgui::MouseButton::Left, 3.0) {
+                grabbed = Some(index);
+            }
+            let dragging = is_dragged(&state.reorder, &key, index);
+            let max = [origin[0] + row_width, origin[1] + row_height];
             let list = ui.draw_list();
-            // Six dots stand in for the drag handle the Svelte list draws.
+            if hovered {
+                list.rect(origin, max, theme::ITEM_HOVER_BG, 3.0, Rounding::All);
+            }
+            // `.drag-handle` brightens from three tenths to seven on hover.
+            let dots = theme::TEXT_BRIGHT.with_alpha(if hovered { 0.7 } else { 0.3 });
             for row in 0..3 {
                 for column in 0..2 {
                     list.circle(
                         [
-                            origin[0] + 2.0 + column as f32 * 4.0,
-                            origin[1] + 7.0 + row as f32 * 4.0,
+                            origin[0] + 5.5 + column as f32 * 3.0,
+                            origin[1] + 7.5 + row as f32 * 3.5,
                         ],
-                        1.0,
-                        theme::TEXT_BRIGHT.with_alpha(0.3),
+                        1.2,
+                        dots,
                     );
                 }
             }
+            title_tooltip(ui, "Drag to reorder");
             controls::draw_ellipsized(
                 ui,
-                [origin[0] + 16.0, origin[1] + 4.0],
+                [origin[0] + 16.0, origin[1] + 5.0],
                 theme::TEXT,
                 theme::face::SMALL_MONO,
-                label,
-                width - 48.0,
+                &labels[index],
+                row_width - 20.0,
             );
-            let _ = slot;
+            if dragging {
+                dragged_row_overlay(ui, origin, max);
+            }
+            ui.dummy([row_width, gap]);
+        }
+        if let Some((from, to)) = reorder_finish(ui, &mut state.reorder, &key, grabbed) {
+            edits.push(Edit::SetParam {
+                node: node.id.clone(),
+                name: "portIds".into(),
+                value: ParamValue::Structured(StructuredParam::TextSlots {
+                    slots: reorder_text_slots(&text_slots(node), &connected, from, to),
+                }),
+            });
         }
     });
 
@@ -810,14 +873,18 @@ fn text_output_node(
         context.image_names.len(),
         state.text_preview.len(),
         state.text_preview_pending,
-        text_slots(node).len(),
+        connected.len(),
     );
+    // Lines left over from before the last port was unwired or the images cleared are not
+    // shown: Electron dropped its lines to null in both cases.
+    let has_lines =
+        !state.text_preview.is_empty() && !connected.is_empty() && !context.image_names.is_empty();
     section(ui, width, &title, |ui| {
-        if state.text_preview_pending {
+        if !has_lines && state.text_preview_pending {
             controls::hint(ui, "Computing...");
             return;
         }
-        if state.text_preview.is_empty() {
+        if !has_lines {
             // With images loaded there is nothing to show only because no port is wired.
             let hint = if context.image_names.is_empty() {
                 "Load images to see a preview."
@@ -846,28 +913,179 @@ fn text_output_node(
     edits
 }
 
-/// The heading the text preview section shows.
+/// The heading the text preview section shows, in the states `InspectorTextOutputNode`
+/// gave it. `connected` counts the wired slots, not `portIds`, whose trailing empty slot
+/// is always there.
+///
+/// Electron kept no lines at all without images or a wired port, so those two say why
+/// first, the files before the ports. Lines from an earlier run stay counted while the
+/// next one computes, as its `previewLines` did; with none yet the heading waits.
 pub fn text_preview_title(
     image_count: usize,
     line_count: usize,
     pending: bool,
-    slot_count: usize,
+    connected: usize,
 ) -> String {
     const LIMIT: usize = 10;
-    if slot_count == 0 {
-        return "Preview (connect a port)".into();
-    }
     if image_count == 0 {
         return "Preview (no files loaded)".into();
     }
-    if pending {
+    if connected == 0 {
+        return "Preview (connect a port)".into();
+    }
+    if pending && line_count == 0 {
         return "Preview...".into();
     }
     if image_count > LIMIT {
         format!("Preview - first {LIMIT} of {image_count} files")
     } else {
-        format!("Preview - {line_count} line(s)")
+        format!(
+            "Preview - {line_count} {}",
+            plural(line_count, "line", "lines")
+        )
     }
+}
+
+/// The Text Output slots that carry a wire, in port order.
+///
+/// `portIds` always ends with an empty slot ready for the next connection, so that one
+/// is never listed, and of the rest only those an edge reaches into `txo:<slot>` count,
+/// as `connectedPortIds` was worked out.
+pub fn connected_text_slots(node: &GraphNode, graph: &bite_schema::Graph) -> Vec<String> {
+    let slots = text_slots(node);
+    let Some((_, wired)) = slots.split_last() else {
+        return Vec::new();
+    };
+    wired
+        .iter()
+        .filter(|slot| {
+            let handle = format!("txo:{slot}");
+            graph
+                .edges
+                .iter()
+                .any(|edge| edge.target == node.id && edge.target_handle == handle)
+        })
+        .cloned()
+        .collect()
+}
+
+/// `portIds` after moving the connected slot at `from` to `to`.
+///
+/// The empty slot stays last. Should an unwired slot sit among the rest it keeps its
+/// place, and the wired ones fill theirs in the new order.
+pub fn reorder_text_slots(
+    slots: &[String],
+    connected: &[String],
+    from: usize,
+    to: usize,
+) -> Vec<String> {
+    let Some((ghost, rest)) = slots.split_last() else {
+        return Vec::new();
+    };
+    let mut order = moved(connected, from, to).into_iter();
+    rest.iter()
+        .map(|slot| {
+            if connected.contains(slot) {
+                order.next().unwrap_or_else(|| slot.clone())
+            } else {
+                slot.clone()
+            }
+        })
+        .chain(std::iter::once(ghost.clone()))
+        .collect()
+}
+
+/// `items` with the one at `from` taken out and put back at `to`.
+pub fn moved<T: Clone>(items: &[T], from: usize, to: usize) -> Vec<T> {
+    let mut items = items.to_vec();
+    if from < items.len() {
+        let item = items.remove(from);
+        items.insert(to.min(items.len()), item);
+    }
+    items
+}
+
+/// The row a pointer at `y` is over, in a list whose rows start at `top` and repeat
+/// every `pitch`. Above the list is the first row and below it the last.
+pub fn reorder_slot(top: f32, pitch: f32, count: usize, y: f32) -> usize {
+    if count == 0 {
+        return 0;
+    }
+    let row = ((y - top) / pitch.max(1.0)).floor().max(0.0) as usize;
+    row.min(count - 1)
+}
+
+/// The order a reorderable list draws its rows in this frame.
+///
+/// While one of its rows is dragged the list is shown as if it had been dropped where the
+/// pointer is, as the Svelte lists' `displayBlocks` and `displayPortIds` did. Every row
+/// is the same height, so the row under the pointer is found by arithmetic alone.
+fn reorder_order(
+    ui: &Ui,
+    reorder: &mut Option<super::Reorder>,
+    list: &str,
+    count: usize,
+    top: f32,
+    pitch: f32,
+) -> Vec<usize> {
+    let indices: Vec<usize> = (0..count).collect();
+    let Some(drag) = reorder.as_mut().filter(|drag| drag.list == list) else {
+        return indices;
+    };
+    if drag.from >= count {
+        *reorder = None;
+        return indices;
+    }
+    drag.over = reorder_slot(top, pitch, count, ui.mouse_position()[1]);
+    moved(&indices, drag.from, drag.over)
+}
+
+/// Starts a drag on the row `grabbed` names, or ends this list's drag once the button is
+/// let go. A drop that moved a row returns where from and where to.
+fn reorder_finish(
+    ui: &mut Ui,
+    reorder: &mut Option<super::Reorder>,
+    list: &str,
+    grabbed: Option<usize>,
+) -> Option<(usize, usize)> {
+    if let Some(from) = grabbed {
+        if reorder.is_none() {
+            *reorder = Some(super::Reorder {
+                list: list.to_string(),
+                from,
+                over: from,
+            });
+        }
+        return None;
+    }
+    let drag = reorder.as_ref().filter(|drag| drag.list == list)?;
+    if ui.mouse_down(bite_imgui::MouseButton::Left) {
+        ui.set_mouse_cursor(bite_imgui::MouseCursor::Hand);
+        return None;
+    }
+    let (from, to) = (drag.from, drag.over);
+    *reorder = None;
+    (from != to).then_some((from, to))
+}
+
+/// Whether the row at `index` of `list` is the one being dragged.
+fn is_dragged(reorder: &Option<super::Reorder>, list: &str, index: usize) -> bool {
+    reorder
+        .as_ref()
+        .is_some_and(|drag| drag.list == list && drag.from == index)
+}
+
+/// `.dragging`: the row at half strength inside an accent outline.
+fn dragged_row_overlay(ui: &Ui, min: [f32; 2], max: [f32; 2]) {
+    let list = ui.draw_list();
+    list.rect(
+        min,
+        max,
+        theme::PANEL_BG.with_alpha(0.5),
+        3.0,
+        Rounding::All,
+    );
+    list.rect_outline(min, max, theme::ACCENT, 3.0, Rounding::All, 1.0);
 }
 
 /// The Flipbook Output inspector.
@@ -912,36 +1130,43 @@ fn flipbook_output_node(
 
     section(ui, width, "Grid", |ui| {
         let half = (width - 24.0 - 8.0) / 2.0;
-        let mut pair =
-            |ui: &mut Ui, left: (&str, &str, i64, i64), right: (&str, &str, i64, i64)| {
-                for (index, (name, label, min, max)) in [left, right].into_iter().enumerate() {
-                    ui.group(|ui| {
-                        field_label(ui, label);
-                        let current = int_param(node, name, min);
-                        let mut text = current.to_string();
-                        if controls::text_input(ui, name, &mut text, "", half) {
-                            if let Ok(parsed) = text.trim().parse::<i64>() {
-                                if parsed >= min && parsed <= max {
-                                    edits.push(Edit::SetParam {
-                                        node: node.id.clone(),
-                                        name: name.into(),
-                                        value: ParamValue::Int(parsed),
-                                    });
-                                }
+        // Each field is a name, a label, a range and what a missing value reads as, which
+        // is the run's own fallback rather than the minimum.
+        type Field<'a> = (&'a str, &'a str, i64, i64, i64);
+        let mut pair = |ui: &mut Ui, left: Field, right: Field| {
+            for (index, (name, label, min, max, fallback)) in [left, right].into_iter().enumerate()
+            {
+                ui.group(|ui| {
+                    field_label(ui, label);
+                    let current = int_param(node, name, fallback);
+                    let mut text = current.to_string();
+                    if controls::text_input(ui, name, &mut text, "", half) {
+                        if let Ok(parsed) = text.trim().parse::<i64>() {
+                            if parsed >= min && parsed <= max {
+                                edits.push(Edit::SetParam {
+                                    node: node.id.clone(),
+                                    name: name.into(),
+                                    value: ParamValue::Int(parsed),
+                                });
                             }
                         }
-                    });
-                    if index == 0 {
-                        ui.same_line_at(0.0, 8.0);
                     }
+                });
+                if index == 0 {
+                    ui.same_line_at(0.0, 8.0);
                 }
-            };
-        pair(ui, ("cols", "Columns", 1, 64), ("rows", "Rows", 1, 64));
+            }
+        };
+        pair(
+            ui,
+            ("cols", "Columns", 1, 64, FLIPBOOK_GRID),
+            ("rows", "Rows", 1, 64, FLIPBOOK_GRID),
+        );
         ui.dummy([width - 24.0, 8.0]);
         pair(
             ui,
-            ("cellWidth", "Cell width", 1, 4096),
-            ("cellHeight", "Cell height", 1, 4096),
+            ("cellWidth", "Cell width", 1, 4096, FLIPBOOK_CELL),
+            ("cellHeight", "Cell height", 1, 4096, FLIPBOOK_CELL),
         );
     });
 
@@ -966,18 +1191,13 @@ fn flipbook_output_node(
         }
     });
 
+    let (background, wired) = flipbook_background(node, context.graph, context.resolved);
     section(ui, width, "Background Color", |ui| {
-        let wired = context
-            .graph
-            .edges
-            .iter()
-            .any(|edge| edge.target == node.id && edge.target_handle == "param:bgColor");
         if wired {
             controls::badge(ui, "wired", theme::PORT_COLOR_STRING);
             ui.dummy([width - 24.0, 4.0]);
         }
-        let stored = node.data.params.get("bgColor");
-        let values = generic::vector_of(stored, 4);
+        let values = generic::vector_of(Some(&ParamValue::Vector(background.clone())), 4);
         let mut rgba = [
             values[0] as f32,
             values[1] as f32,
@@ -989,7 +1209,7 @@ fn flipbook_output_node(
         // section including its title.
         if color_picker::draw(
             ui,
-            "bg-color",
+            &color_picker::States::key(&node.id, "bgColor"),
             &mut rgba,
             width - 24.0,
             wired,
@@ -1004,17 +1224,73 @@ fn flipbook_output_node(
         }
     });
 
-    atlas_summary(ui, width, node, context.image_names.len());
+    atlas_summary(ui, width, node, context.image_names.len(), &background);
     edits.extend(output_log_section(ui, width, node));
     edits
 }
 
+/// The columns and rows a flipbook missing them is laid out with, by the run and by Electron.
+const FLIPBOOK_GRID: i64 = 4;
+/// The cell size a flipbook missing one is laid out with.
+const FLIPBOOK_CELL: i64 = 128;
+
+/// The colour a flipbook fills its empty cells with, and whether it arrives over a wire.
+///
+/// A wired colour is the source's, as `activeBgColor` read it: the live value first, which
+/// covers a Color node's computed `rgba`, then the stored parameter, then the source's
+/// `color`, where a Color node keeps its value. Anything that is not a list of numbers
+/// leaves the flipbook's own colour, which an old file may lack, meaning transparent.
+pub fn flipbook_background(
+    node: &GraphNode,
+    graph: &bite_schema::Graph,
+    resolved: &BTreeMap<String, BTreeMap<String, ParamValue>>,
+) -> (Vec<f64>, bool) {
+    let own = match node.data.params.get("bgColor") {
+        Some(ParamValue::Vector(values)) => values.clone(),
+        _ => vec![0.0, 0.0, 0.0, 0.0],
+    };
+    let Some(edge) = graph
+        .edges
+        .iter()
+        .find(|edge| edge.target == node.id && edge.target_handle == "param:bgColor")
+    else {
+        return (own, false);
+    };
+    let source = graph
+        .nodes
+        .iter()
+        .find(|candidate| candidate.id == edge.source);
+    let name = edge
+        .source_handle
+        .strip_prefix("param:")
+        .unwrap_or_default();
+    let value = resolved
+        .get(&edge.source)
+        .and_then(|values| values.get(name))
+        .or_else(|| source.and_then(|source| source.data.params.get(name)))
+        .or_else(|| source.and_then(|source| source.data.params.get("color")));
+    match value {
+        Some(ParamValue::Vector(values)) => (values.clone(), true),
+        _ => (own, true),
+    }
+}
+
+/// How the summary describes the colour of the cells no image fills: "transparent" when it
+/// has next to no alpha, otherwise its hex, as the Svelte summary printed beside a swatch.
+pub fn empty_cell_colour(rgba: &[f64]) -> Option<String> {
+    if rgba.get(3).copied().unwrap_or(1.0) < 0.01 {
+        return None;
+    }
+    let channel = |index: usize| rgba.get(index).copied().unwrap_or(0.0) as f32;
+    Some(color_picker::to_hex([channel(0), channel(1), channel(2)]))
+}
+
 /// The atlas size, cell count and image fit summary.
-fn atlas_summary(ui: &mut Ui, width: f32, node: &GraphNode, images: usize) {
-    let cols = int_param(node, "cols", 4).max(1);
-    let rows = int_param(node, "rows", 4).max(1);
-    let cell_width = int_param(node, "cellWidth", 256).max(1);
-    let cell_height = int_param(node, "cellHeight", 256).max(1);
+fn atlas_summary(ui: &mut Ui, width: f32, node: &GraphNode, images: usize, background: &[f64]) {
+    let cols = int_param(node, "cols", FLIPBOOK_GRID).max(1);
+    let rows = int_param(node, "rows", FLIPBOOK_GRID).max(1);
+    let cell_width = int_param(node, "cellWidth", FLIPBOOK_CELL).max(1);
+    let cell_height = int_param(node, "cellHeight", FLIPBOOK_CELL).max(1);
     let cells = (cols * rows) as usize;
 
     let box_width = width - 24.0;
@@ -1070,20 +1346,57 @@ fn atlas_summary(ui: &mut Ui, width: f32, node: &GraphNode, images: usize) {
         false,
     );
     row(1, "Cells", &format!("{cells} ({cols} x {rows})"), false);
-    let (images_text, warn) = if images > cells {
-        (
-            format!("{images} loaded - {} will be truncated", images - cells),
+    if images < cells {
+        // The unfilled cells take the background, named or shown as a swatch and its hex.
+        let lead = format!("{images} loaded - {} cells: ", cells - images);
+        match empty_cell_colour(background) {
+            None => row(2, "Images", &format!("{lead}transparent"), true),
+            Some(hex) => {
+                row(2, "Images", &hex, true);
+                let y = origin[1] + 8.0 + 2.0 * 17.0;
+                let face = theme::face::SMALL_MONO;
+                let hex_width = list.measure(face, &hex)[0];
+                let line = list.measure(face, "Ag")[1];
+                // `.summary-swatch`: ten pixels, rounded by two, two pixels either side.
+                let swatch = 10.0;
+                let swatch_right = max[0] - 9.0 - hex_width - 2.0;
+                let swatch_min = [swatch_right - swatch, y + (line - swatch) / 2.0];
+                let swatch_max = [swatch_right, swatch_min[1] + swatch];
+                let channel = |index: usize| background.get(index).copied().unwrap_or(0.0) as f32;
+                list.rect(
+                    swatch_min,
+                    swatch_max,
+                    Color([channel(0), channel(1), channel(2), 1.0]),
+                    2.0,
+                    Rounding::All,
+                );
+                list.rect_outline(
+                    swatch_min,
+                    swatch_max,
+                    theme::BORDER.mix(60.0, Color::TRANSPARENT),
+                    2.0,
+                    Rounding::All,
+                    1.0,
+                );
+                let lead_width = list.measure(face, &lead)[0];
+                list.text_with_face(
+                    [swatch_min[0] - 2.0 - lead_width, y],
+                    theme::COLOR_WARNING_TEXT,
+                    face,
+                    &lead,
+                );
+            }
+        }
+    } else if images > cells {
+        row(
+            2,
+            "Images",
+            &format!("{images} loaded - {} will be truncated", images - cells),
             true,
-        )
-    } else if images < cells {
-        (
-            format!("{images} loaded - {} cells: empty", cells - images),
-            true,
-        )
+        );
     } else {
-        (format!("{images} loaded"), false)
-    };
-    row(2, "Images", &images_text, warn);
+        row(2, "Images", &format!("{images} loaded"), false);
+    }
     ui.dummy([box_width, height]);
     ui.dummy([width, 8.0]);
 }
@@ -1215,11 +1528,16 @@ fn set_input_node(
     context: &InspectorContext,
 ) -> Vec<Edit> {
     let mut edits = Vec::new();
-    let prefix_wired = context
-        .graph
-        .edges
-        .iter()
-        .any(|edge| edge.target == node.id && edge.target_handle == "param:prefix");
+    let is_wired = |handle: &str| {
+        context
+            .graph
+            .edges
+            .iter()
+            .any(|edge| edge.target == node.id && edge.target_handle == handle)
+    };
+    let prefix_wired = is_wired("param:prefix");
+    // The prefix and suffixes the run matches with: a wired one comes from its source.
+    let (pattern_prefix, pattern_suffixes) = bite_core::graph::set_pattern(context.graph, node);
 
     ui.dummy([width, 8.0]);
     ui.set_cursor_screen_position([
@@ -1231,7 +1549,7 @@ fn set_input_node(
         ui.group(|ui| controls::row_label(ui, "Prefix"));
         ui.same_line_at(label_width, 8.0);
         if prefix_wired {
-            controls::badge(ui, "wired", theme::PORT_COLOR_STRING);
+            wired_text_value(ui, &pattern_prefix, width - 24.0 - label_width - 8.0);
         } else {
             let mut prefix = string_param(node, "prefix", "");
             if controls::text_input(
@@ -1278,7 +1596,11 @@ fn set_input_node(
             ui.same_line_at(label_width, 8.0);
             let mut value = suffix.clone();
             let field_width = width - 24.0 - label_width - 8.0 - 36.0;
-            if controls::text_input(
+            // A wired suffix shows what arrives instead of a field, as the prefix does.
+            if is_wired(&format!("param:suffix_{index}")) {
+                let incoming = pattern_suffixes.get(index).map_or("", String::as_str);
+                wired_text_value(ui, incoming, field_width);
+            } else if controls::text_input(
                 ui,
                 &format!("suffix-{index}"),
                 &mut value,
@@ -1299,14 +1621,9 @@ fn set_input_node(
             let remove = controls::button(ui, "x", ButtonKind::Danger, 30.0, true);
             title_tooltip(ui, "Remove suffix");
             if remove {
-                let mut updated = suffixes.clone();
-                updated.remove(index);
-                edits.push(Edit::SetParam {
+                edits.push(Edit::RemoveSetSuffix {
                     node: node.id.clone(),
-                    name: "suffixes".into(),
-                    value: ParamValue::Structured(StructuredParam::SetSuffixes {
-                        suffixes: updated,
-                    }),
+                    index,
                 });
             }
         });
@@ -1328,63 +1645,142 @@ fn set_input_node(
         });
     }
 
-    if suffixes.iter().any(|suffix| !suffix.is_empty()) {
-        let prefix = string_param(node, "prefix", "");
-        let sets = matched_sets(context.image_names, &prefix, &suffixes);
-        let complete = sets
+    if pattern_suffixes.iter().any(|suffix| !suffix.is_empty()) {
+        let sets = matched_sets(context.image_names, &pattern_prefix, &pattern_suffixes);
+        let active: Vec<&String> = pattern_suffixes
             .iter()
-            .filter(|(_, found)| found.iter().all(|present| *present))
-            .count();
-        section(
-            ui,
-            width,
-            &format!("Matched sets ({complete}/{} complete)", sets.len()),
-            |ui| {
-                if sets.is_empty() {
-                    ui.with_face(theme::face::SMALL_MONO, |ui| {
-                        ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.5))], |ui| {
-                            ui.text("No images match the current pattern.")
-                        })
-                    });
-                    return;
-                }
-                for (name, found) in sets.iter().take(6) {
-                    let all = found.iter().all(|present| *present);
-                    let origin = ui.cursor_screen_position();
-                    ui.draw_list().line(
-                        [origin[0], origin[1]],
-                        [origin[0], origin[1] + 18.0],
-                        if all {
-                            theme::ACCENT
-                        } else {
-                            theme::COLOR_WARNING.mix(60.0, Color::TRANSPARENT)
-                        },
+            .filter(|suffix| !suffix.is_empty())
+            .collect();
+        section(ui, width, &matched_sets_title(&sets), |ui| {
+            if sets.is_empty() {
+                ui.with_face(theme::face::SMALL_MONO, |ui| {
+                    ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.5))], |ui| {
+                        ui.text("No images match the current pattern.")
+                    })
+                });
+                return;
+            }
+            let content = width - 24.0;
+            for (name, found) in sets.iter().take(6) {
+                let all = found.iter().all(|present| *present);
+                let origin = ui.cursor_screen_position();
+                let left = origin[0] + 8.0;
+                let name_height = controls::measure(ui, theme::face::SMALL_MONO, "Ag")[1];
+                controls::draw_ellipsized(
+                    ui,
+                    [left, origin[1] + 4.0],
+                    theme::TEXT_BRIGHT,
+                    theme::face::SMALL_MONO,
+                    name,
+                    content - 8.0,
+                );
+                // `.set-slots`: one chip per suffix, found or missing, wrapping as needed.
+                let chip_face = theme::face::TINY_MONO;
+                let chip_height = controls::measure(ui, chip_face, "Ag")[1] + 2.0;
+                let (mut x, mut y) = (left, origin[1] + 4.0 + name_height + 2.0);
+                let list = ui.draw_list();
+                for (suffix, present) in active.iter().zip(found) {
+                    let size = list.measure(chip_face, suffix);
+                    let chip_width = size[0] + 8.0;
+                    if x > left && x + chip_width > origin[0] + content {
+                        x = left;
+                        y += chip_height + 4.0;
+                    }
+                    let tint = if *present {
+                        theme::ACCENT
+                    } else {
+                        theme::COLOR_ERROR
+                    };
+                    list.rect(
+                        [x, y],
+                        [x + chip_width, y + chip_height],
+                        tint.mix(if *present { 15.0 } else { 12.0 }, Color::TRANSPARENT),
                         2.0,
+                        Rounding::All,
                     );
-                    controls::draw_ellipsized(
-                        ui,
-                        [origin[0] + 8.0, origin[1] + 2.0],
-                        theme::TEXT,
-                        theme::face::SMALL_MONO,
-                        name,
-                        width - 40.0,
-                    );
-                    ui.dummy([width - 24.0, 20.0]);
+                    list.text_with_face([x + 4.0, y + 1.0], tint, chip_face, suffix);
+                    x += chip_width + 4.0;
                 }
-                if sets.len() > 6 {
-                    ui.with_face(theme::face::SMALL_MONO, |ui| {
-                        ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.5))], |ui| {
-                            ui.text(&format!("...and {} more", sets.len() - 6))
-                        })
-                    });
-                }
-            },
-        );
+                let bottom = y + chip_height + 4.0;
+                list.line(
+                    [origin[0], origin[1]],
+                    [origin[0], bottom],
+                    if all {
+                        theme::ACCENT
+                    } else {
+                        theme::COLOR_WARNING.mix(60.0, Color::TRANSPARENT)
+                    },
+                    2.0,
+                );
+                ui.dummy([content, bottom - origin[1] + 2.0]);
+            }
+            if sets.len() > 6 {
+                ui.with_face(theme::face::SMALL_MONO, |ui| {
+                    ui.with_colors(&[(StyleColor::Text, theme::TEXT.with_alpha(0.5))], |ui| {
+                        ui.text(&format!("...and {} more", sets.len() - 6))
+                    })
+                });
+            }
+        });
     }
     edits
 }
 
+/// The heading over the matched sets, which counts the complete ones only when there
+/// is something to count, as the Svelte `.match-count` did.
+pub fn matched_sets_title(sets: &[(String, Vec<bool>)]) -> String {
+    if sets.is_empty() {
+        return "Matched sets".into();
+    }
+    let complete = sets
+        .iter()
+        .filter(|(_, found)| found.iter().all(|present| *present))
+        .count();
+    format!("Matched sets ({complete}/{} complete)", sets.len())
+}
+
+/// A wired Process As Set row: the `wired` badge, then the value arriving over the wire in
+/// `.wired-value`'s string colour, in the space the field would have taken.
+fn wired_text_value(ui: &mut Ui, value: &str, width: f32) {
+    let origin = ui.cursor_screen_position();
+    let height = theme::INPUT_HEIGHT;
+    let face = theme::face::SMALL_MONO;
+    let colour = theme::PORT_COLOR_STRING;
+    let text = controls::measure(ui, face, "wired");
+    let badge = [text[0] + 6.0, 14.0];
+    let top = origin[1] + (height - badge[1]) / 2.0;
+    let list = ui.draw_list();
+    list.rect_outline(
+        [origin[0], top],
+        [origin[0] + badge[0], top + badge[1]],
+        colour,
+        3.0,
+        Rounding::All,
+        1.0,
+    );
+    list.text_with_face(
+        [origin[0] + 3.0, top + (badge[1] - text[1]) / 2.0],
+        colour,
+        face,
+        "wired",
+    );
+    let value_x = origin[0] + badge[0] + 6.0;
+    let line = controls::measure(ui, theme::face::VALUE, "Ag")[1];
+    controls::draw_ellipsized(
+        ui,
+        [value_x, origin[1] + (height - line) / 2.0],
+        colour.with_alpha(0.8),
+        theme::face::VALUE,
+        value,
+        (origin[0] + width - value_x).max(0.0),
+    );
+    ui.dummy([width, height]);
+}
+
 /// Groups file names into sets by the prefix and the suffix list.
+///
+/// The sets come in the order their first file does, which is the order a run writes them
+/// in - and so the order a Rename's Number block counts them in.
 pub fn matched_sets(
     names: &[String],
     prefix: &str,
@@ -1394,7 +1790,7 @@ pub fn matched_sets(
     if active.is_empty() {
         return Vec::new();
     }
-    let mut groups: BTreeMap<String, Vec<bool>> = BTreeMap::new();
+    let mut groups: Vec<(String, Vec<bool>)> = Vec::new();
     for name in names {
         let stem = name.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(name);
         if !stem.starts_with(prefix) {
@@ -1409,16 +1805,27 @@ pub fn matched_sets(
             continue;
         };
         let middle = &remainder[..remainder.len() - suffix.len()];
-        let entry = groups
-            .entry(format!("{prefix}{middle}"))
-            .or_insert_with(|| vec![false; active.len()]);
-        entry[index] = true;
+        let name = format!("{prefix}{middle}");
+        let position = match groups.iter().position(|(set, _)| *set == name) {
+            Some(position) => position,
+            None => {
+                groups.push((name, vec![false; active.len()]));
+                groups.len() - 1
+            }
+        };
+        groups[position].1[index] = true;
     }
-    groups.into_iter().collect()
+    groups
 }
 
 /// The Rename inspector: the block list plus a live preview.
-fn rename_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorContext) -> Vec<Edit> {
+fn rename_node(
+    ui: &mut Ui,
+    width: f32,
+    node: &GraphNode,
+    reorder: &mut Option<super::Reorder>,
+    context: &InspectorContext,
+) -> Vec<Edit> {
     let mut edits = Vec::new();
     let blocks = rename_blocks(node);
 
@@ -1438,22 +1845,48 @@ fn rename_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
             );
             ui.dummy([content, size[1] + 2.0]);
         }
-        for index in 0..blocks.len() {
+        let key = format!("blocks:{}", node.id);
+        // Each row is its padded field plus the one-pixel gap left after it.
+        let pitch = COMPACT_INPUT_HEIGHT + 8.0 + 1.0;
+        let order = reorder_order(
+            ui,
+            reorder,
+            &key,
+            blocks.len(),
+            ui.cursor_screen_position()[1],
+            pitch,
+        );
+        let mut grabbed = None;
+        for &index in &order {
             let mut updated = blocks.clone();
-            let change = rename_block_row(ui, width - 24.0, index, &mut updated[index]);
-            if let Some(change) = change {
-                if change == RowChange::Removed {
-                    updated.remove(index);
+            let dragging = is_dragged(reorder, &key, index);
+            let change = rename_block_row(ui, width - 24.0, index, &mut updated[index], dragging);
+            match change {
+                Some(RowChange::Grabbed) => grabbed = Some(index),
+                Some(change) => {
+                    if change == RowChange::Removed {
+                        updated.remove(index);
+                    }
+                    edits.push(Edit::SetParam {
+                        node: node.id.clone(),
+                        name: "blocks".into(),
+                        value: ParamValue::Structured(StructuredParam::RenameBlocks {
+                            blocks: updated,
+                        }),
+                    });
                 }
-                edits.push(Edit::SetParam {
-                    node: node.id.clone(),
-                    name: "blocks".into(),
-                    value: ParamValue::Structured(StructuredParam::RenameBlocks {
-                        blocks: updated,
-                    }),
-                });
+                None => {}
             }
             ui.dummy([width - 24.0, 1.0]);
+        }
+        if let Some((from, to)) = reorder_finish(ui, reorder, &key, grabbed) {
+            edits.push(Edit::SetParam {
+                node: node.id.clone(),
+                name: "blocks".into(),
+                value: ParamValue::Structured(StructuredParam::RenameBlocks {
+                    blocks: moved(&blocks, from, to),
+                }),
+            });
         }
 
         ui.dummy([width - 24.0, 4.0]);
@@ -1469,9 +1902,10 @@ fn rename_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
             ),
             (
                 "+ Number",
+                // `addNumber()` counted from one, padded to two digits.
                 RenameBlock::Number {
                     start: 1.0,
-                    pad: 3.0,
+                    pad: 2.0,
                 },
                 theme::COLOR_WARNING,
             ),
@@ -1504,11 +1938,8 @@ fn rename_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
 
     // Behind a Process As Set the rename names whole sets, so the preview lists those.
     let sets = upstream_node(context.graph, &node.id, "process_as_set").map(|set| {
-        set_names(
-            context.image_names,
-            &string_param(set, "prefix", ""),
-            &set_suffixes(set),
-        )
+        let (prefix, suffixes) = bite_core::graph::set_pattern(context.graph, set);
+        set_names(context.image_names, &prefix, &suffixes)
     });
     let (examples, title) = match &sets {
         Some(sets) => (
@@ -1798,6 +2229,7 @@ fn rename_block_row(
     width: f32,
     index: usize,
     block: &mut RenameBlock,
+    dragging: bool,
 ) -> Option<RowChange> {
     let mut change = None;
     let (label, colour) = match block {
@@ -1826,13 +2258,25 @@ fn rename_block_row(
 
     ui.group(|ui| {
         let handle_width = 10.0;
+        // The handle and the badge beside it pick the row up; the fields keep the pointer
+        // for editing, where the Svelte row left a drag that began in an input to the input.
+        let mut grab = |ui: &mut Ui| {
+            if ui.item_hovered() || ui.item_active() {
+                ui.set_mouse_cursor(bite_imgui::MouseCursor::Hand);
+            }
+            if ui.item_active() && ui.mouse_dragging(bite_imgui::MouseButton::Left, 3.0) {
+                change = Some(RowChange::Grabbed);
+            }
+        };
         drag_handle(ui, hovered);
-        ui.dummy([handle_width, COMPACT_INPUT_HEIGHT]);
+        ui.invisible_button("##handle", [handle_width, COMPACT_INPUT_HEIGHT]);
+        grab(ui);
         title_tooltip(ui, "Drag to reorder");
         ui.same_line_at(0.0, 5.0);
 
         let badge_width = block_badge(ui, label, colour);
-        ui.dummy([badge_width, COMPACT_INPUT_HEIGHT]);
+        ui.invisible_button("##badge", [badge_width, COMPACT_INPUT_HEIGHT]);
+        grab(ui);
         ui.same_line_at(0.0, 5.0);
 
         // The handle, the badge, the delete button and their four gaps.
@@ -1935,6 +2379,13 @@ fn rename_block_row(
         }
         title_tooltip(ui, "Remove block");
     });
+    if dragging {
+        dragged_row_overlay(
+            ui,
+            row_origin,
+            [row_origin[0] + width, row_origin[1] + row_height],
+        );
+    }
     ui.set_cursor_screen_position([row_origin[0], row_origin[1] + row_height]);
     change
 }
@@ -1944,6 +2395,8 @@ fn rename_block_row(
 enum RowChange {
     Edited,
     Removed,
+    /// Its handle was dragged, which starts reordering the list.
+    Grabbed,
 }
 
 /// `.block-delete`: a bare cross that reddens on hover.
@@ -2096,6 +2549,69 @@ pub fn resize_preview(
     Some([width as i64, height as i64])
 }
 
+/// The width and height a Resize shows, read from the parameters its run reads.
+///
+/// `resize.json` resizes a relative, aspect-locked image by `scale` alone and only reads
+/// `scale_width` and `scale_height` once the lock is off. The Svelte panel showed the
+/// per-side pair in both cases, so typing 50% into a locked one previewed half size while
+/// the run, still reading `scale`, wrote the image out at full size.
+pub fn resize_values(node: &GraphNode, relative: bool, preserve: bool) -> [f64; 2] {
+    if relative && preserve {
+        let scale = number_param(node, "scale", number_param(node, "scale_width", 100.0));
+        [scale.max(1.0), scale.max(1.0)]
+    } else if relative {
+        let scale = number_param(node, "scale", 100.0);
+        [
+            number_param(node, "scale_width", scale).max(1.0),
+            number_param(node, "scale_height", scale).max(1.0),
+        ]
+    } else {
+        [
+            number_param(node, "width", 1024.0).round().max(1.0),
+            number_param(node, "height", 1024.0).round().max(1.0),
+        ]
+    }
+}
+
+/// The parameters a dimension typed into the Resize inspector writes, as `onWidthChange`
+/// and `onHeightChange` did, plus `scale` for a locked relative resize, which is the one
+/// its run reads. The per-side pair is kept in step so unlocking it later shows the same
+/// percentage. `ratio` is the selected image's width over its height, if one is selected.
+pub fn resize_typed_params(
+    relative: bool,
+    preserve: bool,
+    is_width: bool,
+    raw: f64,
+    ratio: Option<f64>,
+) -> Vec<(&'static str, ParamValue)> {
+    let raw = raw.max(1.0);
+    if relative {
+        let value = ParamValue::Number(raw);
+        return if preserve {
+            ["scale", "scale_width", "scale_height"]
+                .into_iter()
+                .map(|name| (name, value.clone()))
+                .collect()
+        } else if is_width {
+            vec![("scale_width", value)]
+        } else {
+            vec![("scale_height", value)]
+        };
+    }
+    let value = raw.round();
+    let int = |value: f64| ParamValue::Int(value.round().max(1.0) as i64);
+    let (typed, other, derived) = if is_width {
+        ("width", "height", ratio.map(|ratio| value / ratio))
+    } else {
+        ("height", "width", ratio.map(|ratio| value * ratio))
+    };
+    let mut params = vec![(typed, int(value))];
+    if let (true, Some(derived)) = (preserve, derived) {
+        params.push((other, int(derived)));
+    }
+    params
+}
+
 /// The Resize inspector, from `InspectorResizeNode.svelte`.
 ///
 /// Its rows are not the definition's: the two dimensions share a unit, the one the aspect
@@ -2121,16 +2637,7 @@ fn resize_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
         1.0
     };
 
-    let width_value = if relative {
-        number_param(node, "scale_width", number_param(node, "scale", 100.0)).max(1.0)
-    } else {
-        number_param(node, "width", 1024.0).round().max(1.0)
-    };
-    let height_value = if relative {
-        number_param(node, "scale_height", number_param(node, "scale", 100.0)).max(1.0)
-    } else {
-        number_param(node, "height", 1024.0).round().max(1.0)
-    };
+    let [width_value, height_value] = resize_values(node, relative, preserve);
     let preview = resize_preview(
         source,
         relative,
@@ -2165,21 +2672,28 @@ fn resize_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
             name: "preserve_aspect".into(),
             value: ParamValue::Bool(keep),
         });
-        // Turning it back on squares the other dimension up straight away.
-        if keep {
-            if relative {
+        // Turning it back on squares the other dimension up straight away. In relative
+        // mode the run switches between `scale` and the per-side pair with the checkbox, so
+        // whichever it is about to read takes the percentage shown now.
+        if relative {
+            let names: &[&str] = if keep {
+                &["scale", "scale_width", "scale_height"]
+            } else {
+                &["scale_width", "scale_height"]
+            };
+            for name in names {
                 edits.push(Edit::SetParam {
                     node: node.id.clone(),
-                    name: "scale_height".into(),
+                    name: (*name).into(),
                     value: ParamValue::Number(width_value),
                 });
-            } else if has_source {
-                edits.push(Edit::SetParam {
-                    node: node.id.clone(),
-                    name: "height".into(),
-                    value: ParamValue::Int(((width_value / ratio).round() as i64).max(1)),
-                });
             }
+        } else if keep && has_source {
+            edits.push(Edit::SetParam {
+                node: node.id.clone(),
+                name: "height".into(),
+                value: ParamValue::Int(((width_value / ratio).round() as i64).max(1)),
+            });
         }
     }
 
@@ -2230,46 +2744,13 @@ fn resize_node(ui: &mut Ui, width: f32, node: &GraphNode, context: &InspectorCon
         }
     });
     if let Some((is_width, raw)) = typed {
-        let value = if relative { raw } else { raw.round() };
-        let number = |value: f64| {
-            if relative {
-                ParamValue::Number(value)
-            } else {
-                ParamValue::Int(value as i64)
-            }
-        };
-        let mut set = |name: &str, value: ParamValue| {
+        let ratio = has_source.then_some(ratio);
+        for (name, value) in resize_typed_params(relative, preserve, is_width, raw, ratio) {
             edits.push(Edit::SetParam {
                 node: node.id.clone(),
                 name: name.into(),
                 value,
             });
-        };
-        match (relative, is_width) {
-            (true, true) => {
-                set("scale_width", number(value));
-                if preserve {
-                    set("scale_height", number(value));
-                }
-            }
-            (true, false) => {
-                set("scale_height", number(value));
-                if preserve {
-                    set("scale_width", number(value));
-                }
-            }
-            (false, true) => {
-                set("width", number(value));
-                if preserve && has_source {
-                    set("height", number((value / ratio).round().max(1.0)));
-                }
-            }
-            (false, false) => {
-                set("height", number(value));
-                if preserve && has_source {
-                    set("width", number((value * ratio).round().max(1.0)));
-                }
-            }
         }
     }
 
@@ -2374,7 +2855,12 @@ fn format_convert_node(
         });
         return edits;
     }
-    for parameter in &definition.0.params {
+    let params = &definition.0.params;
+    // A format's options hide by its own rules, such as WebP's quality once it is lossless.
+    for parameter in params
+        .iter()
+        .filter(|parameter| generic::format_param_visible(parameter, params, node))
+    {
         edits.extend(generic::row(
             ui, width, node, parameter, false, context, pickers,
         ));
@@ -2600,19 +3086,210 @@ mod tests {
 
     #[test]
     fn the_text_preview_title_reports_each_state() {
+        // No files says so before the ports do, as the Svelte heading's order had it.
         assert_eq!(
             text_preview_title(0, 0, false, 0),
-            "Preview (connect a port)"
+            "Preview (no files loaded)"
         );
         assert_eq!(
             text_preview_title(0, 0, false, 1),
             "Preview (no files loaded)"
         );
+        assert_eq!(
+            text_preview_title(3, 0, false, 0),
+            "Preview (connect a port)"
+        );
         assert_eq!(text_preview_title(3, 0, true, 1), "Preview...");
-        assert_eq!(text_preview_title(3, 3, false, 1), "Preview - 3 line(s)");
+        // Lines from the last run stay counted while the next one computes.
+        assert_eq!(text_preview_title(3, 3, true, 1), "Preview - 3 lines");
+        assert_eq!(text_preview_title(3, 3, false, 1), "Preview - 3 lines");
+        assert_eq!(text_preview_title(1, 1, false, 1), "Preview - 1 line");
         assert_eq!(
             text_preview_title(42, 10, false, 1),
             "Preview - first 10 of 42 files"
+        );
+    }
+
+    fn text_output(slots: &[&str]) -> GraphNode {
+        let mut node = node_with(
+            "t",
+            vec![(
+                "portIds",
+                ParamValue::Structured(StructuredParam::TextSlots {
+                    slots: slots.iter().map(|slot| slot.to_string()).collect(),
+                }),
+            )],
+        );
+        node.kind = NodeKind::Builtin(BuiltinNodeKind::TextOutput);
+        node
+    }
+
+    fn edge_into(id: &str, target: &str, handle: &str) -> GraphEdge {
+        GraphEdge {
+            id: id.into(),
+            source: "v".into(),
+            source_handle: "param:value".into(),
+            target: target.into(),
+            target_handle: handle.into(),
+        }
+    }
+
+    /// `portIds` always ends with the empty slot that takes the next wire, so a text
+    /// output with nothing wired still has one slot, and that slot is never listed.
+    #[test]
+    fn only_wired_text_slots_count_and_never_the_trailing_empty_one() {
+        let node = text_output(&["0"]);
+        let graph_empty = graph(vec![node.clone()], Vec::new());
+        assert!(connected_text_slots(&node, &graph_empty).is_empty());
+
+        let node = text_output(&["3", "1", "4"]);
+        let wired = graph(
+            vec![node.clone()],
+            vec![edge_into("a", "t", "txo:3"), edge_into("b", "t", "txo:1")],
+        );
+        assert_eq!(connected_text_slots(&node, &wired), ["3", "1"]);
+        // Even a wire into the last slot does not make it a listed port.
+        let ghost_wired = graph(vec![node.clone()], vec![edge_into("c", "t", "txo:4")]);
+        assert!(connected_text_slots(&node, &ghost_wired).is_empty());
+    }
+
+    #[test]
+    fn reordering_text_slots_keeps_the_empty_slot_last() {
+        let slots: Vec<String> = ["0", "1", "2", "3"].iter().map(|s| s.to_string()).collect();
+        let connected = &slots[..3];
+        assert_eq!(
+            reorder_text_slots(&slots, connected, 0, 2),
+            ["1", "2", "0", "3"]
+        );
+        assert_eq!(
+            reorder_text_slots(&slots, connected, 2, 0),
+            ["2", "0", "1", "3"]
+        );
+        // An unwired slot among the rest keeps its place.
+        let connected = vec!["0".to_string(), "2".to_string()];
+        assert_eq!(
+            reorder_text_slots(&slots, &connected, 1, 0),
+            ["2", "1", "0", "3"]
+        );
+    }
+
+    #[test]
+    fn a_dragged_row_lands_on_the_row_under_the_pointer() {
+        assert_eq!(moved(&[1, 2, 3, 4], 0, 2), [2, 3, 1, 4]);
+        assert_eq!(moved(&[1, 2, 3, 4], 3, 0), [4, 1, 2, 3]);
+        assert_eq!(moved(&[1, 2, 3], 1, 9), [1, 3, 2]);
+        assert_eq!(reorder_slot(100.0, 25.0, 4, 90.0), 0);
+        assert_eq!(reorder_slot(100.0, 25.0, 4, 130.0), 1);
+        assert_eq!(reorder_slot(100.0, 25.0, 4, 400.0), 3);
+    }
+
+    #[test]
+    fn the_import_button_says_importing_only_while_importing() {
+        assert_eq!(import_label(false, 1), "Import 1 Image");
+        assert_eq!(import_label(false, 12), "Import 12 Images");
+        assert_eq!(import_label(true, 12), "Importing...");
+    }
+
+    #[test]
+    fn the_matched_sets_heading_counts_only_when_there_are_sets() {
+        assert_eq!(matched_sets_title(&[]), "Matched sets");
+        let sets = vec![
+            ("T_rock".to_string(), vec![true, true]),
+            ("T_wood".to_string(), vec![true, false]),
+        ];
+        assert_eq!(matched_sets_title(&sets), "Matched sets (1/2 complete)");
+    }
+
+    /// A wired background is the source's colour: what the preview worked out, else its
+    /// stored value, else its `color`, which is where a Color node keeps it.
+    #[test]
+    fn a_wired_flipbook_background_is_the_sources_colour() {
+        let own = vec![0.0, 0.0, 0.0, 0.0];
+        let flipbook = node_with("f", vec![("bgColor", ParamValue::Vector(own.clone()))]);
+        let colour = node_with(
+            "c",
+            vec![("color", ParamValue::Vector(vec![1.0, 0.0, 0.0, 1.0]))],
+        );
+        let edge = GraphEdge {
+            id: "e".into(),
+            source: "c".into(),
+            source_handle: "param:rgba".into(),
+            target: "f".into(),
+            target_handle: "param:bgColor".into(),
+        };
+        let unwired = graph(vec![flipbook.clone(), colour.clone()], Vec::new());
+        assert_eq!(
+            flipbook_background(&flipbook, &unwired, &BTreeMap::new()),
+            (own.clone(), false)
+        );
+        let wired = graph(vec![flipbook.clone(), colour], vec![edge]);
+        assert_eq!(
+            flipbook_background(&flipbook, &wired, &BTreeMap::new()),
+            (vec![1.0, 0.0, 0.0, 1.0], true)
+        );
+        let live = BTreeMap::from([(
+            "c".to_string(),
+            BTreeMap::from([(
+                "rgba".to_string(),
+                ParamValue::Vector(vec![0.0, 1.0, 0.0, 1.0]),
+            )]),
+        )]);
+        assert_eq!(
+            flipbook_background(&flipbook, &wired, &live),
+            (vec![0.0, 1.0, 0.0, 1.0], true)
+        );
+    }
+
+    #[test]
+    fn empty_cells_are_transparent_or_named_by_their_hex() {
+        assert_eq!(empty_cell_colour(&[0.0, 0.0, 0.0, 0.0]), None);
+        assert_eq!(
+            empty_cell_colour(&[1.0, 0.0, 0.0, 1.0]).as_deref(),
+            Some("#ff0000")
+        );
+        // Three components carry no alpha, which reads as opaque.
+        assert!(empty_cell_colour(&[0.0, 0.0, 1.0]).is_some());
+    }
+
+    /// With the aspect locked a relative resize runs on `scale`, so that is what typing a
+    /// percentage writes and what the preview reads.
+    #[test]
+    fn a_locked_relative_resize_writes_and_reads_scale() {
+        let typed = resize_typed_params(true, true, true, 50.0, Some(2.0));
+        assert_eq!(
+            typed,
+            vec![
+                ("scale", ParamValue::Number(50.0)),
+                ("scale_width", ParamValue::Number(50.0)),
+                ("scale_height", ParamValue::Number(50.0)),
+            ]
+        );
+        let node = node_with(
+            "r",
+            vec![
+                ("scale", ParamValue::Number(50.0)),
+                ("scale_width", ParamValue::Number(100.0)),
+                ("scale_height", ParamValue::Number(100.0)),
+            ],
+        );
+        assert_eq!(resize_values(&node, true, true), [50.0, 50.0]);
+        // Unlocked, each side reads and writes its own percentage.
+        assert_eq!(resize_values(&node, true, false), [100.0, 100.0]);
+        assert_eq!(
+            resize_typed_params(true, false, false, 30.0, None),
+            vec![("scale_height", ParamValue::Number(30.0))]
+        );
+        // Absolute sizes still square the other side up from the selected image.
+        assert_eq!(
+            resize_typed_params(false, true, true, 800.4, Some(2.0)),
+            vec![
+                ("width", ParamValue::Int(800)),
+                ("height", ParamValue::Int(400))
+            ]
+        );
+        assert_eq!(
+            resize_typed_params(false, true, true, 800.0, None),
+            vec![("width", ParamValue::Int(800))]
         );
     }
 

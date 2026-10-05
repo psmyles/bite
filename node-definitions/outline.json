@@ -21,7 +21,7 @@
       },
       "-background",
       {
-        "expr": "str(color)"
+        "expr": "rgba(color)"
       },
       "-alpha",
       "Shape",

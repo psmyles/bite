@@ -54,6 +54,9 @@ impl Value {
     }
     pub fn scalar(&self) -> Result<f64, String> {
         match self {
+            // An unwired value port reads as nothing, and the legacy math treated nothing
+            // as zero (`Number(null ?? 0)`) rather than failing the node.
+            Self::Null => Ok(0.0),
             Self::Int(n) => Ok(*n as f64),
             Self::Float(n) => Ok(*n),
             Self::Vector(v) => Ok(v.iter().map(|n| n * n).sum::<f64>().sqrt()),
@@ -74,6 +77,44 @@ impl Value {
                 .join(","),
         }
     }
+}
+/// The number a piece of text stands for, read the way JavaScript's `Number()` reads it.
+///
+/// The legacy nodes converted text with `Number()`, so text that is not a number became
+/// NaN instead of an error: a Compare given a name compared false (and "not equal" true)
+/// rather than failing, and with it every preview of the workflow. Blank text is zero.
+pub fn number_from_text(text: &str) -> f64 {
+    let text = text.trim();
+    if text.is_empty() {
+        return 0.0;
+    }
+    let (sign, unsigned) = match text.as_bytes()[0] {
+        b'-' => (-1.0, &text[1..]),
+        b'+' => (1.0, &text[1..]),
+        _ => (1.0, text),
+    };
+    if unsigned == "Infinity" {
+        return sign * f64::INFINITY;
+    }
+    // Only an unsigned literal may carry a radix prefix, as in JavaScript.
+    if unsigned.len() == text.len() && text.len() > 2 && text.as_bytes()[0] == b'0' {
+        let radix = match text.as_bytes()[1] {
+            b'x' | b'X' => Some(16),
+            b'o' | b'O' => Some(8),
+            b'b' | b'B' => Some(2),
+            _ => None,
+        };
+        if let Some(radix) = radix {
+            return u64::from_str_radix(&text[2..], radix).map_or(f64::NAN, |n| n as f64);
+        }
+    }
+    // Rust also reads "inf" and "nan", which JavaScript does not.
+    if !unsigned.starts_with(|c: char| c.is_ascii_digit() || c == '.')
+        || unsigned.contains(|c: char| c.is_ascii_alphabetic() && c != 'e' && c != 'E')
+    {
+        return f64::NAN;
+    }
+    text.parse().unwrap_or(f64::NAN)
 }
 fn number_text(n: f64) -> String {
     if n == 0.0 {
@@ -605,7 +646,7 @@ fn check(
                     }
                 }
                 "rgba" => {
-                    if matches!(ts[0], Type::Vector | Type::String | Type::Value) {
+                    if ts[0] == Type::String || numeric(ts[0]) {
                         Ok(Type::String)
                     } else {
                         Err(n.error("rgba requires a color string or vector"))
@@ -771,6 +812,40 @@ fn evaluate(n: &Node, ctx: &Context) -> Result<Value, Error> {
     }
     Ok(result)
 }
+/// The folder part of a path, as Node's `path.dirname` gave it on Windows.
+///
+/// A root keeps its separator: the folder of `C:\a.png` is `C:\`, not `C:` (which names
+/// the current directory of drive C), and the same holds for `/` and for a UNC share.
+fn dirname(path: &str) -> String {
+    let separator = |b: u8| b == b'/' || b == b'\\';
+    let next_separator = |from: usize| {
+        path.as_bytes()[from..]
+            .iter()
+            .position(|b| separator(*b))
+            .map(|i| from + i)
+    };
+    let bytes = path.as_bytes();
+    let root = match bytes {
+        [drive, b':', rest @ ..] if drive.is_ascii_alphabetic() => {
+            2 + usize::from(rest.first().is_some_and(|b| separator(*b)))
+        }
+        // `\\server\share\` is as far up as a UNC path goes.
+        [a, b, ..] if separator(*a) && separator(*b) => next_separator(2)
+            .filter(|server| *server > 2)
+            .and_then(|server| {
+                let share = next_separator(server + 1).unwrap_or(path.len());
+                (share > server + 1).then(|| (share + 1).min(path.len()))
+            })
+            .unwrap_or(1),
+        [first, ..] if separator(*first) => 1,
+        _ => 0,
+    };
+    match path[root..].rfind(['/', '\\']) {
+        Some(i) => path[..root + i].into(),
+        None if root > 0 => path[..root].into(),
+        None => ".".into(),
+    }
+}
 fn call(name: &str, a: &[Value]) -> Result<Value, String> {
     Ok(match name {
         "str" => Value::String(a[0].text()),
@@ -782,14 +857,7 @@ fn call(name: &str, a: &[Value]) -> Result<Value, String> {
                 _ => s,
             })
         }
-        "dirname" => {
-            let s = a[0].text();
-            Value::String(match s.rfind(['/', '\\']) {
-                Some(0) => s[..1].into(),
-                Some(i) => s[..i].into(),
-                None => ".".into(),
-            })
-        }
+        "dirname" => Value::String(dirname(&a[0].text())),
         "power_of_two" => {
             let n = a[0].scalar()?;
             let bits = n as u32;
@@ -845,18 +913,13 @@ fn call(name: &str, a: &[Value]) -> Result<Value, String> {
                         0.0
                     }
                 }
-                Value::String(s) => {
-                    if s.trim().is_empty() {
-                        0.0
-                    } else {
-                        s.trim()
-                            .parse()
-                            .map_err(|_| "cannot convert string to number")?
-                    }
-                }
+                Value::String(s) => number_from_text(s),
                 v => v.scalar()?,
             };
             if name == "int" {
+                if n.is_nan() {
+                    return Err("cannot convert string to number".into());
+                }
                 if !n.is_finite() || n < i64::MIN as f64 || n >= -(i64::MIN as f64) {
                     return Err("integer conversion out of range".into());
                 }
@@ -886,17 +949,34 @@ fn call(name: &str, a: &[Value]) -> Result<Value, String> {
         "vec2" | "vec3" | "vec4" => {
             Value::Vector(a.iter().map(|v| v.scalar()).collect::<Result<_, _>>()?)
         }
-        "rgba" => match &a[0] {
-            Value::String(s) => Value::String(s.clone()),
-            Value::Vector(v) if v.len() == 4 => Value::String(format!(
+        // A colour parameter holds either text ImageMagick reads as it is (`#ff0000`,
+        // `red`) or, when a Color node is wired in, components from 0 to 1. The latter
+        // printed as `1,0,0,1`, which ImageMagick rejects as a colour.
+        "rgba" => {
+            let (r, g, b, alpha) = match &a[0] {
+                Value::String(s) => return Ok(Value::String(s.clone())),
+                Value::Vector(v) => match v.as_slice() {
+                    [gray] => (*gray, *gray, *gray, 1.0),
+                    [gray, alpha] => (*gray, *gray, *gray, *alpha),
+                    [r, g, b] => (*r, *g, *b, 1.0),
+                    [r, g, b, alpha] => (*r, *g, *b, *alpha),
+                    _ => return Err("rgba requires one to four components".into()),
+                },
+                Value::Int(_) | Value::Float(_) => {
+                    let gray = a[0].scalar()?;
+                    (gray, gray, gray, 1.0)
+                }
+                _ => return Err("rgba requires a color string or vector".into()),
+            };
+            let channel = |n: f64| number_text((n.clamp(0.0, 1.0) * 255.0).round());
+            Value::String(format!(
                 "rgba({},{},{},{})",
-                number_text((v[0].clamp(0.0, 1.0) * 255.0).round()),
-                number_text((v[1].clamp(0.0, 1.0) * 255.0).round()),
-                number_text((v[2].clamp(0.0, 1.0) * 255.0).round()),
-                number_text(v[3].clamp(0.0, 1.0))
-            )),
-            _ => return Err("rgba requires four components".into()),
-        },
+                channel(r),
+                channel(g),
+                channel(b),
+                number_text(alpha.clamp(0.0, 1.0))
+            ))
+        }
         "length" => Value::Float(a[0].scalar()?.abs()),
         "normalize" => {
             let length = a[0].scalar()?.abs();

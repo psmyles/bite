@@ -102,6 +102,42 @@ pub fn image_upstream(graph: &Graph, node: &str) -> Vec<String> {
     }
     result
 }
+/// A Process As Set node's prefix and suffixes, with any wired into its `param:prefix` or
+/// `param:suffix_N` ports taken from the node at the other end of the wire.
+///
+/// The wired value is the source's stored parameter, falling back to the set's own when
+/// the source has none - Electron's `getWiredPrefixValue`. A suffix that is wired keeps
+/// its position, so the stream it names stays on the same output port.
+pub fn set_pattern(graph: &Graph, node: &GraphNode) -> (String, Vec<String>) {
+    let wired = |handle: &str| -> Option<String> {
+        let edge = graph
+            .edges
+            .iter()
+            .find(|e| e.target == node.id && e.target_handle == handle)?;
+        let name = edge.source_handle.strip_prefix("param:")?;
+        let source = graph.nodes.iter().find(|n| n.id == edge.source)?;
+        match source.data.params.get(name)? {
+            ParamValue::String(text) => Some(text.clone()),
+            ParamValue::Int(n) => Some(n.to_string()),
+            ParamValue::Number(n) => Some(n.to_string()),
+            ParamValue::Bool(b) => Some(b.to_string()),
+            _ => None,
+        }
+    };
+    let prefix = wired("param:prefix").unwrap_or_else(|| match node.data.params.get("prefix") {
+        Some(ParamValue::String(text)) => text.clone(),
+        _ => String::new(),
+    });
+    let suffixes = match node.data.params.get("suffixes") {
+        Some(ParamValue::Structured(StructuredParam::SetSuffixes { suffixes })) => suffixes
+            .iter()
+            .enumerate()
+            .map(|(i, own)| wired(&format!("param:suffix_{i}")).unwrap_or_else(|| own.clone()))
+            .collect(),
+        _ => Vec::new(),
+    };
+    (prefix, suffixes)
+}
 /// The folder a Folder Path node wired into this output's `in:folder` port names.
 ///
 /// An output whose folder arrives over a wire takes it from there rather than from its own
@@ -170,8 +206,14 @@ pub fn handle_type(
         if name == "_enabled" && !source {
             return Ok(WireType::Bool);
         }
-        if name == "bgColor" && node.kind == NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) {
-            return Ok(WireType::Color);
+        if node.kind == NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) {
+            // The grid and the cell size take numbers, as Electron's Flipbook Output
+            // offered ports for them beside its background colour.
+            match name {
+                "bgColor" => return Ok(WireType::Color),
+                "cols" | "rows" | "cellWidth" | "cellHeight" => return Ok(WireType::Number),
+                _ => {}
+            }
         }
         if (name == "prefix" || name.starts_with("suffix_"))
             && node.data.definition_id == "process_as_set"

@@ -772,6 +772,27 @@ pub fn slider(
     changed
 }
 
+/// Snaps a slider value onto its step, the way an HTML range input does.
+///
+/// Steps count from `min`, not from zero, and a value past the last whole step clamps back
+/// onto it. The result is rounded to the step's own decimals, so a drag stores `37.28`
+/// rather than the `37.2846` the pointer position or float arithmetic would leave behind.
+pub fn snap_to_step(value: f64, min: f64, max: f64, step: f64) -> f64 {
+    if step.is_nan() || step <= 0.0 || !value.is_finite() {
+        return value.clamp(min.min(max), max.max(min));
+    }
+    let steps_to_max = ((max - min) / step + 1e-9).floor().max(0.0);
+    let steps = ((value - min) / step).round().clamp(0.0, steps_to_max);
+    let decimals = |number: f64| {
+        let text = format!("{number}");
+        text.split_once('.')
+            .map_or(0, |(_, fraction)| fraction.len())
+            .min(10) as i32
+    };
+    let scale = 10f64.powi(decimals(step).max(decimals(min)));
+    ((min + steps * step) * scale).round() / scale
+}
+
 /// Draws `text` centred vertically in a row `height` tall whose top edge is `top`.
 ///
 /// Faces differ in line height, so two faces sharing a row cannot both sit at a fixed
@@ -858,6 +879,18 @@ mod tests {
     fn the_slider_clamps_a_pointer_dragged_past_either_end() {
         assert_eq!(slider_fraction(-40.0, 100.0), 0.0);
         assert_eq!(slider_fraction(400.0, 100.0), 1.0);
+    }
+
+    #[test]
+    fn a_slider_value_snaps_to_its_step_counted_from_the_minimum() {
+        assert_eq!(snap_to_step(37.2846, 0.0, 100.0, 0.01), 37.28);
+        assert_eq!(snap_to_step(0.30000000000000004, 0.0, 1.0, 0.1), 0.3);
+        // Steps count from the minimum, as an HTML range's do.
+        assert_eq!(snap_to_step(4.0, 1.0, 10.0, 2.0), 5.0);
+        // Past the last whole step the value clamps back onto it.
+        assert_eq!(snap_to_step(10.0, 1.0, 10.0, 2.0), 9.0);
+        assert_eq!(snap_to_step(-3.0, 0.0, 6.0, 1.0), 0.0);
+        assert_eq!(snap_to_step(57.6, 1.0, 800.0, 1.0), 58.0);
     }
 
     #[test]

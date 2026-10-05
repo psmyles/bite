@@ -12,7 +12,7 @@
     "args": [
       "-background",
       {
-        "expr": "background"
+        "expr": "rgba(background)"
       },
       "-rotate",
       {
