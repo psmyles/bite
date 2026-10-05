@@ -1,36 +1,15 @@
 {
-  "category": "Logic",
-  "description": "A AND B",
   "id": "logic_and",
-  "implementation": {
-    "outputs": {
-      "result": "bool(a) && bool(b)"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "And",
+  "description": "A AND B",
+  "category": "Logic",
+  "inputs": [],
   "outputs": [],
+  "executor": "logic_and",
   "params": [
-    {
-      "label": "A",
-      "name": "a",
-      "type": "value"
-    },
-    {
-      "label": "B",
-      "name": "b",
-      "type": "value"
-    },
-    {
-      "default": false,
-      "label": "Result",
-      "name": "result",
-      "readonly": true,
-      "type": "bool",
-      "widget": "checkbox"
-    }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+    { "name": "a", "label": "A", "type": "any", "default": null },
+    { "name": "b", "label": "B", "type": "any", "default": null },
+    { "name": "result", "label": "Result", "type": "bool", "widget": "checkbox", "default": false, "readonly": true }
+  ]
 }

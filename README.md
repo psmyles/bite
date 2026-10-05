@@ -2,12 +2,9 @@
 
 Bite (Batch Image Transformation Editor) is a node-based batch image workflow creator and processor. All the processing is handled by ImageMagick, Bite just makes the string of commands needed to pass onto ImageMagick.
 
-Built in [Rust](https://www.rust-lang.org/) on [ImageMagick](https://imagemagick.org/), with a
-native editor drawn with [Dear ImGui](https://github.com/ocornut/imgui) over
-[wgpu](https://wgpu.rs/).
+Built with [ImageMagick](https://imagemagick.org/), [Electron](https://electronjs.org/), and [Svelte](https://svelte.dev/).
 
-The hosted workflow builder at [psmyles.github.io/bite](https://psmyles.github.io/bite/) is the
-earlier Electron/Svelte renderer, kept on the `main` branch; it is not built from this tree.
+A functional web version of the application is available at [psmyles.github.io/bite](https://psmyles.github.io/bite/) that can be used for creating workflows but it can't process images.
 
 ---
 
@@ -30,111 +27,73 @@ earlier Electron/Svelte renderer, kept on the `main` branch; it is not built fro
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md)
-- [Expression Language](docs/expression-language.md) - how a v2 definition computes its arguments
-- [Node Authoring Guide](docs/node-authoring-guide.md) - structure still current, the JavaScript
-  sections describe the removed v1 format
-- [Native Editor](docs/native-gui-prototype.md) and its
-  [parity record](docs/native-editor-parity.md)
-- [Project Spec](docs/spec.md) - the original TypeScript implementation, kept as the behavioural
-  contract
+- [Getting Started](https://github.com/psmyles/bite/blob/main/docs/getting-started.md)
+- [Node Authoring Guide](https://github.com/psmyles/bite/blob/main/docs/node-authoring-guide.md)
+- [Project Spec](https://github.com/psmyles/bite/blob/main/docs/spec.md)
 
 ---
 
 ### Requirements
 
-- [Rust](https://www.rust-lang.org/tools/install) 1.87+ (stable)
-- A C++ toolchain for the vendored Dear ImGui: MSVC build tools on Windows, Xcode command line
-  tools on macOS
-- [ImageMagick](https://imagemagick.org) 7+ - both packaged builds bundle their own binary;
-  building from source needs `magick` on your PATH (or `resources/win/magick/`,
-  `resources/mac/magick/`, which the binaries check first)
-- The submodules: `git submodule update --init --recursive`
-- The bundled ImageMagick binaries are tracked with Git LFS: `git lfs pull`
+- [Node.js](https://nodejs.org) 20+
+- [ImageMagick](https://imagemagick.org) 7+ - the Windows installer and the macOS (Apple Silicon) app bundle their own binary; everywhere else `magick` must be on your PATH
 
 ### Development
 
 ```bash
-cargo run -p bite-gui     # the editor
-cargo run -p bite-cli -- --help     # the CLI
-cargo test                          # unit, definition-parity and planning tests
-pwsh test-workflows/run-tests.ps1   # end-to-end ImageMagick execution (Windows)
+npm install
+npm run dev        # Electron + Vite hot reload
+npm test           # Run the unit test suite (Vitest)
 ```
-
-`cargo test` covers the expression language, the node and format definitions, graph planning and
-the command builder against the goldens in `tests/golden/`. `test-workflows/run-tests.ps1`
-generates deterministic fixtures and runs all eleven reference workflows through the release CLI,
-asserting the actual encoded output; see `test-workflows/README.md`.
 
 ### Build
 
 ```bash
-cargo build --release                                # both binaries
-pwsh packaging/build-windows-installer.ps1           # Windows: installer in dist/
-packaging/build-mac-release.sh                       # macOS: signed, notarized .dmg in dist/
+npm run build      # Windows: production build + NSIS installer
+npm run build:mac  # macOS (Apple Silicon): signed, notarized .dmg
+npm run build:web  # Renderer-only build (browser testing)
 ```
 
-`packaging/build-windows-installer.ps1` is the whole distribution build: it syncs the crate
-version to `product.json`, regenerates the icons, builds `bite-gui.exe` and `bite.exe`, checks
-the payload (bundled ImageMagick, node and format definitions, license notices) and compiles
-`packaging/bite.iss` with [Inno Setup 6](https://jrsoftware.org/isdl.php), producing
-`dist/Bite-Windows-<version>-Setup.exe`.
+#### macOS .dmg
 
-`product.json` is the single source of the product name, version and publisher: both `build.rs`
-files read it into the executables' Windows version resources, and the packaging script passes it
-to the installer. Bump it there and re-run the script.
+`npm run build:mac` vendors ImageMagick into the app, compiles the app icon,
+packages it, signs it, and notarizes it. It needs an Apple Silicon Mac with
+Homebrew ImageMagick (`brew install imagemagick`), full Xcode (the icon is
+compiled with `actool`, which the Command Line Tools do not ship), and a
+Developer ID Application certificate in the keychain - the certificate is
+detected automatically, as is the team id.
 
-The installer lays both binaries out in one directory with `node-definitions/`,
-`format-definitions/` and `magick/` beside them, which is how each finds the other's
-resources. It offers the `.bite` file association, a PATH entry for the CLI and a desktop
-shortcut, and installs per-user by default (`%LOCALAPPDATA%\Programs\Bite`, where the Unity
-integration in `unity-tools/` looks for it) or machine-wide when elevated.
+Signing and notarizing take most of the build's wall time. The ImageMagick
+bundle counts its ~150 signatures as they go, and the electron-builder and
+notary-service waits print the elapsed time every 30s, so a working build is
+distinguishable from a hung one; add `--verbose` (e.g.
+`scripts/build-mac.sh --verbose`) to also see every `codesign` call.
 
-#### Icons
+The app icon is built from `public/bite.icon` (Icon Composer) by
+`npm run build:icon:mac`, which `build:mac` runs for you. It writes the compiled
+catalogue that macOS 26+ renders as a Liquid Glass icon plus a flattened
+`.icns` fallback to `build/icons/mac/` (gitignored).
 
-`build/icons/icon.png` is the one master. `scripts/generate-icons.ps1` renders it into
-`build/icon.ico` (embedded in both executables by their `build.rs`, and the installer's wizard
-icon) and `crates/bite-gui/assets/icon-256.png` (the window and taskbar icon). The
-packaging script runs it for you.
-
-#### macOS
-
-Apple Silicon only - the bundled ImageMagick is arm64. Two scripts, differing only in whether
-Apple's notary service is involved:
+Notarization credentials are set up once:
 
 ```bash
-packaging/build-mac-dmg.sh        # signed .dmg, for testing the real packaged app
-packaging/build-mac-release.sh    # signed, notarized and stapled .dmg - the one to ship
+xcrun notarytool store-credentials bite --apple-id <apple-id> \
+    --team-id <TEAMID> --password <app-specific-password>
+echo 'APPLE_KEYCHAIN_PROFILE=bite' >> .env.mac   # gitignored, read by the build
 ```
 
-Both produce `dist/Bite-Mac-<version>-arm64.dmg`. They sync the crate version to `product.json`,
-build `bite-gui` and `bite`, assemble `Bite.app`, check that nothing in it links against the
-build machine's Homebrew, sign it with your Developer ID and smoke-test the bundled ImageMagick
-from inside the signed bundle. `packaging/mac-common.sh` holds the steps both share. Pass
-`--skip-magick --skip-icon --skip-build` to reuse what is already built; `--help` lists the rest.
+(App-specific passwords come from appleid.apple.com -> Sign-In and Security.)
+`APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD`, or the `APPLE_API_KEY` /
+`APPLE_API_KEY_ID` / `APPLE_API_ISSUER` trio, work instead if you prefer them in
+the environment. `--skip-notarize` builds a signed but un-notarized dmg for local
+testing; it still warns on anyone else's machine.
 
-`build-mac-dmg.sh` stops there, so its output is signed but **not notarized**: it opens on this
-Mac and on another one only through System Settings -> Privacy & Security -> Open Anyway. Use
-`build-mac-release.sh` for anything you send to someone. That one notarizes and staples the
-`.app` before wrapping it, then notarizes and staples the `.dmg` too, and ends by asking
-Gatekeeper the same questions a downloader's Mac will. It needs credentials once:
-
-```bash
-xcrun notarytool store-credentials bite --apple-id <your-apple-id> \
-    --team-id <your-team-id> --password <app-specific-password>
-echo 'APPLE_KEYCHAIN_PROFILE=bite' >> .env.mac    # gitignored
-```
-
-`APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD`, or the `APPLE_API_KEY` trio, work instead.
-
-Two inputs are built by the scripts but can be refreshed on their own, and neither is in git:
-`scripts/bundle-magick-mac.sh` vendors a relocatable, signed ImageMagick into
-`resources/mac/magick/` (upstream publishes none, so it copies `magick` plus its dylibs and coder
-modules out of Homebrew, rewrites their install names and re-signs them), and
-`scripts/build-icon-mac.sh` compiles `build/icons/bite.icon` into the layered icon catalogue plus
-an `.icns` fallback. The icon script needs full Xcode, not just the command line tools.
-
-The bundle carries the CLI at `Bite.app/Contents/MacOS/bite`; there is no PATH entry, so either
-call it by that path or symlink it somewhere yourself.
+The dmg lands in `release/<version>/`, signed, notarized and stapled - both the
+app and the disk image around it, so it opens without a network round trip. `scripts/bundle-magick-mac.sh` can be run
+on its own (`npm run bundle:magick:mac`) to refresh `resources/mac/magick/`; pass
+`--identity -` for an unsigned local bundle. Upstream publishes no relocatable
+macOS ImageMagick, so that script builds one: it copies `magick` plus its dylibs
+and coder modules out of Homebrew, rewrites their install names, and re-signs
+them.
 
 ---

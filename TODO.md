@@ -1,3 +1,0 @@
-- frame view when opening a file
-- nodes to be a bit more curvy
-- consistent rounding of viewport areas

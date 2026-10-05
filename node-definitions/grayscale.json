@@ -1,54 +1,32 @@
 {
-  "aliases": [
-    "desaturate",
-    "black and white",
-    "greyscale",
-    "monochrome"
-  ],
-  "category": "Color",
-  "description": "Convert image to grayscale",
-  "icon": "circle-half",
   "id": "grayscale",
-  "implementation": {
-    "args": [
-      "-grayscale",
-      {
-        "expr": "method"
-      }
-    ],
-    "type": "imagemagick"
-  },
+  "version": "1.0.0",
+  "label": "Grayscale",
+  "description": "Convert image to grayscale",
+  "aliases": ["desaturate", "black and white", "greyscale", "monochrome"],
+  "category": "Color",
+  "icon": "circle-half",
   "inputs": [
     {
-      "label": "Input",
-      "name": "input",
-      "type": "image"
+      "type": "image",
+      "label": "Input"
     }
   ],
-  "label": "Grayscale",
   "outputs": [
     {
-      "label": "Output",
-      "name": "output",
-      "type": "image"
+      "type": "image",
+      "label": "Output"
     }
   ],
   "params": [
     {
-      "default": "Rec709Luminance",
-      "label": "Method",
       "name": "method",
-      "options": [
-        "Rec709Luminance",
-        "Rec601Luminance",
-        "Average",
-        "RMS",
-        "Brightness"
-      ],
+      "label": "Method",
       "type": "enum",
-      "widget": "dropdown"
+      "widget": "dropdown",
+      "default": "Rec709Luminance",
+      "options": ["Rec709Luminance", "Rec601Luminance", "Average", "RMS", "Brightness"]
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "command_template": "-grayscale {{method}}"
 }

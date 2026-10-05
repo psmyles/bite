@@ -1,59 +1,44 @@
 {
-  "aliases": [
-    "unsharp mask",
-    "crisp",
-    "detail"
-  ],
-  "category": "Filters",
-  "description": "Apply unsharp mask sharpening",
-  "icon": "zap",
   "id": "sharpen",
-  "implementation": {
-    "args": [
-      "-unsharp",
-      {
-        "expr": "format(\"0x{}+{}\", sigma, amount)"
-      }
-    ],
-    "type": "imagemagick"
-  },
+  "version": "1.0.0",
+  "label": "Sharpen",
+  "description": "Apply unsharp mask sharpening",
+  "aliases": ["unsharp mask", "crisp", "detail"],
+  "category": "Filters",
+  "icon": "zap",
   "inputs": [
     {
-      "label": "Input",
-      "name": "input",
-      "type": "image"
+      "type": "image",
+      "label": "Input"
     }
   ],
-  "label": "Sharpen",
   "outputs": [
     {
-      "label": "Output",
-      "name": "output",
-      "type": "image"
+      "type": "image",
+      "label": "Output"
     }
   ],
   "params": [
     {
-      "default": 1,
-      "label": "Radius",
-      "max": 10,
-      "min": 0.1,
       "name": "sigma",
-      "step": 0.1,
+      "label": "Radius",
       "type": "float",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 1,
+      "min": 0.1,
+      "max": 10,
+      "step": 0.1
     },
     {
-      "default": 1,
-      "label": "Amount",
-      "max": 5,
-      "min": 0,
       "name": "amount",
-      "step": 0.1,
+      "label": "Amount",
       "type": "float",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 1,
+      "min": 0,
+      "max": 5,
+      "step": 0.1
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "command_template": "-unsharp 0x{{sigma}}+{{amount}}"
 }

@@ -1,50 +1,25 @@
 {
-  "category": "Math",
-  "description": "Linear interpolation: A + (B - A) * T",
   "id": "math_lerp",
-  "implementation": {
-    "outputs": {
-      "result": "lerp(a, b, t)"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "Lerp",
+  "description": "Linear interpolation: A + (B - A) * T",
+  "category": "Math",
+  "inputs": [],
   "outputs": [],
+  "executor": "math_lerp",
   "params": [
+    { "name": "a", "label": "A", "type": "numeric", "widget": "number", "default": 0 },
+    { "name": "b", "label": "B", "type": "numeric", "widget": "number", "default": 1 },
     {
-      "default": 0,
-      "label": "A",
-      "name": "a",
-      "type": "numeric",
-      "widget": "number"
-    },
-    {
-      "default": 1,
-      "label": "B",
-      "name": "b",
-      "type": "numeric",
-      "widget": "number"
-    },
-    {
-      "default": 0.5,
-      "label": "T",
-      "max": 1,
-      "min": 0,
       "name": "t",
-      "step": 0.01,
+      "label": "T",
       "type": "float",
-      "widget": "slider"
-    },
-    {
+      "widget": "slider",
       "default": 0.5,
-      "label": "Result",
-      "name": "result",
-      "readonly": true,
-      "type": "numeric",
-      "widget": "number"
-    }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+      "min": 0,
+      "max": 1,
+      "step": 0.01
+    },
+    { "name": "result", "label": "Result", "type": "numeric", "widget": "number", "default": 0.5, "readonly": true }
+  ]
 }

@@ -1,56 +1,42 @@
 {
-  "aliases": [
-    "exposure",
-    "levels adjustment"
-  ],
-  "category": "Color",
-  "description": "Adjust image brightness and contrast",
-  "icon": "sun",
   "id": "brightness_contrast",
-  "implementation": {
-    "args": [
-      "-brightness-contrast",
-      {
-        "expr": "format(\"{}x{}\", brightness, contrast)"
-      }
-    ],
-    "type": "imagemagick"
-  },
+  "version": "1.0.0",
+  "label": "Brightness / Contrast",
+  "description": "Adjust image brightness and contrast",
+  "aliases": ["exposure", "levels adjustment"],
+  "category": "Color",
+  "icon": "sun",
   "inputs": [
     {
-      "label": "Input",
-      "name": "input",
-      "type": "image"
+      "type": "image",
+      "label": "Input"
     }
   ],
-  "label": "Brightness / Contrast",
   "outputs": [
     {
-      "label": "Output",
-      "name": "output",
-      "type": "image"
+      "type": "image",
+      "label": "Output"
     }
   ],
   "params": [
     {
-      "default": 0,
-      "label": "Brightness",
-      "max": 100,
-      "min": -100,
       "name": "brightness",
+      "label": "Brightness",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 0,
+      "min": -100,
+      "max": 100
     },
     {
-      "default": 0,
-      "label": "Contrast",
-      "max": 100,
-      "min": -100,
       "name": "contrast",
+      "label": "Contrast",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 0,
+      "min": -100,
+      "max": 100
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "command_template": "-brightness-contrast {{brightness}}x{{contrast}}"
 }

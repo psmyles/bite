@@ -1,66 +1,25 @@
 {
-  "category": "Utility",
-  "description": "Combines float components into a vector",
   "id": "append_vec",
-  "implementation": {
-    "outputs": {
-      "result": "if(int(dimensions) == 2, vec2(x,y), if(int(dimensions) == 3, vec3(x,y,z), vec4(x,y,z,w)))"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "Append",
+  "description": "Combines float components into a vector",
+  "category": "Utility",
+  "inputs": [],
   "outputs": [],
+  "executor": "append_vec",
   "params": [
+    { "name": "x", "label": "X", "type": "float", "widget": "number", "default": 0 },
+    { "name": "y", "label": "Y", "type": "float", "widget": "number", "default": 0 },
+    { "name": "z", "label": "Z", "type": "float", "widget": "number", "default": 0 },
+    { "name": "w", "label": "W", "type": "float", "widget": "number", "default": 0 },
     {
-      "default": 0,
-      "label": "X",
-      "name": "x",
-      "type": "float",
-      "widget": "number"
-    },
-    {
-      "default": 0,
-      "label": "Y",
-      "name": "y",
-      "type": "float",
-      "widget": "number"
-    },
-    {
-      "default": 0,
-      "label": "Z",
-      "name": "z",
-      "type": "float",
-      "widget": "number"
-    },
-    {
-      "default": 0,
-      "label": "W",
-      "name": "w",
-      "type": "float",
-      "widget": "number"
-    },
-    {
-      "default": "4",
-      "label": "Dimensions",
       "name": "dimensions",
-      "options": [
-        "2",
-        "3",
-        "4"
-      ],
+      "label": "Dimensions",
       "type": "enum",
-      "widget": "dropdown"
+      "widget": "dropdown",
+      "default": "4",
+      "options": ["2", "3", "4"]
     },
-    {
-      "default": 0,
-      "label": "Result",
-      "name": "result",
-      "readonly": true,
-      "type": "numeric",
-      "widget": "number"
-    }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+    { "name": "result", "label": "Result", "type": "numeric", "widget": "number", "default": 0, "readonly": true }
+  ]
 }

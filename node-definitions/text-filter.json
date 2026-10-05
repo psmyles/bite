@@ -1,61 +1,18 @@
 {
-  "category": "Logic",
-  "description": "Tests a string against prefix, suffix, and contains conditions. Outputs true when all non-empty conditions match. Wire a Name or Path property node to the Input port.",
   "id": "text_filter",
-  "implementation": {
-    "outputs": {
-      "result": "starts_with(if(match_case, input, lower(input)), if(match_case, prefix, lower(prefix))) && ends_with(if(match_case, input, lower(input)), if(match_case, suffix, lower(suffix))) && contains(if(match_case, input, lower(input)), if(match_case, contains, lower(contains)))"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "Text Filter",
+  "description": "Tests a string against prefix, suffix, and contains conditions. Outputs true when all non-empty conditions match. Wire a Name or Path property node to the Input port.",
+  "category": "Logic",
+  "inputs": [],
   "outputs": [],
+  "executor": "text_filter",
   "params": [
-    {
-      "default": "",
-      "label": "Input",
-      "name": "input",
-      "type": "string",
-      "widget": "text"
-    },
-    {
-      "default": "",
-      "label": "Prefix",
-      "name": "prefix",
-      "type": "string",
-      "widget": "text"
-    },
-    {
-      "default": "",
-      "label": "Suffix",
-      "name": "suffix",
-      "type": "string",
-      "widget": "text"
-    },
-    {
-      "default": "",
-      "label": "Contains",
-      "name": "contains",
-      "type": "string",
-      "widget": "text"
-    },
-    {
-      "default": false,
-      "label": "Match Case",
-      "name": "match_case",
-      "type": "bool",
-      "widget": "checkbox"
-    },
-    {
-      "default": false,
-      "label": "Result",
-      "name": "result",
-      "readonly": true,
-      "type": "bool",
-      "widget": "checkbox"
-    }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+    { "name": "input", "label": "Input", "type": "string", "widget": "text", "default": "" },
+    { "name": "prefix", "label": "Prefix", "type": "string", "widget": "text", "default": "" },
+    { "name": "suffix", "label": "Suffix", "type": "string", "widget": "text", "default": "" },
+    { "name": "contains", "label": "Contains", "type": "string", "widget": "text", "default": "" },
+    { "name": "match_case", "label": "Match Case", "type": "bool", "widget": "checkbox", "default": false },
+    { "name": "result", "label": "Result", "type": "bool", "widget": "checkbox", "default": false, "readonly": true }
+  ]
 }

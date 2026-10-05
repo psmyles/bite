@@ -1,60 +1,37 @@
 {
-  "category": "Transform",
-  "description": "Resize with nearest-neighbor (Point) filter - no interpolation or blurring, ideal for pixel art",
   "id": "resize-nn",
-  "implementation": {
-    "args": [
-      "-filter",
-      "Point",
-      "-resize",
-      {
-        "expr": "format('{}x{}{}', width, height, if(ignore_aspect, '!', ''))"
-      }
-    ],
-    "type": "imagemagick"
-  },
-  "inputs": [
-    {
-      "label": "Input",
-      "name": "input",
-      "type": "image"
-    }
-  ],
+  "version": "1.0.0",
   "label": "Resize (Nearest Neighbor)",
-  "outputs": [
-    {
-      "label": "Output",
-      "name": "output",
-      "type": "image"
-    }
-  ],
+  "description": "Resize with nearest-neighbor (Point) filter - no interpolation or blurring, ideal for pixel art",
+  "category": "Transform",
+  "inputs": [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     {
-      "default": 64,
-      "label": "Width",
-      "max": 16384,
-      "min": 1,
       "name": "width",
+      "label": "Width",
       "type": "int",
-      "widget": "number"
-    },
-    {
+      "widget": "number",
       "default": 64,
-      "label": "Height",
-      "max": 16384,
       "min": 1,
-      "name": "height",
-      "type": "int",
-      "widget": "number"
+      "max": 16384
     },
     {
-      "default": true,
-      "label": "Ignore Aspect Ratio",
+      "name": "height",
+      "label": "Height",
+      "type": "int",
+      "widget": "number",
+      "default": 64,
+      "min": 1,
+      "max": 16384
+    },
+    {
       "name": "ignore_aspect",
+      "label": "Ignore Aspect Ratio",
       "type": "bool",
-      "widget": "checkbox"
+      "widget": "checkbox",
+      "default": true
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "command_js": "const flag = params.ignore_aspect ? '!' : ''\nreturn ['-filter', 'Point', '-resize', params.width + 'x' + params.height + flag]"
 }

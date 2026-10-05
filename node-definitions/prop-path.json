@@ -1,34 +1,22 @@
 {
-  "category": "Properties",
-  "description": "Outputs the file path of the current image",
   "id": "prop_path",
-  "implementation": {
-    "outputs": {
-      "value": "if(strip_filename, dirname(image.path), image.path)"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "Path",
+  "description": "Outputs the file path of the current image",
+  "category": "Properties",
+  "inputs": [],
   "outputs": [],
+  "executor": "prop_path",
+  "needs_image_meta": true,
   "params": [
+    { "name": "value", "label": "Path", "type": "string", "widget": "text", "default": "", "readonly": true },
     {
-      "default": "",
-      "label": "Path",
-      "name": "value",
-      "readonly": true,
-      "type": "string",
-      "widget": "text"
-    },
-    {
-      "default": false,
-      "label": "Folder Only",
       "name": "strip_filename",
-      "noPort": true,
+      "label": "Folder Only",
       "type": "bool",
-      "widget": "checkbox"
+      "widget": "checkbox",
+      "default": false,
+      "noPort": true
     }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  ]
 }

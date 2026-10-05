@@ -1,26 +1,14 @@
 {
-  "category": "Properties",
-  "description": "Outputs the file type extension of the current image",
   "id": "prop_filetype",
-  "implementation": {
-    "outputs": {
-      "value": "image.extension"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "File Type",
+  "description": "Outputs the file type extension of the current image",
+  "category": "Properties",
+  "inputs": [],
   "outputs": [],
+  "executor": "prop_filetype",
+  "needs_image_meta": true,
   "params": [
-    {
-      "default": "",
-      "label": "Extension",
-      "name": "value",
-      "readonly": true,
-      "type": "string",
-      "widget": "text"
-    }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+    { "name": "value", "label": "Extension", "type": "string", "widget": "text", "default": "", "readonly": true }
+  ]
 }
