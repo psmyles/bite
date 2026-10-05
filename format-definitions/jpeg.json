@@ -1,53 +1,31 @@
 {
-  "args": [
-    "-quality",
-    {
-      "expr": "jpeg_quality"
-    },
-    "-sampling-factor",
-    {
-      "expr": "jpeg_sampling"
-    },
-    {
-      "args": [
-        "-interlace",
-        "Plane"
-      ],
-      "when": "jpeg_progressive"
-    }
-  ],
-  "extension": ".jpg",
   "id": "JPEG",
+  "extension": ".jpg",
   "params": [
     {
-      "default": 85,
-      "label": "Quality",
-      "max": 100,
-      "min": 1,
       "name": "jpeg_quality",
+      "label": "Quality",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "min": 1,
+      "max": 100,
+      "default": 85
     },
     {
-      "default": "4:2:0",
-      "label": "Chroma Subsampling",
       "name": "jpeg_sampling",
-      "options": [
-        "4:4:4",
-        "4:2:2",
-        "4:2:0"
-      ],
+      "label": "Chroma Subsampling",
       "type": "enum",
-      "widget": "dropdown"
+      "widget": "dropdown",
+      "default": "4:2:0",
+      "options": ["4:4:4", "4:2:2", "4:2:0"]
     },
     {
-      "default": false,
-      "label": "Progressive",
       "name": "jpeg_progressive",
+      "label": "Progressive",
       "type": "bool",
-      "widget": "checkbox"
+      "widget": "checkbox",
+      "default": false
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "args_js": "const a=['-quality',String(params.jpeg_quality??85),'-sampling-factor',String(params.jpeg_sampling??'4:2:0')]; if(params.jpeg_progressive===true)a.push('-interlace','Plane'); return a;"
 }

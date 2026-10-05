@@ -1,58 +1,29 @@
 {
-  "aliases": [
-    "colorize",
-    "color overlay",
-    "hue tint"
-  ],
-  "category": "Color",
-  "description": "Blend a solid color over the image at a given strength using colorize",
   "id": "tint",
-  "implementation": {
-    "args": [
-      "-fill",
-      {
-        "expr": "color"
-      },
-      "-colorize",
-      {
-        "expr": "amount"
-      }
-    ],
-    "type": "imagemagick"
-  },
-  "inputs": [
-    {
-      "label": "Input",
-      "name": "input",
-      "type": "image"
-    }
-  ],
+  "version": "1.0.0",
   "label": "Tint",
-  "outputs": [
-    {
-      "label": "Output",
-      "name": "output",
-      "type": "image"
-    }
-  ],
+  "description": "Blend a solid color over the image at a given strength using colorize",
+  "aliases": ["colorize", "color overlay", "hue tint"],
+  "category": "Color",
+  "inputs": [{ "type": "image", "label": "Input" }],
+  "outputs": [{ "type": "image", "label": "Output" }],
   "params": [
     {
-      "default": "#ff0000",
-      "label": "Color",
       "name": "color",
+      "label": "Color",
       "type": "color",
-      "widget": "color-picker"
+      "widget": "color-picker",
+      "default": "#ff0000"
     },
     {
-      "default": 50,
-      "label": "Amount",
-      "max": 100,
-      "min": 0,
       "name": "amount",
+      "label": "Amount",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 50,
+      "min": 0,
+      "max": 100
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "command_template": "-fill {{color}} -colorize {{amount}}"
 }

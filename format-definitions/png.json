@@ -1,40 +1,24 @@
 {
-  "args": [
-    "-define",
-    {
-      "expr": "format('png:compression-level={}',png_compression)"
-    },
-    "-define",
-    {
-      "expr": "format('png:bit-depth={}',png_depth)"
-    },
-    "-define",
-    "png:color-type=6"
-  ],
-  "extension": ".png",
   "id": "PNG",
+  "extension": ".png",
   "params": [
     {
-      "default": 6,
-      "label": "Compression Level (0 = none, 9 = max)",
-      "max": 9,
-      "min": 0,
       "name": "png_compression",
+      "label": "Compression Level (0 = none, 9 = max)",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "min": 0,
+      "max": 9,
+      "default": 6
     },
     {
-      "default": "8",
-      "label": "Bit Depth",
       "name": "png_depth",
-      "options": [
-        "8",
-        "16"
-      ],
+      "label": "Bit Depth",
       "type": "enum",
-      "widget": "dropdown"
+      "widget": "dropdown",
+      "default": "8",
+      "options": ["8", "16"]
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "args_js": "return ['-define','png:compression-level='+String(params.png_compression??6),'-depth',String(params.png_depth??8)];"
 }

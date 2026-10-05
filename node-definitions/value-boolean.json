@@ -1,24 +1,12 @@
 {
-  "category": "Values",
-  "description": "Outputs a constant boolean value",
   "id": "value_boolean",
-  "implementation": {
-    "outputs": {},
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "Boolean",
+  "description": "Outputs a constant boolean value",
+  "category": "Values",
+  "inputs": [],
   "outputs": [],
   "params": [
-    {
-      "default": false,
-      "label": "Value",
-      "name": "value",
-      "readonly": true,
-      "type": "bool",
-      "widget": "checkbox"
-    }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+    { "name": "value", "label": "Value", "type": "bool", "widget": "checkbox", "default": false, "readonly": true }
+  ]
 }

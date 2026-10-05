@@ -1,76 +1,60 @@
 {
-  "aliases": [
-    "cut",
-    "slice",
-    "region"
-  ],
-  "category": "Transform",
-  "description": "Crop a rectangular region from the image",
-  "icon": "crop",
   "id": "crop",
-  "implementation": {
-    "args": [
-      "-crop",
-      {
-        "expr": "format(\"{}x{}+{}+{}\", width, height, x, y)"
-      },
-      "+repage"
-    ],
-    "type": "imagemagick"
-  },
+  "version": "1.0.0",
+  "label": "Crop",
+  "description": "Crop a rectangular region from the image",
+  "aliases": ["cut", "slice", "region"],
+  "category": "Transform",
+  "icon": "crop",
   "inputs": [
     {
-      "label": "Input",
-      "name": "input",
-      "type": "image"
+      "type": "image",
+      "label": "Input"
     }
   ],
-  "label": "Crop",
   "outputs": [
     {
-      "label": "Output",
-      "name": "output",
-      "type": "image"
+      "type": "image",
+      "label": "Output"
     }
   ],
   "params": [
     {
-      "default": 1024,
-      "label": "Width",
-      "max": 16384,
-      "min": 1,
       "name": "width",
+      "label": "Width",
       "type": "int",
-      "widget": "slider"
-    },
-    {
+      "widget": "slider",
       "default": 1024,
-      "label": "Height",
-      "max": 16384,
       "min": 1,
+      "max": 16384
+    },
+    {
       "name": "height",
+      "label": "Height",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 1024,
+      "min": 1,
+      "max": 16384
     },
     {
-      "default": 0,
-      "label": "X Offset",
-      "max": 16384,
-      "min": 0,
       "name": "x",
+      "label": "X Offset",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 0,
+      "min": 0,
+      "max": 16384
     },
     {
-      "default": 0,
-      "label": "Y Offset",
-      "max": 16384,
-      "min": 0,
       "name": "y",
+      "label": "Y Offset",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 0,
+      "min": 0,
+      "max": 16384
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "command_template": "-crop {{width}}x{{height}}+{{x}}+{{y}} +repage"
 }

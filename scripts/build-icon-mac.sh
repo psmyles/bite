@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 #
-# Compiles build/icons/bite.icon (Icon Composer) into the macOS icon artifacts.
+# Compiles public/bite.icon (Icon Composer) into the macOS icon artifacts.
 #
 #   scripts/build-icon-mac.sh
 #
-# Run by packaging/mac-common.sh as part of either macOS build script, which copies
-# both outputs into the bundle; run it directly to refresh them on their own.
-#
 # Produces, in build/icons/mac/:
 #
-#   Assets.car  - the compiled catalog. Belongs at Contents/Resources/Assets.car and
-#                 is named by the bundle's CFBundleIconName; this is what macOS 26+
-#                 reads to draw the layered, Liquid Glass icon.
+#   Assets.car  - the compiled catalog. Shipped to Contents/Resources and named
+#                 by CFBundleIconName in electron-builder.json5; this is what
+#                 macOS 26+ reads to draw the layered, Liquid Glass icon.
 #   icon.icns   - the flattened fallback, used by older macOS, the dmg, and
 #                 anything that reads CFBundleIconFile.
 #
@@ -31,7 +28,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-SOURCE="build/icons/bite.icon"
+SOURCE="public/bite.icon"
 OUT="build/icons/mac"
 # The catalog's icon name, and therefore the CFBundleIconName the app has to
 # declare. It is the .icon's basename, so the two move together.
@@ -191,18 +188,24 @@ done
 
 iconutil --convert icns --output "$OUT/icon.icns" "$ICONSET"
 
-# An icns missing its large sizes still converts cleanly, so prove the
-# 1024x1024 representation is in there rather than trusting the exit code.
-# Unpacking it again is the cheapest way to ask: iconutil names that entry
-# icon_512x512@2x.png, and it is the chunk (ic10) a downgraded icon loses first.
-#
-# This used to walk the chunk table in `node -e`, which is the last thing on the
-# macOS release path that wanted a JavaScript runtime - a leftover of the
-# Electron build. iconutil is already required three lines up.
-iconutil --convert iconset --output "$TMP/verify.iconset" "$OUT/icon.icns" \
-  || fail "icon.icns will not convert back to an iconset - it is malformed."
-[[ -f "$TMP/verify.iconset/icon_512x512@2x.png" ]] \
-  || fail "icon.icns is missing its 1024x1024 representation (found: $(ls "$TMP/verify.iconset" | tr '\n' ' '))."
+# An icns missing its large sizes still converts cleanly, so walk the chunk
+# table and insist on the 1024x1024 entry (ic10) rather than trusting the exit
+# code.
+node -e '
+  const fs = require("fs");
+  const d = fs.readFileSync(process.argv[1]);
+  const types = [];
+  for (let off = 8; off + 8 <= d.length; ) {
+    types.push(d.toString("latin1", off, off + 4));
+    const len = d.readUInt32BE(off + 4);
+    if (len < 8) break;
+    off += len;
+  }
+  if (!types.includes("ic10")) {
+    console.error(`icon.icns has no 1024x1024 entry (found: ${types.join(", ")})`);
+    process.exit(1);
+  }
+' "$OUT/icon.icns" || fail "icon.icns is missing its largest representation."
 
 echo
 echo "==> $OUT/icon.icns ($(du -h "$OUT/icon.icns" | cut -f1)), $OUT/Assets.car ($(du -h "$OUT/Assets.car" | cut -f1))"

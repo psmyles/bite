@@ -1,34 +1,22 @@
 {
-  "category": "Properties",
-  "description": "Outputs the file name of the current image",
   "id": "prop_name",
-  "implementation": {
-    "outputs": {
-      "value": "if(strip_extension, strip_extension(image.name), image.name)"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "Name",
+  "description": "Outputs the file name of the current image",
+  "category": "Properties",
+  "inputs": [],
   "outputs": [],
+  "executor": "prop_name",
+  "needs_image_meta": true,
   "params": [
+    { "name": "value", "label": "Name", "type": "string", "widget": "text", "default": "", "readonly": true },
     {
-      "default": "",
-      "label": "Name",
-      "name": "value",
-      "readonly": true,
-      "type": "string",
-      "widget": "text"
-    },
-    {
-      "default": false,
-      "label": "Strip Extension",
       "name": "strip_extension",
-      "noPort": true,
+      "label": "Strip Extension",
       "type": "bool",
-      "widget": "checkbox"
+      "widget": "checkbox",
+      "default": false,
+      "noPort": true
     }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  ]
 }

@@ -1,33 +1,14 @@
 {
-  "category": "Math",
-  "description": "Unit vector (length = 1)",
   "id": "vec_math_normalize",
-  "implementation": {
-    "outputs": {
-      "result": "normalize(vec)"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "Normalize",
+  "description": "Unit vector (length = 1)",
+  "category": "Math",
+  "inputs": [],
   "outputs": [],
+  "executor": "vec_math_normalize",
   "params": [
-    {
-      "default": 0,
-      "label": "Vector",
-      "name": "vec",
-      "type": "numeric",
-      "widget": "number"
-    },
-    {
-      "default": 0,
-      "label": "Result",
-      "name": "result",
-      "readonly": true,
-      "type": "numeric",
-      "widget": "number"
-    }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+    { "name": "vec", "label": "Vector", "type": "numeric", "widget": "number", "default": 0 },
+    { "name": "result", "label": "Result", "type": "numeric", "widget": "number", "default": 0, "readonly": true }
+  ]
 }

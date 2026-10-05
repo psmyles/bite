@@ -1,40 +1,15 @@
 {
-  "category": "Math",
-  "description": "A * B",
   "id": "math_multiply",
-  "implementation": {
-    "outputs": {
-      "result": "a * b"
-    },
-    "type": "compute"
-  },
-  "inputs": [],
+  "version": "1.0.0",
   "label": "Multiply",
+  "description": "A * B",
+  "category": "Math",
+  "inputs": [],
   "outputs": [],
+  "executor": "math_multiply",
   "params": [
-    {
-      "default": 1,
-      "label": "A",
-      "name": "a",
-      "type": "numeric",
-      "widget": "number"
-    },
-    {
-      "default": 1,
-      "label": "B",
-      "name": "b",
-      "type": "numeric",
-      "widget": "number"
-    },
-    {
-      "default": 1,
-      "label": "Result",
-      "name": "result",
-      "readonly": true,
-      "type": "numeric",
-      "widget": "number"
-    }
-  ],
-  "schema_version": 2,
-  "version": "1.0.0"
+    { "name": "a", "label": "A", "type": "numeric", "widget": "number", "default": 1 },
+    { "name": "b", "label": "B", "type": "numeric", "widget": "number", "default": 1 },
+    { "name": "result", "label": "Result", "type": "numeric", "widget": "number", "default": 1, "readonly": true }
+  ]
 }

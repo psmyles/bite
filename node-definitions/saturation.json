@@ -1,48 +1,33 @@
 {
-  "aliases": [
-    "vibrance",
-    "chroma",
-    "color intensity"
-  ],
-  "category": "Color",
-  "description": "Adjust the saturation of an image",
-  "icon": "palette",
   "id": "saturation",
-  "implementation": {
-    "args": [
-      "-modulate",
-      {
-        "expr": "format(\"100,{},100\", saturation)"
-      }
-    ],
-    "type": "imagemagick"
-  },
+  "version": "1.0.0",
+  "label": "Saturation",
+  "description": "Adjust the saturation of an image",
+  "aliases": ["vibrance", "chroma", "color intensity"],
+  "category": "Color",
+  "icon": "palette",
   "inputs": [
     {
-      "label": "Input",
-      "name": "input",
-      "type": "image"
+      "type": "image",
+      "label": "Input"
     }
   ],
-  "label": "Saturation",
   "outputs": [
     {
-      "label": "Output",
-      "name": "output",
-      "type": "image"
+      "type": "image",
+      "label": "Output"
     }
   ],
   "params": [
     {
-      "default": 100,
-      "label": "Saturation",
-      "max": 200,
-      "min": 0,
       "name": "saturation",
+      "label": "Saturation",
       "type": "int",
-      "widget": "slider"
+      "widget": "slider",
+      "default": 100,
+      "min": 0,
+      "max": 200
     }
   ],
-  "schema_version": 2,
-  "version": "1.0.0"
+  "command_template": "-modulate 100,{{saturation}},100"
 }
