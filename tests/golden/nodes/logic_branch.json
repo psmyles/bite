@@ -1,0 +1,92 @@
+{
+  "definition": {
+    "id": "logic_branch",
+    "version": "1.0.0",
+    "label": "Branch",
+    "description": "Outputs If True when Condition is true, otherwise If False",
+    "category": "Logic",
+    "inputs": [],
+    "outputs": [],
+    "executor": "logic_branch",
+    "params": [
+      {
+        "name": "condition",
+        "label": "Condition",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false
+      },
+      {
+        "name": "value_true",
+        "label": "If True",
+        "type": "any",
+        "default": null
+      },
+      {
+        "name": "value_false",
+        "label": "If False",
+        "type": "any",
+        "default": null
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "any",
+        "default": null,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "condition": false,
+        "value_true": null,
+        "value_false": null,
+        "result": null
+      },
+      "expected_params": {
+        "condition": false,
+        "value_true": null,
+        "value_false": null,
+        "result": null
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {}
+    },
+    {
+      "name": "condition-0",
+      "params": {
+        "condition": false,
+        "value_true": null,
+        "value_false": null,
+        "result": null
+      },
+      "expected_params": {
+        "condition": false,
+        "value_true": null,
+        "value_false": null,
+        "result": null
+      }
+    },
+    {
+      "name": "condition-1",
+      "params": {
+        "condition": true,
+        "value_true": null,
+        "value_false": null,
+        "result": null
+      },
+      "expected_params": {
+        "condition": true,
+        "value_true": null,
+        "value_false": null,
+        "result": null
+      }
+    }
+  ]
+}

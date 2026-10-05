@@ -1,0 +1,16 @@
+[package]
+name = "bite-imgui-sys"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+links = "bite_imgui"
+
+[build-dependencies]
+cc = "1"
+
+[dependencies]
+bindgen = { version = "0.72", optional = true }
+
+[[example]]
+name = "generate_bindings"
+required-features = ["bindgen"]

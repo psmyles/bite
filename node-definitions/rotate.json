@@ -1,41 +1,60 @@
 {
-  "id": "rotate",
-  "version": "1.0.0",
-  "label": "Rotate",
-  "description": "Rotate image by an arbitrary angle",
-  "aliases": ["spin", "turn", "orientation"],
+  "aliases": [
+    "spin",
+    "turn",
+    "orientation"
+  ],
   "category": "Transform",
+  "description": "Rotate image by an arbitrary angle",
   "icon": "rotate-cw",
+  "id": "rotate",
+  "implementation": {
+    "args": [
+      "-background",
+      {
+        "expr": "background"
+      },
+      "-rotate",
+      {
+        "expr": "angle"
+      }
+    ],
+    "type": "imagemagick"
+  },
   "inputs": [
     {
-      "type": "image",
-      "label": "Input"
+      "label": "Input",
+      "name": "input",
+      "type": "image"
     }
   ],
+  "label": "Rotate",
   "outputs": [
     {
-      "type": "image",
-      "label": "Output"
+      "label": "Output",
+      "name": "output",
+      "type": "image"
     }
   ],
   "params": [
     {
-      "name": "angle",
-      "label": "Angle (deg)",
-      "type": "float",
-      "widget": "slider",
       "default": 0,
-      "min": -360,
+      "label": "Angle (deg)",
       "max": 360,
-      "step": 0.5
+      "min": -360,
+      "name": "angle",
+      "step": 0.5,
+      "type": "float",
+      "widget": "slider"
     },
     {
-      "name": "background",
+      "default": "#000000",
       "label": "Background Color",
+      "name": "background",
       "type": "color",
-      "widget": "color-picker",
-      "default": "#000000"
+      "widget": "color-picker"
     }
   ],
-  "command_template": "-background {{background}} -rotate {{angle}}"
+  "schema_version": 2,
+  "version": "1.0.0"
 }

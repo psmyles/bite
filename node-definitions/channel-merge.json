@@ -1,43 +1,59 @@
 {
-  "id": "channel_merge",
-  "version": "1.0.0",
-  "label": "Merge Channels",
-  "description": "Combines separate channel images into a single image. Set Channels to 3 for RGB output or 4 for RGBA. Unconnected ports default to solid black (0).",
-  "aliases": ["combine channels", "join channels", "pack channels"],
+  "aliases": [
+    "combine channels",
+    "join channels",
+    "pack channels"
+  ],
   "category": "Channels",
+  "description": "Combines separate channel images into a single image. Set Channels to 3 for RGB output or 4 for RGBA. Unconnected ports default to solid black (0).",
+  "id": "channel_merge",
+  "implementation": {
+    "executor": "channel_merge",
+    "type": "native"
+  },
   "inputs": [
     {
-      "type": "image",
-      "label": "R"
+      "label": "R",
+      "name": "r",
+      "type": "image"
     },
     {
-      "type": "image",
-      "label": "G"
+      "label": "G",
+      "name": "g",
+      "type": "image"
     },
     {
-      "type": "image",
-      "label": "B"
+      "label": "B",
+      "name": "b",
+      "type": "image"
     },
     {
-      "type": "image",
-      "label": "A"
+      "label": "A",
+      "name": "a",
+      "type": "image"
     }
   ],
+  "label": "Merge Channels",
   "outputs": [
     {
-      "type": "image",
-      "label": "Output"
+      "label": "Output",
+      "name": "output",
+      "type": "image"
     }
   ],
   "params": [
     {
-      "name": "channels",
-      "label": "Channels",
-      "type": "enum",
-      "widget": "dropdown",
       "default": "3",
-      "options": ["3", "4"]
+      "label": "Channels",
+      "name": "channels",
+      "options": [
+        "3",
+        "4"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
     }
   ],
-  "executor": "channel_merge"
+  "schema_version": 2,
+  "version": "1.0.0"
 }

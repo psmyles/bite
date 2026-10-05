@@ -1,0 +1,26 @@
+[
+  [
+    "identify",
+    "-format",
+    "%[EXIF:*]",
+    "<run>/fixtures/meta/deep16_64.png"
+  ],
+  [
+    "identify",
+    "-format",
+    "%[EXIF:*]",
+    "<run>/fixtures/meta/photo_300dpi.jpg"
+  ],
+  [
+    "identify",
+    "-format",
+    "%B\n%w\n%h\n%z\n%e\n%x\n%y",
+    "<run>/fixtures/meta/deep16_64.png"
+  ],
+  [
+    "identify",
+    "-format",
+    "%B\n%w\n%h\n%z\n%e\n%x\n%y",
+    "<run>/fixtures/meta/photo_300dpi.jpg"
+  ]
+]

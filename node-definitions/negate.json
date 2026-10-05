@@ -1,12 +1,34 @@
 {
-  "id": "negate",
-  "version": "1.0.0",
-  "label": "Negate",
-  "description": "Inverts the pixel values of the input channel. A pixel value of 0.0 becomes 1.0 and vice versa.",
-  "aliases": ["invert", "inversion", "flip colors"],
+  "aliases": [
+    "invert",
+    "inversion",
+    "flip colors"
+  ],
   "category": "Math",
-  "inputs": [{ "type": "image", "label": "Channel" }],
-  "outputs": [{ "type": "image", "label": "Channel" }],
+  "description": "Inverts the pixel values of the input channel. A pixel value of 0.0 becomes 1.0 and vice versa.",
+  "id": "negate",
+  "implementation": {
+    "args": [
+      "-negate"
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Channel",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Negate",
+  "outputs": [
+    {
+      "label": "Channel",
+      "name": "output",
+      "type": "image"
+    }
+  ],
   "params": [],
-  "command_template": "-negate"
+  "schema_version": 2,
+  "version": "1.0.0"
 }

@@ -1,0 +1,178 @@
+{
+  "definition": {
+    "id": "brightness_contrast",
+    "version": "1.0.0",
+    "label": "Brightness / Contrast",
+    "description": "Adjust image brightness and contrast",
+    "aliases": [
+      "exposure",
+      "levels adjustment"
+    ],
+    "category": "Color",
+    "icon": "sun",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "brightness",
+        "label": "Brightness",
+        "type": "int",
+        "widget": "slider",
+        "default": 0,
+        "min": -100,
+        "max": 100
+      },
+      {
+        "name": "contrast",
+        "label": "Contrast",
+        "type": "int",
+        "widget": "slider",
+        "default": 0,
+        "min": -100,
+        "max": 100
+      }
+    ],
+    "command_template": "-brightness-contrast {{brightness}}x{{contrast}}"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "brightness": 0,
+        "contrast": 0
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "0x0"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-brightness-contrast",
+        "0x0"
+      ]
+    },
+    {
+      "name": "brightness-0",
+      "params": {
+        "brightness": 0,
+        "contrast": 0
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "0x0"
+      ]
+    },
+    {
+      "name": "brightness-1",
+      "params": {
+        "brightness": -1,
+        "contrast": 0
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "-1x0"
+      ]
+    },
+    {
+      "name": "brightness-2",
+      "params": {
+        "brightness": 0.5,
+        "contrast": 0
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "0.5x0"
+      ]
+    },
+    {
+      "name": "brightness-3",
+      "params": {
+        "brightness": -100,
+        "contrast": 0
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "-100x0"
+      ]
+    },
+    {
+      "name": "brightness-4",
+      "params": {
+        "brightness": 100,
+        "contrast": 0
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "100x0"
+      ]
+    },
+    {
+      "name": "contrast-0",
+      "params": {
+        "brightness": 0,
+        "contrast": 0
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "0x0"
+      ]
+    },
+    {
+      "name": "contrast-1",
+      "params": {
+        "brightness": 0,
+        "contrast": -1
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "0x-1"
+      ]
+    },
+    {
+      "name": "contrast-2",
+      "params": {
+        "brightness": 0,
+        "contrast": 0.5
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "0x0.5"
+      ]
+    },
+    {
+      "name": "contrast-3",
+      "params": {
+        "brightness": 0,
+        "contrast": -100
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "0x-100"
+      ]
+    },
+    {
+      "name": "contrast-4",
+      "params": {
+        "brightness": 0,
+        "contrast": 100
+      },
+      "expected_args": [
+        "-brightness-contrast",
+        "0x100"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "source_sha256": "ee2a4b6a6c44dc9233b43152e400343eb43fbe79f68e01ec20203b48c228eeb8",
+  "nodes": 6,
+  "edges": 5,
+  "execution_order": [
+    "input-1",
+    "prop_name-1",
+    "prop_bitdepth-1",
+    "prop_resolution-1",
+    "prop_exif-1",
+    "textOutput-1"
+  ],
+  "outputs": [
+    {
+      "id": "textOutput-1",
+      "input": "input-1",
+      "contributors": [
+        "textOutput-1",
+        "input-1",
+        "prop_name-1",
+        "prop_bitdepth-1",
+        "prop_resolution-1",
+        "prop_exif-1"
+      ]
+    }
+  ],
+  "descendants": [
+    {
+      "id": "input-1",
+      "nodes": [
+        "input-1",
+        "textOutput-1"
+      ]
+    }
+  ]
+}

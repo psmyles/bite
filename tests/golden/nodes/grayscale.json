@@ -1,0 +1,125 @@
+{
+  "definition": {
+    "id": "grayscale",
+    "version": "1.0.0",
+    "label": "Grayscale",
+    "description": "Convert image to grayscale",
+    "aliases": [
+      "desaturate",
+      "black and white",
+      "greyscale",
+      "monochrome"
+    ],
+    "category": "Color",
+    "icon": "circle-half",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "method",
+        "label": "Method",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "Rec709Luminance",
+        "options": [
+          "Rec709Luminance",
+          "Rec601Luminance",
+          "Average",
+          "RMS",
+          "Brightness"
+        ]
+      }
+    ],
+    "command_template": "-grayscale {{method}}"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "method": "Rec709Luminance"
+      },
+      "expected_args": [
+        "-grayscale",
+        "Rec709Luminance"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-grayscale",
+        "Rec709Luminance"
+      ]
+    },
+    {
+      "name": "method-0",
+      "params": {
+        "method": "Rec709Luminance"
+      },
+      "expected_args": [
+        "-grayscale",
+        "Rec709Luminance"
+      ]
+    },
+    {
+      "name": "method-1",
+      "params": {
+        "method": "Rec601Luminance"
+      },
+      "expected_args": [
+        "-grayscale",
+        "Rec601Luminance"
+      ]
+    },
+    {
+      "name": "method-2",
+      "params": {
+        "method": "Average"
+      },
+      "expected_args": [
+        "-grayscale",
+        "Average"
+      ]
+    },
+    {
+      "name": "method-3",
+      "params": {
+        "method": "RMS"
+      },
+      "expected_args": [
+        "-grayscale",
+        "RMS"
+      ]
+    },
+    {
+      "name": "method-4",
+      "params": {
+        "method": "Brightness"
+      },
+      "expected_args": [
+        "-grayscale",
+        "Brightness"
+      ]
+    },
+    {
+      "name": "method-5",
+      "params": {
+        "method": "__invalid__"
+      },
+      "expected_args": [
+        "-grayscale",
+        "__invalid__"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,310 @@
+{
+  "definition": {
+    "id": "prop_size",
+    "version": "1.0.0",
+    "label": "Size",
+    "description": "Outputs the file size of the current image in the selected unit",
+    "category": "Properties",
+    "inputs": [],
+    "outputs": [],
+    "executor": "prop_size",
+    "needs_image_meta": true,
+    "params": [
+      {
+        "name": "unit",
+        "label": "Unit",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "bytes",
+        "options": [
+          "bytes",
+          "KB",
+          "MB",
+          "GB"
+        ]
+      },
+      {
+        "name": "value",
+        "label": "Size",
+        "type": "float",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "unit": "bytes",
+        "value": 0
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "unit": "bytes",
+        "value": 4096
+      }
+    },
+    {
+      "name": "defaults-no-meta",
+      "params": {
+        "unit": "bytes",
+        "value": 0
+      },
+      "expected_params": {
+        "unit": "bytes",
+        "value": 0
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "value": 4096
+      }
+    },
+    {
+      "name": "missing-no-meta",
+      "params": {},
+      "expected_params": {
+        "value": 0
+      }
+    },
+    {
+      "name": "unit-0",
+      "params": {
+        "unit": "bytes",
+        "value": 0
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "unit": "bytes",
+        "value": 4096
+      }
+    },
+    {
+      "name": "unit-0-no-meta",
+      "params": {
+        "unit": "bytes",
+        "value": 0
+      },
+      "expected_params": {
+        "unit": "bytes",
+        "value": 0
+      }
+    },
+    {
+      "name": "unit-1",
+      "params": {
+        "unit": "KB",
+        "value": 0
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "unit": "KB",
+        "value": 4
+      }
+    },
+    {
+      "name": "unit-1-no-meta",
+      "params": {
+        "unit": "KB",
+        "value": 0
+      },
+      "expected_params": {
+        "unit": "KB",
+        "value": 0
+      }
+    },
+    {
+      "name": "unit-2",
+      "params": {
+        "unit": "MB",
+        "value": 0
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "unit": "MB",
+        "value": 0.00390625
+      }
+    },
+    {
+      "name": "unit-2-no-meta",
+      "params": {
+        "unit": "MB",
+        "value": 0
+      },
+      "expected_params": {
+        "unit": "MB",
+        "value": 0
+      }
+    },
+    {
+      "name": "unit-3",
+      "params": {
+        "unit": "GB",
+        "value": 0
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "unit": "GB",
+        "value": 0.000003814697265625
+      }
+    },
+    {
+      "name": "unit-3-no-meta",
+      "params": {
+        "unit": "GB",
+        "value": 0
+      },
+      "expected_params": {
+        "unit": "GB",
+        "value": 0
+      }
+    },
+    {
+      "name": "unit-4",
+      "params": {
+        "unit": "__invalid__",
+        "value": 0
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "unit": "__invalid__",
+        "value": 4096
+      }
+    },
+    {
+      "name": "unit-4-no-meta",
+      "params": {
+        "unit": "__invalid__",
+        "value": 0
+      },
+      "expected_params": {
+        "unit": "__invalid__",
+        "value": 0
+      }
+    }
+  ]
+}

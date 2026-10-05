@@ -1,0 +1,25 @@
+[package]
+name = "bite-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "bite"
+path = "src/main.rs"
+
+[dependencies]
+bite-schema.workspace = true
+bite-expr.workspace = true
+bite-core.workspace = true
+bite-imagemagick.workspace = true
+serde_json.workspace = true
+ctrlc = "3.5"
+
+[build-dependencies]
+# build.rs reads product.json for the exe's version resource.
+serde_json.workspace = true
+
+[target.'cfg(windows)'.build-dependencies]
+# Embeds build/icon.ico and the product metadata into bite.exe.
+winresource = "0.1"

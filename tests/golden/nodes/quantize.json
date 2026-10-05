@@ -1,0 +1,192 @@
+{
+  "definition": {
+    "id": "quantize",
+    "version": "1.0.0",
+    "label": "Quantize",
+    "description": "Reduce the image to N distinct colors with optional dithering for a retro palette look",
+    "aliases": [
+      "reduce colors",
+      "color depth",
+      "palette"
+    ],
+    "category": "Color",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "colors",
+        "label": "Colors",
+        "type": "int",
+        "widget": "slider",
+        "default": 16,
+        "min": 2,
+        "max": 256
+      },
+      {
+        "name": "dither",
+        "label": "Dither",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "FloydSteinberg",
+        "options": [
+          "FloydSteinberg",
+          "Riemersma",
+          "None"
+        ]
+      }
+    ],
+    "command_template": "-dither {{dither}} -colors {{colors}}"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "colors": 16,
+        "dither": "FloydSteinberg"
+      },
+      "expected_args": [
+        "-dither",
+        "FloydSteinberg",
+        "-colors",
+        "16"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-dither",
+        "FloydSteinberg",
+        "-colors",
+        "16"
+      ]
+    },
+    {
+      "name": "colors-0",
+      "params": {
+        "colors": 0,
+        "dither": "FloydSteinberg"
+      },
+      "expected_args": [
+        "-dither",
+        "FloydSteinberg",
+        "-colors",
+        "0"
+      ]
+    },
+    {
+      "name": "colors-1",
+      "params": {
+        "colors": -1,
+        "dither": "FloydSteinberg"
+      },
+      "expected_args": [
+        "-dither",
+        "FloydSteinberg",
+        "-colors",
+        "-1"
+      ]
+    },
+    {
+      "name": "colors-2",
+      "params": {
+        "colors": 0.5,
+        "dither": "FloydSteinberg"
+      },
+      "expected_args": [
+        "-dither",
+        "FloydSteinberg",
+        "-colors",
+        "0.5"
+      ]
+    },
+    {
+      "name": "colors-3",
+      "params": {
+        "colors": 2,
+        "dither": "FloydSteinberg"
+      },
+      "expected_args": [
+        "-dither",
+        "FloydSteinberg",
+        "-colors",
+        "2"
+      ]
+    },
+    {
+      "name": "colors-4",
+      "params": {
+        "colors": 256,
+        "dither": "FloydSteinberg"
+      },
+      "expected_args": [
+        "-dither",
+        "FloydSteinberg",
+        "-colors",
+        "256"
+      ]
+    },
+    {
+      "name": "dither-0",
+      "params": {
+        "colors": 16,
+        "dither": "FloydSteinberg"
+      },
+      "expected_args": [
+        "-dither",
+        "FloydSteinberg",
+        "-colors",
+        "16"
+      ]
+    },
+    {
+      "name": "dither-1",
+      "params": {
+        "colors": 16,
+        "dither": "Riemersma"
+      },
+      "expected_args": [
+        "-dither",
+        "Riemersma",
+        "-colors",
+        "16"
+      ]
+    },
+    {
+      "name": "dither-2",
+      "params": {
+        "colors": 16,
+        "dither": "None"
+      },
+      "expected_args": [
+        "-dither",
+        "None",
+        "-colors",
+        "16"
+      ]
+    },
+    {
+      "name": "dither-3",
+      "params": {
+        "colors": 16,
+        "dither": "__invalid__"
+      },
+      "expected_args": [
+        "-dither",
+        "__invalid__",
+        "-colors",
+        "16"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,476 @@
+{
+  "definition": {
+    "id": "append_vec",
+    "version": "1.0.0",
+    "label": "Append",
+    "description": "Combines float components into a vector",
+    "category": "Utility",
+    "inputs": [],
+    "outputs": [],
+    "executor": "append_vec",
+    "params": [
+      {
+        "name": "x",
+        "label": "X",
+        "type": "float",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "y",
+        "label": "Y",
+        "type": "float",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "z",
+        "label": "Z",
+        "type": "float",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "w",
+        "label": "W",
+        "type": "float",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "dimensions",
+        "label": "Dimensions",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "4",
+        "options": [
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "result": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "x-0",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "x-1",
+      "params": {
+        "x": -1,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": -1,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          -1,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "x-2",
+      "params": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0.5,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0.5,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "y-0",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "y-1",
+      "params": {
+        "x": 0,
+        "y": -1,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": -1,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          -1,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "y-2",
+      "params": {
+        "x": 0,
+        "y": 0.5,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0.5,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0.5,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "z-0",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "z-1",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": -1,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": -1,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          -1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "z-2",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0.5,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0.5,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0.5,
+          0
+        ]
+      }
+    },
+    {
+      "name": "w-0",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "w-1",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": -1,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": -1,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0,
+          -1
+        ]
+      }
+    },
+    {
+      "name": "w-2",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0.5,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0.5,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0,
+          0.5
+        ]
+      }
+    },
+    {
+      "name": "dimensions-0",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "2",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "2",
+        "result": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "dimensions-1",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "3",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "3",
+        "result": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "dimensions-2",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "4",
+        "result": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "dimensions-3",
+      "params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "__invalid__",
+        "result": 0
+      },
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0,
+        "dimensions": "__invalid__",
+        "result": []
+      }
+    }
+  ]
+}
