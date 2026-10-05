@@ -62,6 +62,10 @@ struct State {
     settle: u8,
     /// Whether the session has already been written, which closes the door behind `save_session`.
     saved: bool,
+    /// Files dropped on the window and not yet handled. The platform delivers a drop of several
+    /// files as one event per file, so they are gathered here and imported together once the
+    /// drop's events have all arrived (`about_to_wait`).
+    drops: Vec<PathBuf>,
     /// Kept only so the device outlives sokol_gfx: `sg::shutdown` runs against it.
     _device: Device,
 }
@@ -213,6 +217,17 @@ impl ApplicationHandler<AppEvent> for App {
         state.surface.window.request_redraw();
     }
 
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        let Some(state) = &mut self.state else { return };
+        if state.drops.is_empty() {
+            return;
+        }
+        let paths = std::mem::take(&mut state.drops);
+        handle_drop(state, paths);
+        state.settle = state.settle.max(2);
+        state.surface.window.request_redraw();
+    }
+
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         let Some(state) = &mut self.state else { return };
         match event {
@@ -298,7 +313,7 @@ impl ApplicationHandler<AppEvent> for App {
                 state.context.key(Key::Super, modifiers.super_key());
             }
             WindowEvent::Focused(focused) => state.context.focus(focused),
-            WindowEvent::DroppedFile(path) => handle_drop(state, path),
+            WindowEvent::DroppedFile(path) => state.drops.push(path),
             WindowEvent::RedrawRequested => {
                 self.draw(event_loop);
                 return;
@@ -397,6 +412,7 @@ impl App {
             last_frame: Instant::now(),
             settle: 8,
             saved: false,
+            drops: Vec::new(),
             _device: device,
         };
         // On macOS a launch-by-open arrives as an Apple event *before* this point, not as an
@@ -667,23 +683,30 @@ fn update_progress(state: &mut State) {
     }
 }
 
-/// Handles a file dropped on the window.
-fn handle_drop(state: &mut State, path: PathBuf) {
-    if path.extension().and_then(|extension| extension.to_str()) == Some("bite") {
-        open_workflow(state, path);
+/// Handles the files of one drop on the window.
+///
+/// A workflow among them opens instead of importing anything. Otherwise the images go to the
+/// active input in a single import, and a folder becomes the folder to scan.
+fn handle_drop(state: &mut State, paths: Vec<PathBuf>) {
+    if let Some(workflow) = paths
+        .iter()
+        .find(|path| path.extension().and_then(|extension| extension.to_str()) == Some("bite"))
+    {
+        open_workflow(state, workflow.clone());
         return;
     }
     let editor = &mut state.editor;
     let Some(node) = editor.active_input.clone() else {
         return;
     };
-    if path.is_dir() {
-        editor.inspector.scan_folder = path.to_string_lossy().into_owned();
-        return;
+    if let Some(folder) = paths.iter().find(|path| path.is_dir()) {
+        editor.inspector.scan_folder = folder.to_string_lossy().into_owned();
     }
-    if dialogs::is_image_path(&path) {
-        commands::add_paths(editor, &node, vec![path]);
-    }
+    let images: Vec<PathBuf> = paths
+        .into_iter()
+        .filter(|path| dialogs::is_image_path(path))
+        .collect();
+    commands::add_paths(editor, &node, images);
 }
 
 /// Opens a workflow the user pointed the editor at, asking about unsaved work first.
