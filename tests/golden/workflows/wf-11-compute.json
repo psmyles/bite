@@ -1,0 +1,63 @@
+{
+  "source_sha256": "3c75eb7f4b82031d0b90c43eb7c3ff040825c980251d4423789b6fc02651dcf1",
+  "nodes": 14,
+  "edges": 16,
+  "execution_order": [
+    "input-1",
+    "float-05",
+    "vec3-1",
+    "power-1",
+    "float-49",
+    "lerp-1",
+    "length-1",
+    "normalize-1",
+    "blur-1",
+    "cmp-1",
+    "split-1",
+    "imageOutput-1",
+    "branch-1",
+    "textOutput-1"
+  ],
+  "outputs": [
+    {
+      "id": "imageOutput-1",
+      "input": "input-1",
+      "contributors": [
+        "imageOutput-1",
+        "blur-1",
+        "lerp-1",
+        "input-1",
+        "float-05"
+      ]
+    },
+    {
+      "id": "textOutput-1",
+      "input": "input-1",
+      "contributors": [
+        "textOutput-1",
+        "input-1",
+        "lerp-1",
+        "length-1",
+        "split-1",
+        "power-1",
+        "branch-1",
+        "float-05",
+        "vec3-1",
+        "normalize-1",
+        "cmp-1",
+        "float-49"
+      ]
+    }
+  ],
+  "descendants": [
+    {
+      "id": "input-1",
+      "nodes": [
+        "input-1",
+        "blur-1",
+        "textOutput-1",
+        "imageOutput-1"
+      ]
+    }
+  ]
+}

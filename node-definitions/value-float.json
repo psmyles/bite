@@ -1,10 +1,24 @@
 {
-  "id": "value_float",
-  "version": "1.0.0",
-  "label": "Float",
-  "description": "Outputs a constant floating-point number",
   "category": "Values",
+  "description": "Outputs a constant floating-point number",
+  "id": "value_float",
+  "implementation": {
+    "outputs": {},
+    "type": "compute"
+  },
   "inputs": [],
+  "label": "Float",
   "outputs": [],
-  "params": [{ "name": "value", "label": "Value", "type": "float", "widget": "number", "default": 0, "readonly": true }]
+  "params": [
+    {
+      "default": 0,
+      "label": "Value",
+      "name": "value",
+      "readonly": true,
+      "type": "float",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }

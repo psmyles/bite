@@ -1,0 +1,76 @@
+{
+  "source_sha256": "ced569b8a846ce5f5eb3a0be2f091ec5761362085e709f61cf5692b78a9391f0",
+  "nodes": 14,
+  "edges": 19,
+  "execution_order": [
+    "input-1",
+    "float-09",
+    "float-01",
+    "prop_name-1",
+    "split-1",
+    "mean-r",
+    "mean-g",
+    "mean-b",
+    "cmp-r",
+    "cmp-g",
+    "and-1",
+    "gate-1",
+    "textOutput-1",
+    "imageOutput-1"
+  ],
+  "outputs": [
+    {
+      "id": "imageOutput-1",
+      "input": "input-1",
+      "contributors": [
+        "imageOutput-1",
+        "gate-1",
+        "and-1",
+        "input-1",
+        "cmp-r",
+        "cmp-g",
+        "mean-r",
+        "float-09",
+        "mean-g",
+        "float-01",
+        "split-1"
+      ]
+    },
+    {
+      "id": "textOutput-1",
+      "input": "input-1",
+      "contributors": [
+        "textOutput-1",
+        "input-1",
+        "prop_name-1",
+        "mean-r",
+        "mean-g",
+        "mean-b",
+        "and-1",
+        "split-1",
+        "cmp-r",
+        "cmp-g",
+        "float-09",
+        "float-01"
+      ]
+    }
+  ],
+  "descendants": [
+    {
+      "id": "input-1",
+      "nodes": [
+        "input-1",
+        "split-1",
+        "gate-1",
+        "textOutput-1",
+        "mean-r",
+        "mean-g",
+        "mean-b",
+        "imageOutput-1",
+        "cmp-r",
+        "cmp-g",
+        "and-1"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "definition": {
+    "id": "value_string",
+    "version": "1.0.0",
+    "label": "String",
+    "description": "Outputs a constant text string",
+    "category": "Values",
+    "inputs": [],
+    "outputs": [],
+    "params": [
+      {
+        "name": "value",
+        "label": "Value",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "value": ""
+      },
+      "expected_args": []
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": []
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+[package]
+name = "bite-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bite-schema.workspace = true
+bite-expr.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile = "3.27"

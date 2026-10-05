@@ -1,29 +1,35 @@
 {
-  "id": "gate",
-  "version": "1.0.0",
-  "label": "Gate",
-  "description": "Passes the image to output only when the condition is true. In batch mode, images that fail the condition are not written to the output folder.",
   "category": "Logic",
+  "description": "Passes the image to output only when the condition is true. In batch mode, images that fail the condition are not written to the output folder.",
+  "id": "gate",
+  "implementation": {
+    "executor": "gate",
+    "type": "native"
+  },
   "inputs": [
     {
-      "type": "image",
-      "label": "Input"
+      "label": "Input",
+      "name": "input",
+      "type": "image"
     }
   ],
+  "label": "Gate",
   "outputs": [
     {
-      "type": "image",
-      "label": "Output"
+      "label": "Output",
+      "name": "output",
+      "type": "image"
     }
   ],
-  "executor": "gate",
   "params": [
     {
-      "name": "condition",
+      "default": true,
       "label": "Condition",
+      "name": "condition",
       "type": "bool",
-      "widget": "checkbox",
-      "default": true
+      "widget": "checkbox"
     }
-  ]
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }

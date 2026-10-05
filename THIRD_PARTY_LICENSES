@@ -65,41 +65,49 @@ projects and via Homebrew.
 
 
 --------------------------------------------------------------------------------
-NPM PACKAGES  (MIT License)
+FONTS EMBEDDED IN THE NATIVE BUILD
 --------------------------------------------------------------------------------
 
-The following packages are used under the MIT License. Each package's full
-license text is available at the URL shown.
+The native editor embeds these fonts in its executable
+(crates/bite-imgui/fonts/). Both are licensed under the SIL Open Font License,
+Version 1.1, which permits bundling and redistribution with software:
 
-Electron
-  https://github.com/electron/electron/blob/main/LICENSE
+  Atkinson Hyperlegible Next  (Regular, SemiBold, Bold)
+  Copyright Braille Institute of America, Inc.
+  https://www.brailleinstitute.org/freefont/
 
-Svelte
-  https://github.com/sveltejs/svelte/blob/main/LICENSE.md
+  JetBrains Mono  (Regular, SemiBold, Bold)
+  Copyright JetBrains s.r.o.
+  https://github.com/JetBrains/JetBrainsMono
 
-@xyflow/svelte  (Svelte Flow)
-  https://github.com/xyflow/xyflow/blob/main/LICENSE
+  https://openfontlicense.org
 
-Vite
-  https://github.com/vitejs/vite/blob/main/LICENSE
+Neither font is modified.
 
-vite-plugin-electron
-  https://github.com/electron-vite/vite-plugin-electron/blob/main/LICENSE
 
-electron-builder
-  https://github.com/electron-userland/electron-builder/blob/master/LICENSE
+--------------------------------------------------------------------------------
+RUST CRATES USED BY THE NATIVE BUILD
+--------------------------------------------------------------------------------
 
-@yao-pkg/pkg
-  https://github.com/yao-pkg/pkg/blob/main/LICENSE
+Dear ImGui  (vendored, crates/bite-imgui-sys/vendor/)   - MIT
+cimgui      (vendored, crates/bite-imgui-sys/vendor/)   - MIT
+sokol       (vendored, vendor/sokol-rust/)              - zlib/libpng
+winit                                                   - Apache-2.0
+rfd                                                     - MIT
+arboard                                                 - MIT or Apache-2.0
+ureq, rustls, webpki-roots                              - MIT or Apache-2.0
+serde, serde_json                                       - MIT or Apache-2.0
+png                                                     - MIT or Apache-2.0
+image-webp                                              - MIT or Apache-2.0
+schemars                                                - MIT
+ctrlc                                                   - MIT or Apache-2.0
+winresource (build only, not linked)                    - MIT
 
-Vitest
-  https://github.com/vitest-dev/vitest/blob/main/LICENSE
 
-TypeScript
-  https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt
+--------------------------------------------------------------------------------
+BUILD TOOLS
+--------------------------------------------------------------------------------
 
-ESLint
-  https://github.com/eslint/eslint/blob/main/LICENSE
-
-Prettier
-  https://github.com/prettier/prettier/blob/main/LICENSE
+The Windows installer is compiled with Inno Setup (https://jrsoftware.org/),
+which is not redistributed with Bite: only the setup executable it produces is,
+as its license expressly permits.

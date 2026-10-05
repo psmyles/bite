@@ -1,0 +1,57 @@
+{
+  "params": {
+    "blocks": [
+      {
+        "type": "text",
+        "value": "test_"
+      },
+      {
+        "type": "number",
+        "start": 1,
+        "pad": 3
+      },
+      {
+        "type": "oldname",
+        "find": "old",
+        "replace_with": "new"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "old.png",
+      "index": 0,
+      "expected": "test_001new.png"
+    },
+    {
+      "name": ".hidden",
+      "index": 1,
+      "expected": "test_002.hidden"
+    },
+    {
+      "name": "photo.old.jpg",
+      "index": 2,
+      "expected": "test_003photo.new.jpg"
+    },
+    {
+      "name": "no-extension",
+      "index": 3,
+      "expected": "test_004no-extension"
+    }
+  ],
+  "sets": [
+    [
+      "alpha",
+      {
+        "_diffuse": "set_alpha_diffuse.png",
+        "_normal": "set_alpha_normal.png"
+      }
+    ],
+    [
+      "beta",
+      {
+        "_diffuse": "set_beta_diffuse.png"
+      }
+    ]
+  ]
+}

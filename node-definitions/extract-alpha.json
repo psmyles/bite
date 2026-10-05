@@ -1,12 +1,35 @@
 {
-  "id": "extract-alpha",
-  "version": "1.0.0",
-  "label": "Extract Alpha",
-  "description": "Output the alpha channel as a grayscale image (white = opaque, black = transparent)",
-  "aliases": ["alpha channel", "transparency mask", "opacity"],
+  "aliases": [
+    "alpha channel",
+    "transparency mask",
+    "opacity"
+  ],
   "category": "Channels",
-  "inputs": [{ "type": "image", "label": "Input" }],
-  "outputs": [{ "type": "image", "label": "Output" }],
+  "description": "Output the alpha channel as a grayscale image (white = opaque, black = transparent)",
+  "id": "extract-alpha",
+  "implementation": {
+    "args": [
+      "-alpha",
+      "extract"
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Extract Alpha",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
   "params": [],
-  "command_template": "-alpha extract"
+  "schema_version": 2,
+  "version": "1.0.0"
 }

@@ -1,0 +1,39 @@
+{
+  "source_sha256": "bd8fff1ac33de15df20e222b38157e42390c27b825b6b49e8979a021a0d0a1f3",
+  "nodes": 6,
+  "edges": 6,
+  "execution_order": [
+    "input-1",
+    "float-1",
+    "split-1",
+    "negate-1",
+    "merge-1",
+    "imageOutput-1"
+  ],
+  "outputs": [
+    {
+      "id": "imageOutput-1",
+      "input": "input-1",
+      "contributors": [
+        "imageOutput-1",
+        "merge-1",
+        "split-1",
+        "negate-1",
+        "float-1",
+        "input-1"
+      ]
+    }
+  ],
+  "descendants": [
+    {
+      "id": "input-1",
+      "nodes": [
+        "input-1",
+        "split-1",
+        "merge-1",
+        "negate-1",
+        "imageOutput-1"
+      ]
+    }
+  ]
+}

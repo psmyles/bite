@@ -6,6 +6,10 @@ folder, and can then be run from **both** the GUI (Run Workflow button) and the 
 (`bite run`). `run-tests.ps1` generates deterministic fixture images, runs every
 workflow through the CLI, and asserts the outputs.
 
+This is the only suite that executes ImageMagick end to end; `cargo test` stops at the planned
+command lines. Results are written under `test-workflows/out/`, and the fixtures it generates
+under `test-workflows/fixtures/` - both gitignored, and both rebuilt on each run.
+
 ## How to run
 
 ```powershell
@@ -17,10 +21,13 @@ workflow through the CLI, and asserts the outputs.
 
 # After running a workflow manually from the GUI: skip execution, only assert outputs
 .\test-workflows\run-tests.ps1 -Only wf-04 -AssertOnly
+
+# A specific CLI build (also honours $env:BITE_TEST_CLI)
+.\test-workflows\run-tests.ps1 -Cli target\debug\bite.exe
 ```
 
-Requirements: `magick` on PATH, and the CLI bundle (`npm run build` produces
-`dist-cli/cli-bundle.js` + `.exe`; the runner prefers `node dist-cli\cli-bundle.js`).
+Requirements: `magick` on PATH, and a built CLI - `cargo build --release -p bite-cli`. The
+runner picks up `target\release\bite.exe`, falling back to the debug build.
 
 **GUI runs:** load the workflow's fixture folder (see each spec) into the Input node's
 filmstrip, then press Run Workflow. Set all output paths to the absolute equivalents of the

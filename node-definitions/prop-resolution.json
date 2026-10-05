@@ -1,15 +1,35 @@
 {
-  "id": "prop_resolution",
-  "version": "1.0.0",
-  "label": "Resolution",
-  "description": "Outputs the horizontal and vertical DPI of the current image",
   "category": "Properties",
+  "description": "Outputs the horizontal and vertical DPI of the current image",
+  "id": "prop_resolution",
+  "implementation": {
+    "outputs": {
+      "dpi_x": "image.dpi_x",
+      "dpi_y": "image.dpi_y"
+    },
+    "type": "compute"
+  },
   "inputs": [],
+  "label": "Resolution",
   "outputs": [],
-  "executor": "prop_resolution",
-  "needs_image_meta": true,
   "params": [
-    { "name": "dpi_x", "label": "DPI X", "type": "float", "widget": "number", "default": 0, "readonly": true },
-    { "name": "dpi_y", "label": "DPI Y", "type": "float", "widget": "number", "default": 0, "readonly": true }
-  ]
+    {
+      "default": 0,
+      "label": "DPI X",
+      "name": "dpi_x",
+      "readonly": true,
+      "type": "float",
+      "widget": "number"
+    },
+    {
+      "default": 0,
+      "label": "DPI Y",
+      "name": "dpi_y",
+      "readonly": true,
+      "type": "float",
+      "widget": "number"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }

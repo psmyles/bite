@@ -1,0 +1,1437 @@
+{
+  "definition": {
+    "id": "resize",
+    "version": "1.1.0",
+    "label": "Resize",
+    "description": "Resize image to target dimensions",
+    "aliases": [
+      "scale",
+      "resample",
+      "dimensions"
+    ],
+    "category": "Transform",
+    "icon": "resize",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "executor": "resize",
+    "params": [
+      {
+        "name": "mode",
+        "label": "Mode",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "absolute",
+        "options": [
+          "absolute",
+          "relative"
+        ]
+      },
+      {
+        "name": "width",
+        "label": "Width",
+        "type": "int",
+        "widget": "slider",
+        "default": 1024,
+        "min": 1,
+        "max": 16384
+      },
+      {
+        "name": "height",
+        "label": "Height",
+        "type": "int",
+        "widget": "slider",
+        "default": 1024,
+        "min": 1,
+        "max": 16384
+      },
+      {
+        "name": "scale",
+        "label": "Scale",
+        "type": "float",
+        "widget": "slider",
+        "default": 100,
+        "min": 1,
+        "max": 800,
+        "step": 1
+      },
+      {
+        "name": "scale_width",
+        "label": "Scale Width",
+        "type": "float",
+        "widget": "slider",
+        "default": 100,
+        "min": 1,
+        "max": 800,
+        "step": 1
+      },
+      {
+        "name": "scale_height",
+        "label": "Scale Height",
+        "type": "float",
+        "widget": "slider",
+        "default": 100,
+        "min": 1,
+        "max": 800,
+        "step": 1
+      },
+      {
+        "name": "preserve_aspect",
+        "label": "Preserve Aspect",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": true
+      },
+      {
+        "name": "anchor",
+        "label": "Anchor",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "width",
+        "options": [
+          "width",
+          "height"
+        ]
+      },
+      {
+        "name": "density",
+        "label": "Resolution",
+        "type": "int",
+        "widget": "number",
+        "default": 72,
+        "min": 1,
+        "max": 9600
+      },
+      {
+        "name": "filter",
+        "label": "Filter",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "Lanczos",
+        "options": [
+          "Lanczos",
+          "Mitchell",
+          "Catrom",
+          "Point"
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "mode-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "mode-1",
+      "params": {
+        "mode": "relative",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "100%"
+      ]
+    },
+    {
+      "name": "mode-2",
+      "params": {
+        "mode": "__invalid__",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "width-0",
+      "params": {
+        "mode": "absolute",
+        "width": 0,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1"
+      ]
+    },
+    {
+      "name": "width-1",
+      "params": {
+        "mode": "absolute",
+        "width": -1,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1"
+      ]
+    },
+    {
+      "name": "width-2",
+      "params": {
+        "mode": "absolute",
+        "width": 0.5,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1"
+      ]
+    },
+    {
+      "name": "width-3",
+      "params": {
+        "mode": "absolute",
+        "width": 1,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1"
+      ]
+    },
+    {
+      "name": "width-4",
+      "params": {
+        "mode": "absolute",
+        "width": 16384,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "16384"
+      ]
+    },
+    {
+      "name": "height-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 0,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "height-1",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": -1,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "height-2",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 0.5,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "height-3",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "height-4",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 16384,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 0,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale-1",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": -1,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale-2",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 0.5,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale-3",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 1,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale-4",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 800,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_width-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 0,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_width-1",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": -1,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_width-2",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 0.5,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_width-3",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 1,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_width-4",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 800,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_height-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 0,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_height-1",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": -1,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_height-2",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 0.5,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_height-3",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 1,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "scale_height-4",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 800,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "preserve_aspect-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": false,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024x1024!"
+      ]
+    },
+    {
+      "name": "preserve_aspect-1",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "anchor-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "anchor-1",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "height",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "x1024"
+      ]
+    },
+    {
+      "name": "anchor-2",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "__invalid__",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "density-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 0,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "density-1",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": -1,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "density-2",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 0.5,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "1",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "density-3",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 1,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "1",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "density-4",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 9600,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "9600",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "filter-0",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "filter-1",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Mitchell"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Mitchell",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "filter-2",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Catrom"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Catrom",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "filter-3",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Point"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Point",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "filter-4",
+      "params": {
+        "mode": "absolute",
+        "width": 1024,
+        "height": 1024,
+        "scale": 100,
+        "scale_width": 100,
+        "scale_height": 100,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "__invalid__"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "__invalid__",
+        "-resize",
+        "1024"
+      ]
+    },
+    {
+      "name": "absolute-false-width",
+      "params": {
+        "mode": "absolute",
+        "width": 321,
+        "height": 123,
+        "scale": 100,
+        "scale_width": 50,
+        "scale_height": 75,
+        "preserve_aspect": false,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "321x123!"
+      ]
+    },
+    {
+      "name": "absolute-false-height",
+      "params": {
+        "mode": "absolute",
+        "width": 321,
+        "height": 123,
+        "scale": 100,
+        "scale_width": 50,
+        "scale_height": 75,
+        "preserve_aspect": false,
+        "anchor": "height",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "321x123!"
+      ]
+    },
+    {
+      "name": "absolute-true-width",
+      "params": {
+        "mode": "absolute",
+        "width": 321,
+        "height": 123,
+        "scale": 100,
+        "scale_width": 50,
+        "scale_height": 75,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "321"
+      ]
+    },
+    {
+      "name": "absolute-true-height",
+      "params": {
+        "mode": "absolute",
+        "width": 321,
+        "height": 123,
+        "scale": 100,
+        "scale_width": 50,
+        "scale_height": 75,
+        "preserve_aspect": true,
+        "anchor": "height",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "x123"
+      ]
+    },
+    {
+      "name": "relative-false-width",
+      "params": {
+        "mode": "relative",
+        "width": 321,
+        "height": 123,
+        "scale": 100,
+        "scale_width": 50,
+        "scale_height": 75,
+        "preserve_aspect": false,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "50%x75%!"
+      ]
+    },
+    {
+      "name": "relative-false-height",
+      "params": {
+        "mode": "relative",
+        "width": 321,
+        "height": 123,
+        "scale": 100,
+        "scale_width": 50,
+        "scale_height": 75,
+        "preserve_aspect": false,
+        "anchor": "height",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "50%x75%!"
+      ]
+    },
+    {
+      "name": "relative-true-width",
+      "params": {
+        "mode": "relative",
+        "width": 321,
+        "height": 123,
+        "scale": 100,
+        "scale_width": 50,
+        "scale_height": 75,
+        "preserve_aspect": true,
+        "anchor": "width",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "100%"
+      ]
+    },
+    {
+      "name": "relative-true-height",
+      "params": {
+        "mode": "relative",
+        "width": 321,
+        "height": 123,
+        "scale": 100,
+        "scale_width": 50,
+        "scale_height": 75,
+        "preserve_aspect": true,
+        "anchor": "height",
+        "density": 72,
+        "filter": "Lanczos"
+      },
+      "expected_args": [
+        "-density",
+        "72",
+        "-units",
+        "PixelsPerInch",
+        "-filter",
+        "Lanczos",
+        "-resize",
+        "100%"
+      ]
+    }
+  ]
+}

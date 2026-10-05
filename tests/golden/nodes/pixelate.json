@@ -1,0 +1,150 @@
+{
+  "definition": {
+    "id": "pixelate",
+    "version": "1.0.0",
+    "label": "Pixelate",
+    "description": "Scale down then back up with nearest-neighbor filtering to create intentional pixel-art blockiness",
+    "aliases": [
+      "mosaic",
+      "blocky",
+      "pixel art"
+    ],
+    "category": "Transform",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "block_size",
+        "label": "Block Size",
+        "type": "int",
+        "widget": "slider",
+        "default": 8,
+        "min": 2,
+        "max": 64
+      }
+    ],
+    "command_js": "const b = Math.max(2, Math.round(params.block_size))\nreturn ['-filter', 'Point', '-resize', (100 / b) + '%', '-filter', 'Point', '-resize', (b * 100) + '%']"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "block_size": 8
+      },
+      "expected_args": [
+        "-filter",
+        "Point",
+        "-resize",
+        "12.5%",
+        "-filter",
+        "Point",
+        "-resize",
+        "800%"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-filter",
+        "Point",
+        "-resize",
+        "NaN%",
+        "-filter",
+        "Point",
+        "-resize",
+        "NaN%"
+      ]
+    },
+    {
+      "name": "block_size-0",
+      "params": {
+        "block_size": 0
+      },
+      "expected_args": [
+        "-filter",
+        "Point",
+        "-resize",
+        "50%",
+        "-filter",
+        "Point",
+        "-resize",
+        "200%"
+      ]
+    },
+    {
+      "name": "block_size-1",
+      "params": {
+        "block_size": -1
+      },
+      "expected_args": [
+        "-filter",
+        "Point",
+        "-resize",
+        "50%",
+        "-filter",
+        "Point",
+        "-resize",
+        "200%"
+      ]
+    },
+    {
+      "name": "block_size-2",
+      "params": {
+        "block_size": 0.5
+      },
+      "expected_args": [
+        "-filter",
+        "Point",
+        "-resize",
+        "50%",
+        "-filter",
+        "Point",
+        "-resize",
+        "200%"
+      ]
+    },
+    {
+      "name": "block_size-3",
+      "params": {
+        "block_size": 2
+      },
+      "expected_args": [
+        "-filter",
+        "Point",
+        "-resize",
+        "50%",
+        "-filter",
+        "Point",
+        "-resize",
+        "200%"
+      ]
+    },
+    {
+      "name": "block_size-4",
+      "params": {
+        "block_size": 64
+      },
+      "expected_args": [
+        "-filter",
+        "Point",
+        "-resize",
+        "1.5625%",
+        "-filter",
+        "Point",
+        "-resize",
+        "6400%"
+      ]
+    }
+  ]
+}

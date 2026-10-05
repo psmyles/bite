@@ -1,0 +1,840 @@
+{
+  "$defs": {
+    "BuiltinNodeKind": {
+      "enum": [
+        "inputNode",
+        "imageOutputNode",
+        "textOutputNode",
+        "flipbookOutputNode",
+        "folderPathNode",
+        "group",
+        "commentNode"
+      ],
+      "type": "string"
+    },
+    "Extent": {
+      "enum": [
+        "parent"
+      ],
+      "type": "string"
+    },
+    "Graph": {
+      "additionalProperties": false,
+      "properties": {
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/GraphEdge"
+          },
+          "type": "array"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/GraphNode"
+          },
+          "type": "array"
+        },
+        "viewport": {
+          "$ref": "#/$defs/Viewport"
+        }
+      },
+      "required": [
+        "nodes",
+        "edges",
+        "viewport"
+      ],
+      "type": "object"
+    },
+    "GraphEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "sourceHandle": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "targetHandle": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "sourceHandle",
+        "target",
+        "targetHandle"
+      ],
+      "type": "object"
+    },
+    "GraphNode": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "inputNode"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "cliName": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "thumbnailSize": {
+                        "default": null,
+                        "format": "uint32",
+                        "minimum": 0,
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      }
+                    },
+                    "title": "InputParams",
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "imageOutputNode"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "cliName": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "customPath": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "generateLog": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "outputPath": {
+                        "$ref": "#/$defs/OutputPathMode",
+                        "default": "source"
+                      },
+                      "overwrite": {
+                        "$ref": "#/$defs/OverwriteMode",
+                        "default": "skip"
+                      },
+                      "setOutputPrefix": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "setOutputSuffix": {
+                        "default": "",
+                        "type": "string"
+                      }
+                    },
+                    "title": "ImageOutputParams",
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "textOutputNode"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "cliName": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "customSeparator": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "generateLog": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "nextPortIndex": {
+                        "default": null,
+                        "format": "uint32",
+                        "minimum": 0,
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "outputPath": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "overwrite": {
+                        "$ref": "#/$defs/OverwriteMode",
+                        "default": "skip"
+                      },
+                      "portIds": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/StructuredParam"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null
+                      },
+                      "separatorType": {
+                        "$ref": "#/$defs/SeparatorType",
+                        "default": "comma"
+                      },
+                      "usePreviewForProcessing": {
+                        "default": false,
+                        "type": "boolean"
+                      }
+                    },
+                    "title": "TextOutputParams",
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "flipbookOutputNode"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "bgColor": {
+                        "default": null,
+                        "items": {
+                          "format": "double",
+                          "type": "number"
+                        },
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": [
+                          "array",
+                          "null"
+                        ]
+                      },
+                      "cellHeight": {
+                        "default": null,
+                        "format": "uint32",
+                        "minimum": 0,
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "cellWidth": {
+                        "default": null,
+                        "format": "uint32",
+                        "minimum": 0,
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "cliName": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "cols": {
+                        "default": null,
+                        "format": "uint32",
+                        "minimum": 0,
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "flipbookOutputPath": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "generateLog": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "overwrite": {
+                        "$ref": "#/$defs/OverwriteMode",
+                        "default": "skip"
+                      },
+                      "rows": {
+                        "default": null,
+                        "format": "uint32",
+                        "minimum": 0,
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "sortBy": {
+                        "$ref": "#/$defs/SortBy",
+                        "default": "import_order"
+                      }
+                    },
+                    "title": "FlipbookParams",
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "folderPathNode"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "folderPath": {
+                        "default": "",
+                        "type": "string"
+                      }
+                    },
+                    "title": "FolderPathParams",
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "group"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "color": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/ParamValue"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null
+                      }
+                    },
+                    "title": "GroupParams",
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "commentNode"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "properties": {
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "body": {
+                        "default": "",
+                        "type": "string"
+                      },
+                      "heading": {
+                        "default": "",
+                        "type": "string"
+                      }
+                    },
+                    "title": "CommentParams",
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/NodeData"
+        },
+        "extent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extent"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "height": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "position": {
+          "$ref": "#/$defs/Position"
+        },
+        "type": {
+          "$ref": "#/$defs/NodeKind"
+        },
+        "width": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "position",
+        "data"
+      ],
+      "type": "object"
+    },
+    "NodeData": {
+      "additionalProperties": false,
+      "properties": {
+        "definitionId": {
+          "type": "string"
+        },
+        "inputs": {
+          "description": "Instance-defined ports for Text Output and Process As Set.",
+          "items": {
+            "$ref": "#/$defs/PortDefinition"
+          },
+          "type": "array"
+        },
+        "label": {
+          "type": "string"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/PortDefinition"
+          },
+          "type": "array"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ParamValue"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "label",
+        "definitionId",
+        "params"
+      ],
+      "type": "object"
+    },
+    "NodeKind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BuiltinNodeKind"
+        },
+        {
+          "$ref": "#/$defs/ProcessingNodeKind"
+        }
+      ]
+    },
+    "OutputPathMode": {
+      "enum": [
+        "source",
+        "custom"
+      ],
+      "type": "string"
+    },
+    "OverwriteMode": {
+      "enum": [
+        "skip",
+        "overwrite"
+      ],
+      "type": "string"
+    },
+    "ParamValue": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "format": "int64",
+          "type": "integer"
+        },
+        {
+          "format": "double",
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "$ref": "#/$defs/StructuredParam"
+        }
+      ]
+    },
+    "PortDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/PortType"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "label"
+      ],
+      "type": "object"
+    },
+    "PortType": {
+      "enum": [
+        "image",
+        "mask",
+        "number",
+        "path"
+      ],
+      "type": "string"
+    },
+    "Position": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "format": "double",
+          "type": "number"
+        },
+        "y": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "ProcessingNodeKind": {
+      "enum": [
+        "process",
+        "compareNode",
+        "setInputNode"
+      ],
+      "type": "string"
+    },
+    "RenameBlock": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "text",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "pad": {
+              "format": "double",
+              "type": "number"
+            },
+            "start": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "number",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "start",
+            "pad"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "find": {
+              "type": "string"
+            },
+            "replace_with": {
+              "type": "string"
+            },
+            "type": {
+              "const": "oldname",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "find",
+            "replace_with"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SeparatorType": {
+      "enum": [
+        "comma",
+        "tab",
+        "space",
+        "custom"
+      ],
+      "type": "string"
+    },
+    "SortBy": {
+      "enum": [
+        "import_order",
+        "name",
+        "name_desc"
+      ],
+      "type": "string"
+    },
+    "StructuredParam": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "blocks": {
+              "items": {
+                "$ref": "#/$defs/RenameBlock"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "rename_blocks",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "blocks"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "suffixes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "set_suffixes",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "suffixes"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "slots": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "text_slots",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slots"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Viewport": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "format": "double",
+          "type": "number"
+        },
+        "y": {
+          "format": "double",
+          "type": "number"
+        },
+        "zoom": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "zoom"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_with": {
+      "type": "string"
+    },
+    "graph": {
+      "$ref": "#/$defs/Graph"
+    },
+    "schema_version": {
+      "format": "uint32",
+      "maximum": 2,
+      "minimum": 2,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "created_with",
+    "graph"
+  ],
+  "title": "Workflow",
+  "type": "object"
+}

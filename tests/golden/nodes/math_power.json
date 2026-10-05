@@ -1,0 +1,202 @@
+{
+  "definition": {
+    "id": "math_power",
+    "version": "1.0.0",
+    "label": "Power",
+    "description": "Base ^ Exponent",
+    "category": "Math",
+    "inputs": [],
+    "outputs": [],
+    "executor": "math_power",
+    "params": [
+      {
+        "name": "base",
+        "label": "Base",
+        "type": "numeric",
+        "widget": "number",
+        "default": 2
+      },
+      {
+        "name": "exponent",
+        "label": "Exponent",
+        "type": "float",
+        "widget": "number",
+        "default": 2
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "numeric",
+        "widget": "number",
+        "default": 4,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "base": 2,
+        "exponent": 2,
+        "result": 4
+      },
+      "expected_params": {
+        "base": 2,
+        "exponent": 2,
+        "result": 4
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "result": 1
+      }
+    },
+    {
+      "name": "base-0",
+      "params": {
+        "base": 0,
+        "exponent": 2,
+        "result": 4
+      },
+      "expected_params": {
+        "base": 0,
+        "exponent": 2,
+        "result": 0
+      }
+    },
+    {
+      "name": "base-1",
+      "params": {
+        "base": -1,
+        "exponent": 2,
+        "result": 4
+      },
+      "expected_params": {
+        "base": -1,
+        "exponent": 2,
+        "result": 1
+      }
+    },
+    {
+      "name": "base-2",
+      "params": {
+        "base": 0.5,
+        "exponent": 2,
+        "result": 4
+      },
+      "expected_params": {
+        "base": 0.5,
+        "exponent": 2,
+        "result": 0.25
+      }
+    },
+    {
+      "name": "base-3",
+      "params": {
+        "base": [
+          0,
+          0
+        ],
+        "exponent": 2,
+        "result": 4
+      },
+      "expected_params": {
+        "base": [
+          0,
+          0
+        ],
+        "exponent": 2,
+        "result": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "base-4",
+      "params": {
+        "base": [
+          3,
+          0,
+          4
+        ],
+        "exponent": 2,
+        "result": 4
+      },
+      "expected_params": {
+        "base": [
+          3,
+          0,
+          4
+        ],
+        "exponent": 2,
+        "result": [
+          9,
+          0,
+          16
+        ]
+      }
+    },
+    {
+      "name": "base-5",
+      "params": {
+        "base": [
+          2
+        ],
+        "exponent": 2,
+        "result": 4
+      },
+      "expected_params": {
+        "base": [
+          2
+        ],
+        "exponent": 2,
+        "result": [
+          4
+        ]
+      }
+    },
+    {
+      "name": "exponent-0",
+      "params": {
+        "base": 2,
+        "exponent": 0,
+        "result": 4
+      },
+      "expected_params": {
+        "base": 2,
+        "exponent": 0,
+        "result": 1
+      }
+    },
+    {
+      "name": "exponent-1",
+      "params": {
+        "base": 2,
+        "exponent": -1,
+        "result": 4
+      },
+      "expected_params": {
+        "base": 2,
+        "exponent": -1,
+        "result": 0.5
+      }
+    },
+    {
+      "name": "exponent-2",
+      "params": {
+        "base": 2,
+        "exponent": 0.5,
+        "result": 4
+      },
+      "expected_params": {
+        "base": 2,
+        "exponent": 0.5,
+        "result": 1.4142135623730951
+      }
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "source_sha256": "b5fd97222188b331281bb3f692206257d4abfc3f7709b48d4b7057a21d00fe93",
+  "nodes": 15,
+  "edges": 14,
+  "execution_order": [
+    "input-1",
+    "fc-png",
+    "fc-jpeg",
+    "fc-webp",
+    "fc-avif",
+    "fc-tiff",
+    "fc-bmp",
+    "fc-tga",
+    "out-png",
+    "out-jpeg",
+    "out-webp",
+    "out-avif",
+    "out-tiff",
+    "out-bmp",
+    "out-tga"
+  ],
+  "outputs": [
+    {
+      "id": "out-png",
+      "input": "input-1",
+      "contributors": [
+        "out-png",
+        "fc-png",
+        "input-1"
+      ]
+    },
+    {
+      "id": "out-jpeg",
+      "input": "input-1",
+      "contributors": [
+        "out-jpeg",
+        "fc-jpeg",
+        "input-1"
+      ]
+    },
+    {
+      "id": "out-webp",
+      "input": "input-1",
+      "contributors": [
+        "out-webp",
+        "fc-webp",
+        "input-1"
+      ]
+    },
+    {
+      "id": "out-avif",
+      "input": "input-1",
+      "contributors": [
+        "out-avif",
+        "fc-avif",
+        "input-1"
+      ]
+    },
+    {
+      "id": "out-tiff",
+      "input": "input-1",
+      "contributors": [
+        "out-tiff",
+        "fc-tiff",
+        "input-1"
+      ]
+    },
+    {
+      "id": "out-bmp",
+      "input": "input-1",
+      "contributors": [
+        "out-bmp",
+        "fc-bmp",
+        "input-1"
+      ]
+    },
+    {
+      "id": "out-tga",
+      "input": "input-1",
+      "contributors": [
+        "out-tga",
+        "fc-tga",
+        "input-1"
+      ]
+    }
+  ],
+  "descendants": [
+    {
+      "id": "input-1",
+      "nodes": [
+        "input-1",
+        "fc-png",
+        "fc-jpeg",
+        "fc-webp",
+        "fc-avif",
+        "fc-tiff",
+        "fc-bmp",
+        "fc-tga",
+        "out-png",
+        "out-jpeg",
+        "out-webp",
+        "out-avif",
+        "out-tiff",
+        "out-bmp",
+        "out-tga"
+      ]
+    }
+  ]
+}

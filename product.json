@@ -1,0 +1,17 @@
+{
+  "productName": "Bite",
+  "version": "0.5.1",
+  "author": "Chandan Singh",
+  "publisher": "Chandan Singh",
+  "description": "Bite (Batch Image Transformation Editor) - a GUI batch image workflow builder powered by ImageMagick",
+  "copyright": "Copyright (c) 2026 Chandan Singh",
+  "homepage": "https://github.com/psmyles/bite",
+  "bundleId": "com.bite.app",
+  "exeName": "bite-gui",
+  "cliName": "bite",
+  "fileAssociation": {
+    "extension": ".bite",
+    "progId": "Bite.Workflow",
+    "typeName": "Bite Workflow"
+  }
+}

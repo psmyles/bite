@@ -1,0 +1,195 @@
+{
+  "definition": {
+    "id": "prop_exif",
+    "version": "1.0.0",
+    "label": "EXIF",
+    "description": "Outputs EXIF metadata from the current image",
+    "category": "Properties",
+    "inputs": [],
+    "outputs": [],
+    "executor": "prop_exif",
+    "needs_image_meta": true,
+    "params": [
+      {
+        "name": "camera_make",
+        "label": "Camera Make",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      },
+      {
+        "name": "camera_model",
+        "label": "Camera Model",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      },
+      {
+        "name": "lens",
+        "label": "Lens",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      },
+      {
+        "name": "exposure_time",
+        "label": "Exposure Time",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      },
+      {
+        "name": "shutter_speed",
+        "label": "Shutter Speed",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      },
+      {
+        "name": "aperture",
+        "label": "Aperture",
+        "type": "float",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      },
+      {
+        "name": "iso",
+        "label": "ISO",
+        "type": "int",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      },
+      {
+        "name": "focal_length",
+        "label": "Focal Length",
+        "type": "float",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      },
+      {
+        "name": "date_taken",
+        "label": "Date Taken",
+        "type": "string",
+        "widget": "text",
+        "default": "",
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "camera_make": "",
+        "camera_model": "",
+        "lens": "",
+        "exposure_time": "",
+        "shutter_speed": "",
+        "aperture": 0,
+        "iso": 0,
+        "focal_length": 0,
+        "date_taken": ""
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "camera_make": "TestCam",
+        "camera_model": "",
+        "lens": "",
+        "exposure_time": "",
+        "shutter_speed": "",
+        "aperture": 2.8,
+        "iso": 200,
+        "focal_length": 50,
+        "date_taken": "2020:01:02 03:04:05"
+      }
+    },
+    {
+      "name": "defaults-no-meta",
+      "params": {
+        "camera_make": "",
+        "camera_model": "",
+        "lens": "",
+        "exposure_time": "",
+        "shutter_speed": "",
+        "aperture": 0,
+        "iso": 0,
+        "focal_length": 0,
+        "date_taken": ""
+      },
+      "expected_params": {
+        "camera_make": "",
+        "camera_model": "",
+        "lens": "",
+        "exposure_time": "",
+        "shutter_speed": "",
+        "aperture": 0,
+        "iso": 0,
+        "focal_length": 0,
+        "date_taken": ""
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "camera_make": "TestCam",
+        "camera_model": "",
+        "lens": "",
+        "exposure_time": "",
+        "shutter_speed": "",
+        "aperture": 2.8,
+        "iso": 200,
+        "focal_length": 50,
+        "date_taken": "2020:01:02 03:04:05"
+      }
+    },
+    {
+      "name": "missing-no-meta",
+      "params": {},
+      "expected_params": {}
+    }
+  ]
+}
