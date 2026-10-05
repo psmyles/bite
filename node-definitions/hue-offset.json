@@ -1,33 +1,48 @@
 {
-  "id": "hue_offset",
-  "version": "1.0.0",
-  "label": "Hue Offset",
-  "description": "Shift the hue of an image",
-  "aliases": ["hue shift", "hue rotate", "color shift"],
+  "aliases": [
+    "hue shift",
+    "hue rotate",
+    "color shift"
+  ],
   "category": "Color",
+  "description": "Shift the hue of an image",
   "icon": "palette",
+  "id": "hue_offset",
+  "implementation": {
+    "args": [
+      "-modulate",
+      {
+        "expr": "format('100,100,{}', 100 + hue / 1.8)"
+      }
+    ],
+    "type": "imagemagick"
+  },
   "inputs": [
     {
-      "type": "image",
-      "label": "Input"
+      "label": "Input",
+      "name": "input",
+      "type": "image"
     }
   ],
+  "label": "Hue Offset",
   "outputs": [
     {
-      "type": "image",
-      "label": "Output"
+      "label": "Output",
+      "name": "output",
+      "type": "image"
     }
   ],
   "params": [
     {
-      "name": "hue",
-      "label": "Hue Shift",
-      "type": "int",
-      "widget": "slider",
       "default": 0,
+      "label": "Hue Shift",
+      "max": 180,
       "min": -180,
-      "max": 180
+      "name": "hue",
+      "type": "int",
+      "widget": "slider"
     }
   ],
-  "command_js": "const hue = Number(params.hue) || 0; return ['-modulate', `100,100,${100 + hue / 1.8}`];"
+  "schema_version": 2,
+  "version": "1.0.0"
 }

@@ -1,10 +1,24 @@
 {
-  "id": "value_string",
-  "version": "1.0.0",
-  "label": "String",
-  "description": "Outputs a constant text string",
   "category": "Values",
+  "description": "Outputs a constant text string",
+  "id": "value_string",
+  "implementation": {
+    "outputs": {},
+    "type": "compute"
+  },
   "inputs": [],
+  "label": "String",
   "outputs": [],
-  "params": [{ "name": "value", "label": "Value", "type": "string", "widget": "text", "default": "", "readonly": true }]
+  "params": [
+    {
+      "default": "",
+      "label": "Value",
+      "name": "value",
+      "readonly": true,
+      "type": "string",
+      "widget": "text"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }

@@ -1,0 +1,341 @@
+{
+  "definition": {
+    "id": "math_subtract",
+    "version": "1.0.0",
+    "label": "Subtract",
+    "description": "A - B",
+    "category": "Math",
+    "inputs": [],
+    "outputs": [],
+    "executor": "math_subtract",
+    "params": [
+      {
+        "name": "a",
+        "label": "A",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "b",
+        "label": "B",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "a": 0,
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "result": 0
+      }
+    },
+    {
+      "name": "a-0",
+      "params": {
+        "a": 0,
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "a-1",
+      "params": {
+        "a": -1,
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": -1,
+        "b": 0,
+        "result": -1
+      }
+    },
+    {
+      "name": "a-2",
+      "params": {
+        "a": 0.5,
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0.5,
+        "b": 0,
+        "result": 0.5
+      }
+    },
+    {
+      "name": "a-3",
+      "params": {
+        "a": [
+          0,
+          0
+        ],
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": [
+          0,
+          0
+        ],
+        "b": 0,
+        "result": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "a-4",
+      "params": {
+        "a": [
+          3,
+          0,
+          4
+        ],
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": [
+          3,
+          0,
+          4
+        ],
+        "b": 0,
+        "result": [
+          3,
+          0,
+          4
+        ]
+      }
+    },
+    {
+      "name": "a-5",
+      "params": {
+        "a": [
+          2
+        ],
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": [
+          2
+        ],
+        "b": 0,
+        "result": [
+          2
+        ]
+      }
+    },
+    {
+      "name": "b-0",
+      "params": {
+        "a": 0,
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "b-1",
+      "params": {
+        "a": 0,
+        "b": -1,
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0,
+        "b": -1,
+        "result": 1
+      }
+    },
+    {
+      "name": "b-2",
+      "params": {
+        "a": 0,
+        "b": 0.5,
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0,
+        "b": 0.5,
+        "result": -0.5
+      }
+    },
+    {
+      "name": "b-3",
+      "params": {
+        "a": 0,
+        "b": [
+          0,
+          0
+        ],
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0,
+        "b": [
+          0,
+          0
+        ],
+        "result": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "b-4",
+      "params": {
+        "a": 0,
+        "b": [
+          3,
+          0,
+          4
+        ],
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0,
+        "b": [
+          3,
+          0,
+          4
+        ],
+        "result": [
+          -3,
+          0,
+          -4
+        ]
+      }
+    },
+    {
+      "name": "b-5",
+      "params": {
+        "a": 0,
+        "b": [
+          2
+        ],
+        "result": 0
+      },
+      "expected_params": {
+        "a": 0,
+        "b": [
+          2
+        ],
+        "result": [
+          -2
+        ]
+      }
+    },
+    {
+      "name": "broadcast-14",
+      "params": {
+        "a": [
+          1,
+          2,
+          3
+        ],
+        "b": [
+          4
+        ],
+        "result": 0
+      },
+      "expected_params": {
+        "a": [
+          1,
+          2,
+          3
+        ],
+        "b": [
+          4
+        ],
+        "result": [
+          -3,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "name": "broadcast-15",
+      "params": {
+        "a": 2,
+        "b": [
+          3,
+          4
+        ],
+        "result": 0
+      },
+      "expected_params": {
+        "a": 2,
+        "b": [
+          3,
+          4
+        ],
+        "result": [
+          -1,
+          -2
+        ]
+      }
+    },
+    {
+      "name": "broadcast-16",
+      "params": {
+        "a": [
+          1,
+          0
+        ],
+        "b": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "a": [
+          1,
+          0
+        ],
+        "b": 0,
+        "result": [
+          1,
+          0
+        ]
+      }
+    }
+  ]
+}

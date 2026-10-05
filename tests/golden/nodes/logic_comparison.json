@@ -1,0 +1,247 @@
+{
+  "definition": {
+    "id": "logic_comparison",
+    "version": "1.0.0",
+    "label": "Compare",
+    "description": "Compare two values and output a boolean result",
+    "category": "Logic",
+    "inputs": [],
+    "outputs": [],
+    "executor": "logic_comparison",
+    "params": [
+      {
+        "name": "a",
+        "label": "A",
+        "type": "any",
+        "default": null
+      },
+      {
+        "name": "operator",
+        "label": "Operator",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "equal",
+        "options": [
+          "equal",
+          "not equal",
+          "greater than",
+          "less than",
+          "greater or equal",
+          "less or equal"
+        ]
+      },
+      {
+        "name": "b",
+        "label": "B",
+        "type": "any",
+        "default": null
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": null,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "a": null,
+        "operator": "equal",
+        "b": null,
+        "result": null
+      },
+      "expected_params": {
+        "a": null,
+        "operator": "equal",
+        "b": null,
+        "result": true
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "result": false
+      }
+    },
+    {
+      "name": "operator-0",
+      "params": {
+        "a": null,
+        "operator": "equal",
+        "b": null,
+        "result": null
+      },
+      "expected_params": {
+        "a": null,
+        "operator": "equal",
+        "b": null,
+        "result": true
+      }
+    },
+    {
+      "name": "operator-1",
+      "params": {
+        "a": null,
+        "operator": "not equal",
+        "b": null,
+        "result": null
+      },
+      "expected_params": {
+        "a": null,
+        "operator": "not equal",
+        "b": null,
+        "result": false
+      }
+    },
+    {
+      "name": "operator-2",
+      "params": {
+        "a": null,
+        "operator": "greater than",
+        "b": null,
+        "result": null
+      },
+      "expected_params": {
+        "a": null,
+        "operator": "greater than",
+        "b": null,
+        "result": false
+      }
+    },
+    {
+      "name": "operator-3",
+      "params": {
+        "a": null,
+        "operator": "less than",
+        "b": null,
+        "result": null
+      },
+      "expected_params": {
+        "a": null,
+        "operator": "less than",
+        "b": null,
+        "result": false
+      }
+    },
+    {
+      "name": "operator-4",
+      "params": {
+        "a": null,
+        "operator": "greater or equal",
+        "b": null,
+        "result": null
+      },
+      "expected_params": {
+        "a": null,
+        "operator": "greater or equal",
+        "b": null,
+        "result": true
+      }
+    },
+    {
+      "name": "operator-5",
+      "params": {
+        "a": null,
+        "operator": "less or equal",
+        "b": null,
+        "result": null
+      },
+      "expected_params": {
+        "a": null,
+        "operator": "less or equal",
+        "b": null,
+        "result": true
+      }
+    },
+    {
+      "name": "operator-6",
+      "params": {
+        "a": null,
+        "operator": "__invalid__",
+        "b": null,
+        "result": null
+      },
+      "expected_params": {
+        "a": null,
+        "operator": "__invalid__",
+        "b": null,
+        "result": false
+      }
+    },
+    {
+      "name": "broadcast-9",
+      "params": {
+        "a": [
+          1,
+          2,
+          3
+        ],
+        "operator": "equal",
+        "b": [
+          4
+        ],
+        "result": null
+      },
+      "expected_params": {
+        "a": [
+          1,
+          2,
+          3
+        ],
+        "operator": "equal",
+        "b": [
+          4
+        ],
+        "result": false
+      }
+    },
+    {
+      "name": "broadcast-10",
+      "params": {
+        "a": 2,
+        "operator": "equal",
+        "b": [
+          3,
+          4
+        ],
+        "result": null
+      },
+      "expected_params": {
+        "a": 2,
+        "operator": "equal",
+        "b": [
+          3,
+          4
+        ],
+        "result": false
+      }
+    },
+    {
+      "name": "broadcast-11",
+      "params": {
+        "a": [
+          1,
+          0
+        ],
+        "operator": "equal",
+        "b": 0,
+        "result": null
+      },
+      "expected_params": {
+        "a": [
+          1,
+          0
+        ],
+        "operator": "equal",
+        "b": 0,
+        "result": false
+      }
+    }
+  ]
+}

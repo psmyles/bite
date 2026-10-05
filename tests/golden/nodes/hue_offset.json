@@ -1,0 +1,109 @@
+{
+  "definition": {
+    "id": "hue_offset",
+    "version": "1.0.0",
+    "label": "Hue Offset",
+    "description": "Shift the hue of an image",
+    "aliases": [
+      "hue shift",
+      "hue rotate",
+      "color shift"
+    ],
+    "category": "Color",
+    "icon": "palette",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "hue",
+        "label": "Hue Shift",
+        "type": "int",
+        "widget": "slider",
+        "default": 0,
+        "min": -180,
+        "max": 180
+      }
+    ],
+    "command_js": "const hue = Number(params.hue) || 0; return ['-modulate', `100,100,${100 + hue / 1.8}`];"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "hue": 0
+      },
+      "expected_args": [
+        "-modulate",
+        "100,100,100"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-modulate",
+        "100,100,100"
+      ]
+    },
+    {
+      "name": "hue-0",
+      "params": {
+        "hue": 0
+      },
+      "expected_args": [
+        "-modulate",
+        "100,100,100"
+      ]
+    },
+    {
+      "name": "hue-1",
+      "params": {
+        "hue": -1
+      },
+      "expected_args": [
+        "-modulate",
+        "100,100,99.44444444444444"
+      ]
+    },
+    {
+      "name": "hue-2",
+      "params": {
+        "hue": 0.5
+      },
+      "expected_args": [
+        "-modulate",
+        "100,100,100.27777777777777"
+      ]
+    },
+    {
+      "name": "hue-3",
+      "params": {
+        "hue": -180
+      },
+      "expected_args": [
+        "-modulate",
+        "100,100,0"
+      ]
+    },
+    {
+      "name": "hue-4",
+      "params": {
+        "hue": 180
+      },
+      "expected_args": [
+        "-modulate",
+        "100,100,200"
+      ]
+    }
+  ]
+}

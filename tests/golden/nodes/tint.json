@@ -1,0 +1,135 @@
+{
+  "definition": {
+    "id": "tint",
+    "version": "1.0.0",
+    "label": "Tint",
+    "description": "Blend a solid color over the image at a given strength using colorize",
+    "aliases": [
+      "colorize",
+      "color overlay",
+      "hue tint"
+    ],
+    "category": "Color",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "color",
+        "label": "Color",
+        "type": "color",
+        "widget": "color-picker",
+        "default": "#ff0000"
+      },
+      {
+        "name": "amount",
+        "label": "Amount",
+        "type": "int",
+        "widget": "slider",
+        "default": 50,
+        "min": 0,
+        "max": 100
+      }
+    ],
+    "command_template": "-fill {{color}} -colorize {{amount}}"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "color": "#ff0000",
+        "amount": 50
+      },
+      "expected_args": [
+        "-fill",
+        "#ff0000",
+        "-colorize",
+        "50"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-fill",
+        "#ff0000",
+        "-colorize",
+        "50"
+      ]
+    },
+    {
+      "name": "amount-0",
+      "params": {
+        "color": "#ff0000",
+        "amount": 0
+      },
+      "expected_args": [
+        "-fill",
+        "#ff0000",
+        "-colorize",
+        "0"
+      ]
+    },
+    {
+      "name": "amount-1",
+      "params": {
+        "color": "#ff0000",
+        "amount": -1
+      },
+      "expected_args": [
+        "-fill",
+        "#ff0000",
+        "-colorize",
+        "-1"
+      ]
+    },
+    {
+      "name": "amount-2",
+      "params": {
+        "color": "#ff0000",
+        "amount": 0.5
+      },
+      "expected_args": [
+        "-fill",
+        "#ff0000",
+        "-colorize",
+        "0.5"
+      ]
+    },
+    {
+      "name": "amount-3",
+      "params": {
+        "color": "#ff0000",
+        "amount": 0
+      },
+      "expected_args": [
+        "-fill",
+        "#ff0000",
+        "-colorize",
+        "0"
+      ]
+    },
+    {
+      "name": "amount-4",
+      "params": {
+        "color": "#ff0000",
+        "amount": 100
+      },
+      "expected_args": [
+        "-fill",
+        "#ff0000",
+        "-colorize",
+        "100"
+      ]
+    }
+  ]
+}

@@ -1,15 +1,28 @@
 {
-  "id": "TIFF",
-  "extension": ".tif",
-  "params": [
+  "args": [
+    "-compress",
     {
-      "name": "tiff_compression",
-      "label": "Compression",
-      "type": "enum",
-      "widget": "dropdown",
-      "default": "LZW",
-      "options": ["LZW", "ZIP", "JPEG", "PackBits", "None"]
+      "expr": "tiff_compression"
     }
   ],
-  "args_js": "return ['-compress',String(params.tiff_compression??'LZW')];"
+  "extension": ".tif",
+  "id": "TIFF",
+  "params": [
+    {
+      "default": "LZW",
+      "label": "Compression",
+      "name": "tiff_compression",
+      "options": [
+        "LZW",
+        "ZIP",
+        "JPEG",
+        "PackBits",
+        "None"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }

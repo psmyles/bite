@@ -1,0 +1,126 @@
+{
+  "definition": {
+    "id": "format_convert",
+    "version": "1.0.0",
+    "label": "Convert Format",
+    "description": "Convert image to a different file format",
+    "aliases": [
+      "export format",
+      "change format",
+      "file format"
+    ],
+    "category": "Output",
+    "icon": "file-output",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "executor": "format_convert",
+    "params": [
+      {
+        "name": "format",
+        "label": "Format",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "PNG",
+        "options": [
+          "PNG",
+          "JPEG",
+          "WEBP",
+          "TIFF",
+          "AVIF",
+          "BMP",
+          "TGA"
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "format": "PNG"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "format-0",
+      "params": {
+        "format": "PNG"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "format-1",
+      "params": {
+        "format": "JPEG"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "format-2",
+      "params": {
+        "format": "WEBP"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "format-3",
+      "params": {
+        "format": "TIFF"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "format-4",
+      "params": {
+        "format": "AVIF"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "format-5",
+      "params": {
+        "format": "BMP"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "format-6",
+      "params": {
+        "format": "TGA"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    },
+    {
+      "name": "format-7",
+      "params": {
+        "format": "__invalid__"
+      },
+      "native_executor": "format_convert",
+      "expected_args": []
+    }
+  ]
+}

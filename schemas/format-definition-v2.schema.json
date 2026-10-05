@@ -1,0 +1,400 @@
+{
+  "$defs": {
+    "ArgSpec": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "expr": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "expr"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "args": {
+              "items": {
+                "$ref": "#/$defs/ArgSpec"
+              },
+              "type": "array"
+            },
+            "when": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "when",
+            "args"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "cases": {
+              "additionalProperties": {
+                "items": {
+                  "$ref": "#/$defs/ArgSpec"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            "default": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/ArgSpec"
+              },
+              "type": "array"
+            },
+            "switch": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "switch",
+            "cases"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ParamDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParamValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled_when": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "max": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "noPort": {
+          "default": false,
+          "type": "boolean"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "portOnly": {
+          "default": false,
+          "type": "boolean"
+        },
+        "readonly": {
+          "default": false,
+          "type": "boolean"
+        },
+        "step": {
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/ParamType"
+        },
+        "visible_when": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "widget": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WidgetType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "label",
+        "type"
+      ],
+      "type": "object"
+    },
+    "ParamType": {
+      "enum": [
+        "int",
+        "float",
+        "string",
+        "enum",
+        "bool",
+        "vector2",
+        "vector3",
+        "vector4",
+        "color",
+        "numeric",
+        "value",
+        "rename_blocks",
+        "set_suffixes",
+        "text_slots"
+      ],
+      "type": "string"
+    },
+    "ParamValue": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "format": "int64",
+          "type": "integer"
+        },
+        {
+          "format": "double",
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "$ref": "#/$defs/StructuredParam"
+        }
+      ]
+    },
+    "RenameBlock": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "text",
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "pad": {
+              "format": "double",
+              "type": "number"
+            },
+            "start": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": {
+              "const": "number",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "start",
+            "pad"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "find": {
+              "type": "string"
+            },
+            "replace_with": {
+              "type": "string"
+            },
+            "type": {
+              "const": "oldname",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "find",
+            "replace_with"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "StructuredParam": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "blocks": {
+              "items": {
+                "$ref": "#/$defs/RenameBlock"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "rename_blocks",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "blocks"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "suffixes": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "set_suffixes",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "suffixes"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "slots": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "text_slots",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "slots"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "WidgetType": {
+      "enum": [
+        "slider",
+        "number",
+        "dropdown",
+        "text",
+        "checkbox",
+        "color-picker",
+        "vector"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "args": {
+      "items": {
+        "$ref": "#/$defs/ArgSpec"
+      },
+      "type": "array"
+    },
+    "extension": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "params": {
+      "items": {
+        "$ref": "#/$defs/ParamDefinition"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "format": "uint32",
+      "maximum": 2,
+      "minimum": 2,
+      "type": "integer"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "extension",
+    "params",
+    "args"
+  ],
+  "title": "FormatDefinition",
+  "type": "object"
+}

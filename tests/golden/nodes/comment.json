@@ -1,0 +1,26 @@
+{
+  "definition": {
+    "id": "comment",
+    "label": "Comment",
+    "category": "Utility",
+    "description": "Annotation node - no pipeline effect.",
+    "executor": "comment",
+    "inputs": [],
+    "outputs": [],
+    "params": []
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {},
+      "native_executor": "comment",
+      "expected_args": []
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "native_executor": "comment",
+      "expected_args": []
+    }
+  ]
+}

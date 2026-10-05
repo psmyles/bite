@@ -1,29 +1,69 @@
 {
-  "id": "outline",
-  "version": "1.0.0",
-  "label": "Outline",
-  "description": "Add a solid-color border around transparent sprite edges using alpha channel dilation",
-  "aliases": ["edge detect", "border", "stroke", "dilation"],
+  "aliases": [
+    "edge detect",
+    "border",
+    "stroke",
+    "dilation"
+  ],
   "category": "FX",
-  "inputs": [{ "type": "image", "label": "Input" }],
-  "outputs": [{ "type": "image", "label": "Output" }],
-  "params": [
+  "description": "Add a solid-color border around transparent sprite edges using alpha channel dilation",
+  "id": "outline",
+  "implementation": {
+    "args": [
+      "(",
+      "+clone",
+      "-alpha",
+      "extract",
+      "-morphology",
+      "Dilate",
+      {
+        "expr": "format('Disk:{}', size)"
+      },
+      "-background",
+      {
+        "expr": "str(color)"
+      },
+      "-alpha",
+      "Shape",
+      ")",
+      "+swap",
+      "-composite"
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
     {
-      "name": "size",
-      "label": "Size",
-      "type": "int",
-      "widget": "slider",
-      "default": 2,
-      "min": 1,
-      "max": 50
-    },
-    {
-      "name": "color",
-      "label": "Color",
-      "type": "color",
-      "widget": "color-picker",
-      "default": "#000000"
+      "label": "Input",
+      "name": "input",
+      "type": "image"
     }
   ],
-  "command_js": "return [\n  '(', '+clone',\n  '-alpha', 'extract',\n  '-morphology', 'Dilate', 'Disk:' + params.size,\n  '-background', String(params.color),\n  '-alpha', 'Shape',\n  ')',\n  '+swap',\n  '-composite'\n]"
+  "label": "Outline",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 2,
+      "label": "Size",
+      "max": 50,
+      "min": 1,
+      "name": "size",
+      "type": "int",
+      "widget": "slider"
+    },
+    {
+      "default": "#000000",
+      "label": "Color",
+      "name": "color",
+      "type": "color",
+      "widget": "color-picker"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }

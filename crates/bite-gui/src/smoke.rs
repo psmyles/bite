@@ -1,0 +1,721 @@
+//! Offscreen rendering, used to capture the interface for side-by-side comparison.
+//!
+//! The same code draws the window and these images: `app::draw_frame` builds the frame and
+//! sokol_imgui draws it into whatever pass is open. The only difference is what the pass writes
+//! to - a swapchain there, an offscreen colour attachment here - so a capture shows what the
+//! window would have shown rather than an approximation of it.
+//!
+//! sokol_gfx has no `read_pixels`, so the target is read back through its native handle
+//! ([`crate::render::readback`]).
+use crate::{
+    app,
+    render::{imgui, readback, Device, Textures, SWAPCHAIN_FORMAT},
+    theme,
+};
+use bite_imgui::Context;
+use sokol::gfx as sg;
+use std::path::{Path, PathBuf};
+
+/// A scenario to capture, so that each comparison shot is reproducible.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Scene {
+    /// The seed workflow, exactly as a new document opens.
+    Seed,
+    /// A workflow with a node selected, so the inspector is populated.
+    Selected,
+    /// The node creation menu open on the canvas.
+    CreateMenu,
+    /// The unsaved-changes prompt.
+    ConfirmPrompt,
+    /// The batch summary dialog with a representative result.
+    BatchSummary,
+    /// The run dialog with one ready and one blocked output.
+    RunDialog,
+    /// The about dialog.
+    About,
+    /// The credits dialog.
+    Credits,
+    /// The update dialog reporting a newer release.
+    Update,
+    /// A comment card, whose heading and body are drawn on the canvas.
+    Comment,
+    /// A node with a slider parameter selected, so the inspector shows the slider row.
+    Slider,
+    /// A node with a colour parameter selected, so the inspector shows the swatch row.
+    Color,
+    /// A column of process cards, for checking card widths, rows and ports.
+    Cards,
+    /// A menu bar dropdown held open, for checking its row spacing.
+    Menu,
+    /// An inspector dropdown held open, for checking its row spacing.
+    Dropdown,
+    /// The creation menu opened by a wire dropped on empty canvas, which keeps the line on
+    /// screen and offers only nodes the wire can reach.
+    WireMenu,
+    /// A library entry's description tooltip, which must wrap rather than run off the edge.
+    Tooltip,
+    /// A processing node between the Input and the Image Output, which the preview follows
+    /// on its own and marks with the PREVIEWING badge.
+    Previewing,
+    /// The Debug menu's log window, over a fixed set of lines.
+    LogWindow,
+    /// The Debug menu's interface showcase.
+    Showcase,
+    /// A Folder Path node selected, so the inspector shows its browse row.
+    FolderPath,
+    /// An Image Output node selected, which is the inspector with a section title, a text
+    /// field, two lists and a checkbox row all in one panel.
+    OutputInspector,
+    /// The Resize inspector, whose rows are its own rather than the definition's: two
+    /// dimensions sharing a unit and the computed preview at the end.
+    ResizeInspector,
+    /// The Rename inspector with one block of each kind, for the badges, the compact
+    /// fields and the preview table's columns.
+    RenameInspector,
+    /// A Vector 4 node selected, whose inspector is a column of component fields sharing
+    /// one left edge, each editable although the card's port is an output.
+    VectorInspector,
+}
+
+impl Scene {
+    /// The scene a command line name selects.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "seed" => Self::Seed,
+            "selected" => Self::Selected,
+            "create-menu" => Self::CreateMenu,
+            "confirm" => Self::ConfirmPrompt,
+            "summary" => Self::BatchSummary,
+            "run-dialog" => Self::RunDialog,
+            "about" => Self::About,
+            "credits" => Self::Credits,
+            "update" => Self::Update,
+            "comment" => Self::Comment,
+            "slider" => Self::Slider,
+            "color" => Self::Color,
+            "cards" => Self::Cards,
+            "menu" => Self::Menu,
+            "dropdown" => Self::Dropdown,
+            "wire-menu" => Self::WireMenu,
+            "tooltip" => Self::Tooltip,
+            "previewing" => Self::Previewing,
+            "log-window" => Self::LogWindow,
+            "showcase" => Self::Showcase,
+            "folder-path" => Self::FolderPath,
+            "output-inspector" => Self::OutputInspector,
+            "resize-inspector" => Self::ResizeInspector,
+            "rename-inspector" => Self::RenameInspector,
+            "vector-inspector" => Self::VectorInspector,
+            _ => return None,
+        })
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Seed => "seed",
+            Self::Selected => "selected",
+            Self::CreateMenu => "create-menu",
+            Self::ConfirmPrompt => "confirm",
+            Self::BatchSummary => "summary",
+            Self::RunDialog => "run-dialog",
+            Self::About => "about",
+            Self::Credits => "credits",
+            Self::Update => "update",
+            Self::Comment => "comment",
+            Self::Slider => "slider",
+            Self::Color => "color",
+            Self::Cards => "cards",
+            Self::Menu => "menu",
+            Self::Dropdown => "dropdown",
+            Self::WireMenu => "wire-menu",
+            Self::Tooltip => "tooltip",
+            Self::Previewing => "previewing",
+            Self::LogWindow => "log-window",
+            Self::Showcase => "showcase",
+            Self::FolderPath => "folder-path",
+            Self::OutputInspector => "output-inspector",
+            Self::ResizeInspector => "resize-inspector",
+            Self::RenameInspector => "rename-inspector",
+            Self::VectorInspector => "vector-inspector",
+        }
+    }
+
+    /// Every scene, for a full capture run.
+    pub fn all() -> Vec<Self> {
+        vec![
+            Self::Seed,
+            Self::Selected,
+            Self::CreateMenu,
+            Self::ConfirmPrompt,
+            Self::BatchSummary,
+            Self::RunDialog,
+            Self::About,
+            Self::Credits,
+            Self::Update,
+            Self::Comment,
+            Self::Slider,
+            Self::Color,
+            Self::Cards,
+            Self::Menu,
+            Self::Dropdown,
+            Self::WireMenu,
+            Self::Tooltip,
+            Self::Previewing,
+            Self::LogWindow,
+            Self::Showcase,
+            Self::FolderPath,
+            Self::OutputInspector,
+            Self::ResizeInspector,
+            Self::RenameInspector,
+            Self::VectorInspector,
+        ]
+    }
+}
+
+/// Where the pointer rests to hold the File menu open for its capture.
+const MENU_POINTER: [f32; 2] = [96.0, 15.0];
+
+/// Where the pointer rests to hold the inspector's list open for its capture.
+const DROPDOWN_POINTER: [f32; 2] = [1450.0, 180.0];
+
+/// Where the pointer rests on a library entry to raise its tooltip.
+const TOOLTIP_POINTER: [f32; 2] = [80.0, 271.0];
+
+/// Arranges the editor for a scene.
+fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
+    if let Some(path) = workflow {
+        crate::commands::open_path(editor, path);
+    }
+    editor.sync_active_input();
+    match scene {
+        Scene::Seed => {}
+        Scene::Selected => {
+            // The first processing node, or failing that the first node at all.
+            let target = editor
+                .studio
+                .workflow
+                .graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    matches!(
+                        node.kind,
+                        bite_schema::NodeKind::Processing(bite_schema::ProcessingNodeKind::Process)
+                    )
+                })
+                .or_else(|| editor.studio.workflow.graph.nodes.first())
+                .map(|node| node.id.clone());
+            if let Some(target) = target {
+                editor.canvas.state.select_only([target.clone()]);
+                editor.selected_node = Some(target);
+                editor.sync_active_input();
+            }
+        }
+        Scene::CreateMenu => {
+            editor.create_menu.open_at([120.0, 120.0], None);
+            editor.create_menu.can_group = true;
+        }
+        Scene::WireMenu => {
+            // A wire dragged off the seed Input's image port and dropped on empty canvas.
+            let source = editor
+                .studio
+                .workflow
+                .graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    node.kind == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::Input)
+                })
+                .map(|node| {
+                    (
+                        node.id.clone(),
+                        [node.position.x as f32, node.position.y as f32],
+                    )
+                });
+            if let Some((id, position)) = source {
+                editor.create_menu.open_at(
+                    [position[0] + 90.0, position[1] + 210.0],
+                    Some(crate::canvas::state::PendingWire {
+                        node: id,
+                        handle: "out:output".into(),
+                        end: crate::canvas::state::WireEnd::Source,
+                        origin: [position[0] + 190.0, position[1] + 43.0],
+                        wire: bite_core::graph::WireType::Image,
+                    }),
+                );
+            }
+        }
+        Scene::LogWindow => {
+            // Lines of each level, one with a tag and one a session banner, so the colors
+            // and the columns can all be checked at once.
+            editor.log_window.seed(
+                [
+                    "--- Session 2026-09-20T09:00:00Z ---",
+                    "09:00:00.120 [INFO] Editor started",
+                    "09:00:01.044 [INFO] [magick] spawn: input.png -> preview.png (7 args)",
+                    "09:00:01.356 [INFO] [timings] Preview - 3 node(s) in 312ms, 1 magick process(es)",
+                    "09:00:04.870 [WARN] [magick] timed out after 30000ms: scan_042.tif",
+                    "09:00:05.001 [ERROR] corrupted_scan.jpg: decode error - unsupported colour space",
+                ]
+                .into_iter()
+                .map(crate::log_window::parse)
+                .collect(),
+            );
+        }
+        Scene::Showcase => editor.showcase.open = true,
+        Scene::OutputInspector => {
+            let target = editor
+                .studio
+                .workflow
+                .graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    node.kind
+                        == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::ImageOutput)
+                })
+                .map(|node| node.id.clone());
+            if let Some(target) = target {
+                editor.canvas.state.select_only([target.clone()]);
+                editor.selected_node = Some(target);
+                editor.sync_active_input();
+            }
+        }
+        Scene::ResizeInspector | Scene::RenameInspector => {
+            let definition = if scene == Scene::ResizeInspector {
+                "resize"
+            } else {
+                "rename"
+            };
+            let position = bite_schema::Position { x: 340.0, y: 340.0 };
+            if let Ok(id) = editor.studio.add_processing(definition, position) {
+                if scene == Scene::RenameInspector {
+                    // One block of each kind, so every badge and field shape is on screen.
+                    editor.studio.set_param(
+                        &id,
+                        "blocks".into(),
+                        bite_schema::ParamValue::Structured(
+                            bite_schema::StructuredParam::RenameBlocks {
+                                blocks: vec![
+                                    bite_schema::RenameBlock::Oldname {
+                                        find: "IMG".into(),
+                                        replace_with: "shot".into(),
+                                    },
+                                    bite_schema::RenameBlock::Text {
+                                        value: "_final".into(),
+                                    },
+                                    bite_schema::RenameBlock::Number {
+                                        start: 1.0,
+                                        pad: 3.0,
+                                    },
+                                ],
+                            },
+                        ),
+                    );
+                }
+                editor.canvas.state.select_only([id.clone()]);
+                editor.selected_node = Some(id);
+            }
+        }
+        Scene::FolderPath => {
+            if let Ok(id) = editor
+                .studio
+                .add_processing("folderpath", bite_schema::Position { x: 360.0, y: 190.0 })
+            {
+                editor.canvas.state.select_only([id.clone()]);
+                editor.selected_node = Some(id);
+            }
+        }
+        Scene::Tooltip => {}
+        Scene::Previewing => {
+            // The seed's Input and Image Output with a processing node wired between them.
+            let graph = &editor.studio.workflow.graph;
+            let input = graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    node.kind == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::Input)
+                })
+                .map(|node| node.id.clone());
+            let output = graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    node.kind
+                        == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::ImageOutput)
+                })
+                .map(|node| node.id.clone());
+            let middle = editor
+                .studio
+                .add_processing("grayscale", bite_schema::Position { x: 360.0, y: 190.0 })
+                .ok();
+            if let (Some(input), Some(output), Some(middle)) = (input, output, middle) {
+                let _ = editor
+                    .studio
+                    .connect(&input, "out:output", &middle, "in:input");
+                let _ = editor
+                    .studio
+                    .connect(&middle, "out:output", &output, "in:input");
+            }
+        }
+        Scene::ConfirmPrompt => {
+            editor.modal = crate::modals::Modal::Confirm {
+                message: crate::modals::confirm_message(crate::modals::PendingAction::New),
+                pending: crate::modals::PendingAction::New,
+            };
+        }
+        Scene::BatchSummary => {
+            editor.modal = crate::modals::Modal::BatchSummary(crate::modals::BatchSummary {
+                processed: 24,
+                skipped: 2,
+                failed: 1,
+                elapsed_ms: Some(4230),
+                errors: vec!["corrupted_scan.jpg: decode error - unsupported colour space".into()],
+                output_dir: Some("out".into()),
+            });
+        }
+        Scene::RunDialog => {
+            editor.modal = crate::modals::Modal::RunWorkflow {
+                nodes: vec![
+                    crate::modals::RunCandidate {
+                        id: "a".into(),
+                        label: "Image Output".into(),
+                        reasons: Vec::new(),
+                    },
+                    crate::modals::RunCandidate {
+                        id: "b".into(),
+                        label: "Text Output".into(),
+                        reasons: vec!["Output file path is empty".into()],
+                    },
+                ],
+            };
+        }
+        Scene::About => {
+            editor.modal = crate::modals::Modal::About {
+                versions: vec![
+                    ("ImageMagick".into(), "7.1.1".into()),
+                    ("Dear ImGui".into(), "1.92.9b".into()),
+                    ("sokol_gfx".into(), "b22a545".into()),
+                    ("winit".into(), "0.30".into()),
+                ],
+            };
+        }
+        Scene::Comment => {
+            let id = editor
+                .studio
+                .add_comment(bite_schema::Position { x: 120.0, y: 360.0 });
+            editor.studio.set_param(
+                &id,
+                "heading".into(),
+                bite_schema::ParamValue::String("Release checklist".into()),
+            );
+            editor.studio.set_param(
+                &id,
+                "body".into(),
+                bite_schema::ParamValue::String(
+                    "Resize to 2048, strip metadata, then convert to WEBP before the                      flipbook is built."
+                        .into(),
+                ),
+            );
+        }
+        Scene::Slider | Scene::Color | Scene::Dropdown | Scene::VectorInspector => {
+            // Sharpen carries two sliders, Tint a colour and a slider, Compare a list,
+            // and Vector 4 a component field for each of X, Y, Z and W.
+            let definition = match scene {
+                Scene::Slider => "sharpen",
+                Scene::Color => "tint",
+                Scene::VectorInspector => "value_vector4",
+                _ => "logic_comparison",
+            };
+            let position = bite_schema::Position { x: 320.0, y: 360.0 };
+            if let Ok(id) = editor.studio.add_processing(definition, position) {
+                editor.canvas.state.select_only([id.clone()]);
+                editor.selected_node = Some(id);
+            }
+        }
+        Scene::Cards => {
+            // Cards whose labels, rows and ports each exercise a different layout rule:
+            // a long header, an enum-only definition, a channel count and a computed row.
+            let definitions = [
+                "premultiply-alpha",
+                "channel_split",
+                "brightness_contrast",
+                "channel_merge",
+                "outline",
+                "format_convert",
+            ];
+            for (index, definition) in definitions.iter().enumerate() {
+                let position = bite_schema::Position {
+                    x: 120.0,
+                    y: 40.0 + index as f64 * 130.0,
+                };
+                let _ = editor.studio.add_processing(definition, position);
+            }
+            editor.canvas.state.viewport.y = -20.0;
+        }
+        Scene::Menu => {}
+        Scene::Credits => editor.modal = crate::modals::Modal::Credits,
+        Scene::Update => {
+            editor.modal = crate::modals::Modal::Update(crate::modals::UpdateState::Available {
+                version: "9.9.9".into(),
+                body: "Faster imports and a reworked inspector.".into(),
+                url: "https://example.invalid/release".into(),
+            });
+        }
+    }
+}
+
+/// The graphics stack a capture run draws through.
+///
+/// `sg::setup` is process-wide and must happen exactly once, so a run that captures twenty-five
+/// scenes brings the GPU up once and keeps it. Inline, not on a thread: the process is doing
+/// nothing else, so there is nothing for the bring-up to overlap with.
+struct Gpu {
+    /// Held so it outlives sokol_gfx, which runs on it.
+    _device: Device,
+}
+
+impl Gpu {
+    fn new() -> Result<Self, String> {
+        let device = Device::create(std::env::var_os("BITE_GPU").is_some_and(|v| v == "warp"))?;
+        let mut description = sg::Desc::new();
+        description.environment.defaults = sg::EnvironmentDefaults {
+            color_format: SWAPCHAIN_FORMAT,
+            depth_format: sg::PixelFormat::None,
+            sample_count: 1,
+        };
+        device.fill_environment(&mut description.environment);
+        description.logger = sg::Logger {
+            func: Some(sokol::log::slog_func),
+            user_data: std::ptr::null_mut(),
+        };
+        sg::setup(&description);
+        if !sg::isvalid() {
+            return Err("sokol_gfx could not be set up on the graphics device".into());
+        }
+        // SAFETY: sokol_gfx is up, no ImGui frame is open, and no context exists yet.
+        unsafe { imgui::setup_once(SWAPCHAIN_FORMAT) };
+        Ok(Self { _device: device })
+    }
+}
+
+impl Drop for Gpu {
+    fn drop(&mut self) {
+        // Deliberately no `simgui_shutdown`: it destroys the *current* ImGui context, which the
+        // caller still owns and will free itself. See `render::imgui`.
+        sg::shutdown();
+    }
+}
+
+/// Renders one scene to a portable network graphic.
+///
+/// Brings the GPU up for this one scene. [`capture_all`] does it once for the whole run instead,
+/// because `sg::setup` may only happen once in a process.
+pub fn capture(
+    scene: Scene,
+    output: &Path,
+    workflow: Option<&Path>,
+    size: (u32, u32),
+    scale: f32,
+) -> Result<(), String> {
+    let gpu = Gpu::new()?;
+    let result = capture_scene(scene, output, workflow, size, scale);
+    drop(gpu);
+    result
+}
+
+/// Renders one scene onto an already-running graphics stack.
+///
+/// The ImGui context is this scene's alone, created and destroyed here. A context carries popup
+/// stacks, window state and the modal-dimming ramp, so one shared across a run would let a scene
+/// inherit whatever the scene before it left open - which is how the first capture on the sokol
+/// shell came out with the confirmation dialog missing its dimmed backdrop. It is the graphics
+/// stack that has to be process-wide (`sg::setup`), not this.
+fn capture_scene(
+    scene: Scene,
+    output: &Path,
+    workflow: Option<&Path>,
+    size: (u32, u32),
+    scale: f32,
+) -> Result<(), String> {
+    let mut editor = app::Editor::new()?;
+    stage(&mut editor, scene, workflow);
+
+    let mut context = Context::new(scale)?;
+    let context = &mut context;
+    theme::apply_base_style();
+    // The scene's own thumbnails and previews, released with it.
+    let mut textures = Textures::default();
+    let textures = &mut textures;
+
+    let physical = (
+        (size.0 as f32 * scale) as u32,
+        (size.1 as f32 * scale) as u32,
+    );
+
+    let mut target = sg::ImageDesc::new();
+    target._type = sg::ImageType::Dim2;
+    target.usage.color_attachment = true;
+    target.width = physical.0 as i32;
+    target.height = physical.1 as i32;
+    target.num_mipmaps = 1;
+    target.pixel_format = SWAPCHAIN_FORMAT;
+    target.label = c"bite capture target".as_ptr();
+    let target = sg::make_image(&target);
+
+    let mut view = sg::ViewDesc::new();
+    view.color_attachment.image = target;
+    view.label = c"bite capture target".as_ptr();
+    let view = sg::make_view(&view);
+
+    if sg::query_image_state(target) != sg::ResourceState::Valid
+        || sg::query_view_state(view) != sg::ResourceState::Valid
+    {
+        sg::destroy_view(view);
+        sg::destroy_image(target);
+        return Err(format!(
+            "a {}x{} capture target could not be created",
+            physical.0, physical.1
+        ));
+    }
+
+    let mut pass = sg::Pass::new();
+    pass.attachments.colors[0] = view;
+    pass.action.colors[0] = sg::ColorAttachmentAction {
+        load_action: sg::LoadAction::Clear,
+        store_action: sg::StoreAction::Store,
+        clear_value: sg::Color {
+            r: theme::GAP_COLOR.0[0],
+            g: theme::GAP_COLOR.0[1],
+            b: theme::GAP_COLOR.0[2],
+            a: 1.0,
+        },
+    };
+
+    // A few frames let hover states, layout and the settle burst reach a steady state - and,
+    // since 1.92, let the atlas grow: a scene's first frame is the first to draw its own text,
+    // and the glyphs are rasterized and uploaded inside the frame that needs them.
+    //
+    // Every frame is drawn, not only the last. sokol_imgui is what *ends* an ImGui frame, so a
+    // warm-up that skipped the render would leave the context open and the next `igNewFrame`
+    // would assert. Only the last frame's pixels are read.
+    let logical = [size.0 as f32, size.1 as f32];
+    // A tooltip only appears once the pointer has rested past its delay.
+    let frames = if scene == Scene::Tooltip { 24 } else { 6 };
+    for frame in 0..frames {
+        if scene == Scene::Tooltip {
+            // The pointer rests on a library entry for longer than the tooltip's delay.
+            context.mouse_position(TOOLTIP_POINTER[0], TOOLTIP_POINTER[1]);
+        }
+        if scene == Scene::Dropdown {
+            context.mouse_position(DROPDOWN_POINTER[0], DROPDOWN_POINTER[1]);
+            context.mouse_button(bite_imgui::MouseButton::Left, frame == 1);
+        }
+        if scene == Scene::Menu {
+            // The dropdown is opened the way a person opens it, by pointing at the bar and
+            // pressing. It stays open for the rest of the frames.
+            context.mouse_position(MENU_POINTER[0], MENU_POINTER[1]);
+            context.mouse_button(bite_imgui::MouseButton::Left, frame == 1);
+        }
+        app::draw_frame(&mut editor, context, logical, scale, 1.0 / 60.0);
+        sg::begin_pass(&pass);
+        // SAFETY: a frame is open on the current context and a pass is open.
+        unsafe { imgui::render() };
+        sg::end_pass();
+        sg::commit();
+    }
+
+    let pixels = readback::rgba8(target, physical.0, physical.1)?;
+    sg::destroy_view(view);
+    sg::destroy_image(target);
+    // Nothing this scene uploaded may outlive it: the next starts from a fresh editor, whose
+    // identifiers would otherwise find this scene's images.
+    textures.free_where(|_| false);
+
+    write_png(&pixels, physical, output)?;
+    println!("Captured {} to {}", scene.name(), output.display());
+    Ok(())
+}
+
+/// Writes tightly packed RGBA8 pixels to a portable network graphic.
+fn write_png(pixels: &[u8], size: (u32, u32), output: &Path) -> Result<(), String> {
+    if let Some(parent) = output.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let file = std::fs::File::create(output).map_err(|error| error.to_string())?;
+    let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), size.0, size.1);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder.write_header().map_err(|error| error.to_string())?;
+    writer
+        .write_image_data(pixels)
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+/// Captures every scene into a directory.
+pub fn capture_all(
+    directory: &Path,
+    workflow: Option<&Path>,
+    size: (u32, u32),
+    scale: f32,
+) -> Result<Vec<PathBuf>, String> {
+    // One graphics stack for the whole run - `sg::setup` is process-wide and may only happen
+    // once - but an ImGui context per scene, so no scene inherits the one before it.
+    let gpu = Gpu::new()?;
+    let result = capture_each(directory, workflow, size, scale);
+    drop(gpu);
+    result
+}
+
+/// Every scene, onto an already-running graphics stack.
+fn capture_each(
+    directory: &Path,
+    workflow: Option<&Path>,
+    size: (u32, u32),
+    scale: f32,
+) -> Result<Vec<PathBuf>, String> {
+    let mut written = Vec::new();
+    for scene in Scene::all() {
+        let name = if (scale - 1.0).abs() < f32::EPSILON {
+            format!("{}.png", scene.name())
+        } else {
+            format!("{}@{scale}x.png", scene.name())
+        };
+        let output = directory.join(name);
+        capture_scene(scene, &output, workflow, size, scale)?;
+        written.push(output);
+    }
+    Ok(written)
+}
+
+/// The colors a capture is expected to contain, as a quick sanity check.
+pub fn expected_surface_colors() -> Vec<bite_imgui::Color> {
+    vec![theme::GAP_COLOR, theme::PANEL_BG, theme::PANEL_HEADER_BG]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_scene_has_a_stable_name_that_round_trips() {
+        for scene in Scene::all() {
+            assert_eq!(Scene::from_name(scene.name()), Some(scene));
+        }
+        assert_eq!(Scene::from_name("nonsense"), None);
+    }
+
+    #[test]
+    fn the_scene_list_covers_the_canvas_and_every_dialog() {
+        let scenes = Scene::all();
+        assert!(scenes.contains(&Scene::Seed));
+        assert!(scenes.contains(&Scene::CreateMenu));
+        assert!(scenes.contains(&Scene::BatchSummary));
+        assert!(scenes.contains(&Scene::Previewing));
+        assert!(scenes.contains(&Scene::LogWindow));
+        assert!(scenes.contains(&Scene::ResizeInspector));
+        assert!(scenes.contains(&Scene::VectorInspector));
+        assert_eq!(scenes.len(), 25);
+    }
+}

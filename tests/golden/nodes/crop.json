@@ -1,0 +1,371 @@
+{
+  "definition": {
+    "id": "crop",
+    "version": "1.0.0",
+    "label": "Crop",
+    "description": "Crop a rectangular region from the image",
+    "aliases": [
+      "cut",
+      "slice",
+      "region"
+    ],
+    "category": "Transform",
+    "icon": "crop",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "width",
+        "label": "Width",
+        "type": "int",
+        "widget": "slider",
+        "default": 1024,
+        "min": 1,
+        "max": 16384
+      },
+      {
+        "name": "height",
+        "label": "Height",
+        "type": "int",
+        "widget": "slider",
+        "default": 1024,
+        "min": 1,
+        "max": 16384
+      },
+      {
+        "name": "x",
+        "label": "X Offset",
+        "type": "int",
+        "widget": "slider",
+        "default": 0,
+        "min": 0,
+        "max": 16384
+      },
+      {
+        "name": "y",
+        "label": "Y Offset",
+        "type": "int",
+        "widget": "slider",
+        "default": 0,
+        "min": 0,
+        "max": 16384
+      }
+    ],
+    "command_template": "-crop {{width}}x{{height}}+{{x}}+{{y}} +repage"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "width-0",
+      "params": {
+        "width": 0,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "0x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "width-1",
+      "params": {
+        "width": -1,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "-1x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "width-2",
+      "params": {
+        "width": 0.5,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "0.5x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "width-3",
+      "params": {
+        "width": 1,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "width-4",
+      "params": {
+        "width": 16384,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "16384x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "height-0",
+      "params": {
+        "width": 1024,
+        "height": 0,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x0+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "height-1",
+      "params": {
+        "width": 1024,
+        "height": -1,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x-1+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "height-2",
+      "params": {
+        "width": 1024,
+        "height": 0.5,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x0.5+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "height-3",
+      "params": {
+        "width": 1024,
+        "height": 1,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "height-4",
+      "params": {
+        "width": 1024,
+        "height": 16384,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x16384+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "x-0",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "x-1",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": -1,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+-1+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "x-2",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0.5,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0.5+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "x-3",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "x-4",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 16384,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+16384+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "y-0",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "y-1",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": -1
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+-1",
+        "+repage"
+      ]
+    },
+    {
+      "name": "y-2",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": 0.5
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+0.5",
+        "+repage"
+      ]
+    },
+    {
+      "name": "y-3",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": 0
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+0",
+        "+repage"
+      ]
+    },
+    {
+      "name": "y-4",
+      "params": {
+        "width": 1024,
+        "height": 1024,
+        "x": 0,
+        "y": 16384
+      },
+      "expected_args": [
+        "-crop",
+        "1024x1024+0+16384",
+        "+repage"
+      ]
+    }
+  ]
+}

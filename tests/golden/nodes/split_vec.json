@@ -1,0 +1,202 @@
+{
+  "definition": {
+    "id": "split_vec",
+    "version": "1.0.0",
+    "label": "Split",
+    "description": "Breaks a vector or color into X, Y, Z, W float components",
+    "category": "Utility",
+    "inputs": [],
+    "outputs": [],
+    "executor": "split_vec",
+    "params": [
+      {
+        "name": "vec",
+        "label": "Vector",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "x",
+        "label": "X",
+        "type": "float",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      },
+      {
+        "name": "y",
+        "label": "Y",
+        "type": "float",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      },
+      {
+        "name": "z",
+        "label": "Z",
+        "type": "float",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      },
+      {
+        "name": "w",
+        "label": "W",
+        "type": "float",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "vec": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      },
+      "expected_params": {
+        "vec": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "vec-0",
+      "params": {
+        "vec": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      },
+      "expected_params": {
+        "vec": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "vec-1",
+      "params": {
+        "vec": -1,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      },
+      "expected_params": {
+        "vec": -1,
+        "x": -1,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "vec-2",
+      "params": {
+        "vec": 0.5,
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      },
+      "expected_params": {
+        "vec": 0.5,
+        "x": 0.5,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "vec-3",
+      "params": {
+        "vec": [
+          0,
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      },
+      "expected_params": {
+        "vec": [
+          0,
+          0
+        ],
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    },
+    {
+      "name": "vec-4",
+      "params": {
+        "vec": [
+          3,
+          0,
+          4
+        ],
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      },
+      "expected_params": {
+        "vec": [
+          3,
+          0,
+          4
+        ],
+        "x": 3,
+        "y": 0,
+        "z": 4,
+        "w": 0
+      }
+    },
+    {
+      "name": "vec-5",
+      "params": {
+        "vec": [
+          2
+        ],
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      },
+      "expected_params": {
+        "vec": [
+          2
+        ],
+        "x": 2,
+        "y": 0,
+        "z": 0,
+        "w": 0
+      }
+    }
+  ]
+}

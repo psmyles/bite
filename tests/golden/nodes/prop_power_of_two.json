@@ -1,0 +1,121 @@
+{
+  "definition": {
+    "id": "prop_power_of_two",
+    "version": "1.0.0",
+    "label": "Power of Two",
+    "description": "Returns true if both image dimensions are powers of two (1, 2, 4, 8, 16, ... 4096, etc.)",
+    "category": "Properties",
+    "inputs": [],
+    "outputs": [],
+    "executor": "prop_power_of_two",
+    "needs_image_meta": true,
+    "params": [
+      {
+        "name": "width_ok",
+        "label": "Width PoT",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false,
+        "readonly": true
+      },
+      {
+        "name": "height_ok",
+        "label": "Height PoT",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false,
+        "readonly": true
+      },
+      {
+        "name": "result",
+        "label": "Both PoT",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "width_ok": false,
+        "height_ok": false,
+        "result": false
+      },
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "width_ok": true,
+        "height_ok": false,
+        "result": false
+      }
+    },
+    {
+      "name": "defaults-no-meta",
+      "params": {
+        "width_ok": false,
+        "height_ok": false,
+        "result": false
+      },
+      "expected_params": {
+        "width_ok": false,
+        "height_ok": false,
+        "result": false
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "meta": {
+        "path": "/fixtures/photo.test.png",
+        "name": "photo.test.png",
+        "sizeBytes": 4096,
+        "width": 128,
+        "height": 75,
+        "bitDepth": 16,
+        "extension": "png",
+        "dpiX": 300,
+        "dpiY": 72,
+        "exif": {
+          "Make": "TestCam",
+          "FNumber": "28/10",
+          "FocalLength": "50/1",
+          "ISOSpeedRatings": "200,0",
+          "DateTimeOriginal": "2020:01:02 03:04:05"
+        }
+      },
+      "expected_params": {
+        "width_ok": true,
+        "height_ok": false,
+        "result": false
+      }
+    },
+    {
+      "name": "missing-no-meta",
+      "params": {},
+      "expected_params": {
+        "width_ok": false,
+        "height_ok": false,
+        "result": false
+      }
+    }
+  ]
+}

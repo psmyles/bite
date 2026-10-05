@@ -1,28 +1,37 @@
 {
-  "id": "solid_image",
-  "version": "1.0.0",
-  "label": "Solid Image",
-  "description": "Outputs a solid grayscale image with uniform brightness, sized to match the workflow input",
-  "aliases": ["fill", "flat color", "constant color"],
+  "aliases": [
+    "fill",
+    "flat color",
+    "constant color"
+  ],
   "category": "Channels",
+  "description": "Outputs a solid grayscale image with uniform brightness, sized to match the workflow input",
+  "id": "solid_image",
+  "implementation": {
+    "executor": "solid_image",
+    "type": "native"
+  },
   "inputs": [],
+  "label": "Solid Image",
   "outputs": [
     {
-      "type": "image",
-      "label": "Output"
+      "label": "Output",
+      "name": "output",
+      "type": "image"
     }
   ],
   "params": [
     {
-      "name": "value",
-      "label": "Value",
-      "type": "float",
-      "widget": "slider",
       "default": 1,
-      "min": 0,
+      "label": "Value",
       "max": 1,
-      "step": 0.01
+      "min": 0,
+      "name": "value",
+      "step": 0.01,
+      "type": "float",
+      "widget": "slider"
     }
   ],
-  "executor": "solid_image"
+  "schema_version": 2,
+  "version": "1.0.0"
 }

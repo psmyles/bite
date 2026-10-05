@@ -1,15 +1,18 @@
 # Bite pipeline test suite runner.
-# Generates deterministic fixture images, runs each wf-*.bite through bite,
-# and asserts the outputs. See README.md in this folder for the workflow specs.
+# Generates deterministic fixture images, runs each wf-*.bite through the Rust CLI
+# (target\release\bite.exe), and asserts the outputs. See README.md in this folder for the
+# workflow specs.
 #
 # Usage:
 #   .\run-tests.ps1                     # full suite
 #   .\run-tests.ps1 -Only wf-04         # single workflow
 #   .\run-tests.ps1 -Only wf-04 -AssertOnly   # verify outputs of a GUI run (no CLI execution)
+#   .\run-tests.ps1 -Cli path\to\bite.exe    # a specific build
 
 param(
   [string]$Only = '',
-  [switch]$AssertOnly
+  [switch]$AssertOnly,
+  [string]$Cli = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,23 +26,26 @@ $OutDir = Join-Path $Root 'out'
 $magick = (Get-Command magick -ErrorAction SilentlyContinue)?.Source
 if (-not $magick) { Write-Host 'ERROR: magick not found on PATH.' -ForegroundColor Red; exit 2 }
 
-$cliJs = Join-Path $RepoRoot 'dist-cli\cli-bundle.js'
-$cliExe = Join-Path $RepoRoot 'dist-cli\cli-bundle.exe'
-$node = (Get-Command node -ErrorAction SilentlyContinue)?.Source
-$CliInvoker = $null
-if ($node -and (Test-Path $cliJs)) {
-  $CliInvoker = { param([string[]]$CliArgs) & $node $cliJs @CliArgs 2>&1 }
-} elseif (Test-Path $cliExe) {
-  # NOTE: the pkg exe looks for node-definitions next to itself (dist-cli\node-definitions).
-  $CliInvoker = { param([string[]]$CliArgs) & $cliExe @CliArgs 2>&1 }
-  if (-not (Test-Path (Join-Path $RepoRoot 'dist-cli\node-definitions'))) {
-    Write-Host 'WARNING: using cli-bundle.exe but dist-cli\node-definitions does not exist - the exe may fail to load node definitions.' -ForegroundColor Yellow
+# The Rust CLI. A release build is preferred (the suite decodes and encodes a lot of images,
+# and third-party codecs are slow unoptimized); a debug build is accepted so the suite can run
+# straight after `cargo build`. Override with -Cli or $env:BITE_TEST_CLI.
+if (-not $Cli) { $Cli = $env:BITE_TEST_CLI }
+if (-not $Cli) {
+  foreach ($candidate in @(
+      (Join-Path $RepoRoot 'target\release\bite.exe'),
+      (Join-Path $RepoRoot 'target\debug\bite.exe'))) {
+    if (Test-Path $candidate) { $Cli = $candidate; break }
   }
 }
+if ($Cli -and -not (Test-Path $Cli)) {
+  Write-Host "ERROR: CLI not found at $Cli." -ForegroundColor Red; exit 2
+}
+$CliInvoker = if ($Cli) { { param([string[]]$CliArgs) & $Cli @CliArgs 2>&1 } } else { $null }
 if (-not $CliInvoker -and -not $AssertOnly) {
-  Write-Host 'ERROR: CLI not found. Run "npm run build" to produce dist-cli\cli-bundle.js.' -ForegroundColor Red
+  Write-Host 'ERROR: CLI not found. Run "cargo build --release -p bite-cli".' -ForegroundColor Red
   exit 2
 }
+if ($CliInvoker) { Write-Host "CLI: $Cli" -ForegroundColor DarkGray }
 
 function Invoke-Cli([string[]]$CliArgs) {
   $output = & $CliInvoker $CliArgs | Out-String

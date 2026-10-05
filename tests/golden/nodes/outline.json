@@ -1,0 +1,206 @@
+{
+  "definition": {
+    "id": "outline",
+    "version": "1.0.0",
+    "label": "Outline",
+    "description": "Add a solid-color border around transparent sprite edges using alpha channel dilation",
+    "aliases": [
+      "edge detect",
+      "border",
+      "stroke",
+      "dilation"
+    ],
+    "category": "FX",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "size",
+        "label": "Size",
+        "type": "int",
+        "widget": "slider",
+        "default": 2,
+        "min": 1,
+        "max": 50
+      },
+      {
+        "name": "color",
+        "label": "Color",
+        "type": "color",
+        "widget": "color-picker",
+        "default": "#000000"
+      }
+    ],
+    "command_js": "return [\n  '(', '+clone',\n  '-alpha', 'extract',\n  '-morphology', 'Dilate', 'Disk:' + params.size,\n  '-background', String(params.color),\n  '-alpha', 'Shape',\n  ')',\n  '+swap',\n  '-composite'\n]"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "size": 2,
+        "color": "#000000"
+      },
+      "expected_args": [
+        "(",
+        "+clone",
+        "-alpha",
+        "extract",
+        "-morphology",
+        "Dilate",
+        "Disk:2",
+        "-background",
+        "#000000",
+        "-alpha",
+        "Shape",
+        ")",
+        "+swap",
+        "-composite"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "(",
+        "+clone",
+        "-alpha",
+        "extract",
+        "-morphology",
+        "Dilate",
+        "Disk:undefined",
+        "-background",
+        "undefined",
+        "-alpha",
+        "Shape",
+        ")",
+        "+swap",
+        "-composite"
+      ]
+    },
+    {
+      "name": "size-0",
+      "params": {
+        "size": 0,
+        "color": "#000000"
+      },
+      "expected_args": [
+        "(",
+        "+clone",
+        "-alpha",
+        "extract",
+        "-morphology",
+        "Dilate",
+        "Disk:0",
+        "-background",
+        "#000000",
+        "-alpha",
+        "Shape",
+        ")",
+        "+swap",
+        "-composite"
+      ]
+    },
+    {
+      "name": "size-1",
+      "params": {
+        "size": -1,
+        "color": "#000000"
+      },
+      "expected_args": [
+        "(",
+        "+clone",
+        "-alpha",
+        "extract",
+        "-morphology",
+        "Dilate",
+        "Disk:-1",
+        "-background",
+        "#000000",
+        "-alpha",
+        "Shape",
+        ")",
+        "+swap",
+        "-composite"
+      ]
+    },
+    {
+      "name": "size-2",
+      "params": {
+        "size": 0.5,
+        "color": "#000000"
+      },
+      "expected_args": [
+        "(",
+        "+clone",
+        "-alpha",
+        "extract",
+        "-morphology",
+        "Dilate",
+        "Disk:0.5",
+        "-background",
+        "#000000",
+        "-alpha",
+        "Shape",
+        ")",
+        "+swap",
+        "-composite"
+      ]
+    },
+    {
+      "name": "size-3",
+      "params": {
+        "size": 1,
+        "color": "#000000"
+      },
+      "expected_args": [
+        "(",
+        "+clone",
+        "-alpha",
+        "extract",
+        "-morphology",
+        "Dilate",
+        "Disk:1",
+        "-background",
+        "#000000",
+        "-alpha",
+        "Shape",
+        ")",
+        "+swap",
+        "-composite"
+      ]
+    },
+    {
+      "name": "size-4",
+      "params": {
+        "size": 50,
+        "color": "#000000"
+      },
+      "expected_args": [
+        "(",
+        "+clone",
+        "-alpha",
+        "extract",
+        "-morphology",
+        "Dilate",
+        "Disk:50",
+        "-background",
+        "#000000",
+        "-alpha",
+        "Shape",
+        ")",
+        "+swap",
+        "-composite"
+      ]
+    }
+  ]
+}

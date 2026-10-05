@@ -1,80 +1,171 @@
 {
-  "id": "resize",
-  "version": "1.1.0",
-  "label": "Resize",
-  "description": "Resize image to target dimensions",
-  "aliases": ["scale", "resample", "dimensions"],
+  "aliases": [
+    "scale",
+    "resample",
+    "dimensions"
+  ],
   "category": "Transform",
+  "description": "Resize image to target dimensions",
   "icon": "resize",
-  "inputs": [{ "type": "image", "label": "Input" }],
-  "outputs": [{ "type": "image", "label": "Output" }],
-  "executor": "resize",
+  "id": "resize",
+  "implementation": {
+    "args": [
+      {
+        "args": [
+          "-density",
+          {
+            "expr": "round(density)"
+          },
+          "-units",
+          "PixelsPerInch"
+        ],
+        "when": "round(density) > 0"
+      },
+      "-filter",
+      {
+        "expr": "filter"
+      },
+      "-resize",
+      {
+        "cases": {
+          "relative": [
+            {
+              "expr": "if(preserve_aspect, format('{}%', max(1, scale)), format('{}%x{}%!', max(1, scale_width), max(1, scale_height)))"
+            }
+          ]
+        },
+        "default": [
+          {
+            "expr": "if(preserve_aspect, if(anchor == 'height', format('x{}', max(1, round(height))), str(max(1, round(width)))), format('{}x{}!', max(1, round(width)), max(1, round(height))))"
+          }
+        ],
+        "switch": "mode"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
+    {
+      "label": "Input",
+      "name": "input",
+      "type": "image"
+    }
+  ],
+  "label": "Resize",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
   "params": [
     {
-      "name": "mode",
-      "label": "Mode",
-      "type": "enum",
-      "widget": "dropdown",
       "default": "absolute",
-      "options": ["absolute", "relative"]
-    },
-    { "name": "width", "label": "Width", "type": "int", "widget": "slider", "default": 1024, "min": 1, "max": 16384 },
-    { "name": "height", "label": "Height", "type": "int", "widget": "slider", "default": 1024, "min": 1, "max": 16384 },
-    {
-      "name": "scale",
-      "label": "Scale",
-      "type": "float",
-      "widget": "slider",
-      "default": 100,
-      "min": 1,
-      "max": 800,
-      "step": 1
-    },
-    {
-      "name": "scale_width",
-      "label": "Scale Width",
-      "type": "float",
-      "widget": "slider",
-      "default": 100,
-      "min": 1,
-      "max": 800,
-      "step": 1
-    },
-    {
-      "name": "scale_height",
-      "label": "Scale Height",
-      "type": "float",
-      "widget": "slider",
-      "default": 100,
-      "min": 1,
-      "max": 800,
-      "step": 1
-    },
-    { "name": "preserve_aspect", "label": "Preserve Aspect", "type": "bool", "widget": "checkbox", "default": true },
-    {
-      "name": "anchor",
-      "label": "Anchor",
+      "label": "Mode",
+      "name": "mode",
+      "options": [
+        "absolute",
+        "relative"
+      ],
       "type": "enum",
-      "widget": "dropdown",
-      "default": "width",
-      "options": ["width", "height"]
+      "widget": "dropdown"
     },
     {
-      "name": "density",
-      "label": "Resolution",
+      "default": 1024,
+      "label": "Width",
+      "max": 16384,
+      "min": 1,
+      "name": "width",
       "type": "int",
-      "widget": "number",
-      "default": 72,
-      "min": 1,
-      "max": 9600
+      "visible_when": "mode == 'absolute' && (!preserve_aspect || anchor == 'width')",
+      "widget": "slider"
     },
     {
-      "name": "filter",
-      "label": "Filter",
+      "default": 1024,
+      "label": "Height",
+      "max": 16384,
+      "min": 1,
+      "name": "height",
+      "type": "int",
+      "visible_when": "mode == 'absolute' && (!preserve_aspect || anchor == 'height')",
+      "widget": "slider"
+    },
+    {
+      "default": 100,
+      "label": "Scale",
+      "max": 800,
+      "min": 1,
+      "name": "scale",
+      "step": 1,
+      "type": "float",
+      "visible_when": "mode == 'relative' && preserve_aspect",
+      "widget": "slider"
+    },
+    {
+      "default": 100,
+      "label": "Scale Width",
+      "max": 800,
+      "min": 1,
+      "name": "scale_width",
+      "step": 1,
+      "type": "float",
+      "visible_when": "mode == 'relative' && !preserve_aspect",
+      "widget": "slider"
+    },
+    {
+      "default": 100,
+      "label": "Scale Height",
+      "max": 800,
+      "min": 1,
+      "name": "scale_height",
+      "step": 1,
+      "type": "float",
+      "visible_when": "mode == 'relative' && !preserve_aspect",
+      "widget": "slider"
+    },
+    {
+      "default": true,
+      "label": "Preserve Aspect",
+      "name": "preserve_aspect",
+      "type": "bool",
+      "widget": "checkbox"
+    },
+    {
+      "default": "width",
+      "label": "Anchor",
+      "name": "anchor",
+      "options": [
+        "width",
+        "height"
+      ],
       "type": "enum",
-      "widget": "dropdown",
+      "visible_when": "mode == 'absolute' && preserve_aspect",
+      "widget": "dropdown"
+    },
+    {
+      "default": 72,
+      "label": "Resolution",
+      "max": 9600,
+      "min": 1,
+      "name": "density",
+      "type": "int",
+      "widget": "number"
+    },
+    {
       "default": "Lanczos",
-      "options": ["Lanczos", "Mitchell", "Catrom", "Point"]
+      "label": "Filter",
+      "name": "filter",
+      "options": [
+        "Lanczos",
+        "Mitchell",
+        "Catrom",
+        "Point"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
     }
-  ]
+  ],
+  "schema_version": 2,
+  "version": "1.1.0"
 }

@@ -1,0 +1,245 @@
+{
+  "definition": {
+    "id": "JPEG",
+    "extension": ".jpg",
+    "params": [
+      {
+        "name": "jpeg_quality",
+        "label": "Quality",
+        "type": "int",
+        "widget": "slider",
+        "min": 1,
+        "max": 100,
+        "default": 85
+      },
+      {
+        "name": "jpeg_sampling",
+        "label": "Chroma Subsampling",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "4:2:0",
+        "options": [
+          "4:4:4",
+          "4:2:2",
+          "4:2:0"
+        ]
+      },
+      {
+        "name": "jpeg_progressive",
+        "label": "Progressive",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false
+      }
+    ],
+    "args_js": "const a=['-quality',String(params.jpeg_quality??85),'-sampling-factor',String(params.jpeg_sampling??'4:2:0')]; if(params.jpeg_progressive===true)a.push('-interlace','Plane'); return a;"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "jpeg_quality": 85,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-quality",
+        "85",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_quality-0",
+      "params": {
+        "jpeg_quality": 0,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "0",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_quality-1",
+      "params": {
+        "jpeg_quality": -1,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "-1",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_quality-2",
+      "params": {
+        "jpeg_quality": 0.5,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "0.5",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_quality-3",
+      "params": {
+        "jpeg_quality": 1,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "1",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_quality-4",
+      "params": {
+        "jpeg_quality": 100,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "100",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_sampling-0",
+      "params": {
+        "jpeg_quality": 85,
+        "jpeg_sampling": "4:4:4",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-sampling-factor",
+        "4:4:4"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_sampling-1",
+      "params": {
+        "jpeg_quality": 85,
+        "jpeg_sampling": "4:2:2",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-sampling-factor",
+        "4:2:2"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_sampling-2",
+      "params": {
+        "jpeg_quality": 85,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_sampling-3",
+      "params": {
+        "jpeg_quality": 85,
+        "jpeg_sampling": "__invalid__",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-sampling-factor",
+        "__invalid__"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_progressive-0",
+      "params": {
+        "jpeg_quality": 85,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": false
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "jpeg_progressive-1",
+      "params": {
+        "jpeg_quality": 85,
+        "jpeg_sampling": "4:2:0",
+        "jpeg_progressive": true
+      },
+      "expected_args": [
+        "-quality",
+        "85",
+        "-sampling-factor",
+        "4:2:0",
+        "-interlace",
+        "Plane"
+      ],
+      "expected_extension": ".jpg"
+    },
+    {
+      "name": "legacy-quality",
+      "params": {
+        "quality": 42
+      },
+      "expected_args": [
+        "-quality",
+        "42",
+        "-sampling-factor",
+        "4:2:0"
+      ],
+      "expected_extension": ".jpg"
+    }
+  ]
+}

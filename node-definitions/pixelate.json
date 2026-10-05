@@ -1,22 +1,55 @@
 {
-  "id": "pixelate",
-  "version": "1.0.0",
-  "label": "Pixelate",
-  "description": "Scale down then back up with nearest-neighbor filtering to create intentional pixel-art blockiness",
-  "aliases": ["mosaic", "blocky", "pixel art"],
+  "aliases": [
+    "mosaic",
+    "blocky",
+    "pixel art"
+  ],
   "category": "Transform",
-  "inputs": [{ "type": "image", "label": "Input" }],
-  "outputs": [{ "type": "image", "label": "Output" }],
-  "params": [
+  "description": "Scale down then back up with nearest-neighbor filtering to create intentional pixel-art blockiness",
+  "id": "pixelate",
+  "implementation": {
+    "args": [
+      "-filter",
+      "Point",
+      "-resize",
+      {
+        "expr": "format('{}%', 100 / max(2, round(block_size)))"
+      },
+      "-filter",
+      "Point",
+      "-resize",
+      {
+        "expr": "format('{}%', max(2, round(block_size)) * 100)"
+      }
+    ],
+    "type": "imagemagick"
+  },
+  "inputs": [
     {
-      "name": "block_size",
-      "label": "Block Size",
-      "type": "int",
-      "widget": "slider",
-      "default": 8,
-      "min": 2,
-      "max": 64
+      "label": "Input",
+      "name": "input",
+      "type": "image"
     }
   ],
-  "command_js": "const b = Math.max(2, Math.round(params.block_size))\nreturn ['-filter', 'Point', '-resize', (100 / b) + '%', '-filter', 'Point', '-resize', (b * 100) + '%']"
+  "label": "Pixelate",
+  "outputs": [
+    {
+      "label": "Output",
+      "name": "output",
+      "type": "image"
+    }
+  ],
+  "params": [
+    {
+      "default": 8,
+      "label": "Block Size",
+      "max": 64,
+      "min": 2,
+      "name": "block_size",
+      "type": "int",
+      "widget": "slider"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }

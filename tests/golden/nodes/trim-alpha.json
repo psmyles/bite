@@ -1,0 +1,123 @@
+{
+  "definition": {
+    "id": "trim-alpha",
+    "version": "1.0.0",
+    "label": "Trim Alpha",
+    "description": "Auto-crop to the tight bounding box by removing transparent or near-transparent border pixels",
+    "aliases": [
+      "autocrop",
+      "trim transparent",
+      "crop alpha"
+    ],
+    "category": "Transform",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "fuzz",
+        "label": "Fuzz",
+        "type": "float",
+        "widget": "slider",
+        "default": 0,
+        "min": 0,
+        "max": 50,
+        "step": 0.5
+      }
+    ],
+    "command_template": "-fuzz {{fuzz}}% -trim +repage"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "fuzz": 0
+      },
+      "expected_args": [
+        "-fuzz",
+        "0%",
+        "-trim",
+        "+repage"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-fuzz",
+        "0%",
+        "-trim",
+        "+repage"
+      ]
+    },
+    {
+      "name": "fuzz-0",
+      "params": {
+        "fuzz": 0
+      },
+      "expected_args": [
+        "-fuzz",
+        "0%",
+        "-trim",
+        "+repage"
+      ]
+    },
+    {
+      "name": "fuzz-1",
+      "params": {
+        "fuzz": -1
+      },
+      "expected_args": [
+        "-fuzz",
+        "-1%",
+        "-trim",
+        "+repage"
+      ]
+    },
+    {
+      "name": "fuzz-2",
+      "params": {
+        "fuzz": 0.5
+      },
+      "expected_args": [
+        "-fuzz",
+        "0.5%",
+        "-trim",
+        "+repage"
+      ]
+    },
+    {
+      "name": "fuzz-3",
+      "params": {
+        "fuzz": 0
+      },
+      "expected_args": [
+        "-fuzz",
+        "0%",
+        "-trim",
+        "+repage"
+      ]
+    },
+    {
+      "name": "fuzz-4",
+      "params": {
+        "fuzz": 50
+      },
+      "expected_args": [
+        "-fuzz",
+        "50%",
+        "-trim",
+        "+repage"
+      ]
+    }
+  ]
+}

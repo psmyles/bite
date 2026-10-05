@@ -1,17 +1,61 @@
 {
-  "id": "value_vector3",
-  "version": "1.0.0",
-  "label": "Vector 3",
-  "description": "Outputs a constant Vector3 (X, Y, Z)",
   "category": "Values",
+  "description": "Outputs a constant Vector3 (X, Y, Z)",
+  "id": "value_vector3",
+  "implementation": {
+    "outputs": {
+      "x": "vec.x",
+      "xyz": "vec3(vec.x,vec.y,vec.z)",
+      "y": "vec.y",
+      "z": "vec.z"
+    },
+    "type": "compute"
+  },
   "inputs": [],
+  "label": "Vector 3",
   "outputs": [],
-  "executor": "value_vector3",
   "params": [
-    { "name": "vec", "label": "Vector", "type": "vector3", "widget": "vector", "default": [0, 0, 0], "noPort": true },
-    { "name": "xyz", "label": "XYZ", "type": "vector3", "readonly": true, "portOnly": true },
-    { "name": "x", "label": "X", "type": "float", "readonly": true, "portOnly": true },
-    { "name": "y", "label": "Y", "type": "float", "readonly": true, "portOnly": true },
-    { "name": "z", "label": "Z", "type": "float", "readonly": true, "portOnly": true }
-  ]
+    {
+      "default": [
+        0,
+        0,
+        0
+      ],
+      "label": "Vector",
+      "name": "vec",
+      "noPort": true,
+      "type": "vector3",
+      "widget": "vector"
+    },
+    {
+      "label": "XYZ",
+      "name": "xyz",
+      "portOnly": true,
+      "readonly": true,
+      "type": "vector3"
+    },
+    {
+      "label": "X",
+      "name": "x",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "Y",
+      "name": "y",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "Z",
+      "name": "z",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }
