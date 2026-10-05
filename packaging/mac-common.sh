@@ -168,7 +168,7 @@ mac_preflight() {
 # ---------------------------------------------------------------------------------------------
 # 2. Sync the Cargo workspace version to product.json
 # ---------------------------------------------------------------------------------------------
-# The twin of build-windows-installer.ps1's step 2, and here for the same reason: product.json is
+# The twin of `cargo xtask package-windows`'s step 2, and here for the same reason: product.json is
 # the single source of the version, but nothing in a `cargo build` reads it into a manifest, so
 # `[workspace.package] version` drifts silently until something that *does* read it disagrees
 # with the app. The only line-anchored `version = "..."` in the root manifest belongs to

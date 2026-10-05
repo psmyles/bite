@@ -1,41 +1,19 @@
-; Inno Setup script for Bite.
+; The Windows installer. Built by `cargo xtask package-windows`, which reads product.json (the
+; canonical source of product identity), draws the wizard images from the icon artwork into
+; target\package\wizard and passes it all as /D defines:
 ;
-; Do not run this directly - invoke packaging\build-windows-installer.ps1, which builds the
-; release binaries, reads product.json (the canonical source of product identity) and passes the
-; values below as /D defines. Defaults are provided so the script can also be opened standalone
-; in the Inno Setup IDE for editing.
+;   /DMyAppName=Bite /DMyAppVersion=0.5.2 /DMyAppPublisher=... /DMyAppCopyright=...
+;   /DMyAppExe=bite-gui.exe /DMyAppCliExe=bite.exe /DMyAppProgId=... /DMyAppTypeName=...
+;   /DMyAppExtension=.bite /DMyAppUrl=... /DSourceIcon=...\icon.ico
+;   /DWizardImages=a.png,b.png,... /DWizardSmallImages=... /DOutputDir=...\dist
 ;
-; Requires Inno Setup 6 (ISCC.exe). https://jrsoftware.org/isdl.php
+; Requires Inno Setup 6.5.2 or later (ISCC.exe). https://jrsoftware.org/isdl.php
 
-#ifndef MyAppName
-  #define MyAppName "Bite"
-#endif
 #ifndef MyAppVersion
-  #define MyAppVersion "0.0.0"
+  #error MyAppVersion is not defined; build with cargo xtask package-windows
 #endif
-#ifndef MyAppPublisher
-  #define MyAppPublisher "Chandan Singh"
-#endif
-#ifndef MyAppCopyright
-  #define MyAppCopyright "Copyright (c) 2026 Chandan Singh"
-#endif
-#ifndef MyAppExe
-  #define MyAppExe "bite-gui.exe"
-#endif
-#ifndef MyAppCliExe
-  #define MyAppCliExe "bite.exe"
-#endif
-#ifndef MyAppProgId
-  #define MyAppProgId "Bite.Workflow"
-#endif
-#ifndef MyAppTypeName
-  #define MyAppTypeName "Bite Workflow"
-#endif
-#ifndef MyAppExtension
-  #define MyAppExtension ".bite"
-#endif
-#ifndef MyAppUrl
-  #define MyAppUrl "https://github.com/psmyles/bite"
+#if VER < EncodeVer(6, 5, 2)
+  #error Inno Setup 6.5.2 or later is needed (PNG wizard images)
 #endif
 
 [Setup]
@@ -61,14 +39,20 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 AllowNoIcons=yes
 LicenseFile=..\LICENSE
-OutputDir=..\dist
+OutputDir={#OutputDir}
 OutputBaseFilename={#MyAppName}-Windows-{#MyAppVersion}-Setup
-SetupIconFile=..\build\icon.ico
+SetupIconFile={#SourceIcon}
 UninstallDisplayIcon={app}\{#MyAppExe}
 UninstallDisplayName={#MyAppName}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+; Drawn from the app icon for each display scale (xtask icons.rs). Centred, not stretched: the
+; large image's backdrop colour fills any space around it.
+WizardImageFile={#WizardImages}
+WizardSmallImageFile={#WizardSmallImages}
+WizardImageStretch=no
+WizardImageBackColor=$212121
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
@@ -102,7 +86,7 @@ Source: "..\format-definitions\*.json"; DestDir: "{app}\format-definitions"; Fla
 ; cost 210 MB of payload and took the installer from ~14 MB to ~70 MB: they are not byte-identical
 ; and sit 30 MB apart, so solid compression dedupes almost none of it. The listing below is
 ; deliberately explicit rather than a wildcard, so re-vendoring an upstream drop cannot silently
-; put them back (build-windows-installer.ps1 also fails the build if they reappear).
+; put them back (cargo xtask package-windows also fails the build if they reappear).
 Source: "..\resources\win\magick\magick.exe"; DestDir: "{app}\magick"; Flags: ignoreversion
 ; Colour names, locale strings, MIME types, the security policy, dither thresholds and the
 ; sRGB profile. The static build warns and falls back to built-in defaults without them.

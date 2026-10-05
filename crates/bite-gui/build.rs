@@ -10,7 +10,8 @@
 //!      taskbar draw, the name Task Manager lists, and the file-properties version tab.
 //!   4. Re-export the same strings as `BITE_*` compile-time environment variables, so the editor
 //!      reads them through `env!` instead of carrying its own copy. `product.json` is the one
-//!      source of truth - the packaging script reads it too, and syncs the workspace version.
+//!      source of truth - `cargo xtask package-windows` reads it too, and syncs the workspace
+//!      version.
 
 use std::{env, path::Path, path::PathBuf};
 
