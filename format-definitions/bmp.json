@@ -1,6 +1,8 @@
 {
-  "id": "BMP",
+  "args": [],
   "extension": ".bmp",
+  "id": "BMP",
   "params": [],
-  "args_js": "return [];"
+  "schema_version": 2,
+  "version": "1.0.0"
 }

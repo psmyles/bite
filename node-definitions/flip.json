@@ -1,32 +1,50 @@
 {
-  "id": "flip",
-  "version": "1.0.0",
-  "label": "Flip",
-  "description": "Mirror the image horizontally or vertically",
-  "aliases": ["mirror", "reflect", "horizontal flip", "vertical flip"],
+  "aliases": [
+    "mirror",
+    "reflect",
+    "horizontal flip",
+    "vertical flip"
+  ],
   "category": "Transform",
+  "description": "Mirror the image horizontally or vertically",
   "icon": "flip-horizontal",
+  "id": "flip",
+  "implementation": {
+    "args": [
+      {
+        "expr": "if(axis == 'vertical', '-flip', '-flop')"
+      }
+    ],
+    "type": "imagemagick"
+  },
   "inputs": [
     {
-      "type": "image",
-      "label": "Input"
+      "label": "Input",
+      "name": "input",
+      "type": "image"
     }
   ],
+  "label": "Flip",
   "outputs": [
     {
-      "type": "image",
-      "label": "Output"
+      "label": "Output",
+      "name": "output",
+      "type": "image"
     }
   ],
   "params": [
     {
-      "name": "axis",
-      "label": "Axis",
-      "type": "enum",
-      "widget": "dropdown",
       "default": "horizontal",
-      "options": ["horizontal", "vertical"]
+      "label": "Axis",
+      "name": "axis",
+      "options": [
+        "horizontal",
+        "vertical"
+      ],
+      "type": "enum",
+      "widget": "dropdown"
     }
   ],
-  "command_js": "return [params.axis === 'vertical' ? '-flip' : '-flop'];"
+  "schema_version": 2,
+  "version": "1.0.0"
 }

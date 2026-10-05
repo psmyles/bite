@@ -1,0 +1,416 @@
+{
+  "workflows": [
+    {
+      "workflow": "wf-01",
+      "outputs": [
+        {
+          "file": "alpha_grad_128.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "blue_256.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "checker_100x80.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "gray50_256.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "green_256.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "red_256.png",
+          "dimensions": "128x128"
+        }
+      ]
+    },
+    {
+      "workflow": "wf-02",
+      "outputs": [
+        {
+          "file": "report.txt",
+          "lines": [
+            "alpha_grad_128.png,png,<bytes>,128,128,true",
+            "blue_256.png,png,<bytes>,256,256,true",
+            "checker_100x80.png,png,<bytes>,100,80,false",
+            "gray50_256.png,png,<bytes>,256,256,true",
+            "green_256.png,png,<bytes>,256,256,true",
+            "red_256.png,png,<bytes>,256,256,true"
+          ]
+        }
+      ]
+    },
+    {
+      "workflow": "wf-03",
+      "outputs": [
+        {
+          "file": "report.txt",
+          "lines": [
+            "deep16_64.png,16,72",
+            "photo_300dpi.jpg,8,300"
+          ]
+        }
+      ]
+    },
+    {
+      "workflow": "wf-04",
+      "outputs": [
+        {
+          "file": "alpha_grad_128.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "blue_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "checker_100x80.png",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "gray50_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "green_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "red_256.png",
+          "dimensions": "256x256"
+        }
+      ]
+    },
+    {
+      "workflow": "wf-05",
+      "outputs": [
+        {
+          "file": "images/red_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "report.txt",
+          "lines": [
+            "alpha_grad_128.png,1,1,1,false",
+            "blue_256.png,0,0,1,false",
+            "checker_100x80.png,0.5,0.5,0.5,false",
+            "gray50_256.png,0.502,0.502,0.502,false",
+            "green_256.png,0,1,0,false",
+            "red_256.png,1,0,0,true"
+          ]
+        }
+      ]
+    },
+    {
+      "workflow": "wf-06",
+      "outputs": [
+        {
+          "file": "packed_alpha.png",
+          "dimensions": "64x64"
+        },
+        {
+          "file": "packed_beta.png",
+          "dimensions": "64x64"
+        }
+      ]
+    },
+    {
+      "workflow": "wf-07",
+      "outputs": [
+        {
+          "file": "red_256.png",
+          "dimensions": "256x256"
+        }
+      ]
+    },
+    {
+      "workflow": "wf-08",
+      "outputs": [
+        {
+          "file": "avif/alpha_grad_128.avif",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "avif/blue_256.avif",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "avif/checker_100x80.avif",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "avif/gray50_256.avif",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "avif/green_256.avif",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "avif/red_256.avif",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "bmp/alpha_grad_128.bmp",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "bmp/blue_256.bmp",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "bmp/checker_100x80.bmp",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "bmp/gray50_256.bmp",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "bmp/green_256.bmp",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "bmp/red_256.bmp",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "jpeg/alpha_grad_128.jpg",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "jpeg/blue_256.jpg",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "jpeg/checker_100x80.jpg",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "jpeg/gray50_256.jpg",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "jpeg/green_256.jpg",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "jpeg/red_256.jpg",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "png/alpha_grad_128.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "png/blue_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "png/checker_100x80.png",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "png/gray50_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "png/green_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "png/red_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "tga/alpha_grad_128.tga",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "tga/blue_256.tga",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "tga/checker_100x80.tga",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "tga/gray50_256.tga",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "tga/green_256.tga",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "tga/red_256.tga",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "tiff/alpha_grad_128.tif",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "tiff/blue_256.tif",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "tiff/checker_100x80.tif",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "tiff/gray50_256.tif",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "tiff/green_256.tif",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "tiff/red_256.tif",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "webp/alpha_grad_128.webp",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "webp/blue_256.webp",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "webp/checker_100x80.webp",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "webp/gray50_256.webp",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "webp/green_256.webp",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "webp/red_256.webp",
+          "dimensions": "256x256"
+        }
+      ]
+    },
+    {
+      "workflow": "wf-09",
+      "outputs": [
+        {
+          "file": "test_001_alpha_grad_128.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "test_002_blue_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "test_003_checker_100x80.png",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "test_004_gray50_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "test_005_green_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "test_006_red_256.png",
+          "dimensions": "256x256"
+        }
+      ]
+    },
+    {
+      "workflow": "wf-10",
+      "outputs": [
+        {
+          "file": "atlas.png",
+          "dimensions": "128x128"
+        }
+      ]
+    },
+    {
+      "workflow": "wf-11",
+      "outputs": [
+        {
+          "file": "images/alpha_grad_128.png",
+          "dimensions": "128x128"
+        },
+        {
+          "file": "images/blue_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "images/checker_100x80.png",
+          "dimensions": "100x80"
+        },
+        {
+          "file": "images/gray50_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "images/green_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "images/red_256.png",
+          "dimensions": "256x256"
+        },
+        {
+          "file": "report.txt",
+          "lines": [
+            "5,5,0.6,1024,OK",
+            "5,5,0.6,1024,OK",
+            "5,5,0.6,1024,OK",
+            "5,5,0.6,1024,OK",
+            "5,5,0.6,1024,OK",
+            "5,5,0.6,1024,OK"
+          ]
+        }
+      ]
+    }
+  ],
+  "cli_contract": [
+    {
+      "case": "overwrite",
+      "default": "skip",
+      "flag": "--overwrite",
+      "sentinel_preserved_without_flag": true,
+      "sentinel_replaced_with_flag": true
+    },
+    {
+      "case": "help",
+      "exit_code": 0,
+      "stdout": "bite\n\nCommands:\n  bite run <workflow.bite> [flags]\n\nFlags:\n  --<cliName> <path>   Named input/output defined in the workflow (see script comments)\n  --overwrite          Overwrite existing output files (default: skip)\n\nNamed flags correspond to the CLI Name set on each Input/Output node in the workflow.\nExport a CLI script from Bite (File -> Export CLI Script) to see the exact flags for\na given workflow.\n",
+      "stderr": ""
+    },
+    {
+      "case": "unknown-command",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "[Bite] Unknown command: \"unknown\". Run \"bite --help\" for usage.\n"
+    },
+    {
+      "case": "missing-workflow",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "[Bite] Missing workflow file argument.\nUsage: bite run <workflow.bite>\n"
+    },
+    {
+      "case": "missing-input",
+      "exit_code": 1,
+      "stdout": "[registry] Loaded 68 node definition(s)\n",
+      "stderr": "[Bite] Missing required flag: --in\n  Needed to run output node \"out\".\n  Export a CLI script from Bite to see all required flags.\n"
+    }
+  ]
+}

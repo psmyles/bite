@@ -1,0 +1,87 @@
+{
+  "definition": {
+    "id": "flip",
+    "version": "1.0.0",
+    "label": "Flip",
+    "description": "Mirror the image horizontally or vertically",
+    "aliases": [
+      "mirror",
+      "reflect",
+      "horizontal flip",
+      "vertical flip"
+    ],
+    "category": "Transform",
+    "icon": "flip-horizontal",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "axis",
+        "label": "Axis",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "horizontal",
+        "options": [
+          "horizontal",
+          "vertical"
+        ]
+      }
+    ],
+    "command_js": "return [params.axis === 'vertical' ? '-flip' : '-flop'];"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "axis": "horizontal"
+      },
+      "expected_args": [
+        "-flop"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-flop"
+      ]
+    },
+    {
+      "name": "axis-0",
+      "params": {
+        "axis": "horizontal"
+      },
+      "expected_args": [
+        "-flop"
+      ]
+    },
+    {
+      "name": "axis-1",
+      "params": {
+        "axis": "vertical"
+      },
+      "expected_args": [
+        "-flip"
+      ]
+    },
+    {
+      "name": "axis-2",
+      "params": {
+        "axis": "__invalid__"
+      },
+      "expected_args": [
+        "-flop"
+      ]
+    }
+  ]
+}

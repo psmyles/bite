@@ -1,0 +1,38 @@
+{
+  "source_sha256": "c3115afefc9151e02f9ba9f5a8f91263ec1d1ea396e449351436adac8c73775c",
+  "nodes": 7,
+  "edges": 7,
+  "execution_order": [
+    "input-1783250688891",
+    "prop_name-1783252116251",
+    "prop_filetype-1783252202661",
+    "prop_size-1783252224762",
+    "prop_dimensions-1783252253747",
+    "prop_power_of_two-1783252272287",
+    "textOutputNode-1783252092216"
+  ],
+  "outputs": [
+    {
+      "id": "textOutputNode-1783252092216",
+      "input": "input-1783250688891",
+      "contributors": [
+        "textOutputNode-1783252092216",
+        "input-1783250688891",
+        "prop_name-1783252116251",
+        "prop_filetype-1783252202661",
+        "prop_size-1783252224762",
+        "prop_dimensions-1783252253747",
+        "prop_power_of_two-1783252272287"
+      ]
+    }
+  ],
+  "descendants": [
+    {
+      "id": "input-1783250688891",
+      "nodes": [
+        "input-1783250688891",
+        "textOutputNode-1783252092216"
+      ]
+    }
+  ]
+}

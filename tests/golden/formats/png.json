@@ -1,0 +1,181 @@
+{
+  "definition": {
+    "id": "PNG",
+    "extension": ".png",
+    "params": [
+      {
+        "name": "png_compression",
+        "label": "Compression Level (0 = none, 9 = max)",
+        "type": "int",
+        "widget": "slider",
+        "min": 0,
+        "max": 9,
+        "default": 6
+      },
+      {
+        "name": "png_depth",
+        "label": "Bit Depth",
+        "type": "enum",
+        "widget": "dropdown",
+        "default": "8",
+        "options": [
+          "8",
+          "16"
+        ]
+      }
+    ],
+    "args_js": "return ['-define','png:compression-level='+String(params.png_compression??6),'-depth',String(params.png_depth??8)];"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "png_compression": 6,
+        "png_depth": "8"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=6",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-define",
+        "png:compression-level=6",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "png_compression-0",
+      "params": {
+        "png_compression": 0,
+        "png_depth": "8"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=0",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "png_compression-1",
+      "params": {
+        "png_compression": -1,
+        "png_depth": "8"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=-1",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "png_compression-2",
+      "params": {
+        "png_compression": 0.5,
+        "png_depth": "8"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=0.5",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "png_compression-3",
+      "params": {
+        "png_compression": 0,
+        "png_depth": "8"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=0",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "png_compression-4",
+      "params": {
+        "png_compression": 9,
+        "png_depth": "8"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=9",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "png_depth-0",
+      "params": {
+        "png_compression": 6,
+        "png_depth": "8"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=6",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "png_depth-1",
+      "params": {
+        "png_compression": 6,
+        "png_depth": "16"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=6",
+        "-depth",
+        "16"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "png_depth-2",
+      "params": {
+        "png_compression": 6,
+        "png_depth": "__invalid__"
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=6",
+        "-depth",
+        "__invalid__"
+      ],
+      "expected_extension": ".png"
+    },
+    {
+      "name": "legacy-quality",
+      "params": {
+        "quality": 42
+      },
+      "expected_args": [
+        "-define",
+        "png:compression-level=6",
+        "-depth",
+        "8"
+      ],
+      "expected_extension": ".png"
+    }
+  ]
+}

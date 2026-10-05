@@ -1,0 +1,109 @@
+{
+  "definition": {
+    "id": "saturation",
+    "version": "1.0.0",
+    "label": "Saturation",
+    "description": "Adjust the saturation of an image",
+    "aliases": [
+      "vibrance",
+      "chroma",
+      "color intensity"
+    ],
+    "category": "Color",
+    "icon": "palette",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "saturation",
+        "label": "Saturation",
+        "type": "int",
+        "widget": "slider",
+        "default": 100,
+        "min": 0,
+        "max": 200
+      }
+    ],
+    "command_template": "-modulate 100,{{saturation}},100"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "saturation": 100
+      },
+      "expected_args": [
+        "-modulate",
+        "100,100,100"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-modulate",
+        "100,100,100"
+      ]
+    },
+    {
+      "name": "saturation-0",
+      "params": {
+        "saturation": 0
+      },
+      "expected_args": [
+        "-modulate",
+        "100,0,100"
+      ]
+    },
+    {
+      "name": "saturation-1",
+      "params": {
+        "saturation": -1
+      },
+      "expected_args": [
+        "-modulate",
+        "100,-1,100"
+      ]
+    },
+    {
+      "name": "saturation-2",
+      "params": {
+        "saturation": 0.5
+      },
+      "expected_args": [
+        "-modulate",
+        "100,0.5,100"
+      ]
+    },
+    {
+      "name": "saturation-3",
+      "params": {
+        "saturation": 0
+      },
+      "expected_args": [
+        "-modulate",
+        "100,0,100"
+      ]
+    },
+    {
+      "name": "saturation-4",
+      "params": {
+        "saturation": 200
+      },
+      "expected_args": [
+        "-modulate",
+        "100,200,100"
+      ]
+    }
+  ]
+}

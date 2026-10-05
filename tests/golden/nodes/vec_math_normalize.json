@@ -1,0 +1,142 @@
+{
+  "definition": {
+    "id": "vec_math_normalize",
+    "version": "1.0.0",
+    "label": "Normalize",
+    "description": "Unit vector (length = 1)",
+    "category": "Math",
+    "inputs": [],
+    "outputs": [],
+    "executor": "vec_math_normalize",
+    "params": [
+      {
+        "name": "vec",
+        "label": "Vector",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "numeric",
+        "widget": "number",
+        "default": 0,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "vec": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "vec": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "result": 0
+      }
+    },
+    {
+      "name": "vec-0",
+      "params": {
+        "vec": 0,
+        "result": 0
+      },
+      "expected_params": {
+        "vec": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "vec-1",
+      "params": {
+        "vec": -1,
+        "result": 0
+      },
+      "expected_params": {
+        "vec": -1,
+        "result": -1
+      }
+    },
+    {
+      "name": "vec-2",
+      "params": {
+        "vec": 0.5,
+        "result": 0
+      },
+      "expected_params": {
+        "vec": 0.5,
+        "result": 1
+      }
+    },
+    {
+      "name": "vec-3",
+      "params": {
+        "vec": [
+          0,
+          0
+        ],
+        "result": 0
+      },
+      "expected_params": {
+        "vec": [
+          0,
+          0
+        ],
+        "result": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "vec-4",
+      "params": {
+        "vec": [
+          3,
+          0,
+          4
+        ],
+        "result": 0
+      },
+      "expected_params": {
+        "vec": [
+          3,
+          0,
+          4
+        ],
+        "result": [
+          0.6,
+          0,
+          0.8
+        ]
+      }
+    },
+    {
+      "name": "vec-5",
+      "params": {
+        "vec": [
+          2
+        ],
+        "result": 0
+      },
+      "expected_params": {
+        "vec": [
+          2
+        ],
+        "result": [
+          1
+        ]
+      }
+    }
+  ]
+}

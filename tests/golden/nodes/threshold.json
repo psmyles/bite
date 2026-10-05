@@ -1,0 +1,109 @@
+{
+  "definition": {
+    "id": "threshold",
+    "version": "1.0.0",
+    "label": "Threshold",
+    "description": "Convert to a pure black-and-white mask by cutting at a percentage brightness level",
+    "aliases": [
+      "mask",
+      "black white cutoff",
+      "binary"
+    ],
+    "category": "Color",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "value",
+        "label": "Threshold",
+        "type": "float",
+        "widget": "slider",
+        "default": 50,
+        "min": 0,
+        "max": 100,
+        "step": 1
+      }
+    ],
+    "command_template": "-threshold {{value}}%"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "value": 50
+      },
+      "expected_args": [
+        "-threshold",
+        "50%"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-threshold",
+        "50%"
+      ]
+    },
+    {
+      "name": "value-0",
+      "params": {
+        "value": 0
+      },
+      "expected_args": [
+        "-threshold",
+        "0%"
+      ]
+    },
+    {
+      "name": "value-1",
+      "params": {
+        "value": -1
+      },
+      "expected_args": [
+        "-threshold",
+        "-1%"
+      ]
+    },
+    {
+      "name": "value-2",
+      "params": {
+        "value": 0.5
+      },
+      "expected_args": [
+        "-threshold",
+        "0.5%"
+      ]
+    },
+    {
+      "name": "value-3",
+      "params": {
+        "value": 0
+      },
+      "expected_args": [
+        "-threshold",
+        "0%"
+      ]
+    },
+    {
+      "name": "value-4",
+      "params": {
+        "value": 100
+      },
+      "expected_args": [
+        "-threshold",
+        "100%"
+      ]
+    }
+  ]
+}

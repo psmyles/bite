@@ -1,25 +1,70 @@
 {
-  "id": "value_vector4",
-  "version": "1.0.0",
-  "label": "Vector 4",
-  "description": "Outputs a constant Vector4 (X, Y, Z, W)",
   "category": "Values",
+  "description": "Outputs a constant Vector4 (X, Y, Z, W)",
+  "id": "value_vector4",
+  "implementation": {
+    "outputs": {
+      "w": "vec.w",
+      "x": "vec.x",
+      "xyzw": "vec4(vec.x,vec.y,vec.z,vec.w)",
+      "y": "vec.y",
+      "z": "vec.z"
+    },
+    "type": "compute"
+  },
   "inputs": [],
+  "label": "Vector 4",
   "outputs": [],
-  "executor": "value_vector4",
   "params": [
     {
-      "name": "vec",
+      "default": [
+        0,
+        0,
+        0,
+        0
+      ],
       "label": "Vector",
+      "name": "vec",
+      "noPort": true,
       "type": "vector4",
-      "widget": "vector",
-      "default": [0, 0, 0, 0],
-      "noPort": true
+      "widget": "vector"
     },
-    { "name": "xyzw", "label": "XYZW", "type": "vector4", "readonly": true, "portOnly": true },
-    { "name": "x", "label": "X", "type": "float", "readonly": true, "portOnly": true },
-    { "name": "y", "label": "Y", "type": "float", "readonly": true, "portOnly": true },
-    { "name": "z", "label": "Z", "type": "float", "readonly": true, "portOnly": true },
-    { "name": "w", "label": "W", "type": "float", "readonly": true, "portOnly": true }
-  ]
+    {
+      "label": "XYZW",
+      "name": "xyzw",
+      "portOnly": true,
+      "readonly": true,
+      "type": "vector4"
+    },
+    {
+      "label": "X",
+      "name": "x",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "Y",
+      "name": "y",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "Z",
+      "name": "z",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    },
+    {
+      "label": "W",
+      "name": "w",
+      "portOnly": true,
+      "readonly": true,
+      "type": "float"
+    }
+  ],
+  "schema_version": 2,
+  "version": "1.0.0"
 }

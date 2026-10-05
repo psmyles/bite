@@ -1,0 +1,30 @@
+{
+  "definition": {
+    "id": "BMP",
+    "extension": ".bmp",
+    "params": [],
+    "args_js": "return [];"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {},
+      "expected_args": [],
+      "expected_extension": ".bmp"
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [],
+      "expected_extension": ".bmp"
+    },
+    {
+      "name": "legacy-quality",
+      "params": {
+        "quality": 42
+      },
+      "expected_args": [],
+      "expected_extension": ".bmp"
+    }
+  ]
+}

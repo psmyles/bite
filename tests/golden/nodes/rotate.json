@@ -1,0 +1,137 @@
+{
+  "definition": {
+    "id": "rotate",
+    "version": "1.0.0",
+    "label": "Rotate",
+    "description": "Rotate image by an arbitrary angle",
+    "aliases": [
+      "spin",
+      "turn",
+      "orientation"
+    ],
+    "category": "Transform",
+    "icon": "rotate-cw",
+    "inputs": [
+      {
+        "type": "image",
+        "label": "Input"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "image",
+        "label": "Output"
+      }
+    ],
+    "params": [
+      {
+        "name": "angle",
+        "label": "Angle (deg)",
+        "type": "float",
+        "widget": "slider",
+        "default": 0,
+        "min": -360,
+        "max": 360,
+        "step": 0.5
+      },
+      {
+        "name": "background",
+        "label": "Background Color",
+        "type": "color",
+        "widget": "color-picker",
+        "default": "#000000"
+      }
+    ],
+    "command_template": "-background {{background}} -rotate {{angle}}"
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "angle": 0,
+        "background": "#000000"
+      },
+      "expected_args": [
+        "-background",
+        "#000000",
+        "-rotate",
+        "0"
+      ]
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_args": [
+        "-background",
+        "#000000",
+        "-rotate",
+        "0"
+      ]
+    },
+    {
+      "name": "angle-0",
+      "params": {
+        "angle": 0,
+        "background": "#000000"
+      },
+      "expected_args": [
+        "-background",
+        "#000000",
+        "-rotate",
+        "0"
+      ]
+    },
+    {
+      "name": "angle-1",
+      "params": {
+        "angle": -1,
+        "background": "#000000"
+      },
+      "expected_args": [
+        "-background",
+        "#000000",
+        "-rotate",
+        "-1"
+      ]
+    },
+    {
+      "name": "angle-2",
+      "params": {
+        "angle": 0.5,
+        "background": "#000000"
+      },
+      "expected_args": [
+        "-background",
+        "#000000",
+        "-rotate",
+        "0.5"
+      ]
+    },
+    {
+      "name": "angle-3",
+      "params": {
+        "angle": -360,
+        "background": "#000000"
+      },
+      "expected_args": [
+        "-background",
+        "#000000",
+        "-rotate",
+        "-360"
+      ]
+    },
+    {
+      "name": "angle-4",
+      "params": {
+        "angle": 360,
+        "background": "#000000"
+      },
+      "expected_args": [
+        "-background",
+        "#000000",
+        "-rotate",
+        "360"
+      ]
+    }
+  ]
+}

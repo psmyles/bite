@@ -1,0 +1,119 @@
+{
+  "definition": {
+    "id": "logic_and",
+    "version": "1.0.0",
+    "label": "And",
+    "description": "A AND B",
+    "category": "Logic",
+    "inputs": [],
+    "outputs": [],
+    "executor": "logic_and",
+    "params": [
+      {
+        "name": "a",
+        "label": "A",
+        "type": "any",
+        "default": null
+      },
+      {
+        "name": "b",
+        "label": "B",
+        "type": "any",
+        "default": null
+      },
+      {
+        "name": "result",
+        "label": "Result",
+        "type": "bool",
+        "widget": "checkbox",
+        "default": false,
+        "readonly": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "defaults",
+      "params": {
+        "a": null,
+        "b": null,
+        "result": false
+      },
+      "expected_params": {
+        "a": null,
+        "b": null,
+        "result": false
+      }
+    },
+    {
+      "name": "missing",
+      "params": {},
+      "expected_params": {
+        "result": false
+      }
+    },
+    {
+      "name": "broadcast-2",
+      "params": {
+        "a": [
+          1,
+          2,
+          3
+        ],
+        "b": [
+          4
+        ],
+        "result": false
+      },
+      "expected_params": {
+        "a": [
+          1,
+          2,
+          3
+        ],
+        "b": [
+          4
+        ],
+        "result": true
+      }
+    },
+    {
+      "name": "broadcast-3",
+      "params": {
+        "a": 2,
+        "b": [
+          3,
+          4
+        ],
+        "result": false
+      },
+      "expected_params": {
+        "a": 2,
+        "b": [
+          3,
+          4
+        ],
+        "result": true
+      }
+    },
+    {
+      "name": "broadcast-4",
+      "params": {
+        "a": [
+          1,
+          0
+        ],
+        "b": 0,
+        "result": false
+      },
+      "expected_params": {
+        "a": [
+          1,
+          0
+        ],
+        "b": 0,
+        "result": false
+      }
+    }
+  ]
+}
