@@ -70,19 +70,21 @@ asserting the actual encoded output; see `test-workflows/README.md`.
 
 ```bash
 cargo build --release                                # both binaries
-pwsh packaging/build-windows-installer.ps1           # Windows: installer in dist/
+cargo xtask package-windows                          # Windows: installer in dist/
 packaging/build-mac-release.sh                       # macOS: signed, notarized .dmg in dist/
 ```
 
-`packaging/build-windows-installer.ps1` is the whole distribution build: it syncs the crate
-version to `product.json`, regenerates the icons, builds `bite-gui.exe` and `bite.exe`, checks
-the payload (bundled ImageMagick, node and format definitions, license notices) and compiles
-`packaging/bite.iss` with [Inno Setup 6](https://jrsoftware.org/isdl.php), producing
-`dist/Bite-Windows-<version>-Setup.exe`.
+`cargo xtask package-windows` is the whole Windows distribution build: it syncs the crate
+version to `product.json`, redraws the icons if the artwork changed, builds `bite-gui.exe` and
+`bite.exe`, checks the payload (bundled ImageMagick, node and format definitions, license
+notices), draws the wizard images and compiles `packaging/bite.iss` with
+[Inno Setup](https://jrsoftware.org/isdl.php) 6.5.2 or later, producing
+`dist/Bite-Windows-<version>-Setup.exe`. Pass `--no-build` to reuse `target/release` as it
+stands.
 
 `product.json` is the single source of the product name, version and publisher: both `build.rs`
-files read it into the executables' Windows version resources, and the packaging script passes it
-to the installer. Bump it there and re-run the script.
+files read it into the executables' Windows version resources, and the packaging passes it to
+the installer. Bump it there and re-run `cargo xtask package-windows`.
 
 The installer lays both binaries out in one directory with `node-definitions/`,
 `format-definitions/` and `magick/` beside them, which is how each finds the other's
@@ -92,10 +94,13 @@ integration in `unity-tools/` looks for it) or machine-wide when elevated.
 
 #### Icons
 
-`build/icons/icon.png` is the one master. `scripts/generate-icons.ps1` renders it into
-`build/icon.ico` (embedded in both executables by their `build.rs`, and the installer's wizard
-icon) and `crates/bite-gui/assets/icon-256.png` (the window and taskbar icon). The
-packaging script runs it for you.
+`build/icons/icon.png` is the one master. `cargo xtask icons` draws it into `build/icon.ico`
+(embedded in both executables by their `build.rs`, and the installer's icon) and
+`crates/bite-gui/assets/icon-256.png` (the window and taskbar icon). Both are committed, and a
+test fails until they match the artwork, so after changing it run `cargo xtask icons` and
+commit the result; `package-windows` redraws them for you too. The installer's wizard images
+are drawn from the same artwork at each display scale, at packaging time
+(`cargo xtask icons --preview DIR` writes them out to look at).
 
 #### macOS
 

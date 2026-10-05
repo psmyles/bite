@@ -204,7 +204,7 @@ dependencies = [
 
 [[package]]
 name = "bite-cli"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bite-core",
  "bite-expr",
@@ -217,7 +217,7 @@ dependencies = [
 
 [[package]]
 name = "bite-core"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bite-expr",
  "bite-schema",
@@ -228,7 +228,7 @@ dependencies = [
 
 [[package]]
 name = "bite-expr"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bite-schema",
  "serde",
@@ -237,7 +237,7 @@ dependencies = [
 
 [[package]]
 name = "bite-gui"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "arboard",
  "bite-core",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "bite-imagemagick"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bite-core",
  "bite-expr",
@@ -276,14 +276,14 @@ dependencies = [
 
 [[package]]
 name = "bite-imgui"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bite-imgui-sys",
 ]
 
 [[package]]
 name = "bite-imgui-sys"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bindgen",
  "cc",
@@ -291,7 +291,7 @@ dependencies = [
 
 [[package]]
 name = "bite-schema"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "schemars",
  "serde",
@@ -3269,6 +3269,14 @@ name = "xkeysym"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
+
+[[package]]
+name = "xtask"
+version = "0.5.2"
+dependencies = [
+ "image",
+ "serde_json",
+]
 
 [[package]]
 name = "yoke"

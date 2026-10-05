@@ -2,7 +2,8 @@
 //! CLI carries the same icon and version information as the editor. The editor's build script
 //! (`crates/bite-gui/build.rs`) documents the arrangement; this one needs no
 //! `BITE_*` exports, because the CLI prints its version from `CARGO_PKG_VERSION`, which the
-//! packaging script keeps synced to `product.json`.
+//! packaging (`cargo xtask package-windows`, `packaging/mac-common.sh`) keeps synced to
+//! `product.json`.
 
 use std::{env, path::Path};
 
