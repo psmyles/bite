@@ -11,6 +11,7 @@ use crate::{
 use bite_core::Registry;
 use bite_imgui::{Rounding, StyleVar, Ui, WindowFlags};
 use bite_schema::{BuiltinNodeKind, GraphNode, NodeKind, ParamValue, ProcessingNodeKind};
+use std::collections::BTreeMap;
 
 /// An edit the inspector asks the application to apply.
 #[derive(Clone, Debug, PartialEq)]
@@ -19,6 +20,12 @@ pub enum Edit {
         node: String,
         name: String,
         value: ParamValue,
+    },
+    /// One of a Process As Set's suffixes removed. Naming it, rather than sending the
+    /// shorter list, is what lets the wires of the suffixes after it follow them exactly.
+    RemoveSetSuffix {
+        node: String,
+        index: usize,
     },
     /// A per-node run folder, which is not part of the graph.
     SetRuntimePath {
@@ -93,10 +100,16 @@ pub fn node_label(node: &GraphNode, registry: &Registry) -> String {
 pub struct InspectorContext<'a> {
     pub registry: &'a Registry,
     pub graph: &'a bite_schema::Graph,
-    /// Live values from the preview run for this node.
-    pub resolved: Option<&'a std::collections::BTreeMap<String, ParamValue>>,
+    /// Live values from the preview run, for every node by id. A wired row shows what its
+    /// source works out rather than only what it stores, so the inspector needs them all.
+    pub resolved: &'a BTreeMap<String, BTreeMap<String, ParamValue>>,
     /// File names imported for the selected Input branch, for the previews.
     pub image_names: &'a [String],
+    /// The file the filmstrip has selected in that branch, which the Input inspector's
+    /// file list highlights as `.file-entry.active` did.
+    pub selected_index: Option<usize>,
+    /// True while an import is under way, when the Import button says so.
+    pub importing: bool,
     /// The pixel size of the filmstrip's selected image, which the Resize preview works
     /// its output dimensions out from. Nothing selected means no preview, as in Electron.
     pub selected_image: Option<[u32; 2]>,
@@ -121,8 +134,33 @@ pub struct InspectorState {
     pub text_preview: Vec<String>,
     pub text_preview_pending: bool,
     pub tooltip: controls::HoverTimer,
-    /// One picker's mode and hue per colour parameter, which outlive the frame that drew it.
+    /// One picker's mode and hue per node and colour parameter, which outlive the frame
+    /// that drew it.
     pub pickers: crate::color_picker::States,
+    /// The row being dragged in one of the reorderable lists, if any.
+    pub reorder: Option<Reorder>,
+}
+
+/// A drag under way in one of the inspector's reorderable lists: the Rename blocks or the
+/// Text Output's port order.
+///
+/// As in the Svelte lists, the rows show their new order while the drag lasts and the
+/// parameter is only written when the button is let go.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Reorder {
+    /// Which list the drag belongs to, so one node's drag never moves another's rows.
+    pub list: String,
+    /// The row picked up, as an index into the stored list.
+    pub from: usize,
+    /// Where it would land if dropped now.
+    pub over: usize,
+}
+
+impl InspectorContext<'_> {
+    /// The live values the preview worked out for one node.
+    pub fn resolved_for(&self, node: &str) -> Option<&BTreeMap<String, ParamValue>> {
+        self.resolved.get(node)
+    }
 }
 
 impl InspectorState {
@@ -206,6 +244,12 @@ pub fn draw(
                 },
             );
         });
+
+        // A drag whose list was not drawn this frame, because the node was deselected
+        // mid-drag, ends with the button rather than lingering until the list returns.
+        if !ui.mouse_down(bite_imgui::MouseButton::Left) {
+            state.reorder = None;
+        }
 
         // The primary action sits in a bordered footer at the bottom of the panel.
         let footer_top = rect.max[1] - footer_height;

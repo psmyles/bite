@@ -11,7 +11,10 @@ use crate::{
     theme,
 };
 use bite_core::{graph::WireType, Registry};
-use bite_imgui::{Color, MouseButton, MouseCursor, Rounding, Ui, Vec2, WindowFlags};
+use bite_imgui::{
+    Color, InputFlags, Key, MouseButton, MouseCursor, Rounding, StyleColor, StyleVar, Ui, Vec2,
+    WindowFlags,
+};
 use bite_schema::{BuiltinNodeKind, Graph, GraphNode, NodeKind, ParamValue, ProcessingNodeKind};
 use std::collections::BTreeMap;
 
@@ -90,6 +93,8 @@ struct Placed {
     is_comment: bool,
     /// A comment's own heading and body, which are drawn rather than laid out as rows.
     note: Option<(String, String)>,
+    /// The definition's description, which the header shows as a tooltip.
+    description: Option<String>,
 }
 
 impl Placed {
@@ -111,10 +116,21 @@ pub struct Canvas {
     pub tooltip: HoverTimer,
     /// Node positions captured when a drag began, so the move is applied as one delta.
     drag_start: BTreeMap<String, Vec2>,
-    /// The comment or group whose text is being edited inline.
+    /// The comment or group whose text is being edited inline, as its id and the parameter
+    /// being edited: `heading` or `body` for a comment, `name` for a group.
     pub editing: Option<(String, String)>,
     pub editing_buffer: String,
+    /// Set when the inline field must take keyboard focus the next time it is drawn.
+    editing_focus: bool,
+    /// True once the inline field has been active, so that losing it reads as a blur rather
+    /// than as a field that has yet to take focus.
+    editing_active: bool,
+    /// Frames since the inline field opened, which bounds the wait for it to take focus.
+    editing_frames: u32,
 }
+
+/// Frames the inline field may take to become active before the edit is abandoned.
+const EDITING_FOCUS_FRAMES: u32 = 3;
 
 impl Canvas {
     /// Draws the canvas into `rect` and returns the actions the application must apply.
@@ -163,6 +179,10 @@ impl Canvas {
             self.draw_rubber_band(ui, rect);
 
             actions.extend(self.handle_input(ui, rect, graph, &placed, context));
+            // Drawn after the gestures so that a click elsewhere this frame blurs the field
+            // and commits it, as a mousedown outside the node does in Electron.
+            actions.extend(self.draw_inline_editor(ui, rect, graph, &placed));
+            self.draw_header_tooltip(ui, rect, &placed, context.delta);
 
             ui.draw_list().pop_clip();
             self.draw_overlays(ui, rect, &placed);
@@ -201,7 +221,26 @@ impl Canvas {
                     .iter()
                     .any(|edge| edge.target == node.id && edge.target_handle == "param:_enabled");
                 let resolved = context.resolved.get(&node.id);
-                let visible = |_name: &str| true;
+                // The card hides what the inspector hides: a parameter whose `visible_when`
+                // rule fails has neither a row nor a port.
+                let definition = context.registry.nodes.get(&node.data.definition_id);
+                let visible = |name: &str| {
+                    definition
+                        .and_then(|entry| {
+                            entry
+                                .definition
+                                .params
+                                .iter()
+                                .find(|param| param.name == name)
+                        })
+                        .is_none_or(|param| {
+                            crate::panels::inspector::generic::is_visible(
+                                param,
+                                node,
+                                context.registry,
+                            )
+                        })
+                };
                 let card = if matches!(
                     node.kind,
                     NodeKind::Builtin(BuiltinNodeKind::Group | BuiltinNodeKind::Comment)
@@ -217,6 +256,7 @@ impl Canvas {
                         ports: Vec::new(),
                         rows: Vec::new(),
                         footer: None,
+                        badge: None,
                         has_bypass_toggle: false,
                         separators: Vec::new(),
                     }
@@ -225,14 +265,26 @@ impl Canvas {
                         node,
                         &CardContext {
                             registry: context.registry,
+                            graph,
                             resolved,
                             visible: &visible,
-                            footer: footer_text(node, context),
+                            footer: footer_text(node, graph, context),
                             enabled_wired,
                             measure_text: &measure_text,
                         },
                     )
                 };
+                // `ProcessNode` and `SetInputNode` show the definition's description after a
+                // second on the header; Compare and the built-in cards have no tooltip.
+                let description = matches!(
+                    node.kind,
+                    NodeKind::Processing(
+                        ProcessingNodeKind::Process | ProcessingNodeKind::SetInput
+                    )
+                )
+                .then(|| definition.map(|entry| entry.definition.description.clone()))
+                .flatten()
+                .filter(|text| !text.is_empty());
                 Placed {
                     id: node.id.clone(),
                     card,
@@ -249,6 +301,7 @@ impl Canvas {
                         };
                         (text("heading"), text("body"))
                     }),
+                    description,
                 }
             })
             .collect()
@@ -468,7 +521,7 @@ impl Canvas {
             1.5 * zoom,
         );
         // The label band floats above the frame and carries the rounded top corners.
-        let band_height = 36.0 * zoom;
+        let band_height = GROUP_BAND_HEIGHT * zoom;
         let band_min = [min[0], min[1] - band_height];
         list.rect(
             band_min,
@@ -555,11 +608,20 @@ impl Canvas {
             let text_size = list.measure(theme::face::NODE_HEAD, &node.label);
             let inset = if node.card.has_bypass_toggle {
                 34.0 * zoom
+            } else if node.card.badge.is_some() {
+                theme::NODE_ROW_INSET * zoom
             } else {
                 12.0 * zoom
             };
-            let available = (max[0] - min[0] - inset * 2.0).max(10.0);
-            let centred = min[0] + inset + (available - text_size[0]).max(0.0) / 2.0;
+            // Compare centres its title and operator badge together, six pixels apart.
+            let badge = node.card.badge.as_deref().map(|badge| {
+                let size = list.measure(layout::OPERATOR_FACE, badge);
+                (badge, size, size[0] + layout::OPERATOR_GAP * zoom)
+            });
+            let badge_width = badge.map(|(_, _, width)| width).unwrap_or(0.0);
+            let available = (max[0] - min[0] - inset * 2.0 - badge_width).max(10.0);
+            let title_width = text_size[0].min(available);
+            let centred = min[0] + inset + (available - title_width).max(0.0) / 2.0;
             controls::draw_ellipsized_scaled(
                 ui,
                 [
@@ -572,6 +634,17 @@ impl Canvas {
                 &node.label,
                 available,
             );
+            if let Some((badge, size, _)) = badge {
+                list.text_with_face(
+                    [
+                        centred + title_width + layout::OPERATOR_GAP * zoom,
+                        min[1] + (node.card.header_height * zoom - size[1]) / 2.0,
+                    ],
+                    theme::ACCENT.fade(alpha),
+                    layout::OPERATOR_FACE,
+                    badge,
+                );
+            }
             self.draw_rows(ui, rect, node, alpha);
         }
 
@@ -599,7 +672,9 @@ impl Canvas {
                     theme::face::SMALL_MONO,
                     zoom,
                     footer,
-                    (max[0] - min[0] - theme::NODE_ROW_INSET * 2.0 * zoom).max(10.0),
+                    (max[0] - min[0] - theme::NODE_ROW_INSET * 2.0 * zoom)
+                        .min(layout::FOOTER_MAX_WIDTH * zoom)
+                        .max(10.0),
                 );
             }
         }
@@ -645,9 +720,10 @@ impl Canvas {
                     right: right_label,
                     right_wire,
                     top,
+                    height,
                 } => {
                     let y = self.screen(rect, [0.0, node.position[1] + top])[1];
-                    let height = theme::NODE_LAYOUT_PORT_ROW_H * zoom;
+                    let height = height * zoom;
                     if let (Some(label), Some(wire_type)) = (left_label, left_wire) {
                         let size = list.measure(theme::face::PORT_TAG, label);
                         list.text_with_face(
@@ -748,6 +824,49 @@ impl Canvas {
                         wire::color(*wire_type).fade(alpha),
                         theme::face::PORT_TAG,
                         label,
+                    );
+                }
+                Row::Folder { label, name, top } => {
+                    // `.node-body`: the tag, then the folder name six pixels after it,
+                    // ellipsized against the card edge.
+                    let y = self.screen(rect, [0.0, node.position[1] + top])[1];
+                    let height = theme::NODE_LAYOUT_PORT_ROW_H * zoom;
+                    let size = list.measure(theme::face::PORT_TAG, label);
+                    list.text_with_face(
+                        [left + inset, y + (height - size[1]) / 2.0],
+                        wire::color(WireType::Path).fade(alpha),
+                        theme::face::PORT_TAG,
+                        label,
+                    );
+                    let (text, color) = match name {
+                        Some(name) => (name.as_str(), theme::NODE_TEXT),
+                        None => (layout::FOLDER_UNSET, theme::TEXT_BRIGHT.with_alpha(0.4)),
+                    };
+                    let x = left + inset + size[0] + theme::NODE_VALUE_GAP * zoom;
+                    let text_size = list.measure(theme::face::SMALL_MONO, text);
+                    controls::draw_ellipsized_scaled(
+                        ui,
+                        [x, y + (height - text_size[1]) / 2.0],
+                        color.fade(alpha),
+                        theme::face::SMALL_MONO,
+                        zoom,
+                        text,
+                        (right - inset - x).max(8.0),
+                    );
+                }
+                Row::Note { text, top, height } => {
+                    // `.node-empty`: muted interface text padded twelve pixels in.
+                    let y = self.screen(rect, [0.0, node.position[1] + top])[1];
+                    let height = height * zoom;
+                    let size = list.measure(theme::face::LABEL, text);
+                    controls::draw_ellipsized_scaled(
+                        ui,
+                        [left + 12.0 * zoom, y + (height - size[1]) / 2.0],
+                        theme::TEXT_MUTED.fade(alpha),
+                        theme::face::LABEL,
+                        zoom,
+                        text,
+                        (right - left - 24.0 * zoom).max(8.0),
                     );
                 }
                 Row::Slot {
@@ -924,17 +1043,21 @@ impl Canvas {
             return;
         }
         let inner = (max[0] - min[0] - 20.0 * zoom).max(10.0);
-        if !heading.is_empty() {
-            controls::draw_ellipsized_scaled(
-                ui,
-                [min[0] + 10.0 * zoom, min[1] + 7.0 * zoom],
-                theme::COMMENT_TEXT,
-                theme::face::COMMENT_HEADING,
-                zoom,
-                heading,
-                inner,
-            );
-        }
+        // `localHeading || 'Comment'`: a cleared heading still reads as a comment.
+        let heading = if heading.is_empty() {
+            "Comment"
+        } else {
+            heading.as_str()
+        };
+        controls::draw_ellipsized_scaled(
+            ui,
+            [min[0] + 10.0 * zoom, min[1] + 7.0 * zoom],
+            theme::COMMENT_TEXT,
+            theme::face::COMMENT_HEADING,
+            zoom,
+            heading,
+            inner,
+        );
         let (text, color) = if body.is_empty() {
             (
                 "Double click to edit",
@@ -957,6 +1080,256 @@ impl Canvas {
                 &line,
             );
             y += line_height;
+        }
+    }
+
+    /// Which inline field a double click at `pointer` opens on `node`, if any.
+    ///
+    /// `CommentNode.svelte` edits the heading from a double click on the heading and the
+    /// body from one on the body; `GroupNode.svelte` renames from its floating title band.
+    fn inline_field_at(&self, rect: Rect, node: &Placed, pointer: Vec2) -> Option<&'static str> {
+        let min = self.screen(rect, node.position);
+        if node.is_comment {
+            let header_bottom = min[1] + node.card.header_height * self.state.viewport.zoom;
+            Some(if pointer[1] < header_bottom {
+                "heading"
+            } else {
+                "body"
+            })
+        } else if node.is_group {
+            (pointer[1] < min[1]).then_some("name")
+        } else {
+            None
+        }
+    }
+
+    /// The screen rectangle an inline field occupies.
+    fn inline_field_rect(&self, rect: Rect, node: &Placed, name: &str) -> (Vec2, Vec2) {
+        let zoom = self.state.viewport.zoom;
+        let min = self.screen(rect, node.position);
+        let max = self.screen(
+            rect,
+            [
+                node.position[0] + node.card.width,
+                node.position[1] + node.card.height,
+            ],
+        );
+        let header_bottom = min[1] + node.card.header_height * zoom;
+        match name {
+            "heading" => (min, [max[0], header_bottom]),
+            "body" => ([min[0], header_bottom], max),
+            // `.group-label-input` fills the band inside its twelve pixel padding.
+            _ => (
+                [min[0] + 12.0 * zoom, min[1] - GROUP_BAND_HEIGHT * zoom],
+                [max[0] - 12.0 * zoom, min[1]],
+            ),
+        }
+    }
+
+    /// The inline field's rectangle this frame, while one is open.
+    fn editing_rect(&self, rect: Rect, placed: &[Placed]) -> Option<(Vec2, Vec2)> {
+        let (id, name) = self.editing.as_ref()?;
+        let node = placed.iter().find(|node| node.id == *id)?;
+        Some(self.inline_field_rect(rect, node, name))
+    }
+
+    /// Opens the inline field for `name` on `node`, seeded with what the card shows.
+    fn start_editing(&mut self, node: &GraphNode, name: &str) {
+        self.editing_buffer = inline_seed(node, name);
+        self.editing = Some((node.id.clone(), name.to_string()));
+        self.editing_focus = true;
+        self.editing_active = false;
+        self.editing_frames = 0;
+    }
+
+    fn stop_editing(&mut self) {
+        self.editing = None;
+        self.editing_buffer.clear();
+        self.editing_focus = false;
+        self.editing_active = false;
+        self.editing_frames = 0;
+    }
+
+    /// Draws the open inline field and reports the edit once it is committed.
+    ///
+    /// It is a real Dear ImGui text field, so `WantTextInput` keeps the canvas shortcuts
+    /// away from the keys typed into it - the job `onKeydown`'s `stopPropagation` did in
+    /// Electron. Enter or a blur commits; Escape abandons the edit. The value is written once,
+    /// on commit, so that one rename is one step of history rather than one per keystroke.
+    fn draw_inline_editor(
+        &mut self,
+        ui: &mut Ui,
+        rect: Rect,
+        graph: &Graph,
+        placed: &[Placed],
+    ) -> Option<Action> {
+        let (id, name) = self.editing.clone()?;
+        let Some(node) = placed.iter().find(|node| node.id == id) else {
+            self.stop_editing();
+            return None;
+        };
+        let zoom = self.state.viewport.zoom;
+        let (min, max) = self.inline_field_rect(rect, node, &name);
+        let size = [(max[0] - min[0]).max(1.0), (max[1] - min[1]).max(1.0)];
+        let (face, background, text, hint) = match name.as_str() {
+            "heading" => (
+                theme::face::COMMENT_HEADING,
+                theme::COMMENT_HEADER_BG,
+                theme::COMMENT_TEXT,
+                "Heading...",
+            ),
+            "body" => (
+                theme::face::COMMENT_BODY,
+                theme::COMMENT_BG,
+                theme::COMMENT_TEXT_BODY,
+                "",
+            ),
+            _ => (
+                theme::face::NODE_HEAD,
+                theme::NODE_HEAD_BG,
+                theme::NODE_TEXT,
+                "",
+            ),
+        };
+        let line = controls::measure(ui, face, "Ag")[1];
+        let padding = match name.as_str() {
+            "heading" => [10.0 * zoom, ((size[1] - line) / 2.0).max(0.0)],
+            "body" => [10.0 * zoom, 8.0 * zoom],
+            _ => [0.0, ((size[1] - line) / 2.0).max(0.0)],
+        };
+
+        ui.set_cursor_screen_position(min);
+        if std::mem::take(&mut self.editing_focus) {
+            ui.set_keyboard_focus_here();
+        }
+        let mut buffer = std::mem::take(&mut self.editing_buffer);
+        let colors = [
+            (StyleColor::FrameBg, background),
+            (StyleColor::FrameBgHovered, background),
+            (StyleColor::FrameBgActive, background),
+            (StyleColor::Text, text),
+            (StyleColor::TextDisabled, theme::COMMENT_PLACEHOLDER),
+        ];
+        let style = [
+            StyleVar::FramePadding(padding),
+            StyleVar::FrameRounding(0.0),
+            StyleVar::FrameBorderSize(0.0),
+        ];
+        ui.with_face(face, |ui| {
+            ui.with_colors(&colors, |ui| {
+                ui.with_style(&style, |ui| {
+                    if name == "body" {
+                        ui.input_text_multiline(
+                            "##canvas-inline-edit",
+                            &mut buffer,
+                            size,
+                            InputFlags::default(),
+                        );
+                    } else {
+                        ui.set_next_item_width(size[0]);
+                        ui.input_text_with(
+                            "##canvas-inline-edit",
+                            &mut buffer,
+                            hint,
+                            InputFlags::default(),
+                        );
+                    }
+                })
+            })
+        });
+        let active = ui.item_active();
+        let deactivated = ui.item_deactivated();
+        self.editing_buffer = buffer;
+
+        // The heading takes the comment's selected outline; the group name an underline.
+        let list = ui.draw_list();
+        if name == "name" {
+            list.line(
+                [min[0], max[1] - 4.0 * zoom],
+                [max[0], max[1] - 4.0 * zoom],
+                theme::GROUP_LABEL_INPUT_BORDER,
+                1.0,
+            );
+        } else if name == "heading" {
+            list.rect_outline(
+                min,
+                max,
+                theme::COMMENT_SELECTED_BORDER,
+                0.0,
+                Rounding::None,
+                2.0,
+            );
+        }
+
+        self.editing_frames += 1;
+        if active {
+            self.editing_active = true;
+        }
+        if ui.key_pressed(Key::Escape) {
+            self.stop_editing();
+            return None;
+        }
+        let blurred = deactivated || (self.editing_active && !active);
+        let abandoned = !self.editing_active && self.editing_frames > EDITING_FOCUS_FRAMES;
+        if !blurred && !abandoned {
+            return None;
+        }
+        self.finish_editing(graph)
+    }
+
+    /// Closes the inline field, reporting its text if it differs from what it opened with.
+    fn finish_editing(&mut self, graph: &Graph) -> Option<Action> {
+        let (id, name) = self.editing.clone()?;
+        let value = std::mem::take(&mut self.editing_buffer);
+        let original = graph
+            .nodes
+            .iter()
+            .find(|candidate| candidate.id == id)
+            .map(|candidate| inline_seed(candidate, &name));
+        self.stop_editing();
+        let changed = original.is_some() && original.as_deref() != Some(value.as_str());
+        changed.then_some(Action::SetParam {
+            node: id,
+            name,
+            value: ParamValue::String(value),
+        })
+    }
+
+    /// Shows a card's description after the pointer has rested on its header for a second,
+    /// as `ProcessNode.svelte` and `SetInputNode.svelte` do.
+    fn draw_header_tooltip(&mut self, ui: &mut Ui, rect: Rect, placed: &[Placed], delta: f32) {
+        let pointer = ui.mouse_position();
+        let zoom = self.state.viewport.zoom;
+        let idle = self.state.gesture == Gesture::Idle && self.editing.is_none();
+        let hovered = self
+            .state
+            .hovered_node
+            .clone()
+            .filter(|_| idle)
+            .and_then(|id| placed.iter().find(|node| node.id == id))
+            .filter(|node| {
+                let min = self.screen(rect, node.position);
+                let max = [
+                    min[0] + node.card.width * zoom,
+                    min[1] + node.card.header_height * zoom,
+                ];
+                controls::point_in(pointer, min, max)
+            })
+            .and_then(|node| {
+                node.description
+                    .as_deref()
+                    .map(|description| (node.id.as_str(), description))
+            });
+        match hovered {
+            Some((id, description)) => {
+                if self
+                    .tooltip
+                    .poll(id, true, delta, theme::TOOLTIP_DELAY_NODE)
+                {
+                    crate::panels::library::draw_tooltip(ui, description);
+                }
+            }
+            None => self.tooltip.reset(),
         }
     }
 
@@ -1079,10 +1452,15 @@ impl Canvas {
             }
         }
 
+        // A click inside the open inline field belongs to the text field, not the canvas.
+        let over_editor = self
+            .editing_rect(rect, placed)
+            .is_some_and(|(min, max)| controls::point_in(pointer, min, max));
+
         match self.state.gesture.clone() {
             Gesture::Idle => {
-                if inside {
-                    actions.extend(self.begin_gesture(ui, rect, placed, pointer, context));
+                if inside && !over_editor {
+                    actions.extend(self.begin_gesture(ui, rect, graph, placed, pointer, context));
                 }
             }
             Gesture::Panning => {
@@ -1236,7 +1614,10 @@ impl Canvas {
                 ],
             );
             let extended_min = if node.is_group {
-                [min[0], min[1] - 36.0 * self.state.viewport.zoom]
+                [
+                    min[0],
+                    min[1] - GROUP_BAND_HEIGHT * self.state.viewport.zoom,
+                ]
             } else {
                 min
             };
@@ -1273,6 +1654,7 @@ impl Canvas {
         &mut self,
         ui: &mut Ui,
         rect: Rect,
+        graph: &Graph,
         placed: &[Placed],
         pointer: Vec2,
         _context: &CanvasContext,
@@ -1300,6 +1682,15 @@ impl Canvas {
         if ui.mouse_double_clicked(MouseButton::Left) {
             if let Some(id) = self.state.hovered_node.clone() {
                 if let Some(node) = placed.iter().find(|node| node.id == id) {
+                    // A comment's text and a group's title are edited where they are drawn.
+                    if let Some(field) = self.inline_field_at(rect, node, pointer) {
+                        if let Some(graph_node) = graph.nodes.iter().find(|item| item.id == id) {
+                            // A field still open elsewhere keeps what was typed into it.
+                            actions.extend(self.finish_editing(graph));
+                            self.start_editing(graph_node, field);
+                        }
+                        return actions;
+                    }
                     let excluded = node.is_comment
                         || matches!(
                             node.kind,
@@ -1497,6 +1888,23 @@ impl Canvas {
     }
 }
 
+/// The height of the title band floating above a group frame.
+const GROUP_BAND_HEIGHT: f32 = 36.0;
+
+/// The text an inline field opens with: the stored value, or `params.heading ?? 'Comment'`
+/// and `params.name ?? 'Group'` as the Svelte components seed their local copies.
+fn inline_seed(node: &GraphNode, name: &str) -> String {
+    let fallback = match name {
+        "heading" => "Comment",
+        "name" => "Group",
+        _ => "",
+    };
+    match node.data.params.get(name) {
+        Some(ParamValue::String(text)) => text.clone(),
+        _ => fallback.to_string(),
+    }
+}
+
 /// Projects a graph point into `rect` using `viewport`, without borrowing the canvas.
 fn to_screen(rect: Rect, viewport: Viewport, point: Vec2) -> Vec2 {
     let local = viewport.to_screen(point);
@@ -1620,7 +2028,7 @@ pub fn card_label(node: &GraphNode, registry: &Registry) -> String {
 }
 
 /// The footer line each built-in card shows.
-fn footer_text(node: &GraphNode, context: &CanvasContext) -> Option<String> {
+fn footer_text(node: &GraphNode, graph: &Graph, context: &CanvasContext) -> Option<String> {
     match &node.kind {
         NodeKind::Builtin(BuiltinNodeKind::Input) => {
             let count = context.image_counts.get(&node.id).copied().unwrap_or(0);
@@ -1663,33 +2071,23 @@ fn footer_text(node: &GraphNode, context: &CanvasContext) -> Option<String> {
                 number("rows", 4)
             ))
         }
-        NodeKind::Builtin(BuiltinNodeKind::FolderPath) => {
-            Some(match node.data.params.get("folderPath") {
-                Some(ParamValue::String(path)) if !path.is_empty() => {
-                    path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
-                }
-                _ => "not set".to_string(),
-            })
+        // Folder Path shows its folder in the body row, with no footer.
+        NodeKind::Processing(ProcessingNodeKind::SetInput) => {
+            Some(set_footer(node, graph, context))
         }
-        NodeKind::Processing(ProcessingNodeKind::SetInput) => Some(set_footer(node, context)),
+        _ if node.data.definition_id == "process_as_set" => Some(set_footer(node, graph, context)),
         _ => None,
     }
 }
 
 /// The matched-set count the Process As Set card shows.
-fn set_footer(node: &GraphNode, context: &CanvasContext) -> String {
-    let suffixes = match node.data.params.get("suffixes") {
-        Some(ParamValue::Structured(bite_schema::StructuredParam::SetSuffixes { suffixes })) => {
-            suffixes.clone()
-        }
-        _ => Vec::new(),
-    };
-    let prefix = match node.data.params.get("prefix") {
-        Some(ParamValue::String(prefix)) => prefix.as_str(),
-        _ => "",
-    };
+///
+/// A prefix or suffix driven by a wire counts with its wired value, as it does when the set
+/// runs, so the card and the run agree on how many sets there are.
+fn set_footer(node: &GraphNode, graph: &Graph, context: &CanvasContext) -> String {
+    let (prefix, suffixes) = bite_core::graph::set_pattern(graph, node);
     let sets =
-        crate::panels::inspector::nodes::matched_sets(context.image_names, prefix, &suffixes);
+        crate::panels::inspector::nodes::matched_sets(context.image_names, &prefix, &suffixes);
     set_footer_label(sets.len())
 }
 
@@ -1903,6 +2301,97 @@ second",
                 &registry
             ),
             "Process As Set"
+        );
+    }
+
+    #[test]
+    fn an_inline_field_opens_with_what_the_card_shows() {
+        let mut comment = node("c", NodeKind::Builtin(BuiltinNodeKind::Comment));
+        // A comment saved without a heading still reads "Comment", as `localHeading` does.
+        assert_eq!(inline_seed(&comment, "heading"), "Comment");
+        assert_eq!(inline_seed(&comment, "body"), "");
+        comment
+            .data
+            .params
+            .insert("heading".into(), ParamValue::String("Notes".into()));
+        assert_eq!(inline_seed(&comment, "heading"), "Notes");
+        let group = node("g", NodeKind::Builtin(BuiltinNodeKind::Group));
+        assert_eq!(inline_seed(&group, "name"), "Group");
+    }
+
+    #[test]
+    fn an_inline_edit_is_written_once_and_only_when_it_changed() {
+        let group = node("g", NodeKind::Builtin(BuiltinNodeKind::Group));
+        let graph = graph_with(vec![group.clone()], Vec::new());
+        let mut canvas = Canvas::default();
+
+        canvas.start_editing(&group, "name");
+        assert_eq!(canvas.editing_buffer, "Group");
+        assert_eq!(canvas.finish_editing(&graph), None, "nothing was typed");
+        assert!(canvas.editing.is_none());
+
+        canvas.start_editing(&group, "name");
+        canvas.editing_buffer = "Textures".into();
+        assert_eq!(
+            canvas.finish_editing(&graph),
+            Some(Action::SetParam {
+                node: "g".into(),
+                name: "name".into(),
+                value: ParamValue::String("Textures".into()),
+            })
+        );
+        assert!(canvas.editing_buffer.is_empty());
+    }
+
+    #[test]
+    fn a_wired_prefix_counts_towards_the_matched_sets() {
+        let mut set = node("set", NodeKind::Processing(ProcessingNodeKind::SetInput));
+        set.data.definition_id = "process_as_set".into();
+        set.data.params.insert(
+            "suffixes".into(),
+            ParamValue::Structured(bite_schema::StructuredParam::SetSuffixes {
+                suffixes: vec!["_n".into(), "_d".into()],
+            }),
+        );
+        set.data
+            .params
+            .insert("prefix".into(), ParamValue::String("nothing_".into()));
+        let mut source = node("text", NodeKind::Processing(ProcessingNodeKind::Process));
+        source.data.definition_id = "value_string".into();
+        source
+            .data
+            .params
+            .insert("value".into(), ParamValue::String("T_".into()));
+        let edge = bite_schema::GraphEdge {
+            id: "e".into(),
+            source: "text".into(),
+            source_handle: "param:value".into(),
+            target: "set".into(),
+            target_handle: "param:prefix".into(),
+        };
+        let graph = graph_with(vec![source, set.clone()], vec![edge]);
+        let registry = Registry::default();
+        let resolved = BTreeMap::new();
+        let counts = BTreeMap::new();
+        let names = vec![
+            "T_rock_n.png".to_string(),
+            "T_rock_d.png".to_string(),
+            "T_wood_n.png".to_string(),
+        ];
+        let context = CanvasContext {
+            registry: &registry,
+            resolved: &resolved,
+            image_counts: &counts,
+            image_names: &names,
+            preview_node: None,
+            running_node: None,
+            running_file: None,
+            menu_wire: None,
+            delta: 0.0,
+        };
+        assert_eq!(
+            footer_text(&set, &graph, &context).as_deref(),
+            Some("2 sets matched")
         );
     }
 }

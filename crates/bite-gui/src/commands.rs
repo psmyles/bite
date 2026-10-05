@@ -6,7 +6,7 @@ use crate::{
     studio, work,
 };
 use bite_imagemagick::{import::ThumbnailCache, Magick};
-use bite_schema::{BuiltinNodeKind, GraphNode, NodeKind, ParamValue};
+use bite_schema::{BuiltinNodeKind, GraphNode, NodeKind, ParamValue, StructuredParam};
 use std::{
     path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Arc},
@@ -357,6 +357,10 @@ pub fn apply_edit(editor: &mut Editor, edit: Edit) {
             editor.studio.set_param(&node, name, value);
             editor.request_preview();
         }
+        Edit::RemoveSetSuffix { node, index } => {
+            editor.studio.remove_set_suffix(&node, index);
+            editor.request_preview();
+        }
         Edit::SetRuntimePath { node, path } => {
             editor.runtime_paths.insert(node, path);
         }
@@ -369,6 +373,9 @@ pub fn apply_edit(editor: &mut Editor, edit: Edit) {
         Edit::SelectImage { node, index } => {
             let branch = editor.branches.entry(node).or_default();
             branch.selected = Some(index);
+            // The thumbnail stands in for the preview until the render arrives, as a click
+            // on the filmstrip does.
+            editor.seed_preview_from_thumbnail();
             editor.request_preview();
         }
         Edit::RunWorkflow => request_run(editor),
@@ -397,36 +404,40 @@ pub fn apply_edit(editor: &mut Editor, edit: Edit) {
                 );
             }
         }
-        Edit::SetScanRecursive { node, value } => {
+        // The scan options live in the inspector, shared by every Input, so the node an
+        // edit came from does not change what is counted.
+        Edit::SetScanRecursive { value, .. } => {
             editor.inspector.scan_recursive = value;
-            rescan(editor, &node);
+            rescan(editor);
         }
-        Edit::ToggleScanFormat { node, group } => {
+        Edit::ToggleScanFormat { group, .. } => {
             if !editor.inspector.scan_formats.remove(&group) {
                 editor.inspector.scan_formats.insert(group);
             }
-            rescan(editor, &node);
+            rescan(editor);
         }
-        Edit::SetInputFolder { node } => {
+        Edit::SetInputFolder { .. } => {
             if let Ok(Some(path)) = dialogs::select_folder() {
                 editor.inspector.scan_folder = path.to_string_lossy().into_owned();
-                rescan(editor, &node);
+                rescan(editor);
             }
         }
     }
 }
 
 /// Counts the files the current scan options would import.
-fn rescan(editor: &mut Editor, node: &str) {
+fn rescan(editor: &mut Editor) {
+    editor.jobs.scan_generation += 1;
     if editor.inspector.scan_folder.is_empty() {
         editor.inspector.scan_count = None;
+        editor.inspector.scanning = false;
         return;
     }
     let root = PathBuf::from(&editor.inspector.scan_folder);
     let recursive = editor.inspector.scan_recursive;
     let extensions = active_extensions(editor);
     let handle = editor.jobs.handle();
-    let node = node.to_string();
+    let generation = editor.jobs.scan_generation;
     editor.inspector.scanning = true;
     std::thread::spawn(move || {
         let cancelled = AtomicBool::new(false);
@@ -438,7 +449,7 @@ fn rescan(editor: &mut Editor, node: &str) {
                     .count()
             })
             .unwrap_or(0);
-        handle.send(work::Message::ScanFinished { node, count });
+        handle.send(work::Message::ScanFinished { generation, count });
     });
 }
 
@@ -855,13 +866,87 @@ pub fn start_run(editor: &mut Editor) {
     });
 }
 
+/// How many images a Text Output preview runs over, as Electron's `PREVIEW_LIMIT`.
+const TEXT_PREVIEW_LIMIT: usize = 10;
+
+/// Keeps the selected Text Output's preview current, asking for a new one when what it
+/// depends on changes: the graph, the node, or the images it would run over.
+///
+/// Called every frame, so an unchanged request costs only the comparison. Nothing is
+/// computed while there are no images or no wired column, as in Electron, which showed the
+/// hint for that state rather than an empty preview.
+pub fn refresh_text_preview(editor: &mut Editor) {
+    use std::hash::{Hash, Hasher};
+    let graph = &editor.studio.workflow.graph;
+    let node = editor
+        .selected_node
+        .as_ref()
+        .and_then(|id| graph.nodes.iter().find(|node| node.id == *id))
+        .filter(|node| node.kind == NodeKind::Builtin(BuiltinNodeKind::TextOutput));
+    let Some(node) = node else {
+        editor.jobs.text_preview_key = None;
+        return;
+    };
+    let images: Vec<PathBuf> = editor
+        .active_branch()
+        .map(|branch| {
+            branch
+                .paths
+                .iter()
+                .take(TEXT_PREVIEW_LIMIT)
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    node.id.hash(&mut hasher);
+    images.hash(&mut hasher);
+    serde_json::to_string(graph)
+        .unwrap_or_default()
+        .hash(&mut hasher);
+    let key = hasher.finish();
+    if editor.jobs.text_preview_key == Some(key) {
+        return;
+    }
+    editor.jobs.text_preview_key = Some(key);
+    let generation = editor.jobs.next_text_preview();
+    // The last slot is the empty one that takes the next wire; only wired ones are columns.
+    let wired = match node.data.params.get("portIds") {
+        Some(ParamValue::Structured(StructuredParam::TextSlots { slots })) => slots
+            .iter()
+            .take(slots.len().saturating_sub(1))
+            .any(|slot| {
+                let handle = format!("txo:{slot}");
+                graph
+                    .edges
+                    .iter()
+                    .any(|edge| edge.target == node.id && edge.target_handle == handle)
+            }),
+        _ => false,
+    };
+    if images.is_empty() || !wired {
+        editor.inspector.text_preview.clear();
+        editor.inspector.text_preview_pending = false;
+        return;
+    }
+    let job = work::TextPreviewJob {
+        graph: graph.clone(),
+        registry: Arc::new(editor.studio.registry.clone()),
+        images,
+        node: node.id.clone(),
+    };
+    editor.inspector.text_preview_pending = true;
+    editor.jobs.submit_text_preview(job, generation);
+}
+
 /// Applies one background message to the editor.
 pub fn apply_message(editor: &mut Editor, message: work::Message) {
     match message {
-        work::Message::ScanFinished { node, count } => {
-            let _ = node;
-            editor.inspector.scanning = false;
-            editor.inspector.scan_count = Some(count);
+        work::Message::ScanFinished { generation, count } => {
+            if generation == editor.jobs.scan_generation {
+                editor.inspector.scanning = false;
+                editor.inspector.scan_count = Some(count);
+            }
         }
         work::Message::ImportProgress {
             completed, total, ..
@@ -960,9 +1045,15 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
         work::Message::PreviewFailed(error) => {
             editor.status = error;
         }
-        work::Message::TextPreview { lines } => {
-            editor.inspector.text_preview_pending = false;
-            editor.inspector.text_preview = lines;
+        work::Message::TextPreview { generation, lines } => {
+            let current = editor
+                .jobs
+                .text_preview_generation
+                .load(std::sync::atomic::Ordering::SeqCst);
+            if generation == current {
+                editor.inspector.text_preview_pending = false;
+                editor.inspector.text_preview = lines;
+            }
         }
         work::Message::RunProgress {
             completed,

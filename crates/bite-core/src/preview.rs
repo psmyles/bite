@@ -73,16 +73,9 @@ pub fn values_from(
             .iter()
             .filter_map(|node| registry.nodes.get(&node.data.definition_id)),
     );
-    let mut metadata = host.metadata(measured, heavy)?;
     // A format the header parser does not read leaves the measurements at nothing, and a
     // node that asks for them would resolve against zero, so those are worth the processes.
-    let unmeasured = matches!(
-        metadata.get("image.width"),
-        None | Some(bite_expr::Value::Int(0)) | Some(bite_expr::Value::Float(0.0))
-    );
-    if !heavy && unmeasured {
-        metadata = host.metadata(measured, true)?;
-    }
+    let metadata = execution::read_metadata(host, measured, heavy, true)?;
     computed_values(graph, registry, &metadata)
 }
 
@@ -201,6 +194,11 @@ pub fn render_text(
     let input = temporary.path().join("input");
     let output = temporary.path().join("preview.txt");
     fs::create_dir_all(&input).map_err(|error| error.to_string())?;
+    let mut options = RunOptions {
+        overwrite: true,
+        ..Default::default()
+    };
+    let mut staged_files = Vec::with_capacity(images.len());
     for (index, image) in images.iter().enumerate() {
         let name = image
             .file_name()
@@ -213,6 +211,10 @@ pub fn render_text(
         fs::hard_link(image, &staged)
             .or_else(|_| fs::copy(image, &staged).map(|_| ()))
             .map_err(|error| error.to_string())?;
+        // The staged link is only how the run reaches the file: a Path, a Name or a size
+        // in the report has to describe the image the user picked, not the temporary copy.
+        options.measured_as.insert(staged.clone(), image.clone());
+        staged_files.push(staged);
     }
     let target = preview
         .nodes
@@ -231,13 +233,14 @@ pub fn render_text(
         .data
         .params
         .insert("cliName".into(), ParamValue::String(target_flag.clone()));
-    let mut options = RunOptions {
-        overwrite: true,
-        ..Default::default()
-    };
     for node in &preview.nodes {
         if node.kind == NodeKind::Builtin(BuiltinNodeKind::Input) {
             if let Some(ParamValue::String(flag)) = node.data.params.get("cliName") {
+                // Listed rather than left to the folder, so the lines come out in the
+                // order the images were given, as the run itself would write them.
+                options
+                    .named_files
+                    .insert(flag.clone(), staged_files.clone());
                 options.named_paths.insert(flag.clone(), input.clone());
             }
         }
@@ -392,7 +395,10 @@ pub fn render_from(
         ..Default::default()
     };
     // Each file is staged under the name it has on disk, not the thumbnail's: a Process As
-    // Set reads its streams from the suffixes of the names it finds beside each other.
+    // Set reads its streams from the suffixes of the names it finds beside each other. They
+    // are listed with the selected image first, which is the one a set the pattern does
+    // not match falls back to.
+    let mut staged_files = Vec::with_capacity(companions.len() + 1);
     for (pixels, measured) in std::iter::once((PathBuf::from(image), PathBuf::from(measured)))
         .chain(companions.iter().cloned())
     {
@@ -406,12 +412,16 @@ pub fn render_from(
             .map_err(|error| error.to_string())?;
         // The staged file holds the thumbnail's pixels, so anything the chain asks about
         // the image is answered from the original it was made from instead.
-        options.measured_as.insert(staged, measured);
+        options.measured_as.insert(staged.clone(), measured);
+        staged_files.push(staged);
     }
     for node in &preview.nodes {
         if let Some(ParamValue::String(flag)) = node.data.params.get("cliName") {
             match node.kind {
                 NodeKind::Builtin(BuiltinNodeKind::Input) => {
+                    options
+                        .named_files
+                        .insert(flag.clone(), staged_files.clone());
                     options.named_paths.insert(flag.clone(), input.clone());
                 }
                 NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => {

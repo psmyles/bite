@@ -71,6 +71,70 @@ fn normalize_text_slots(graph: &mut Graph) {
     }
 }
 
+/// Where each of a Process As Set's suffixes lands when its list changes from `old` to
+/// `new`: the new index for each old one, or nothing when it was removed.
+///
+/// A list one shorter that is the old one less a single entry is a removal, and the
+/// suffixes after it move up one. Anything else, such as retyping a suffix or adding one,
+/// leaves every surviving suffix where it was. When the removed entry has an identical
+/// neighbour the two cannot be told apart, and the later one is taken as removed.
+fn suffix_moves(old: &[String], new: &[String]) -> Vec<Option<usize>> {
+    if new.len() + 1 == old.len() {
+        let removed = (0..old.len())
+            .find(|&index| old.get(index) != new.get(index))
+            .unwrap_or(new.len());
+        if old[..removed] == new[..removed] && old[removed + 1..] == new[removed..] {
+            return (0..old.len())
+                .map(|index| match index.cmp(&removed) {
+                    std::cmp::Ordering::Less => Some(index),
+                    std::cmp::Ordering::Equal => None,
+                    std::cmp::Ordering::Greater => Some(index - 1),
+                })
+                .collect();
+        }
+    }
+    (0..old.len())
+        .map(|index| (index < new.len()).then_some(index))
+        .collect()
+}
+
+/// Moves the wires on a Process As Set's suffix ports to follow their suffixes.
+///
+/// The ports are named by position, `out:suffix_N` and `param:suffix_N`, so removing the
+/// second of three suffixes would otherwise hand the third's stream to the second port
+/// and drop the wires the third had. Wires on a removed suffix go with it.
+fn reindex_suffix_edges(edges: &mut Vec<GraphEdge>, node: &str, moves: &[Option<usize>]) {
+    let remap = |handle: &str, prefix: &str| -> Option<Option<String>> {
+        let index = handle.strip_prefix(prefix)?.parse::<usize>().ok()?;
+        Some(
+            moves
+                .get(index)
+                .copied()
+                .flatten()
+                .map(|moved| format!("{prefix}{moved}")),
+        )
+    };
+    edges.retain_mut(|edge| {
+        if edge.source == node {
+            if let Some(moved) = remap(&edge.source_handle, "out:suffix_") {
+                match moved {
+                    Some(handle) => edge.source_handle = handle,
+                    None => return false,
+                }
+            }
+        }
+        if edge.target == node {
+            if let Some(moved) = remap(&edge.target_handle, "param:suffix_") {
+                match moved {
+                    Some(handle) => edge.target_handle = handle,
+                    None => return false,
+                }
+            }
+        }
+        true
+    });
+}
+
 #[derive(Clone)]
 struct EditSnapshot {
     graph: Graph,
@@ -399,7 +463,7 @@ impl Studio {
             .get(definition)
             .ok_or_else(|| format!("Unknown node definition {definition}"))?;
         let label = compiled.definition.label.clone();
-        let params = compiled
+        let mut params: BTreeMap<String, ParamValue> = compiled
             .definition
             .params
             .iter()
@@ -410,6 +474,20 @@ impl Studio {
                     .map(|value| (param.name.clone(), value))
             })
             .collect();
+        // Convert Format's encoding options belong to the format definitions, not to its
+        // own, so they are filled in as well: a node that starts with every option set
+        // shows and saves the values its run will use, whichever format is picked.
+        if definition == "format_convert" {
+            for (format, _) in self.registry.formats.values() {
+                for param in &format.params {
+                    if let Some(default) = &param.default {
+                        params
+                            .entry(param.name.clone())
+                            .or_insert_with(|| default.clone());
+                    }
+                }
+            }
+        }
         let id = self.id(definition);
         self.checkpoint();
         self.workflow.graph.nodes.push(GraphNode {
@@ -614,6 +692,54 @@ impl Studio {
     }
 
     pub fn set_param(&mut self, node_id: &str, name: String, value: ParamValue) -> bool {
+        self.apply_param(node_id, name, value, None)
+    }
+
+    /// Removes one of a Process As Set's suffixes, moving the wires of the ones after it up
+    /// with them.
+    ///
+    /// Saying which suffix went is what makes this exact. A whole new list leaves it to
+    /// be worked out (`suffix_moves`), and two identical neighbours - two empty suffixes,
+    /// say - cannot be told apart that way.
+    pub fn remove_set_suffix(&mut self, node_id: &str, removed: usize) -> bool {
+        let Some(node) = self.workflow.graph.nodes.iter().find(|n| n.id == node_id) else {
+            return false;
+        };
+        let mut suffixes = match node.data.params.get("suffixes") {
+            Some(ParamValue::Structured(StructuredParam::SetSuffixes { suffixes })) => {
+                suffixes.clone()
+            }
+            _ => return false,
+        };
+        if removed >= suffixes.len() {
+            return false;
+        }
+        let moves = (0..suffixes.len())
+            .map(|index| match index.cmp(&removed) {
+                std::cmp::Ordering::Less => Some(index),
+                std::cmp::Ordering::Equal => None,
+                std::cmp::Ordering::Greater => Some(index - 1),
+            })
+            .collect();
+        suffixes.remove(removed);
+        self.apply_param(
+            node_id,
+            "suffixes".into(),
+            ParamValue::Structured(StructuredParam::SetSuffixes { suffixes }),
+            Some(moves),
+        )
+    }
+
+    /// Stores a parameter and keeps what depends on it in step. `suffix_moves`, when given,
+    /// says where each of a set's old suffixes went; otherwise it is worked out from the
+    /// old and new lists.
+    fn apply_param(
+        &mut self,
+        node_id: &str,
+        name: String,
+        value: ParamValue,
+        moves: Option<Vec<Option<usize>>>,
+    ) -> bool {
         let Some(index) = self
             .workflow
             .graph
@@ -627,7 +753,7 @@ impl Studio {
             return false;
         }
         self.checkpoint();
-        self.workflow.graph.nodes[index]
+        let previous = self.workflow.graph.nodes[index]
             .data
             .params
             .insert(name.clone(), value.clone());
@@ -640,6 +766,14 @@ impl Studio {
                 }
                 _ => Vec::new(),
             };
+            let old = match &previous {
+                Some(ParamValue::Structured(StructuredParam::SetSuffixes { suffixes })) => {
+                    suffixes.clone()
+                }
+                _ => Vec::new(),
+            };
+            let moves = moves.unwrap_or_else(|| suffix_moves(&old, &suffixes));
+            reindex_suffix_edges(&mut self.workflow.graph.edges, node_id, &moves);
             self.workflow.graph.nodes[index].data.outputs = suffixes
                 .iter()
                 .enumerate()
@@ -1468,6 +1602,153 @@ mod tests {
             }),
         );
         assert!(studio.workflow.graph.edges.is_empty());
+    }
+
+    /// The suffix ports are named by position. Removing a middle suffix has to move the
+    /// later suffixes' wires up with them, not leave them on the ports they used to have.
+    #[test]
+    fn removing_a_middle_suffix_keeps_each_survivor_on_its_own_wires() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = Studio::load_registry(&root).unwrap();
+        let mut studio = Studio::blank(registry);
+        let set = studio
+            .add_processing("process_as_set", Position { x: 0.0, y: 0.0 })
+            .unwrap();
+        let first = studio.add_output(Position { x: 400.0, y: 0.0 });
+        let third = studio.add_output(Position { x: 400.0, y: 200.0 });
+        let text = studio
+            .add_processing("value_string", Position { x: -300.0, y: 0.0 })
+            .unwrap();
+        let suffixes = |list: &[&str]| {
+            ParamValue::Structured(StructuredParam::SetSuffixes {
+                suffixes: list.iter().map(|suffix| suffix.to_string()).collect(),
+            })
+        };
+        studio.set_param(&set, "suffixes".into(), suffixes(&["_a", "_b", "_c"]));
+        studio
+            .connect(&set, "out:suffix_0", &first, "in:input")
+            .unwrap();
+        studio
+            .connect(&set, "out:suffix_2", &third, "in:input")
+            .unwrap();
+        studio
+            .connect(&text, "param:value", &set, "param:suffix_2")
+            .unwrap();
+        let wires = |studio: &Studio| {
+            let mut wires: Vec<(String, String)> = studio
+                .workflow
+                .graph
+                .edges
+                .iter()
+                .map(|edge| {
+                    (
+                        format!("{}:{}", edge.source, edge.source_handle),
+                        format!("{}:{}", edge.target, edge.target_handle),
+                    )
+                })
+                .collect();
+            wires.sort();
+            wires
+        };
+
+        // Retyping a suffix leaves every wire alone.
+        let before = wires(&studio);
+        studio.set_param(&set, "suffixes".into(), suffixes(&["_a", "_B", "_c"]));
+        assert_eq!(wires(&studio), before);
+
+        studio.set_param(&set, "suffixes".into(), suffixes(&["_a", "_c"]));
+        let mut expected = vec![
+            (format!("{set}:out:suffix_0"), format!("{first}:in:input")),
+            (format!("{set}:out:suffix_1"), format!("{third}:in:input")),
+            (
+                format!("{text}:param:value"),
+                format!("{set}:param:suffix_1"),
+            ),
+        ];
+        expected.sort();
+        assert_eq!(wires(&studio), expected);
+    }
+
+    /// Two empty suffixes look the same, so only naming the one removed says whose wires
+    /// go: removing the first keeps the second's, which a shorter list would have dropped.
+    #[test]
+    fn removing_a_named_suffix_is_exact_between_identical_neighbours() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = Studio::load_registry(&root).unwrap();
+        let mut studio = Studio::blank(registry);
+        let set = studio
+            .add_processing("process_as_set", Position { x: 0.0, y: 0.0 })
+            .unwrap();
+        let output = studio.add_output(Position { x: 400.0, y: 0.0 });
+        studio.set_param(
+            &set,
+            "suffixes".into(),
+            ParamValue::Structured(StructuredParam::SetSuffixes {
+                suffixes: vec!["_a".into(), String::new(), String::new()],
+            }),
+        );
+        studio
+            .connect(&set, "out:suffix_2", &output, "in:input")
+            .unwrap();
+        assert!(studio.remove_set_suffix(&set, 1));
+        let edge = studio
+            .workflow
+            .graph
+            .edges
+            .iter()
+            .find(|edge| edge.target == output)
+            .unwrap();
+        assert_eq!(edge.source_handle, "out:suffix_1");
+        assert!(!studio.remove_set_suffix(&set, 5));
+    }
+
+    #[test]
+    fn a_suffix_removal_is_told_apart_from_an_edit() {
+        let list =
+            |items: &[&str]| -> Vec<String> { items.iter().map(|s| s.to_string()).collect() };
+        assert_eq!(
+            suffix_moves(&list(&["a", "b", "c"]), &list(&["a", "c"])),
+            vec![Some(0), None, Some(1)]
+        );
+        assert_eq!(
+            suffix_moves(&list(&["a", "b", "c"]), &list(&["b", "c"])),
+            vec![None, Some(0), Some(1)]
+        );
+        assert_eq!(
+            suffix_moves(&list(&["a", "b"]), &list(&["a", "x"])),
+            vec![Some(0), Some(1)]
+        );
+        assert_eq!(
+            suffix_moves(&list(&["a"]), &list(&["a", ""])),
+            vec![Some(0)]
+        );
+    }
+
+    /// The encoding options of every format start filled in, so the inspector and the run
+    /// agree on them from the first frame.
+    #[test]
+    fn a_new_convert_format_node_carries_every_format_default() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = Studio::load_registry(&root).unwrap();
+        let mut studio = Studio::blank(registry);
+        let id = studio
+            .add_processing("format_convert", Position { x: 0.0, y: 0.0 })
+            .unwrap();
+        let params = &studio
+            .workflow
+            .graph
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .unwrap()
+            .data
+            .params;
+        assert_eq!(params.get("tga_rle"), Some(&ParamValue::Bool(true)));
+        assert_eq!(
+            params.get("jpeg_sampling"),
+            Some(&ParamValue::String("4:2:0".into()))
+        );
+        bite_core::graph::validate(&studio.workflow.graph, &studio.registry).unwrap();
     }
 
     #[test]

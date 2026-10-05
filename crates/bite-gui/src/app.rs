@@ -882,11 +882,10 @@ fn draw_inspector(editor: &mut Editor, ui: &mut bite_imgui::Ui, rect: shell::Rec
     let context = panels::inspector::InspectorContext {
         registry: &editor.studio.registry,
         graph: &graph,
-        resolved: editor
-            .selected_node
-            .as_ref()
-            .and_then(|id| editor.resolved.get(id)),
+        resolved: &editor.resolved,
         image_names: &names,
+        selected_index: editor.active_branch().and_then(|branch| branch.selected),
+        importing: editor.import_started.is_some(),
         selected_image: editor
             .selected_thumbnail()
             .map(|thumbnail| [thumbnail.source.width, thumbnail.source.height]),
@@ -988,6 +987,11 @@ fn handle_shortcuts(editor: &mut Editor, ui: &bite_imgui::Ui) {
         }
     }
     if !matches!(editor.modal, modals::Modal::None) || editor.create_menu.open {
+        return;
+    }
+    // Backspace in a suffix field deleted the node being edited, Space opened the create
+    // menu, and Ctrl+Z undid the graph rather than the text.
+    if ui.want_text_input() {
         return;
     }
 
@@ -1167,6 +1171,52 @@ mod tests {
                 "thumbnail:input:2"
             ]
         );
+    }
+
+    /// Scans and text previews run off the interface thread and can finish out of order.
+    /// Only the newest request's answer is shown.
+    #[test]
+    fn a_result_for_a_superseded_request_is_dropped() {
+        let mut editor = bare_editor();
+        editor.jobs.scan_generation = 2;
+        crate::commands::apply_message(
+            &mut editor,
+            work::Message::ScanFinished {
+                generation: 1,
+                count: 5,
+            },
+        );
+        assert_eq!(editor.inspector.scan_count, None);
+        crate::commands::apply_message(
+            &mut editor,
+            work::Message::ScanFinished {
+                generation: 2,
+                count: 7,
+            },
+        );
+        assert_eq!(editor.inspector.scan_count, Some(7));
+
+        let first = editor.jobs.next_text_preview();
+        let second = editor.jobs.next_text_preview();
+        editor.inspector.text_preview_pending = true;
+        crate::commands::apply_message(
+            &mut editor,
+            work::Message::TextPreview {
+                generation: first,
+                lines: vec!["old".into()],
+            },
+        );
+        assert!(editor.inspector.text_preview.is_empty());
+        assert!(editor.inspector.text_preview_pending);
+        crate::commands::apply_message(
+            &mut editor,
+            work::Message::TextPreview {
+                generation: second,
+                lines: vec!["new".into()],
+            },
+        );
+        assert_eq!(editor.inspector.text_preview, ["new"]);
+        assert!(!editor.inspector.text_preview_pending);
     }
 
     /// A wire dropped on empty canvas opens the menu, and the node the menu creates is

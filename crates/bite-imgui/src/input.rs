@@ -176,6 +176,16 @@ impl Ui<'_> {
         unsafe { sys::igIsKeyDown_Nil(key.code()) }
     }
 
+    /// True while a text field owns the keyboard, so the editor's shortcuts must stand down.
+    ///
+    /// `key_pressed` does not imply this: a focused field takes Backspace and Delete without
+    /// locking them, so they still read as pressed to anyone who asks. The flag is the one
+    /// ImGui settled at the end of the previous frame, which is the frame the field was
+    /// focused in - and it is still set on the frame that Enter or Escape closes the field.
+    pub fn want_text_input(&self) -> bool {
+        unsafe { (*sys::igGetIO_Nil()).WantTextInput }
+    }
+
     /// True when the platform's primary modifier is held: Control, or Command on macOS.
     pub fn primary_modifier(&self) -> bool {
         unsafe { (*sys::igGetIO_Nil()).KeyCtrl || (*sys::igGetIO_Nil()).KeySuper }

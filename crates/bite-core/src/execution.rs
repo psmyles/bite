@@ -169,7 +169,8 @@ pub struct RunOptions {
     pub jobs: usize,
     /// Collects what each value node resolved to, for the canvas to show against the
     /// image being previewed. It also visits nodes no output depends on, which a batch
-    /// run has no reason to evaluate but the canvas still displays.
+    /// run has no reason to evaluate but the canvas still displays, and it marks the run
+    /// as a preview: a file a Process As Set's pattern does not match is still shown.
     pub capture_values: bool,
 }
 impl Default for RunOptions {
@@ -336,6 +337,39 @@ pub fn wants_heavy_metadata<'a>(
     })
 }
 
+/// Whether any of these definitions reads the image's width or height, the two values
+/// the cheap metadata takes from the file's header.
+fn wants_dimensions<'a>(
+    definitions: impl Iterator<Item = &'a definition::CompiledDefinition>,
+) -> bool {
+    definitions
+        .flat_map(|d| &d.metadata)
+        .any(|key| key == "image.width" || key == "image.height")
+}
+
+/// Reads a file's metadata, inspecting it fully when the header left its size unknown.
+///
+/// The header parser reads the common formats only; for a TIFF, a GIF, a PSD or an EXR it
+/// leaves the width at nothing, and a node that asks for it would resolve against zero -
+/// a Resize wired from Dimensions ran at one pixel. The full inspection costs two more
+/// processes, so it is only made when `dimensions` says something asks for the size.
+pub(crate) fn read_metadata(
+    host: &mut dyn ImageHost,
+    path: &Path,
+    heavy: bool,
+    dimensions: bool,
+) -> Result<Context, String> {
+    let metadata = host.metadata(path, heavy)?;
+    let unmeasured = matches!(
+        metadata.get("image.width"),
+        None | Some(Value::Int(0)) | Some(Value::Float(0.0))
+    );
+    if !heavy && dimensions && unmeasured {
+        return host.metadata(path, true);
+    }
+    Ok(metadata)
+}
+
 /// Whether a node hands an image on. The ones that do not are the value nodes, whose
 /// resolved numbers the canvas shows beside their ports.
 fn produces_image(definition: &definition::CompiledDefinition) -> bool {
@@ -384,6 +418,33 @@ fn image_extensions() -> &'static [&'static str] {
         "pct", "dds", "fits", "fts",
     ]
 }
+/// Puts one folder's files in the order Electron's `readdir` handed them over.
+///
+/// Node sorts a listing by the bytes of each name everywhere but Windows, where it keeps
+/// the order NTFS stores names in: each UTF-16 unit compared after upper-casing, so case
+/// does not separate names. A folder run numbers and tiles its files in this order, so it
+/// has to be the same one.
+fn sort_listing(paths: &mut [PathBuf]) {
+    if cfg!(windows) {
+        let key = |path: &PathBuf| -> Vec<u16> {
+            filename(path)
+                .chars()
+                .map(|c| {
+                    let mut upper = c.to_uppercase();
+                    match (upper.next(), upper.next()) {
+                        (Some(single), None) => single,
+                        _ => c,
+                    }
+                })
+                .collect::<String>()
+                .encode_utf16()
+                .collect()
+        };
+        paths.sort_by_cached_key(key);
+    } else {
+        paths.sort_by(|a, b| filename(a).as_bytes().cmp(filename(b).as_bytes()));
+    }
+}
 fn images(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let mut paths = Vec::new();
     for entry in
@@ -399,11 +460,24 @@ fn images(dir: &Path) -> Result<Vec<PathBuf>, String> {
             paths.push(p);
         }
     }
-    paths.sort();
+    sort_listing(&mut paths);
     if paths.is_empty() {
         return Err(format!("No images found in: {}", dir.display()));
     }
     Ok(paths)
+}
+/// Where a Text Output writes: the path it names, with `.txt` added unless it already
+/// ends that way (in any case). Electron's text batch did the same before it checked for
+/// an existing file and before it wrote, from the interface and the command line alike.
+/// An empty path stays empty, to be reported as unset rather than written as `.txt`.
+fn text_file(path: PathBuf) -> PathBuf {
+    let named = path.as_os_str().to_string_lossy();
+    if named.trim().is_empty() || named.to_lowercase().ends_with(".txt") {
+        return path;
+    }
+    let mut path = path.into_os_string();
+    path.push(".txt");
+    path.into()
 }
 fn mkdir_parent(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
@@ -577,6 +651,21 @@ fn channel_of(args: &[String]) -> Option<(usize, &[String])> {
         .position(|channel| channel == name)
         .map(|index| (index, rest))
 }
+/// Narrows a stream that is about to be measured to its first frame.
+///
+/// A GIF, an ICO or a multi-page TIFF reads as several images, and `info:` then reports
+/// one mean per frame run together into text that is no number at all, so the measurement
+/// failed. Electron measured `<path>[0]`. A stream that starts by reading a file reads
+/// only that frame; one that is built from several reads, as a Channel Merge is, drops
+/// every image after the first once it has been built.
+fn first_frame(mut args: Vec<String>) -> Vec<String> {
+    match args.first_mut() {
+        Some(read) if read != "(" => read.push_str("[0]"),
+        Some(_) => args.extend(s(&["-delete", "1--1"])),
+        None => {}
+    }
+    args
+}
 /// The mean of one stream, measuring every channel of an image at once.
 ///
 /// Taking the mean of red, then green, then blue - which is what a normal-map check does -
@@ -593,7 +682,7 @@ fn mean_of(
 ) -> Result<f64, String> {
     if let Some((channel, image)) = channel_of(&args) {
         if !measured.contains_key(image) {
-            let mut probe = image.to_vec();
+            let mut probe = first_frame(image.to_vec());
             probe.extend(s(&["-separate", "-format", "%[fx:mean] ", "info:"]));
             let means = host
                 .capture(&probe)?
@@ -606,12 +695,71 @@ fn mean_of(
             return Ok(*mean);
         }
     }
-    let mut args = args;
+    let mut args = first_frame(args);
     args.extend(s(&["-format", "%[fx:mean]", "info:"]));
     host.capture(&args)?
         .trim()
         .parse()
         .map_err(|error: std::num::ParseFloatError| error.to_string())
+}
+/// A Process As Set's prefix and suffixes, as a run groups files by them.
+///
+/// A value wired into the prefix or a suffix is what the node at the other end works out,
+/// when that can be known before any file is read: a String node, or a value computed
+/// from such nodes alone. Anything else - a property of the image, or a node fed by one -
+/// differs from file to file and cannot pick the files, so the port falls back to the
+/// source's stored parameter, which is what Electron read (`graph::set_pattern`).
+fn set_pattern(g: &Graph, registry: &Registry, set: &GraphNode) -> (String, Vec<String>) {
+    let (mut prefix, mut suffixes) = graph::set_pattern(g, set);
+    let upstream: BTreeSet<_> = graph::trace(g, std::slice::from_ref(&set.id), true)
+        .into_iter()
+        .collect();
+    let mut live = ResolvedParams::new();
+    for id in graph::topo_sort(g).unwrap_or_default() {
+        if id == set.id || !upstream.contains(&id) {
+            continue;
+        }
+        let node = g.nodes.iter().find(|n| n.id == id).unwrap();
+        let Some(def) = registry.nodes.get(&node.data.definition_id) else {
+            continue;
+        };
+        let independent = matches!(def.implementation, CompiledImplementation::Compute(_))
+            && def.metadata.is_empty()
+            && g.edges.iter().all(|e| {
+                e.target != id
+                    || !e.source_handle.starts_with("param:")
+                    || live.contains_key(&e.source)
+            });
+        if independent {
+            if let Ok(params) = resolve::node_params(node, g, &live, registry, &Context::new()) {
+                live.insert(id, params);
+            }
+        }
+    }
+    for edge in g.edges.iter().filter(|e| e.target == set.id) {
+        let Some(name) = edge.source_handle.strip_prefix("param:") else {
+            continue;
+        };
+        // Nothing on the wire falls back as a missing value does, to what is stored.
+        let Some(value) = live
+            .get(&edge.source)
+            .and_then(|params| params.get(name))
+            .filter(|value| **value != Value::Null)
+        else {
+            continue;
+        };
+        if edge.target_handle == "param:prefix" {
+            prefix = value.text();
+        } else if let Some(slot) = edge
+            .target_handle
+            .strip_prefix("param:suffix_")
+            .and_then(|i| i.parse::<usize>().ok())
+            .and_then(|i| suffixes.get_mut(i))
+        {
+            *slot = value.text();
+        }
+    }
+    (prefix, suffixes)
 }
 /// Everything resolving one file needs that is the same for every file of an output.
 struct ItemContext<'a> {
@@ -624,6 +772,7 @@ struct ItemContext<'a> {
     output: &'a GraphNode,
     raw_output: &'a Context,
     heavy: bool,
+    dimensions: bool,
 }
 impl ItemResult {
     fn new(output: ItemOutput, values: BTreeMap<String, Context>, stopped: Vec<String>) -> Self {
@@ -657,6 +806,7 @@ fn resolve_item(
         output,
         raw_output,
         heavy,
+        dimensions,
     } = context;
     let mut values = BTreeMap::new();
     let mut stopped = Vec::new();
@@ -664,7 +814,7 @@ fn resolve_item(
     // What the chain runs over and what it measures are the same file in a batch; a
     // preview renders a thumbnail and measures the original it was made from.
     let measured = options.measured_as.get(file).map_or(file, PathBuf::as_path);
-    let metadata = host.metadata(measured, heavy)?;
+    let metadata = read_metadata(host, measured, heavy, dimensions)?;
     let mut resolved = ResolvedParams::new();
     let mut streams: BTreeMap<(String, String), Option<Stream>> = BTreeMap::new();
     // Legacy batch execution selects one input per output. Its lazy
@@ -776,11 +926,12 @@ fn resolve_item(
                             .find(|e| e.target == *id && e.target_handle == format!("in:{name}"))
                         {
                             if let Some(param) = edge.source_handle.strip_prefix("param:") {
+                                // A wired boolean fills the channel completely when true,
+                                // as `Number(true)` made it in Electron, rather than being
+                                // no number at all and leaving the channel black.
                                 let fill = resolved
                                     .get(&edge.source)
-                                    .and_then(|p| p.get(param))
-                                    .and_then(|v| v.scalar().ok())
-                                    .unwrap_or(0.0)
+                                    .map_or(0.0, |p| scalar(p, param, 0.0))
                                     .clamp(0.0, 1.0);
                                 args.push(path_text(file)?);
                                 args.extend(s(&[
@@ -812,7 +963,22 @@ fn resolve_item(
                     outgoing = (!blocked).then_some(Stream { args, format: None });
                 }
                 "mean_value" => {
-                    if let Some(image) = incoming {
+                    // With nothing wired into it a Mean Value measures the image being
+                    // processed, as Electron's fallback to the input file did. A wire whose
+                    // stream a Gate shut leaves it with nothing to measure.
+                    let wired = g
+                        .edges
+                        .iter()
+                        .any(|e| e.target == *id && e.target_handle == "in:input");
+                    let image = if wired {
+                        incoming
+                    } else {
+                        Some(Stream {
+                            args: vec![path_text(file)?],
+                            format: None,
+                        })
+                    };
+                    if let Some(image) = image {
                         let value = mean_of(host, &mut channel_means, image.args)?;
                         params.insert("value".into(), Value::Float(value));
                     }
@@ -940,6 +1106,10 @@ fn resolve_item(
             ));
         }
         NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) => {
+            // A file whose stream a Gate shut has no picture to put in the atlas.
+            if image.is_none() {
+                return Ok(ItemResult::new(ItemOutput::Skipped, values, stopped));
+            }
             return Ok(ItemResult::new(
                 ItemOutput::Atlas(output_params.clone()),
                 values,
@@ -979,11 +1149,17 @@ pub fn run_workflow(
             .map(|v| v.text())
             .unwrap_or_default();
         let files = match options.named_files.get(&input_flag) {
+            // A list is processed in the order it was given, which for the interface is
+            // the order the images were imported in: that is the order a Flipbook tiles
+            // them and a Rename numbers them, as the Electron batch took `imagePaths`.
+            // A file listed twice is still processed once, where it first appears.
             Some(listed) if !listed.is_empty() => {
-                let mut listed = listed.clone();
-                listed.sort();
-                listed.dedup();
+                let mut seen = BTreeSet::new();
                 listed
+                    .iter()
+                    .filter(|path| seen.insert(*path))
+                    .cloned()
+                    .collect()
             }
             _ => {
                 let dir = options
@@ -1053,6 +1229,10 @@ pub fn run_workflow(
                 }
                 _ => Some(PathBuf::from(text(&raw_output, "flipbookOutputPath", ""))),
             });
+        let dest = match output.kind {
+            NodeKind::Builtin(BuiltinNodeKind::TextOutput) => dest.map(text_file),
+            _ => dest,
+        };
         if output.kind != NodeKind::Builtin(BuiltinNodeKind::ImageOutput)
             && dest.as_ref().is_some_and(|p| p.exists())
             && !overwrite
@@ -1065,52 +1245,65 @@ pub fn run_workflow(
         let contributors: BTreeSet<_> = output_plan.contributors.iter().cloned().collect();
         // A preview evaluates the whole graph, so what any of it asks about the file has
         // to be read, not only what this output's own chain needs.
-        let heavy = if options.capture_values {
-            wants_heavy_metadata(
-                g.nodes
-                    .iter()
-                    .filter_map(|n| registry.nodes.get(&n.data.definition_id)),
-            )
+        let definitions: Vec<_> = if options.capture_values {
+            g.nodes
+                .iter()
+                .filter_map(|n| registry.nodes.get(&n.data.definition_id))
+                .collect()
         } else {
-            wants_heavy_metadata(
-                output_plan
-                    .operations
-                    .iter()
-                    .filter_map(|o| registry.nodes.get(&o.definition)),
-            )
+            output_plan
+                .operations
+                .iter()
+                .filter_map(|o| registry.nodes.get(&o.definition))
+                .collect()
         };
+        let heavy = wants_heavy_metadata(definitions.iter().copied());
+        let dimensions = wants_dimensions(definitions.iter().copied());
         let set_node = g
             .nodes
             .iter()
             .find(|n| contributors.contains(&n.id) && n.data.definition_id == "process_as_set");
         let mut work: Vec<(PathBuf, Option<String>, BTreeMap<String, PathBuf>)> = Vec::new();
         if let Some(set) = set_node {
-            let prefix = set
-                .data
-                .params
-                .get("prefix")
-                .and_then(definition::to_value)
-                .map(|v| v.text())
-                .unwrap_or_default();
-            let suffixes = match set.data.params.get("suffixes") {
-                Some(ParamValue::Structured(StructuredParam::SetSuffixes { suffixes })) => suffixes,
-                _ => return Err("set suffixes missing".into()),
-            };
-            let mut groups: BTreeMap<String, BTreeMap<String, PathBuf>> = BTreeMap::new();
+            if !matches!(
+                set.data.params.get("suffixes"),
+                Some(ParamValue::Structured(StructuredParam::SetSuffixes { .. }))
+            ) {
+                return Err("set suffixes missing".into());
+            }
+            let (prefix, suffixes) = set_pattern(g, registry, set);
+            // Sets keep the order their first files came in, as Electron's grouping map
+            // did, so a Rename numbers them in import order just as it does single files.
+            let mut groups: Vec<(String, BTreeMap<String, PathBuf>)> = Vec::new();
             for file in &files {
                 let stem = file.file_stem().unwrap_or_default().to_string_lossy();
                 if let Some(rest) = stem.strip_prefix(&prefix) {
                     for (i, suffix) in suffixes.iter().enumerate() {
                         if !suffix.is_empty() {
-                            if let Some(middle) = rest.strip_suffix(suffix) {
-                                groups
-                                    .entry(middle.into())
-                                    .or_default()
-                                    .insert(format!("suffix_{i}"), file.clone());
+                            if let Some(middle) = rest.strip_suffix(suffix.as_str()) {
+                                let index = match groups.iter().position(|(m, _)| m == middle) {
+                                    Some(index) => index,
+                                    None => {
+                                        groups.push((middle.into(), BTreeMap::new()));
+                                        groups.len() - 1
+                                    }
+                                };
+                                groups[index].1.insert(format!("suffix_{i}"), file.clone());
                                 break;
                             }
                         }
                     }
+                }
+            }
+            // A preview of a file the pattern does not match still shows that file: the
+            // Electron preview seeded no suffix port then, so every port fell back to the
+            // selected image. A run leaves such a file out, as Electron's run did.
+            if groups.is_empty() && options.capture_values {
+                if let Some(file) = files.first() {
+                    let group = (0..suffixes.len())
+                        .map(|i| (format!("suffix_{i}"), file.clone()))
+                        .collect();
+                    work.push((file.clone(), None, group));
                 }
             }
             for (name, mut group) in groups {
@@ -1156,6 +1349,7 @@ pub fn run_workflow(
             output,
             raw_output: &raw_output,
             heavy,
+            dimensions,
         };
         let resolved = scatter(host, options, &work, &|host, index| {
             let (file, set_name, set_inputs) = &work[index];
@@ -1407,7 +1601,7 @@ mod tests {
         assert_eq!(
             host.captures,
             [s(&[
-                "image.png",
+                "image.png[0]",
                 "-separate",
                 "-format",
                 "%[fx:mean] ",
@@ -1431,8 +1625,24 @@ mod tests {
             mean_of(&mut host, &mut BTreeMap::new(), blurred.clone()).unwrap(),
             0.5
         );
-        assert_eq!(host.captures[0][..3], blurred[..3]);
+        assert_eq!(host.captures[0][..3], ["image.png[0]", "-blur", "0x1"]);
         assert!(!host.captures[0].contains(&"-separate".to_string()));
+    }
+
+    /// A GIF, an ICO or a multi-page TIFF is measured on its first frame, as Electron's
+    /// `<path>[0]` was; reading every frame ran their means together into no number.
+    #[test]
+    fn a_mean_reads_only_the_first_frame() {
+        assert_eq!(first_frame(s(&["anim.gif"])), ["anim.gif[0]"]);
+        assert_eq!(
+            first_frame(s(&["anim.gif", "-negate"])),
+            ["anim.gif[0]", "-negate"]
+        );
+        // A merged stream is built from several reads; it is narrowed once it is built.
+        let merged = s(&["(", "a.gif", ")", "(", "b.gif", ")", "-combine"]);
+        let mut expected = merged.clone();
+        expected.extend(s(&["-delete", "1--1"]));
+        assert_eq!(first_frame(merged), expected);
     }
 
     #[test]
@@ -1444,6 +1654,33 @@ mod tests {
             names.map(|p| p.to_string_lossy().into_owned()),
             ["äbaco1.png", "Ábaco2.png", "abaco10.png", "Éclair3.png"]
         );
+    }
+
+    /// A folder lists in the order Electron's `readdir` gave it: by bytes, except on NTFS,
+    /// which stores names without regard to case.
+    #[test]
+    fn a_folder_lists_in_the_order_electron_read_it() {
+        let mut names = ["b.png", "C.png", "a.png", "a10.png", "a2.png"].map(PathBuf::from);
+        sort_listing(&mut names);
+        let names = names.map(|p| p.to_string_lossy().into_owned());
+        if cfg!(windows) {
+            assert_eq!(names, ["a.png", "a10.png", "a2.png", "b.png", "C.png"]);
+        } else {
+            assert_eq!(names, ["C.png", "a.png", "a10.png", "a2.png", "b.png"]);
+        }
+    }
+
+    #[test]
+    fn a_text_output_path_gains_txt_unless_it_has_it() {
+        for (named, written) in [
+            ("report", "report.txt"),
+            ("report.csv", "report.csv.txt"),
+            ("report.txt", "report.txt"),
+            ("REPORT.TXT", "REPORT.TXT"),
+            ("", ""),
+        ] {
+            assert_eq!(text_file(PathBuf::from(named)), PathBuf::from(written));
+        }
     }
 
     #[test]

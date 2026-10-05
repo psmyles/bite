@@ -23,11 +23,21 @@ fn wired_value(node: &GraphNode, target: &str, value: &Value, registry: &Registr
                     .map(|param| param.kind.clone())
             })
     };
+    // A wire can carry nothing: a Logic Branch whose chosen side is unwired passes on
+    // null. The legacy nodes read that as `Number(null ?? 0)` and `String(x ?? '')`, so
+    // it arrives as zero or as empty text rather than failing the node it reaches.
     match (kind, value) {
         (Some(ParamType::Int | ParamType::Float | ParamType::Numeric), Value::Bool(value)) => {
             Value::Int(i64::from(*value))
         }
+        (Some(ParamType::Int | ParamType::Float | ParamType::Numeric), Value::Null) => {
+            Value::Int(0)
+        }
+        (Some(ParamType::Int | ParamType::Float | ParamType::Numeric), Value::String(text)) => {
+            Value::Float(bite_expr::number_from_text(text))
+        }
         (Some(ParamType::Bool), value) => Value::Bool(value.truthy()),
+        (Some(ParamType::String | ParamType::Enum), Value::Null) => Value::String(String::new()),
         (Some(ParamType::String | ParamType::Enum), value) => Value::String(value.text()),
         _ => value.clone(),
     }
@@ -67,14 +77,14 @@ pub fn node_params(
     context.extend(metadata.clone());
     if let Some(d) = definition {
         if let CompiledImplementation::Compute(outputs) = &d.implementation {
+            // An output that cannot be worked out keeps whatever the node already holds,
+            // as the legacy `computeNodeParams` did by catching and returning the params.
+            // Failing here instead stopped every node of the graph, so one value node
+            // anywhere, wired to nothing at all, took down each preview and run.
             let values: Context = outputs
                 .iter()
-                .map(|(name, e)| {
-                    e.evaluate(&context)
-                        .map(|v| (name.clone(), v))
-                        .map_err(|e| format!("node {}: {e}", node.id))
-                })
-                .collect::<Result<_, _>>()?;
+                .filter_map(|(name, e)| e.evaluate(&context).ok().map(|v| (name.clone(), v)))
+                .collect();
             context.extend(values);
         }
     }

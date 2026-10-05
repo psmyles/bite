@@ -124,3 +124,75 @@ fn diagnostics_and_resource_limits() {
     assert!(eval("format('{} {}',1)", json!({})).is_err());
     assert!(eval("clamp(1,2,0)", json!({})).is_err());
 }
+/// Text becomes a number the way JavaScript's `Number()` made it in the legacy nodes:
+/// text that is no number is NaN, which compares false, instead of an error.
+#[test]
+fn text_converts_to_numbers_as_legacy_number_did() {
+    for (text, expected) in [
+        ("2", "2"),
+        (" 2.5 ", "2.5"),
+        ("", "0"),
+        ("-1e3", "-1000"),
+        ("0x10", "16"),
+        ("Infinity", "Infinity"),
+        ("abc", "NaN"),
+        ("inf", "NaN"),
+        ("12px", "NaN"),
+    ] {
+        assert_eq!(
+            eval("float(t)", json!({ "t": text })).unwrap().text(),
+            expected,
+            "{text:?}"
+        );
+    }
+    assert_eq!(
+        eval("float(t) == float(t)", json!({"t": "abc"})).unwrap(),
+        Value::Bool(false)
+    );
+    assert_eq!(
+        eval("float(t) != float(t)", json!({"t": "abc"})).unwrap(),
+        Value::Bool(true)
+    );
+    assert!(eval("int(t)", json!({"t": "abc"})).is_err());
+    assert_eq!(Value::Null.scalar(), Ok(0.0));
+}
+/// The folder of a file at the root of a drive or a share keeps the separator that makes
+/// it the root, as Node's `path.dirname` did.
+#[test]
+fn dirname_keeps_the_root_separator() {
+    for (path, expected) in [
+        ("C:\\a.png", "C:\\"),
+        ("C:/a.png", "C:/"),
+        ("C:\\dir\\a.png", "C:\\dir"),
+        ("C:a.png", "C:"),
+        ("\\\\server\\share\\a.png", "\\\\server\\share\\"),
+        ("\\\\server\\share\\dir\\a.png", "\\\\server\\share\\dir"),
+        ("/a.png", "/"),
+        ("/home/me/a.png", "/home/me"),
+        ("a.png", "."),
+    ] {
+        assert_eq!(
+            eval("dirname(p)", json!({ "p": path })).unwrap().text(),
+            expected,
+            "{path}"
+        );
+    }
+}
+/// A colour reaches ImageMagick as text it reads: text as it was written, components from
+/// a Color node as `rgba()`.
+#[test]
+fn rgba_formats_wired_colours() {
+    for (color, expected) in [
+        (json!("#ff0000"), "#ff0000"),
+        (json!([1, 0, 0, 1]), "rgba(255,0,0,1)"),
+        (json!([0, 0.5, 1]), "rgba(0,128,255,1)"),
+        (json!([0.5, 0.25]), "rgba(128,128,128,0.25)"),
+        (json!(1), "rgba(255,255,255,1)"),
+    ] {
+        assert_eq!(
+            eval("rgba(c)", json!({ "c": color })).unwrap().text(),
+            expected,
+            "{color}"
+        );
+    }
+}
