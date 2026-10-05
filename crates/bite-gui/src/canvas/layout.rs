@@ -219,11 +219,22 @@ pub fn measure(node: &GraphNode, context: &CardContext) -> Card {
         .unwrap_or_default();
     // An enum parameter is edited in the inspector only. `nodeEditorHelpers.ts` filters
     // `type !== 'enum'` when it builds `paramDefs`, so an enum has neither a row nor a port.
-    let carded =
-        |param: &&ParamDefinition| param.kind != ParamType::Enum && (context.visible)(&param.name);
+    // Nor does a structured one - Rename's blocks, a set's suffixes - which has no value to
+    // show on a row; in Electron those nodes declared no parameters at all.
+    let carded = |param: &&ParamDefinition| {
+        !matches!(
+            param.kind,
+            ParamType::Enum
+                | ParamType::RenameBlocks
+                | ParamType::SetSuffixes
+                | ParamType::TextSlots
+        ) && (context.visible)(&param.name)
+    };
+    // Electron's `SetInputNode` has no parameter rows: its prefix already has a port row.
+    let set = node.data.definition_id == "process_as_set";
     let body_params: Vec<&&ParamDefinition> = params
         .iter()
-        .filter(|param| !param.port_only && carded(param))
+        .filter(|param| !set && !param.port_only && carded(param))
         .collect();
     let slot_params: Vec<&&ParamDefinition> = params
         .iter()

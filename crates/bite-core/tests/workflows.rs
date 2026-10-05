@@ -34,23 +34,44 @@ fn migrates_every_fixture_without_mutation_and_matches_traversal_goldens() {
         )
         .unwrap();
         let g = &loaded.workflow.graph;
-        assert_eq!(g.nodes.len(), golden["nodes"].as_u64().unwrap() as usize);
-        assert_eq!(g.edges.len(), golden["edges"].as_u64().unwrap() as usize);
+        // A Rename the set naming migration put in front of an output (KNOWN_DEVIATIONS.md)
+        // is not in the legacy graph. Everything else must traverse exactly as it did.
+        let inserted: Vec<&str> = g
+            .nodes
+            .iter()
+            .map(|n| n.id.as_str())
+            .filter(|id| id.starts_with("rename-set-"))
+            .collect();
+        assert_eq!(loaded.rewritten, !inserted.is_empty());
+        let legacy = |ids: Vec<String>| -> serde_json::Value {
+            serde_json::json!(ids
+                .into_iter()
+                .filter(|id| !inserted.contains(&id.as_str()))
+                .collect::<Vec<_>>())
+        };
         assert_eq!(
-            serde_json::json!(graph::topo_sort(g).unwrap()),
+            g.nodes.len() - inserted.len(),
+            golden["nodes"].as_u64().unwrap() as usize
+        );
+        assert_eq!(
+            g.edges.len() - inserted.len(),
+            golden["edges"].as_u64().unwrap() as usize
+        );
+        assert_eq!(
+            legacy(graph::topo_sort(g).unwrap()),
             golden["execution_order"]
         );
         for o in golden["outputs"].as_array().unwrap() {
             let id = o["id"].as_str().unwrap();
             assert_eq!(serde_json::json!(graph::trace_input(g, id)), o["input"]);
             assert_eq!(
-                serde_json::json!(graph::trace(g, &[id.into()], true)),
+                legacy(graph::trace(g, &[id.into()], true)),
                 o["contributors"]
             );
         }
         for d in golden["descendants"].as_array().unwrap() {
             assert_eq!(
-                serde_json::json!(graph::trace(g, &[d["id"].as_str().unwrap().into()], false)),
+                legacy(graph::trace(g, &[d["id"].as_str().unwrap().into()], false)),
                 d["nodes"]
             );
         }
@@ -150,6 +171,64 @@ fn rejects_group_containment_cycles() {
         .unwrap_err()
         .iter()
         .any(|e| e.contains("containment cycle")));
+}
+
+/// An output's set naming fields become a Rename node in front of it that writes the same
+/// names, once: the saved result loads without being rewritten again.
+#[test]
+fn set_naming_fields_become_a_rename_in_front_of_the_output() {
+    use bite_schema::{ParamValue, RenameBlock, StructuredParam};
+    let r = registry();
+    let text = fs::read_to_string(root().join("test-workflows/wf-06-setmode.bite")).unwrap();
+    let loaded = workflow::load(&text, &r).unwrap();
+    assert!(loaded.rewritten);
+    let g = &loaded.workflow.graph;
+    let output = g.nodes.iter().find(|n| n.id == "imageOutput-1").unwrap();
+    assert!(!output.data.params.contains_key("setOutputPrefix"));
+    assert!(!output.data.params.contains_key("setOutputSuffix"));
+    let rename = g.nodes.iter().find(|n| n.id == "rename-set-1").unwrap();
+    assert_eq!(rename.data.definition_id, "rename");
+    assert_eq!(
+        rename.data.params["blocks"],
+        ParamValue::Structured(StructuredParam::RenameBlocks {
+            blocks: vec![
+                RenameBlock::Text {
+                    value: "packed_".into()
+                },
+                // The set's name carries the input prefix; the legacy name did not.
+                RenameBlock::Oldname {
+                    find: "set_".into(),
+                    replace_with: String::new()
+                },
+            ]
+        })
+    );
+    let wire = |source: &str, target: &str| {
+        g.edges
+            .iter()
+            .any(|e| e.source == source && e.target == target && e.target_handle == "in:input")
+    };
+    assert!(wire("merge-1", "rename-set-1"));
+    assert!(wire("rename-set-1", "imageOutput-1"));
+    assert!(!wire("merge-1", "imageOutput-1"));
+
+    let saved = serde_json::to_string(&loaded.workflow).unwrap();
+    let again = workflow::load(&saved, &r).unwrap();
+    assert!(!again.migrated && !again.rewritten);
+    assert_eq!(again.workflow.graph.nodes.len(), g.nodes.len());
+
+    // Outputs that never used the fields, as every saved one carried them, are left alone.
+    let wf01 = fs::read_to_string(root().join("test-workflows/wf-01-fastpath.bite")).unwrap();
+    let mut plain = workflow::load(&wf01, &r).unwrap().workflow;
+    for node in &mut plain.graph.nodes {
+        if node.kind == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::ImageOutput) {
+            node.data
+                .params
+                .insert("setOutputPrefix".into(), ParamValue::String(String::new()));
+        }
+    }
+    let plain = serde_json::to_string(&plain).unwrap();
+    assert!(!workflow::load(&plain, &r).unwrap().rewritten);
 }
 
 #[test]

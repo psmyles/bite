@@ -167,9 +167,11 @@ impl Studio {
             registry,
             workflow: loaded.workflow,
             path: Some(path.to_owned()),
-            dirty: loaded.migrated,
+            dirty: loaded.migrated || loaded.rewritten,
             status: if loaded.migrated {
                 "Opened and migrated; save to write schema v2".into()
+            } else if loaded.rewritten {
+                "Opened; set naming moved into a Rename node - save to keep it".into()
             } else {
                 format!("Opened {}", path.display())
             },
@@ -181,7 +183,7 @@ impl Studio {
             transaction_open: false,
         };
         studio.clean_graph = studio.graph_key();
-        if loaded.migrated {
+        if loaded.migrated || loaded.rewritten {
             studio.clean_graph.clear();
         }
         Ok(studio)
@@ -478,8 +480,6 @@ impl Studio {
                     ("customPath".into(), ParamValue::String(String::new())),
                     ("overwrite".into(), ParamValue::String("skip".into())),
                     ("generateLog".into(), ParamValue::Bool(false)),
-                    ("setOutputPrefix".into(), ParamValue::String(String::new())),
-                    ("setOutputSuffix".into(), ParamValue::String(String::new())),
                 ]),
                 inputs: Vec::new(),
                 outputs: Vec::new(),
