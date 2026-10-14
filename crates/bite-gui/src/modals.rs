@@ -347,7 +347,7 @@ fn confirm(ui: &mut Ui, message: &str, pending: PendingAction) -> Option<Outcome
     // The header reads only the application name, as `ConfirmModal.svelte` does.
     panel(ui, "confirm", "Bite", 320.0, false, |ui, width| {
         let inner = body_start(ui, width, 20.0, 20.0);
-        ui.with_face(theme::face::BODY, |ui| ui.text_wrapped(message));
+        ui.with_face(theme::face::BODY, |ui| ui.text_wrapped_at(message, inner));
         ui.dummy([inner, 20.0]);
         // Cancel comes first so that the safe choice is the default.
         let pressed = footer(
@@ -371,8 +371,7 @@ fn message(ui: &mut Ui, title: &str, text: &str) -> Option<Outcome> {
     panel(ui, "message", title, 340.0, true, |ui, width| {
         let inner = body_start(ui, width, 20.0, 18.0);
         ui.with_face(theme::face::BODY, |ui| {
-            ui.set_next_item_width(inner);
-            ui.text_wrapped(text);
+            ui.text_wrapped_at(text, inner);
         });
         ui.dummy([inner, 18.0]);
         footer(ui, width, 20.0, &[("Close", ButtonKind::Neutral, true)]).map(|_| Outcome::Dismissed)
@@ -383,8 +382,10 @@ fn about(ui: &mut Ui, versions: &[(String, String)]) -> Option<Outcome> {
     panel(ui, "about", "About Bite", 320.0, true, |ui, width| {
         let inner = body_start(ui, width, 20.0, 20.0);
         ui.with_face(theme::face::BODY, |ui| {
-            ui.set_next_item_width(inner);
-            ui.text_wrapped("A node-based image processing tool powered by ImageMagick.");
+            ui.text_wrapped_at(
+                "A node-based image processing tool powered by ImageMagick.",
+                inner,
+            );
         });
         ui.dummy([inner, 6.0]);
         ui.with_face(theme::face::SMALL_MONO, |ui| {
@@ -451,11 +452,7 @@ pub fn credit_entries() -> Vec<CreditSection> {
                     "SIL OFL 1.1",
                     "https://www.jetbrains.com/lp/mono/",
                 ),
-                (
-                    "Atkinson Hyperlegible Next",
-                    "SIL OFL 1.1",
-                    "https://www.brailleinstitute.org/freefont/",
-                ),
+                ("Inter", "SIL OFL 1.1", "https://rsms.me/inter/"),
             ],
         ),
     ]
@@ -571,9 +568,9 @@ fn update(ui: &mut Ui, state: &UpdateState) -> Option<Outcome> {
             UpdateState::Failed => {
                 ui.with_face(theme::face::BODY, |ui| {
                     ui.with_colors(&[(StyleColor::Text, theme::TEXT_MUTED)], |ui| {
-                        ui.set_next_item_width(inner);
-                        ui.text_wrapped(
+                        ui.text_wrapped_at(
                             "Could not reach GitHub. Check your internet connection and try again.",
+                            inner,
                         );
                     })
                 });
@@ -608,10 +605,9 @@ fn release_notes(ui: &mut Ui, width: f32, body: &str) {
     );
     ui.dummy([width, 18.0]);
     ui.with_face(theme::face::BODY, |ui| {
-        ui.set_next_item_width(width);
         // The notes are plain text here; only the first twenty lines are shown.
         let excerpt: String = body.lines().take(20).collect::<Vec<_>>().join("\n");
-        ui.text_wrapped(&excerpt);
+        ui.text_wrapped_at(&excerpt, width);
     });
 }
 
@@ -635,12 +631,11 @@ fn incompatible_version(ui: &mut Ui, file_version: Option<&str>) -> Option<Outco
         |ui, width| {
             let inner = body_start(ui, width, 20.0, 18.0);
             ui.with_face(theme::face::LABEL, |ui| {
-                ui.set_next_item_width(inner);
-                ui.text_wrapped(&message);
+                ui.text_wrapped_at(&message, inner);
                 ui.dummy([inner, 10.0]);
-                ui.set_next_item_width(inner);
-                ui.text_wrapped(
+                ui.text_wrapped_at(
                     "Please download an older compatible version of Bite from GitHub to open this file.",
+                    inner,
                 );
             });
             ui.dummy([inner, 18.0]);
@@ -679,8 +674,7 @@ fn run_workflow(ui: &mut Ui, nodes: &[RunCandidate]) -> Option<Outcome> {
             description.push_str(" Invalid nodes will be skipped.");
         }
         ui.with_face(theme::face::BODY, |ui| {
-            ui.set_next_item_width(inner);
-            ui.text_wrapped(&description);
+            ui.text_wrapped_at(&description, inner);
         });
         ui.dummy([inner, 10.0]);
 
@@ -772,8 +766,7 @@ fn batch_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
         if let Some(error) = &progress.error {
             ui.with_face(theme::face::SMALL_MONO, |ui| {
                 ui.with_colors(&[(StyleColor::Text, theme::COLOR_ERROR_TEXT)], |ui| {
-                    ui.set_next_item_width(inner);
-                    ui.text_wrapped(error);
+                    ui.text_wrapped_at(error, inner);
                 })
             });
             ui.dummy([inner, 20.0]);
@@ -988,8 +981,7 @@ fn batch_summary(ui: &mut Ui, summary: &BatchSummary) -> Option<Outcome> {
         } else if summary.failed > 0 {
             ui.with_face(theme::face::SMALL_MONO, |ui| {
                 ui.with_colors(&[(StyleColor::Text, theme::COLOR_ERROR_TEXT)], |ui| {
-                    ui.set_next_item_width(inner);
-                    ui.text_wrapped("Check the log window for per-image error details.");
+                    ui.text_wrapped_at("Check the log window for per-image error details.", inner);
                 })
             });
             ui.dummy([inner, 12.0]);

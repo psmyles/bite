@@ -72,9 +72,9 @@ The native editor embeds these fonts in its executable
 (crates/bite-imgui/fonts/). Both are licensed under the SIL Open Font License,
 Version 1.1, which permits bundling and redistribution with software:
 
-  Atkinson Hyperlegible Next  (Regular, SemiBold, Bold)
-  Copyright Braille Institute of America, Inc.
-  https://www.brailleinstitute.org/freefont/
+  Inter  (Regular, SemiBold, Bold)
+  Copyright 2016 The Inter Project Authors
+  https://github.com/rsms/inter
 
   JetBrains Mono  (Regular, SemiBold, Bold)
   Copyright JetBrains s.r.o.

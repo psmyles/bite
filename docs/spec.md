@@ -82,7 +82,7 @@ A batch image workflow builder application built around a visual node graph edit
 | @yao-pkg/pkg                | MIT                                                             |
 | ImageMagick                 | ImageMagick License (Apache-2.0 derived - attribution required) |
 | JetBrains Mono              | SIL OFL 1.1                                                     |
-| Atkinson Hyperlegible       | SIL OFL 1.1                                                     |
+| Inter                       | SIL OFL 1.1                                                     |
 
 **Avoided:** Sharp/libvips (LGPLv3), Bun (statically links JavaScriptCore, LGPL-2).
 
@@ -160,7 +160,7 @@ project-root/
 |       +-- App.svelte     - 3-panel resizable layout; workflow save/load; menu IPC listeners; two $effects for active input node tracking (selecting an inputNode calls imageStore.setActive; falls back to first inputNode if active is deleted)
 |       +-- assets/
 |       |   +-- theme.css  - CSS custom properties (colors, typography, layout sizes, port colors)
-|       |   +-- fonts.css  - @font-face for JetBrainsMono-Regular and AtkinsonHyperlegibleNext-Regular
+|       |   +-- fonts.css  - @font-face for JetBrainsMono-Regular and Inter-Regular
 |       +-- components/
 |       |   +-- RunWorkflowButton.svelte     - Run Workflow button rendered at the bottom of the Inspector panel; validates all output nodes (imageOutputNode, textOutputNode, flipbookOutputNode); shows RunWorkflowDialog when some are invalid; handles native menu shortcut (IPC.MENU_RUN_WORKFLOW); exports OutputNodeStatus type
 |       |   +-- RunWorkflowDialog.svelte     - Modal listing each output node's readiness (OK/warning + reason); "Run N nodes" / Cancel; imports OutputNodeStatus from RunWorkflowButton.svelte
@@ -635,7 +635,7 @@ Build outputs:
 - CLI export (PowerShell / Bash / CMD; linear and branching graph support)
 - NSIS installer: shows file names and progress bar during installation
 - Credits modal in Help menu (open-source deps + fonts, links open in system browser)
-- Typography: AtkinsonHyperlegibleNext (UI), JetBrainsMono-Regular (monospace)
+- Typography: Inter (UI), JetBrainsMono-Regular (monospace)
 - Port color WCAG AAA contrast (all port type colors >= 7:1 on node background)
 - Input inspector: two-step folder import (pick -> scan -> import) with format chip filters
 - Post-batch summary dialog (processed / skipped / failed counts + open output folder button)
