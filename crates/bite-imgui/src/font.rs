@@ -1,10 +1,10 @@
-//! Font atlas construction. Mirrors the Electron font stack: Atkinson Hyperlegible Next for
-//! interface text and JetBrains Mono for monospaced text, in the weights `theme.css` uses.
+//! Font atlas construction: Inter for interface text and JetBrains Mono for monospaced text,
+//! in the weights `theme.css` uses.
 use bite_imgui_sys as sys;
 
-pub const UI_REGULAR: &[u8] = include_bytes!("../fonts/AtkinsonHyperlegibleNext-Regular.ttf");
-pub const UI_SEMIBOLD: &[u8] = include_bytes!("../fonts/AtkinsonHyperlegibleNext-SemiBold.ttf");
-pub const UI_BOLD: &[u8] = include_bytes!("../fonts/AtkinsonHyperlegibleNext-Bold.ttf");
+pub const UI_REGULAR: &[u8] = include_bytes!("../fonts/Inter-Regular.ttf");
+pub const UI_SEMIBOLD: &[u8] = include_bytes!("../fonts/Inter-SemiBold.ttf");
+pub const UI_BOLD: &[u8] = include_bytes!("../fonts/Inter-Bold.ttf");
 pub const MONO_REGULAR: &[u8] = include_bytes!("../fonts/JetBrainsMono-Regular.ttf");
 pub const MONO_SEMIBOLD: &[u8] = include_bytes!("../fonts/JetBrainsMono-SemiBold.ttf");
 pub const MONO_BOLD: &[u8] = include_bytes!("../fonts/JetBrainsMono-Bold.ttf");
@@ -238,8 +238,8 @@ impl Fonts {
     /// picks a whole pixel bake, and then `CalcTextSizeA` and `RenderText` both scale what they
     /// return by `size / baked->Size`, so the geometry comes back at the size that was asked
     /// for. Rounding here would describe a bake that nothing draws - at eleven pixels the
-    /// interface face is 10.53, and calling that 11 made every box drawn around a run, and
-    /// every glyph position in letter-spaced text, four and a half per cent too wide.
+    /// interface face is 13.31, and calling that 13 would make every box drawn around a run,
+    /// and every glyph position in letter-spaced text, over two per cent too narrow.
     pub fn measure(&self, face: Face, scale: f32, text: &str) -> [f32; 2] {
         let id = self.id(face);
         let Some(handle) = self.handles.get(id.0).copied().filter(|h| !h.is_null()) else {

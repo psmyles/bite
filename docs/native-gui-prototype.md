@@ -38,8 +38,8 @@ reached; they remain on `main`.
 
 ## Fonts
 
-Atkinson Hyperlegible Next and JetBrains Mono are embedded in the executable at every size
-and weight the stylesheet uses. Each face is rasterized so that its em equals the size the
+Inter and JetBrains Mono are embedded in the executable at every size and weight the
+stylesheet uses. Each face is rasterized so that its em equals the size the
 token names, because that is what a stylesheet's `font-size` means, while Dear ImGui's own
 size parameter is the distance from ascender to descender. Dear ImGui truncates that
 parameter, so the atlas is built at the nearest whole pixel and drawn at the exact one, and
