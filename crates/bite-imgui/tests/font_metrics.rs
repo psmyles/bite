@@ -5,7 +5,7 @@
 //! *rasterized* at, and `CalcTextSizeA` and `RenderText` both scale what they produce by
 //! `size / baked->Size`. So drawing was already exact while measuring was not, and every box
 //! drawn around a run, every centred or right-aligned label, and every glyph position in
-//! letter-spaced text inherited the difference - four and a half per cent at eleven pixels.
+//! letter-spaced text inherited the difference - a few per cent at eleven pixels.
 //!
 //! These are all one test because a Dear ImGui context is process-wide and a test binary runs
 //! its tests in one process.
@@ -30,12 +30,12 @@ fn measurement_reports_the_size_the_stylesheet_asks_for() {
         "twelve pixel mono should advance 0.6 em per character, so 72.0 for ten of them, not {mono}"
     );
 
-    // The interface face's advances for this string sum to 5.964 em, which is the 65.6 pixels
-    // `ProcessNode.svelte` gives the previewing badge at `--font-size-xs`.
+    // The interface face's advances for this string sum to 12690 / 2048 em, which is 68.16
+    // pixels for the previewing badge at `--font-size-xs`.
     let badge = fonts.measure(Face::ui(11), 1.0, TEXT)[0];
     assert!(
-        (badge - 65.6).abs() < 0.05,
-        "the badge text is 65.6 pixels wide in the stylesheet, not {badge}"
+        (badge - 68.16).abs() < 0.05,
+        "the badge text is 68.16 pixels wide in the interface face, not {badge}"
     );
 
     // Canvas text is measured at the zoom it is drawn at, so measurement has to be proportional

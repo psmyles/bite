@@ -128,10 +128,9 @@ pub const GROUP_LABEL_INPUT_BORDER: Color = Color([GREY_168, GREY_168, GREY_168,
 
 /// `line-height: normal` for the interface face, as a multiple of the font size.
 ///
-/// Atkinson Hyperlegible Next sets `USE_TYPO_METRICS`, so a browser lays a line out on the
-/// typographic ascent, descent and gap from its `OS/2` table: (796 + 251 + 150) / 1000. A box
-/// sized from Dear ImGui's line height instead would come out two pixels short.
-pub const UI_LINE_HEIGHT: f32 = 1.197;
+/// Inter sets `USE_TYPO_METRICS`, so a browser lays a line out on the typographic ascent,
+/// descent and gap from its `OS/2` table: (1984 + 494 + 0) / 2048.
+pub const UI_LINE_HEIGHT: f32 = 1.21;
 
 pub const BADGE_PREVIEW_COLOR: Color = Color::rgb(0x39, 0xff, 0x14);
 pub const BADGE_PROCESSING_COLOR: Color = COLOR_WARNING;

@@ -1268,3 +1268,22 @@ None of them points at a path that no longer exists; the one that did, `menu.rs`
 Cmd+Ctrl+F, and changing it touches the key map rather than only a label, so it was left. The
 `.bite` association claims `LSHandlerRank Owner`, since the editor defines the type. The CLI ships
 at `Contents/MacOS/bite` with no PATH entry, where the Windows installer offers one.
+
+## Interface font 2026-10-14 — Inter replaces Atkinson Hyperlegible Next
+
+The interface face is Inter 4.1 in Regular, SemiBold and Bold, the static cuts from its
+`extras/ttf` folder, embedded where Atkinson Hyperlegible Next was. JetBrains Mono is
+unchanged. The three files add about a megabyte to the executable.
+
+Inter also sets `USE_TYPO_METRICS`, and its `hhea` and `OS/2` metrics agree with no line gap,
+so `line-height: normal` is (1984 + 494) / 2048 = 1.21 where it was 1.197, and the em-to-pixel
+factor is the same 1.21 where it was 0.957. `UI_LINE_HEIGHT` follows. Inter is about four per
+cent wider: `PREVIEWING` at eleven pixels measures 68.16 rather than 65.6, which
+`font_metrics` now checks against Inter's own `hmtx` advances.
+
+The extra width exposed a wrapping fault in the dialogs. Each called `set_next_item_width`
+before `text_wrapped`, but item width does not bound wrapping, so text wrapped at the window
+edge and ignored the body's right padding; Atkinson happened to break early enough to hide it.
+The dialogs now use `text_wrapped_at` with the body width.
+
+Earlier entries that name Atkinson Hyperlegible Next describe the build as it was then.
