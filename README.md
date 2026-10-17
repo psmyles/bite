@@ -3,11 +3,8 @@
 Bite (Batch Image Transformation Editor) is a node-based batch image workflow creator and processor. All the processing is handled by ImageMagick, Bite just makes the string of commands needed to pass onto ImageMagick.
 
 Built in [Rust](https://www.rust-lang.org/) on [ImageMagick](https://imagemagick.org/), with a
-native editor drawn with [Dear ImGui](https://github.com/ocornut/imgui) over
-[wgpu](https://wgpu.rs/).
-
-The hosted workflow builder at [psmyles.github.io/bite](https://psmyles.github.io/bite/) is the
-earlier Electron/Svelte renderer, kept on the `main` branch; it is not built from this tree.
+native editor drawn with [Dear ImGui](https://github.com/ocornut/imgui) through
+[sokol_gfx](https://github.com/floooh/sokol), on Direct3D 11 on Windows and Metal on macOS.
 
 ---
 
@@ -28,12 +25,32 @@ earlier Electron/Svelte renderer, kept on the `main` branch; it is not built fro
 
 ---
 
+## Command Line
+
+The `bite` CLI runs a saved workflow without the editor. Every Input and output node has a CLI
+name, set in the Inspector, and each one becomes a flag: an Input's names the folder to read and
+is required, an output's overrides where that output writes.
+
+```bash
+bite run workflow.bite --in <folder> --out <folder>    # run every output node
+bite run workflow.bite --in <folder> --overwrite       # replace existing files, whatever each output says
+bite plan workflow.bite --in <folder> --out <folder>   # the commands a run would issue, as JSON
+bite validate workflow.bite                            # load and check a workflow without running it
+bite --help                                            # everything else
+```
+
+These assume the CLI names `in` and `out`. **CLI export** writes the same call into a script with
+every flag the workflow needs, and the Windows installer can put `bite` on your PATH.
+
+---
+
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
 - [Expression Language](docs/expression-language.md) - how a v2 definition computes its arguments
 - [Node Authoring Guide](docs/node-authoring-guide.md) - structure still current, the JavaScript
   sections describe the removed v1 format
+- [Command Planning](docs/rust-planning.md) - what `bite plan` and `bite observe` report
 - [Native Editor](docs/native-gui-prototype.md) and its
   [parity record](docs/native-editor-parity.md)
 - [Project Spec](docs/spec.md) - the original TypeScript implementation, kept as the behavioural
@@ -43,28 +60,35 @@ earlier Electron/Svelte renderer, kept on the `main` branch; it is not built fro
 
 ### Requirements
 
-- [Rust](https://www.rust-lang.org/tools/install) 1.87+ (stable)
-- A C++ toolchain for the vendored Dear ImGui: MSVC build tools on Windows, Xcode command line
-  tools on macOS
+- Windows, or macOS on Apple Silicon. The CLI and the core crates also build and test on Linux;
+  the editor does not, as it has no Linux renderer
+- [Rust](https://www.rust-lang.org/tools/install) 1.88+ (stable)
+- A C/C++ toolchain for the vendored Dear ImGui and sokol: MSVC build tools on Windows, Xcode
+  command line tools on macOS. Both are checked in, so there are no submodules to fetch
 - [ImageMagick](https://imagemagick.org) 7+ - both packaged builds bundle their own binary;
   building from source needs `magick` on your PATH (or `resources/win/magick/`,
-  `resources/mac/magick/`, which the binaries check first)
-- The submodules: `git submodule update --init --recursive`
-- The bundled ImageMagick binaries are tracked with Git LFS: `git lfs pull`
+  `resources/mac/magick/` under the working directory, which the binaries check first). Set
+  `BITE_MAGICK` to a binary's path to override all of these
+- The Windows ImageMagick binary is tracked with Git LFS: `git lfs pull`. The macOS one is not in
+  git; `scripts/bundle-magick-mac.sh` builds it (see [macOS](#macos))
 
 ### Development
 
 ```bash
-cargo run -p bite-gui     # the editor
+cargo run -p bite-gui               # the editor
 cargo run -p bite-cli -- --help     # the CLI
 cargo test                          # unit, definition-parity and planning tests
 pwsh test-workflows/run-tests.ps1   # end-to-end ImageMagick execution (Windows)
 ```
 
 `cargo test` covers the expression language, the node and format definitions, graph planning and
-the command builder against the goldens in `tests/golden/`. `test-workflows/run-tests.ps1`
-generates deterministic fixtures and runs all eleven reference workflows through the release CLI,
-asserting the actual encoded output; see `test-workflows/README.md`.
+the command builder against the goldens in `tests/golden/`. On Linux, run
+`cargo test --workspace --exclude bite-gui`.
+
+`test-workflows/run-tests.ps1` generates deterministic fixtures and runs all eleven reference
+workflows through the CLI, asserting the actual encoded output. It needs PowerShell 7.1+, `magick`
+on your PATH (it does not use the bundled one) and a CLI built first with
+`cargo build --release -p bite-cli`, falling back to a debug build; see `test-workflows/README.md`.
 
 ### Build
 

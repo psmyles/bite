@@ -47,7 +47,7 @@ usable until parity and cutover gates pass.
   supplies save/reopen and zero-pixel-difference CLI comparison evidence.
 - Phase 10: editor-parity implementation is complete; the Windows hands-on
   interaction checklist remains before M4 can pass. Electron remains intact.
-- Phases 11–13: pending.
+- Phases 11-12: pending.
 - macOS: **builds, runs and packages** as of 2026-09-21 — see the entry at the end of this
   file. Automated checks pass there (workspace tests, the Metal render-stack test, all 25
   capture scenes, a real workflow through the packaged CLI) and
@@ -1246,7 +1246,7 @@ the user's to run first.
 
 **The Electron tree went with it.** The branch carried no tracked Electron sources any more, but
 1.2 GB of its build output was still in the working tree — `node_modules`, `dist-cli`,
-`dist-electron`, `dist-web`, the Vite bundle left inside `dist/`, and `release/0.5.0` with the
+`dist-electron`, the Vite bundle left inside `dist/`, and `release/0.5.0` with the
 last signed 0.5.0 macOS installer. All removed. That installer was never published (GitHub
 releases stop at v0.4.4, Windows-only, under the old `imgplex` name) and cannot be rebuilt now,
 which is why it was a decision rather than a tidy-up; the user made it.
