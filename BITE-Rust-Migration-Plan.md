@@ -17,7 +17,6 @@ The plan preserves BITE's existing strengths:
 - Operation fusion and batched ImageMagick processing
 - Specialized multi-stream, channel, and set-processing behavior
 - Live computed values shown on the canvas for pure-value nodes (`propParams`)
-- A browser build of the workflow editor, currently deployed to GitHub Pages
 
 The central architectural rule is:
 
@@ -1289,7 +1288,7 @@ Why Dear ImGui:
 - BITE's audience already works in this idiom. The Unity editor tool ships with the project, and Dear ImGui is the native look of game and VFX tooling.
 - Docking is first-party and production-stable, and it gives the library, canvas, inspector, preview, and filmstrip layout directly, with rearrangeable panels as a side effect.
 - The built-in widgets cover the entire `WidgetType` union: slider, drag number, combo, checkbox, text, `ColorEdit4`, and `DragFloat2/3/4` for vectors.
-- Small binary, low memory, instant startup, MIT license, and it compiles to WebAssembly, which keeps Phase 13 possible.
+- Small binary, low memory, instant startup, MIT license.
 
 Why `imgui-node-editor`:
 
@@ -1676,8 +1675,6 @@ format-definitions-v2 → format-definitions
 
 Make schema v2 canonical while retaining supported workflow migration code.
 
-The GitHub Pages deploy (`.github/workflows/deploy-pages.yml`) keeps serving the final Svelte web build, pinned to the `electron-final` tag, until Phase 13 replaces or retires it. Removing Svelte from the production tree does not remove that pinned deployment.
-
 ### Test at the end
 
 Search the production source tree for:
@@ -1703,31 +1700,6 @@ Perform a clean build using only:
 ### Final exit gate
 
 BITE builds, installs, opens, previews, and runs representative workflows on clean Windows and macOS systems without Node.js installed.
-
----
-
-## Phase 13 — Browser target (exploratory)
-
-### Goal
-
-Replace the retired Svelte web editor with the native GUI compiled to WebAssembly, so a workflow-editing-only build can be published to GitHub Pages again.
-
-This phase is exploratory and comes after M4. It must not shape earlier decisions beyond one constraint: keep `bite-gui` free of direct filesystem and process calls, routing them through `bite-core` traits, so a wasm build can stub them.
-
-### Work
-
-- Build `bite-gui` for `wasm32` on WGPU's WebGPU or WebGL backend.
-- Provide a browser storage backend for opening and saving `.bite` files.
-- Load node and format definitions over HTTP.
-- Disable preview and batch execution; the browser build edits workflows only, as the Svelte web build does today.
-
-### Test at the end
-
-Open, edit, and save each `test-workflows/*.bite` in the browser build. The saved files must match, in graph content, files saved by the native build.
-
-### Exit gate
-
-Either the wasm build is deployed to GitHub Pages, or a written decision retires the browser editor. Do not leave the question open.
 
 ---
 

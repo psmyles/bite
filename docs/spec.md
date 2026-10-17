@@ -218,8 +218,6 @@ project-root/
 |       |   +-- graph.svelte.ts          - GraphStore: nodes (seeded via makeSeedNodes()), edges, selection, batch state, viewport; canDeleteNode() guards last inputNode / last output node of any type
 |       |   +-- images.svelte.ts         - Per-node image storage: Map<nodeId, ImageInfo[]>; activeInputNodeId tracks the filmstrip; getImages(nodeId), setActive(nodeId), add(paths, nodeId), clear(nodeId), removeNode(nodeId)
 |       +-- workflowUtils.ts             - hasSetInputInChain(...) + re-exports traceInputNodeId from shared/graphTrace.ts; renderer calls window.ipcRenderer.invoke directly (no service layer)
-|       +-- platform.ts                  - IS_ELECTRON flag (detects Electron vs browser context)
-|       +-- browserIpc.ts               - Browser shim for window.ipcRenderer (workflow builder without Electron)
 +-- src/cli/
 |   +-- index.ts           - bite entry point (packaged to dist-cli/ via @yao-pkg/pkg); parses named flags, loads the workflow, runs executeBatch per output node
 +-- src/tests/             - Vitest unit tests; node project for pure logic + jsdom project for *.svelte.test.ts component tests
@@ -589,7 +587,6 @@ Additional behaviours:
 ```bash
 npm run dev          # Electron + Vite hot reload (renderer, main, preload)
 npm run build        # tsc + vite build + electron-builder (production)
-npm run build:web    # Renderer-only build (browser preview/testing)
 npm test             # Run all Vitest unit tests once
 npm run test:watch   # Vitest in watch mode (re-runs on file save)
 ```
@@ -665,7 +662,7 @@ Build outputs:
 1. **Copy / Paste nodes** - No clipboard implementation. Ctrl+C / Ctrl+V for selected nodes (single or multi).
 
 2. **Multi-select operations** - @xyflow/svelte supports box-select, but multi-delete, multi-move, and multi-duplicate interactions need validation. Copy/paste of multi-node selections is the main gap.
-3. **Additional Platforms** - Bite is currently developed and tested primarily on Windows platform. OS X, Linux and Web versions need additional work to be on parity with Windows.
+3. **Additional Platforms** - Bite is currently developed and tested primarily on Windows platform. OS X and Linux versions need additional work to be on parity with Windows.
 
 #### P2 - Additional image operations
 
@@ -703,4 +700,3 @@ Build outputs:
 ## 15. Future Considerations
 
 - **GPU-accelerated preview** - brightness, hue shift etc. could be GPU fragment shaders for instant feedback, without changing the architecture.
-- **WASM-ImageMagick for web "lite" version** - ~3-5x slower than native but viable for single-image preview in a browser.
