@@ -246,21 +246,17 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
             }
         }
         Scene::LogWindow => {
-            // Lines of each level, one with a tag and one a session banner, so the colors
-            // and the columns can all be checked at once.
-            editor.log_window.seed(
-                [
-                    "--- Session 2026-09-20T09:00:00Z ---",
-                    "09:00:00.120 [INFO] Editor started",
-                    "09:00:01.044 [INFO] [magick] spawn: input.png -> preview.png (7 args)",
-                    "09:00:01.356 [INFO] [timings] Preview - 3 node(s) in 312ms, 1 magick process(es)",
-                    "09:00:04.870 [WARN] [magick] timed out after 30000ms: scan_042.tif",
-                    "09:00:05.001 [ERROR] corrupted_scan.jpg: decode error - unsupported colour space",
-                ]
-                .into_iter()
-                .map(crate::log_window::parse)
-                .collect(),
-            );
+            // Lines of each level, one with a tag, one long enough to wrap and one a session
+            // banner, so the colors and the columns can all be checked at once.
+            editor.log_window.seed(&[
+                "--- Session 2026-09-20T09:00:00.000Z ---",
+                "2026-09-20T09:00:00.120Z [INFO] Editor started",
+                "2026-09-20T09:00:01.044Z [INFO] [magick] spawn: input.png -> preview.png (7 args)",
+                "2026-09-20T09:00:01.120Z [INFO] [registry] Watching /Applications/Bite.app/Contents/Resources/node-definitions for changes to node definitions and their icons",
+                "2026-09-20T09:00:01.356Z [INFO] [timings] Preview - 3 node(s) in 312ms, 1 magick process(es)",
+                "2026-09-20T09:00:04.870Z [WARN] [magick] timed out after 30000ms: scan_042.tif",
+                "2026-09-20T09:00:05.001Z [ERROR] corrupted_scan.jpg: decode error - unsupported colour space",
+            ]);
         }
         Scene::Showcase => editor.showcase.open = true,
         Scene::OutputInspector => {

@@ -40,6 +40,7 @@ windows = { version = "0.62", features = [
     "Win32_Graphics_Dxgi",              # IDXGIFactory2 / swapchain / device / adapter
     "Win32_Graphics_Dxgi_Common",       # DXGI_FORMAT / sample desc
     "Win32_System_Threading",           # GetStartupInfoW: the launch show command
+    "Win32_System_Time",                # SystemTimeToTzSpecificLocalTime: log stamps shown local
 ] }
 
 # The Metal device and `CAMetalLayer` sokol_gfx draws through (`render::metal`), the blit
@@ -87,6 +88,10 @@ objc2-app-kit = { version = "0.2", features = [
 muda = { version = "0.19.3", default-features = false }
 # `timing`'s macOS arm: proc_pidinfo for the process-creation clock, proc_pid_rusage for the
 # footprint. The Windows arm calls GetProcessTimes for the same two numbers.
+libc = "0.2"
+
+# `clock`'s Unix arm reads the local zone's offset with localtime_r; macOS has libc above.
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 libc = "0.2"
 
 [build-dependencies]

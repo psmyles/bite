@@ -71,6 +71,14 @@ pub mod log {
     pub const TOOLBAR_BG: Color = Color::rgb(0x1e, 0x1e, 0x1e);
     pub const TOOLBAR_BORDER: Color = Color::rgb(0x2e, 0x2e, 0x2e);
     pub const LABEL: Color = Color::rgb(0x66, 0x66, 0x66);
+    /// The Info filter's label; the other two take their level's colour.
+    pub const INFO_FILTER: Color = Color::rgb(0xaa, 0xaa, 0xaa);
+    /// `accent-color` on the filter checkboxes.
+    pub const CHECK: Color = Color::rgb(0x55, 0x55, 0x55);
+    pub const BUTTON_BORDER: Color = Color::rgb(0x33, 0x33, 0x33);
+    pub const BUTTON_BORDER_HOVER: Color = Color::rgb(0x55, 0x55, 0x55);
+    pub const BUTTON_TEXT: Color = Color::rgb(0x66, 0x66, 0x66);
+    pub const BUTTON_TEXT_HOVER: Color = Color::rgb(0xaa, 0xaa, 0xaa);
     pub const ROW_HOVER: Color = Color::rgb(0x1c, 0x1c, 0x1c);
     pub const TIMESTAMP: Color = Color::rgb(0x77, 0x77, 0x77);
     pub const INFO: Color = Color::rgb(0xe0, 0xe0, 0xe0);
@@ -83,6 +91,17 @@ pub mod log {
     pub const BADGE_WIDTH: f32 = 36.0;
     pub const ROW_PADDING_X: f32 = 14.0;
     pub const COLUMN_GAP: f32 = 10.0;
+    /// `#toolbar`: `padding: 8px` above and below, with `gap: 20px` between its items.
+    pub const TOOLBAR_PADDING_Y: f32 = 8.0;
+    pub const TOOLBAR_GAP: f32 = 20.0;
+    /// The tallest toolbar item, the Clear button: an eleven pixel line, two pixels of
+    /// padding and a one pixel border above and below.
+    pub const TOOLBAR_ROW_HEIGHT: f32 = 21.0;
+    pub const CHECK_SIZE: f32 = 13.0;
+    /// The gap between a filter's checkbox and its label.
+    pub const CHECK_GAP: f32 = 6.0;
+    pub const BUTTON_PADDING_X: f32 = 8.0;
+    pub const BUTTON_RADIUS: f32 = 3.0;
     /// How close to the bottom the view must be to keep following new lines.
     pub const FOLLOW_MARGIN: f32 = 40.0;
     /// `line-height: 1.55` on a row, which is what keeps the lines apart.

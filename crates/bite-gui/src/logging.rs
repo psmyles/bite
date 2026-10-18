@@ -1,4 +1,6 @@
-//! The session log, matching the Electron logger's file and format.
+//! The session log: one line per entry, `2026-09-20T09:00:00.120Z [INFO] message`, stamped
+//! in UTC so the file reads the same wherever it was written. The log window shows the stamps
+//! in the local zone.
 use std::{
     collections::VecDeque,
     fs::File,
@@ -100,13 +102,35 @@ pub fn start_session() {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    append(&path, &format!("--- Session {} ---", timestamp_iso()));
+    append(
+        &path,
+        &format!(
+            "--- Session {} ---",
+            crate::clock::iso_utc(crate::clock::now_ms())
+        ),
+    );
+}
+
+/// Empties the log file and the buffer, as the log window's Clear button asks.
+///
+/// The held handle is dropped first, so nothing is left writing into a file that has been
+/// replaced underneath it; the next line opens it again.
+pub fn clear_file() {
+    clear();
+    let Some(path) = log_path() else { return };
+    let Ok(mut held) = writer().lock() else {
+        return;
+    };
+    *held = None;
+    if path.exists() {
+        let _ = File::create(&path);
+    }
 }
 
 /// Records a line, both in the buffer and in the file.
 pub fn log(level: Level, message: impl Into<String>) {
     let entry = Entry {
-        timestamp: timestamp_clock(),
+        timestamp: crate::clock::iso_utc(crate::clock::now_ms()),
         level,
         message: message.into(),
     };
@@ -155,54 +179,6 @@ pub fn clear() {
     }
 }
 
-/// Seconds since the epoch, split into a wall clock time.
-fn parts() -> (u64, u64, u64, u64) {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let total = now.as_secs();
-    let milliseconds = u64::from(now.subsec_millis());
-    (total / 3600 % 24, total / 60 % 60, total % 60, milliseconds)
-}
-
-/// The clock stamp each line carries, as hours, minutes, seconds and milliseconds.
-pub fn timestamp_clock() -> String {
-    let (hours, minutes, seconds, milliseconds) = parts();
-    format!("{hours:02}:{minutes:02}:{seconds:02}.{milliseconds:03}")
-}
-
-/// A full stamp for the session banner.
-pub fn timestamp_iso() -> String {
-    let seconds = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    // Days since the epoch converted to a civil date.
-    let days = (seconds / 86_400) as i64;
-    let (year, month, day) = civil_from_days(days);
-    let (hours, minutes, secs, _) = parts();
-    format!("{year:04}-{month:02}-{day:02}T{hours:02}:{minutes:02}:{secs:02}Z")
-}
-
-/// Converts a day count since the epoch into a calendar date.
-fn civil_from_days(days: i64) -> (i64, u32, u32) {
-    let z = days + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let day_of_era = z - era * 146_097;
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let year = year_of_era + era * 400;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let shifted_month = (5 * day_of_year + 2) / 153;
-    let day = (day_of_year - (153 * shifted_month + 2) / 5 + 1) as u32;
-    let month = if shifted_month < 10 {
-        shifted_month + 3
-    } else {
-        shifted_month - 9
-    } as u32;
-    (if month <= 2 { year + 1 } else { year }, month, day)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -215,18 +191,9 @@ mod tests {
     }
 
     #[test]
-    fn the_clock_stamp_has_hours_minutes_seconds_and_milliseconds() {
-        let stamp = timestamp_clock();
-        assert_eq!(stamp.len(), 12);
-        assert_eq!(stamp.as_bytes()[2], b':');
-        assert_eq!(stamp.as_bytes()[5], b':');
-        assert_eq!(stamp.as_bytes()[8], b'.');
-    }
-
-    #[test]
-    fn the_epoch_converts_to_the_first_of_january_nineteen_seventy() {
-        assert_eq!(civil_from_days(0), (1970, 1, 1));
-        assert_eq!(civil_from_days(31), (1970, 2, 1));
+    fn each_line_is_stamped_with_a_full_utc_date_and_time() {
+        let stamp = crate::clock::iso_utc(crate::clock::now_ms());
+        assert!(crate::clock::parse_iso(&stamp).is_some(), "{stamp}");
     }
 
     #[test]

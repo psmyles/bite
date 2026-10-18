@@ -1,6 +1,7 @@
 //! The native BITE editor. Modules mirror the Electron renderer they reproduce.
 pub mod app;
 pub mod canvas;
+pub mod clock;
 pub mod color_picker;
 pub mod commands;
 pub mod controls;
