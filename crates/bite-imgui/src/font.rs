@@ -91,10 +91,10 @@ pub fn default_faces() -> Vec<Face> {
     for size in [11u16, 13, 14, 17, 20, 28] {
         faces.push(Face::ui_weight(size, Bold));
     }
-    for size in [10u16, 11, 12, 13, 14] {
+    for size in [10u16, 11, 12, 13, 14, 17, 20] {
         faces.push(Face::mono_weight(size, Regular));
     }
-    for size in [11u16, 12, 28] {
+    for size in [11u16, 12, 13, 28] {
         faces.push(Face::mono_weight(size, SemiBold));
     }
     for size in [11u16, 13] {
@@ -130,7 +130,10 @@ const REGISTERED_SIZE: f32 = 13.0;
 /// the em size instead. The two differ by `(ascender - descender) / unitsPerEm`, which is 1.32
 /// for JetBrains Mono: asking for twelve there would draw an em of nine, three quarters of the
 /// size the stylesheet asked for. Multiplying by this factor makes the em come out right.
-fn em_to_pixel_height(data: &[u8]) -> f32 {
+///
+/// The second value is the ascender in ems: how far below the top of a drawn run its baseline
+/// sits, since Dear ImGui places glyphs from the `hhea` ascent.
+fn vertical_metrics(data: &[u8]) -> (f32, f32) {
     fn u16_at(data: &[u8], offset: usize) -> Option<u16> {
         let bytes = data.get(offset..offset + 2)?;
         Some(u16::from_be_bytes([bytes[0], bytes[1]]))
@@ -155,10 +158,11 @@ fn em_to_pixel_height(data: &[u8]) -> f32 {
         let ascender = f32::from(i16_at(data, horizontal + 4)?);
         let descender = f32::from(i16_at(data, horizontal + 6)?);
         let height = ascender - descender;
-        (units_per_em > 0.0 && height > 0.0).then_some(height / units_per_em)
+        (units_per_em > 0.0 && height > 0.0)
+            .then_some((height / units_per_em, ascender / units_per_em))
     })();
     // A font whose tables cannot be read is rasterized as Dear ImGui would have done.
-    parsed.unwrap_or(1.0)
+    parsed.unwrap_or((1.0, 0.8))
 }
 
 /// Handle to one face in the face list.
@@ -209,8 +213,10 @@ pub struct Fonts {
     /// The `ImFont` each face draws through: one of the six, repeated.
     pub(crate) handles: Vec<*mut sys::ImFont>,
     /// The size each face is pushed at, in logical pixels. This is the face's CSS size corrected
-    /// by [`em_to_pixel_height`], and it is what drawing and measuring must use.
+    /// by [`vertical_metrics`], and it is what drawing and measuring must use.
     pub(crate) heights: Vec<f32>,
+    /// The distance from the top of each face's line to its baseline, in logical pixels.
+    ascents: Vec<f32>,
     /// The display scale the interface is being drawn at, which the host reads back.
     ///
     /// It is baked into nothing. Glyph *metrics* stay logical because the pushed size is logical,
@@ -261,6 +267,16 @@ impl Fonts {
         [out.x, out.y]
     }
 
+    /// How far below the point text is drawn at its baseline falls, for `face` at `scale` times
+    /// its size. Runs in different faces share a baseline when each is drawn this far above it.
+    pub fn ascent(&self, face: Face, scale: f32) -> f32 {
+        self.ascents
+            .get(self.id(face).0)
+            .copied()
+            .unwrap_or_default()
+            * scale
+    }
+
     /// Registers the six fonts and maps every face onto one of them.
     ///
     /// Nothing is rasterized here: `AddFontFromMemoryTTF` in 1.92 reads the font tables and
@@ -292,15 +308,19 @@ impl Fonts {
 
         let mut handles = Vec::with_capacity(faces.len());
         let mut heights = Vec::with_capacity(faces.len());
+        let mut ascents = Vec::with_capacity(faces.len());
         for face in &faces {
             let index = slot(face.family, face.weight);
+            let (height, ascent) = vertical_metrics(slot_data(index));
             handles.push(registered[index]);
-            heights.push(f32::from(face.size) * em_to_pixel_height(slot_data(index)));
+            heights.push(f32::from(face.size) * height);
+            ascents.push(f32::from(face.size) * ascent);
         }
         Self {
             faces,
             handles,
             heights,
+            ascents,
             scale,
         }
     }
