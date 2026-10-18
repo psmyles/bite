@@ -152,7 +152,7 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
 | --- | --- |
 | Menu | File, Edit, View, Debug and Help with the Electron labels, accelerators and separators; developer items only in a debug build |
 | Performance Timers | Import, preview and batch timings recorded into the session log while the toggle is on. Electron counts a process per image, so it times each one; the native pipeline composes a chain into one command, so the count of processes is reported beside the times |
-| View Log | A window inside the editor with the level filters, the timestamp, badge and message columns, the `[tag]` highlight and following of the newest line. It reads the log file, so earlier sessions are in it too, and Clear hides what is there rather than emptying the file |
+| View Log | A window inside the editor with the level filters, the timestamp, badge and message columns, the `[tag]` highlight and following of the newest line. It reads the log file, so earlier sessions are in it too. Stamps are written in UTC and shown in the local zone, the date and time on each session banner and the time alone on its lines; long messages wrap within their column, and Clear empties the file on disk |
 | Show All UI Elements | The type scale, the palette, the port colours and every control in one window, seeded as `Showcase.svelte` seeds them, with buttons that open the real dialogs |
 | Shortcuts | Every accelerator plus the canvas editing keys |
 | File dialogs | Open, save, folders, images and export destinations on every platform |
