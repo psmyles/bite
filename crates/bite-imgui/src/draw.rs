@@ -311,4 +311,9 @@ impl DrawListRef<'_> {
     pub fn measure_scaled(&self, face: Face, scale: f32, text: &str) -> Vec2 {
         self.fonts.measure(face, scale, text)
     }
+
+    /// The distance from where [`DrawListRef::text_with_face`] puts text to its baseline.
+    pub fn ascent(&self, face: Face) -> f32 {
+        self.fonts.ascent(face, self.text_scale)
+    }
 }
