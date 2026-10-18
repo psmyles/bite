@@ -61,4 +61,23 @@ fn measurement_reports_the_size_the_stylesheet_asks_for() {
             "each step of the type scale should measure wider than the one below it: {steps:?}"
         );
     }
+
+    // Dear ImGui does not kern, so the measurement adds the font's own pair kerning: Inter draws
+    // "To" 160 units of its 2048 to the em closer than "T" and "o" set apart, and JetBrains Mono,
+    // which has no kerning, keeps every character on its 0.6 em grid.
+    let separate = |face: Face, text: &str| -> f32 {
+        text.chars()
+            .map(|character| fonts.measure(face, 1.0, &character.to_string())[0])
+            .sum()
+    };
+    let kerned = fonts.measure(Face::ui(13), 1.0, "To")[0] - separate(Face::ui(13), "To");
+    assert!(
+        (kerned - -160.0 / 2048.0 * 13.0).abs() < 0.001,
+        "\"To\" should kern by -1.016 pixels at thirteen, not {kerned}"
+    );
+    let mono = fonts.measure(Face::mono(12), 1.0, "To")[0] - separate(Face::mono(12), "To");
+    assert_eq!(mono, 0.0, "monospaced text must not be kerned");
+    // Each line of a multi-line run is kerned on its own, and the run is as wide as its widest.
+    let lines = fonts.measure(Face::ui(13), 1.0, "To\nTo")[0];
+    assert!((lines - fonts.measure(Face::ui(13), 1.0, "To")[0]).abs() < 0.001);
 }

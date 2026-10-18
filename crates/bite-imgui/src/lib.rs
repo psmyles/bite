@@ -6,6 +6,8 @@
 mod draw;
 pub mod font;
 mod input;
+mod kerning;
+mod sfnt;
 mod style;
 mod widgets;
 
@@ -186,8 +188,8 @@ impl Context {
     /// Records a new display scale, for example after a monitor change.
     ///
     /// Nothing is rebuilt and nothing is re-uploaded. Since 1.92 the atlas grows on demand and
-    /// the rasterizer density follows `io.DisplayFramebufferScale`, which [`Context::frame`]
-    /// sets from the scale it is given; the glyphs for the new density are rasterized as they
+    /// the rasterizer density follows the scale [`Context::frame`] is given, which it sets on
+    /// `io.DisplayFramebufferScale` and on every font; the glyphs for the new density are rasterized as they
     /// are next drawn. Before 1.92 this rebuilt every face and the host re-uploaded the atlas.
     pub fn set_scale(&mut self, scale: f32) -> Result<(), String> {
         if !scale.is_finite() || scale <= 0.0 {
@@ -336,6 +338,8 @@ impl Context {
             (*io).DeltaTime = delta;
             sys::igNewFrame();
         }
+        // `igNewFrame` sets the density from the scale for the current font only.
+        self.fonts.set_density(scale);
         Frame {
             context: self,
             rendered: false,
@@ -516,5 +520,12 @@ mod tests {
         // The faces still resolve at the new scale, and to the same handles: one `ImFont` per
         // family and weight covers every size and every density.
         assert_eq!(context.fonts().id(Face::ui(13)), exact);
+
+        // Every font follows the frame's density, not only the current one: the faces drawn
+        // straight into a draw list are never pushed, and would otherwise stay at 1.0.
+        drop(context.frame(1280.0, 720.0, 2.0, 1.0 / 60.0));
+        for &handle in &context.fonts().handles {
+            assert_eq!(unsafe { (*handle).CurrentRasterizerDensity }, 2.0);
+        }
     }
 }

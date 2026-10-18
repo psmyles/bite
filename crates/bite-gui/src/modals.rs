@@ -819,29 +819,19 @@ fn counter_row(ui: &mut Ui, width: f32, completed: usize, total: usize) {
     let list = ui.draw_list();
     let completed_text = completed.to_string();
     let total_text = total.to_string();
-    let completed_size = list.measure(theme::face::STAT_VALUE, &completed_text);
-    // `align-items: baseline`: every run sits on the baseline of the large count, with the
-    // five pixel gap between them and four more before the label.
-    let baseline = origin[1] + list.ascent(theme::face::STAT_VALUE);
+    // The count, the slash and the total are one size, told apart by colour alone; the label
+    // after them sits on their baseline, five pixels apart and four more before the label.
+    let count = theme::face::STAT_VALUE;
+    let baseline = origin[1] + list.ascent(count);
     let runs = [
         (
-            theme::face::STAT_VALUE,
+            count,
             theme::COLOR_SUCCESS_MUTED,
             completed_text.as_str(),
             0.0,
         ),
-        (
-            bite_imgui::Face::mono(theme::FONT_SIZE_XL),
-            theme::TEXT,
-            "/",
-            5.0,
-        ),
-        (
-            bite_imgui::Face::mono(theme::FONT_SIZE_2XL),
-            theme::TEXT_BRIGHT,
-            total_text.as_str(),
-            5.0,
-        ),
+        (count, theme::TEXT, "/", 5.0),
+        (count, theme::TEXT_BRIGHT, total_text.as_str(), 5.0),
         (theme::face::BODY, theme::TEXT, "images", 9.0),
     ];
     let mut x = origin[0];
@@ -850,7 +840,7 @@ fn counter_row(ui: &mut Ui, width: f32, completed: usize, total: usize) {
         list.text_with_face([x, baseline - list.ascent(face)], color, face, text);
         x += list.measure(face, text)[0];
     }
-    ui.dummy([width, completed_size[1]]);
+    ui.dummy([width, list.measure(count, &completed_text)[1]]);
 }
 
 /// The six-pixel bar shared by the batch and import dialogs.

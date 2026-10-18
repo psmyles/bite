@@ -1,6 +1,8 @@
 //! Font atlas construction: Inter for interface text and JetBrains Mono for monospaced text,
 //! in the weights `theme.css` uses.
+use crate::{kerning::Kerning, sfnt};
 use bite_imgui_sys as sys;
+use std::rc::Rc;
 
 pub const UI_REGULAR: &[u8] = include_bytes!("../fonts/Inter-Regular.ttf");
 pub const UI_SEMIBOLD: &[u8] = include_bytes!("../fonts/Inter-SemiBold.ttf");
@@ -91,7 +93,7 @@ pub fn default_faces() -> Vec<Face> {
     for size in [11u16, 13, 14, 17, 20, 28] {
         faces.push(Face::ui_weight(size, Bold));
     }
-    for size in [10u16, 11, 12, 13, 14, 17, 20] {
+    for size in [10u16, 11, 12, 13, 14] {
         faces.push(Face::mono_weight(size, Regular));
     }
     for size in [11u16, 12, 13, 28] {
@@ -122,48 +124,6 @@ const NO_GLYPH_RANGES: *const sys::ImWchar = std::ptr::null();
 /// Every draw names its own size, so this is only the value `ImFont::LegacySize` reports and is
 /// never what anything is drawn at.
 const REGISTERED_SIZE: f32 = 13.0;
-
-/// The factor between a face's CSS pixel size and the size Dear ImGui must be asked for.
-///
-/// The size handed to `AddFontFromMemoryTTF` - and, since 1.92, to `igPushFont` - is fed to the
-/// rasterizer as "make ascender minus descender this many pixels". A stylesheet's `font-size` is
-/// the em size instead. The two differ by `(ascender - descender) / unitsPerEm`, which is 1.32
-/// for JetBrains Mono: asking for twelve there would draw an em of nine, three quarters of the
-/// size the stylesheet asked for. Multiplying by this factor makes the em come out right.
-///
-/// The second value is the ascender in ems: how far below the top of a drawn run its baseline
-/// sits, since Dear ImGui places glyphs from the `hhea` ascent.
-fn vertical_metrics(data: &[u8]) -> (f32, f32) {
-    fn u16_at(data: &[u8], offset: usize) -> Option<u16> {
-        let bytes = data.get(offset..offset + 2)?;
-        Some(u16::from_be_bytes([bytes[0], bytes[1]]))
-    }
-    fn i16_at(data: &[u8], offset: usize) -> Option<i16> {
-        u16_at(data, offset).map(|value| value as i16)
-    }
-    fn table(data: &[u8], tag: &[u8; 4]) -> Option<usize> {
-        let count = usize::from(u16_at(data, 4)?);
-        (0..count).find_map(|index| {
-            let record = 12 + index * 16;
-            (data.get(record..record + 4)? == tag).then(|| {
-                let bytes = data.get(record + 8..record + 12)?;
-                Some(u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize)
-            })?
-        })
-    }
-
-    let parsed = (|| {
-        let units_per_em = f32::from(u16_at(data, table(data, b"head")? + 18)?);
-        let horizontal = table(data, b"hhea")?;
-        let ascender = f32::from(i16_at(data, horizontal + 4)?);
-        let descender = f32::from(i16_at(data, horizontal + 6)?);
-        let height = ascender - descender;
-        (units_per_em > 0.0 && height > 0.0)
-            .then_some((height / units_per_em, ascender / units_per_em))
-    })();
-    // A font whose tables cannot be read is rasterized as Dear ImGui would have done.
-    parsed.unwrap_or((1.0, 0.8))
-}
 
 /// Handle to one face in the face list.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -213,16 +173,18 @@ pub struct Fonts {
     /// The `ImFont` each face draws through: one of the six, repeated.
     pub(crate) handles: Vec<*mut sys::ImFont>,
     /// The size each face is pushed at, in logical pixels. This is the face's CSS size corrected
-    /// by [`vertical_metrics`], and it is what drawing and measuring must use.
+    /// by [`sfnt::vertical_metrics`], and it is what drawing and measuring must use.
     pub(crate) heights: Vec<f32>,
     /// The distance from the top of each face's line to its baseline, in logical pixels.
     ascents: Vec<f32>,
+    /// The kerning of the font each face draws through, read once per font and shared.
+    kerning: Vec<Rc<Kerning>>,
     /// The display scale the interface is being drawn at, which the host reads back.
     ///
     /// It is baked into nothing. Glyph *metrics* stay logical because the pushed size is logical,
     /// and glyph *bitmaps* follow `io.DisplayFramebufferScale`, which Dear ImGui turns into the
-    /// rasterizer density itself once the renderer claims
-    /// `ImGuiBackendFlags_RendererHasTextures` (`imgui.cpp`, `SetCurrentWindow`).
+    /// rasterizer density once the renderer claims `ImGuiBackendFlags_RendererHasTextures` -
+    /// for the current font only, so [`Fonts::set_density`] hands it to the rest each frame.
     scale: f32,
 }
 
@@ -246,12 +208,33 @@ impl Fonts {
     /// for. Rounding here would describe a bake that nothing draws - at eleven pixels the
     /// interface face is 13.31, and calling that 13 would make every box drawn around a run,
     /// and every glyph position in letter-spaced text, over two per cent too narrow.
+    ///
+    /// Kerning is included, so this is the width [`crate::DrawListRef::text_with_face`] draws.
     pub fn measure(&self, face: Face, scale: f32, text: &str) -> [f32; 2] {
         let id = self.id(face);
+        let [width, height] = self.measure_unkerned(id, scale, text);
+        let Some(kerning) = self.kerning(id) else {
+            return [width, height];
+        };
+        let em = self.em(id) * scale;
+        // Kerning changes the width of the line it falls on, and a run is as wide as its widest
+        // line.
+        let width = if text.contains('\n') {
+            text.split('\n')
+                .map(|line| self.measure_unkerned(id, scale, line)[0] + kerning.total(line) * em)
+                .fold(0.0, f32::max)
+        } else {
+            width + kerning.total(text) * em
+        };
+        [width, height]
+    }
+
+    /// What Dear ImGui measures `text` as, which leaves kerning out.
+    pub(crate) fn measure_unkerned(&self, id: FontId, scale: f32, text: &str) -> [f32; 2] {
         let Some(handle) = self.handles.get(id.0).copied().filter(|h| !h.is_null()) else {
             return [0.0, 0.0];
         };
-        let size = self.heights.get(id.0).copied().unwrap_or_default() * scale;
+        let size = self.height(id) * scale;
         let text = std::ffi::CString::new(text).unwrap_or_default();
         let out = unsafe {
             sys::ImFont_CalcTextSizeA(
@@ -265,6 +248,21 @@ impl Fonts {
             )
         };
         [out.x, out.y]
+    }
+
+    /// The kerning of the font a face draws through, or `None` when it has none.
+    pub(crate) fn kerning(&self, id: FontId) -> Option<&Kerning> {
+        self.kerning
+            .get(id.0)
+            .map(Rc::as_ref)
+            .filter(|kerning| !kerning.is_empty())
+    }
+
+    /// The logical size of a face's em, which kerning is a fraction of.
+    pub(crate) fn em(&self, id: FontId) -> f32 {
+        self.faces
+            .get(id.0)
+            .map_or(0.0, |face| f32::from(face.size))
     }
 
     /// How far below the point text is drawn at its baseline falls, for `face` at `scale` times
@@ -306,21 +304,28 @@ impl Fonts {
             };
         }
 
+        let by_font: Vec<Rc<Kerning>> = (0..REGISTERED)
+            .map(|index| Rc::new(Kerning::read(slot_data(index))))
+            .collect();
         let mut handles = Vec::with_capacity(faces.len());
         let mut heights = Vec::with_capacity(faces.len());
         let mut ascents = Vec::with_capacity(faces.len());
+        let mut kerning = Vec::with_capacity(faces.len());
         for face in &faces {
             let index = slot(face.family, face.weight);
-            let (height, ascent) = vertical_metrics(slot_data(index));
+            // A font whose tables cannot be read is rasterized as Dear ImGui would have done.
+            let (height, ascent) = sfnt::vertical_metrics(slot_data(index)).unwrap_or((1.0, 0.8));
             handles.push(registered[index]);
             heights.push(f32::from(face.size) * height);
             ascents.push(f32::from(face.size) * ascent);
+            kerning.push(Rc::clone(&by_font[index]));
         }
         Self {
             faces,
             handles,
             heights,
             ascents,
+            kerning,
             scale,
         }
     }
@@ -352,6 +357,22 @@ impl Fonts {
 
     pub fn scale(&self) -> f32 {
         self.scale
+    }
+
+    /// Rasterizes every font's glyphs at `density` pixels per logical pixel from here on.
+    ///
+    /// Dear ImGui keeps the density on each font and brings it up to date only for the font
+    /// that is current - the one pushed, or the default. Nearly all of the interface draws a
+    /// face straight into a draw list instead, so a font that was never pushed kept the 1.0 it
+    /// was registered with: on a Retina display its glyphs were rasterized at half resolution
+    /// and stretched, and bold and semibold text, which is never pushed, drew blurred beside
+    /// the regular text around it.
+    pub(crate) fn set_density(&self, density: f32) {
+        for &handle in &self.handles {
+            if !handle.is_null() {
+                unsafe { (*handle).CurrentRasterizerDensity = density };
+            }
+        }
     }
 
     /// Records the display scale the interface is being drawn at.

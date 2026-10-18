@@ -509,13 +509,13 @@ pub fn draw_tracked_text_scaled(
         list.text_with_face(position, color, face, text);
         return;
     }
-    let mut x = position[0];
-    let mut buffer = [0u8; 4];
-    for character in text.chars() {
-        let glyph = character.encode_utf8(&mut buffer);
-        list.text_with_face([x, position[1]], color, face, glyph);
-        x += list.measure(face, glyph)[0] + tracking;
-    }
+    // The run starts on a whole pixel, as an untracked one does; the glyphs after it do not.
+    list.text_tracked(snap(position), color, face, text, tracking);
+}
+
+/// Truncates a point to whole pixels, as Dear ImGui does to the start of a run of text.
+fn snap(position: Vec2) -> Vec2 {
+    [position[0].trunc(), position[1].trunc()]
 }
 
 /// Draws tracked text in a synthesized bold, the way a browser does for a family whose only
@@ -534,16 +534,13 @@ pub fn draw_faux_bold_tracked_scaled(
     tracking: f32,
 ) {
     let offset = FAUX_BOLD_EM * f32::from(face.size) * scale;
-    draw_tracked_text_scaled(ui, position, color, face, scale, text, tracking);
-    draw_tracked_text_scaled(
-        ui,
-        [position[0] + offset, position[1]],
-        color,
-        face,
-        scale,
-        text,
-        tracking,
-    );
+    let list = ui.draw_list().scaled(scale);
+    let tracking = tracking * scale;
+    // The second pass is offset from the snapped start, so every glyph is thickened by the
+    // same fraction; snapping each pass separately rounded the offset away on some glyphs.
+    let start = snap(position);
+    list.text_tracked(start, color, face, text, tracking);
+    list.text_tracked([start[0] + offset, start[1]], color, face, text, tracking);
 }
 
 /// How far a synthesized bold spreads the ink, as a fraction of the em.
