@@ -157,20 +157,101 @@ impl DrawListRef<'_> {
     }
 
     /// Draws text at `scale` times the face's size, for content that zooms with a canvas.
+    ///
+    /// Dear ImGui does not kern, so a run with a kerned pair in it is drawn in pieces split at
+    /// each pair, every piece moved by the adjustments before it. [`Fonts::measure`] adds the
+    /// same adjustments, so what is measured is what is drawn.
+    ///
+    /// [`Fonts::measure`]: crate::Fonts::measure
     pub fn text_scaled(&self, position: Vec2, color: Color, face: Face, scale: f32, text: &str) {
         let id = self.fonts.id(face);
-        let Some(handle) = self.fonts.handles.get(id.0).copied() else {
+        let Some(handle) = self
+            .fonts
+            .handles
+            .get(id.0)
+            .copied()
+            .filter(|h| !h.is_null())
+        else {
             return self.text(position, color, text);
         };
-        if handle.is_null() {
-            return self.text(position, color, text);
-        }
-        let text = c(text);
         // The atlas is rasterized at the physical size, so ask for the logical size here.
         let size = self.fonts.height(id) * scale;
         if size < 1.0 {
             return;
         }
+        let kerning = self
+            .fonts
+            .kerning(id)
+            .filter(|kerning| kerning.pairs(text).next().is_some());
+        let Some(kerning) = kerning else {
+            return self.add_text(handle, size, position, color, text);
+        };
+        let em = self.fonts.em(id) * scale;
+        // The run starts on a whole pixel, as a single call would; the pieces after it keep
+        // their exact positions, or snapping would round each adjustment away.
+        let start = [position[0].trunc(), position[1].trunc()];
+        self.without_pixel_snap(|| {
+            // Dear ImGui advances a line by the font size, and starts it back at the left.
+            for (index, line) in text.split('\n').enumerate() {
+                let y = start[1] + size * index as f32;
+                let mut x = start[0];
+                let mut from = 0;
+                for (to, adjustment) in kerning.pairs(line) {
+                    let piece = &line[from..to];
+                    self.add_text(handle, size, [x, y], color, piece);
+                    x += self.fonts.measure_unkerned(id, scale, piece)[0] + adjustment * em;
+                    from = to;
+                }
+                self.add_text(handle, size, [x, y], color, &line[from..]);
+            }
+        });
+    }
+
+    /// Draws text with `tracking` pixels after every character, as `letter-spacing` does,
+    /// placing each glyph exactly where the advances and kerning before it put it.
+    ///
+    /// Dear ImGui truncates the start of every `AddText` to a whole pixel. Inside one call the
+    /// glyphs after the first keep their fractional positions, but letter-spaced text is a call
+    /// per glyph, so each one was truncated on its own and landed up to a pixel short: the gaps
+    /// came out uneven, and a run read as badly kerned. Snapping is turned off here, so the
+    /// caller decides where the run starts; it should snap that point as a single call would.
+    pub fn text_tracked(
+        &self,
+        position: Vec2,
+        color: Color,
+        face: Face,
+        text: &str,
+        tracking: f32,
+    ) {
+        let id = self.fonts.id(face);
+        let kerning = self.fonts.kerning(id);
+        let em = self.fonts.em(id) * self.text_scale;
+        self.without_pixel_snap(|| {
+            let mut x = position[0];
+            let mut previous = None;
+            let mut buffer = [0u8; 4];
+            for character in text.chars() {
+                if let (Some(kerning), Some(previous)) = (kerning, previous) {
+                    x += kerning.adjustment(previous, character) * em;
+                }
+                let glyph = character.encode_utf8(&mut buffer);
+                self.text_with_face([x, position[1]], color, face, glyph);
+                x += self.measure(face, glyph)[0] + tracking;
+                previous = Some(character);
+            }
+        });
+    }
+
+    /// One `AddText` call: a run in one font and size, with no kerning.
+    fn add_text(
+        &self,
+        handle: *mut sys::ImFont,
+        size: f32,
+        position: Vec2,
+        color: Color,
+        text: &str,
+    ) {
+        let text = c(text);
         unsafe {
             sys::ImDrawList_AddText_FontPtr(
                 self.raw,
@@ -184,6 +265,15 @@ impl DrawListRef<'_> {
                 std::ptr::null(),
             )
         }
+    }
+
+    /// Runs `draw` with Dear ImGui's snapping of each text call's start to a whole pixel off.
+    fn without_pixel_snap(&self, draw: impl FnOnce()) {
+        let snap = sys::ImDrawListFlags_TextNoPixelSnap as sys::ImDrawListFlags;
+        let previous = unsafe { (*self.raw).Flags };
+        unsafe { (*self.raw).Flags = previous | snap };
+        draw();
+        unsafe { (*self.raw).Flags = previous };
     }
 
     pub fn image(&self, texture: u64, min: Vec2, max: Vec2) {
