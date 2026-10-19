@@ -77,7 +77,7 @@ fn run() -> Result<(), String> {
             &registry,
             &mut host,
             &options,
-            &mut |_, _, _| {},
+            &mut |_| {},
         );
         trigger.join().map_err(|_| "cancellation trigger failed")?;
         let latency_ms = triggered
@@ -180,12 +180,13 @@ fn run() -> Result<(), String> {
                 &registry,
                 &mut host,
                 &options,
-                &mut |_, _, _| {},
+                &mut |_| {},
             )?;
             measurements.push(serde_json::json!({
                 "iteration": iteration + 1,
                 "elapsed_ms": started.elapsed().as_secs_f64() * 1000.0,
                 "processed": result.processed,
+                "filtered": result.filtered,
                 "skipped": result.skipped,
                 "failed": result.failed,
                 "imagemagick_processes": host.processes() - processes,
@@ -470,11 +471,20 @@ fn run() -> Result<(), String> {
             &registry,
             &mut host,
             &options,
-            &mut |done, total, file| println!("[{done}/{total}] {}", file.display()),
+            &mut |progress| {
+                if let Some(file) = progress.file {
+                    println!(
+                        "[{}/{}] {}",
+                        progress.completed,
+                        progress.total,
+                        file.display()
+                    );
+                }
+            },
         )?;
         println!(
-            "Done: {} processed, {} skipped, {} failed",
-            result.processed, result.skipped, result.failed
+            "Done: {} processed, {} filtered, {} skipped, {} failed",
+            result.processed, result.filtered, result.skipped, result.failed
         );
         for error in &result.errors {
             eprintln!("[Bite] Failed to process {error}");

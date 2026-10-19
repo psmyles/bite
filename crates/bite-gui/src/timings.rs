@@ -50,6 +50,7 @@ pub struct Preview {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Run {
     pub processed: usize,
+    pub filtered: usize,
     pub skipped: usize,
     pub failed: usize,
     pub processes: usize,
@@ -95,8 +96,9 @@ pub fn preview_line(preview: Preview) -> String {
 pub fn run_lines(run: Run) -> [String; 2] {
     [
         format!(
-            "[timings] Run - {} processed, {} skipped, {} failed in {}ms, {} each",
+            "[timings] Run - {} processed, {} filtered, {} skipped, {} failed in {}ms, {} each",
             run.processed,
+            run.filtered,
             run.skipped,
             run.failed,
             run.milliseconds,
@@ -175,6 +177,7 @@ mod tests {
     fn a_run_reports_what_it_did_and_how_many_processes_it_took() {
         let lines = run_lines(Run {
             processed: 8,
+            filtered: 3,
             skipped: 1,
             failed: 0,
             processes: 8,
@@ -182,7 +185,7 @@ mod tests {
         });
         assert_eq!(
             lines[0],
-            "[timings] Run - 8 processed, 1 skipped, 0 failed in 2400ms, 300ms each"
+            "[timings] Run - 8 processed, 3 filtered, 1 skipped, 0 failed in 2400ms, 300ms each"
         );
         assert_eq!(lines[1], "[timings]   magick processes: 8");
     }

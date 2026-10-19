@@ -186,7 +186,7 @@ fn run(graph: &Graph, host: &mut Host, files: &[PathBuf], out: &Path) -> BatchRe
         named_paths: [("out".into(), out.to_owned())].into(),
         ..RunOptions::default()
     };
-    execution::run_workflow(graph, &registry(), host, &options, &mut |_, _, _| {}).unwrap()
+    execution::run_workflow(graph, &registry(), host, &options, &mut |_| {}).unwrap()
 }
 /// The files a montage was given, in the order it tiles them.
 fn tiled(host: &Host) -> Vec<String> {
@@ -491,7 +491,10 @@ fn a_flipbook_leaves_out_the_files_a_gate_shut() {
     let mut host = Host::sized(64, 64);
     let result = run(&graph, &mut host, &files, dir.path());
     assert_eq!(tiled(&host), ["b.png"]);
-    assert_eq!((result.processed, result.skipped), (1, 2));
+    assert_eq!(
+        (result.processed, result.filtered, result.skipped),
+        (1, 2, 0)
+    );
 }
 
 /// The header parser reads no size from a TIFF or a PSD. A preview already inspected such
@@ -792,4 +795,102 @@ fn a_preview_reports_an_unwired_mean() {
     )
     .unwrap();
     assert_eq!(result.resolved_values["mean"]["value"], Value::Float(0.5));
+}
+
+/// A run counts every step of every output towards one total, once, and each step ends in
+/// exactly one of the counts the run reports, so the summary adds up to what the progress
+/// counted towards.
+#[test]
+fn progress_counts_every_output_towards_one_total_the_result_adds_up_to() {
+    let dir = tempfile::tempdir().unwrap();
+    let files = images(dir.path(), &["a.png", "b.png", "c.png"]);
+    let gated = dir.path().join("gated");
+    let plain = dir.path().join("plain");
+    fs::create_dir(&gated).unwrap();
+    fs::create_dir(&plain).unwrap();
+    // Already there, and the output that would write it skips rather than overwrites.
+    fs::write(plain.join("b.png"), b"kept").unwrap();
+    let graph = graph(
+        vec![
+            input(),
+            process("name", "prop_name", json!({})),
+            process("filter", "text_filter", json!({"prefix": "a"})),
+            process("gate", "gate", json!({})),
+            image_output(),
+            node(
+                "plain",
+                "imageOutputNode",
+                "",
+                json!({"cliName": "plain", "outputPath": "source", "overwrite": "skip"}),
+            ),
+            // One cell for three pictures.
+            flipbook(dir.path(), json!({"rows": 1, "cols": 1})),
+        ],
+        &[
+            ("input", "out:output", "gate", "in:input"),
+            ("name", "param:value", "filter", "param:input"),
+            ("filter", "param:result", "gate", "param:condition"),
+            ("gate", "out:output", "output", "in:input"),
+            ("input", "out:output", "plain", "in:input"),
+            ("input", "out:output", "flipbook", "in:input"),
+        ],
+    );
+    let options = RunOptions {
+        named_files: [("in".into(), files)].into(),
+        named_paths: [("out".into(), gated), ("plain".into(), plain)].into(),
+        ..RunOptions::default()
+    };
+    let mut reports = Vec::new();
+    let result = execution::run_workflow(
+        &graph,
+        &registry(),
+        &mut Host::sized(64, 64),
+        &options,
+        &mut |progress| {
+            reports.push((
+                progress.completed,
+                progress.total,
+                progress.node.to_string(),
+                progress.output,
+                progress.outputs,
+                progress.stage,
+                progress.file.is_some(),
+            ))
+        },
+    )
+    .unwrap();
+
+    // Gated: a written, b and c filtered. Plain: a and c written, b skipped. Flipbook:
+    // a tiled, b and c left out of the full grid.
+    assert_eq!(
+        (
+            result.processed,
+            result.filtered,
+            result.skipped,
+            result.failed
+        ),
+        (4, 2, 3, 0)
+    );
+    assert!(reports.iter().all(|report| report.1 == 9 && report.4 == 3));
+    assert!(reports.windows(2).all(|pair| pair[0].0 <= pair[1].0));
+    assert!(reports.windows(2).all(|pair| pair[0].3 <= pair[1].3));
+    assert_eq!(reports.last().unwrap().0, 9);
+    // Each output announces itself, and its writing, before any of that work is done.
+    use execution::RunStage::{Reading, Writing};
+    let marks: Vec<_> = reports
+        .iter()
+        .filter(|report| !report.6)
+        .map(|report| (report.0, report.2.as_str(), report.5))
+        .collect();
+    assert_eq!(
+        marks,
+        [
+            (0, "output", Reading),
+            (2, "output", Writing),
+            (3, "plain", Reading),
+            (4, "plain", Writing),
+            (6, "flipbook", Reading),
+            (6, "flipbook", Writing),
+        ]
+    );
 }

@@ -246,7 +246,7 @@ pub fn render_text(
         }
     }
     options.named_paths.insert(target_flag, output.clone());
-    execution::run_workflow(&preview, registry, host, &options, &mut |_, _, _| {})?;
+    execution::run_workflow(&preview, registry, host, &options, &mut |_| {})?;
     let contents = fs::read_to_string(output).map_err(|error| error.to_string())?;
     Ok(contents.lines().map(str::to_owned).collect())
 }
@@ -431,7 +431,7 @@ pub fn render_from(
             }
         }
     }
-    let result = execution::run_workflow(&preview, registry, host, &options, &mut |_, _, _| {})?;
+    let result = execution::run_workflow(&preview, registry, host, &options, &mut |_| {})?;
     // What the run measured replaces what the static pass could work out on its own.
     values.extend(result.values);
     let rendered = result.outputs.into_iter().find(|path| {

@@ -42,19 +42,24 @@ pub trait ImageHost {
             }
         })
     }
+    /// Writes every operation, calling `done` with each one's position as it finishes so
+    /// the run can report progress while the rest are still being written. `done` is
+    /// called on the caller's thread, whichever thread did the writing.
     fn emit_many(
         &mut self,
         operations: Vec<OutputOperation>,
         options: &RunOptions,
         _jobs: usize,
+        done: &mut dyn FnMut(usize),
     ) -> Vec<Result<(), String>> {
         let mut results = Vec::with_capacity(operations.len());
-        for operation in operations {
+        for (index, operation) in operations.into_iter().enumerate() {
             if options.cancelled.load(Ordering::Relaxed) {
                 results.push(Err("Cancelled".into()));
             } else {
                 results.push(self.emit(operation, options));
             }
+            done(index);
         }
         results
     }
@@ -190,9 +195,16 @@ impl Default for RunOptions {
         }
     }
 }
+/// What a run did. Every step it reported progress for ends in exactly one of the four
+/// counts, so together they add up to the total the progress counted towards.
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct BatchResult {
     pub processed: usize,
+    /// Steps a Gate, or a Text Output's condition, stopped: the workflow chose to write
+    /// nothing for them.
+    pub filtered: usize,
+    /// Steps left alone because what they would have written already exists and the
+    /// output skips rather than overwrites, or because a flipbook's grid was already full.
     pub skipped: usize,
     pub failed: usize,
     pub errors: Vec<String>,
@@ -205,6 +217,71 @@ pub struct BatchResult {
     /// has no image to show rather than reporting a failure. Also `capture_values` only.
     #[serde(skip)]
     pub stopped: Vec<String>,
+}
+/// How far a run has got, as [`run_workflow`] reports it.
+///
+/// A step is one file, or one set, passing through one output node, so a workflow with
+/// three outputs over a hundred files has three hundred of them. The run settles every
+/// output's files before it starts, which is what lets the count run once from nothing to
+/// the total rather than starting again at each output.
+#[derive(Debug, Clone, Copy)]
+pub struct RunProgress<'a> {
+    pub completed: usize,
+    pub total: usize,
+    /// The output node being worked on: its id, its label, and its place among the
+    /// outputs the run goes through, from one.
+    pub node: &'a str,
+    pub label: &'a str,
+    pub output: usize,
+    pub outputs: usize,
+    pub stage: RunStage,
+    /// The file whose step just finished, or nothing when the report only marks the
+    /// start of a stage. Steps that finish together, such as a flipbook's, name the
+    /// file they share.
+    pub file: Option<&'a Path>,
+}
+/// The two halves of an output's work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunStage {
+    /// Reading each file and working out what, if anything, it becomes. A step that
+    /// writes nothing finishes here.
+    Reading,
+    /// Writing what the files became. Most of a run's time is spent here.
+    Writing,
+}
+/// Counts steps as they finish and passes each report on.
+struct Reporter<'a, 'p> {
+    progress: &'p mut dyn FnMut(&RunProgress<'_>),
+    completed: usize,
+    total: usize,
+    node: &'a str,
+    label: &'a str,
+    output: usize,
+    outputs: usize,
+    stage: RunStage,
+}
+impl Reporter<'_, '_> {
+    /// Marks the start of a stage, which may be some time before its first step ends.
+    fn enter(&mut self, stage: RunStage) {
+        self.stage = stage;
+        self.report(None);
+    }
+    fn finish(&mut self, steps: usize, file: &Path) {
+        self.completed += steps;
+        self.report(Some(file));
+    }
+    fn report(&mut self, file: Option<&Path>) {
+        (self.progress)(&RunProgress {
+            completed: self.completed,
+            total: self.total,
+            node: self.node,
+            label: self.label,
+            output: self.output,
+            outputs: self.outputs,
+            stage: self.stage,
+            file,
+        });
+    }
 }
 #[derive(Debug, Clone)]
 struct Stream {
@@ -579,11 +656,15 @@ fn write_output_log(
 /// queue rather than taking a fixed slice, because files differ wildly in cost: one large
 /// image in a fixed slice would leave its worker running long after the others had
 /// finished.
+///
+/// `resolved` hears of each file as it finishes, in whatever order that is, and always on
+/// the calling thread.
 fn scatter(
     host: &mut dyn ImageHost,
     options: &RunOptions,
-    work: &[(PathBuf, Option<String>, BTreeMap<String, PathBuf>)],
+    work: &[WorkItem],
     resolve: &(dyn Fn(&mut dyn ImageHost, usize) -> ItemOutcome + Sync),
+    resolved: &mut dyn FnMut(usize, &ItemOutcome),
 ) -> Vec<ItemOutcome> {
     let cancelled = || options.cancelled.load(Ordering::Relaxed);
     let mut workers = if work.len() > 1 {
@@ -594,11 +675,13 @@ fn scatter(
     if workers.is_empty() {
         return (0..work.len())
             .map(|index| {
-                if cancelled() {
+                let outcome = if cancelled() {
                     Err("Cancelled".into())
                 } else {
                     resolve(host, index)
-                }
+                };
+                resolved(index, &outcome);
+                outcome
             })
             .collect();
     }
@@ -607,10 +690,12 @@ fn scatter(
     let results: Vec<std::sync::Mutex<Option<ItemOutcome>>> = (0..work.len())
         .map(|_| std::sync::Mutex::new(None))
         .collect();
+    let (finished, finishing) = std::sync::mpsc::channel();
     std::thread::scope(|scope| {
         for worker in &mut workers {
             let next = &next;
             let results = &results;
+            let finished = finished.clone();
             scope.spawn(move || loop {
                 let index = next.fetch_add(1, Ordering::Relaxed);
                 if index >= results.len() {
@@ -622,7 +707,15 @@ fn scatter(
                     resolve(worker.as_mut(), index)
                 };
                 *results[index].lock().unwrap() = Some(outcome);
+                let _ = finished.send(index);
             });
+        }
+        // The workers hold the only senders left, so this ends when the last one does.
+        drop(finished);
+        for index in finishing {
+            if let Some(outcome) = results[index].lock().unwrap().as_ref() {
+                resolved(index, outcome);
+            }
         }
     });
     results
@@ -1119,74 +1212,197 @@ fn resolve_item(
     }
     Ok(ItemResult::new(ItemOutput::None, values, stopped))
 }
+/// One file, or one set, as an output works through it: the file the step is named for,
+/// the set's name, and the file each of the set's ports reads.
+type WorkItem = (PathBuf, Option<String>, BTreeMap<String, PathBuf>);
+/// One output node's share of a run.
+struct OutputJob<'a> {
+    plan: &'a crate::plan::OutputPlan,
+    output: &'a GraphNode,
+    input_id: &'a String,
+    contributors: BTreeSet<String>,
+    work: Vec<WorkItem>,
+}
+/// Lists the files, or gathers the sets, an output will work through.
+fn output_job<'a>(
+    g: &'a Graph,
+    registry: &Registry,
+    options: &RunOptions,
+    output_plan: &'a crate::plan::OutputPlan,
+) -> Result<Option<OutputJob<'a>>, String> {
+    let output = g.nodes.iter().find(|n| n.id == output_plan.node).unwrap();
+    let Some(input_id) = &output_plan.input else {
+        return Ok(None);
+    };
+    let input = g.nodes.iter().find(|n| &n.id == input_id).unwrap();
+    let input_flag = input
+        .data
+        .params
+        .get("cliName")
+        .and_then(definition::to_value)
+        .map(|v| v.text())
+        .unwrap_or_default();
+    let files = match options.named_files.get(&input_flag) {
+        // A list is processed in the order it was given, which for the interface is
+        // the order the images were imported in: that is the order a Flipbook tiles
+        // them and a Rename numbers them, as the Electron batch took `imagePaths`.
+        // A file listed twice is still processed once, where it first appears.
+        Some(listed) if !listed.is_empty() => {
+            let mut seen = BTreeSet::new();
+            listed
+                .iter()
+                .filter(|path| seen.insert(*path))
+                .cloned()
+                .collect()
+        }
+        _ => {
+            let dir = options
+                .named_paths
+                .get(&input_flag)
+                .filter(|path| !path.as_os_str().is_empty())
+                .ok_or_else(|| {
+                    let flag = if input_flag.is_empty() {
+                        "input"
+                    } else {
+                        &input_flag
+                    };
+                    let node = output
+                        .data
+                        .params
+                        .get("cliName")
+                        .and_then(definition::to_value)
+                        .map(|value| value.text())
+                        .unwrap_or_default();
+                    format!(
+                        "Missing required flag: --{flag}\n  \
+                         Needed to run output node \"{node}\".\n  \
+                         Export a CLI script from Bite to see all required flags."
+                    )
+                })?;
+            images(dir)?
+        }
+    };
+    let contributors: BTreeSet<_> = output_plan.contributors.iter().cloned().collect();
+    let set_node = g
+        .nodes
+        .iter()
+        .find(|n| contributors.contains(&n.id) && n.data.definition_id == "process_as_set");
+    let mut work: Vec<WorkItem> = Vec::new();
+    if let Some(set) = set_node {
+        if !matches!(
+            set.data.params.get("suffixes"),
+            Some(ParamValue::Structured(StructuredParam::SetSuffixes { .. }))
+        ) {
+            return Err("set suffixes missing".into());
+        }
+        let (prefix, suffixes) = set_pattern(g, registry, set);
+        // Sets keep the order their first files came in, as Electron's grouping map
+        // did, so a Rename numbers them in import order just as it does single files.
+        let mut groups: Vec<(String, BTreeMap<String, PathBuf>)> = Vec::new();
+        for file in &files {
+            let stem = file.file_stem().unwrap_or_default().to_string_lossy();
+            if let Some(rest) = stem.strip_prefix(&prefix) {
+                for (i, suffix) in suffixes.iter().enumerate() {
+                    if !suffix.is_empty() {
+                        if let Some(middle) = rest.strip_suffix(suffix.as_str()) {
+                            let index = match groups.iter().position(|(m, _)| m == middle) {
+                                Some(index) => index,
+                                None => {
+                                    groups.push((middle.into(), BTreeMap::new()));
+                                    groups.len() - 1
+                                }
+                            };
+                            groups[index].1.insert(format!("suffix_{i}"), file.clone());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        // A preview of a file the pattern does not match still shows that file: the
+        // Electron preview seeded no suffix port then, so every port fell back to the
+        // selected image. A run leaves such a file out, as Electron's run did.
+        if groups.is_empty() && options.capture_values {
+            if let Some(file) = files.first() {
+                let group = (0..suffixes.len())
+                    .map(|i| (format!("suffix_{i}"), file.clone()))
+                    .collect();
+                work.push((file.clone(), None, group));
+            }
+        }
+        for (name, mut group) in groups {
+            let reference = (0..suffixes.len())
+                .find_map(|i| group.get(&format!("suffix_{i}")))
+                .unwrap()
+                .clone();
+            // Legacy mat() resolves an unseeded suffix stream to the first
+            // available image, including when that stream is transformed.
+            for i in 0..suffixes.len() {
+                group
+                    .entry(format!("suffix_{i}"))
+                    .or_insert_with(|| reference.clone());
+            }
+            // The set's name is the stem its files share: the prefix and the middle,
+            // which is how the Process As Set inspector lists it.
+            work.push((reference, Some(format!("{prefix}{name}")), group));
+        }
+    } else {
+        work = files
+            .iter()
+            .map(|p| (p.clone(), None, BTreeMap::new()))
+            .collect();
+    }
+    Ok(Some(OutputJob {
+        plan: output_plan,
+        output,
+        input_id,
+        contributors,
+        work,
+    }))
+}
 pub fn run_workflow(
     g: &Graph,
     registry: &Registry,
     host: &mut dyn ImageHost,
     options: &RunOptions,
-    progress: &mut dyn FnMut(usize, usize, &Path),
+    progress: &mut dyn FnMut(&RunProgress<'_>),
 ) -> Result<BatchResult, String> {
     let plan = crate::plan::build(g, registry)?;
     if plan.outputs.is_empty() {
         return Err("Workflow has no output nodes.".into());
     }
-    let mut result = BatchResult::default();
+    // Every output's files are listed, and its sets gathered, before any of them runs, so
+    // the progress counts towards the whole run from the start.
+    let mut jobs = Vec::new();
     for output_plan in &plan.outputs {
+        jobs.extend(output_job(g, registry, options, output_plan)?);
+    }
+    let mut result = BatchResult::default();
+    let mut reporter = Reporter {
+        progress,
+        completed: 0,
+        total: jobs.iter().map(|job| job.work.len()).sum(),
+        node: "",
+        label: "",
+        output: 0,
+        outputs: jobs.len(),
+        stage: RunStage::Reading,
+    };
+    for (position, job) in jobs.iter().enumerate() {
         if options.cancelled.load(Ordering::Relaxed) {
             return Err("Cancelled".into());
         }
-        let output = g.nodes.iter().find(|n| n.id == output_plan.node).unwrap();
-        let Some(input_id) = &output_plan.input else {
-            continue;
-        };
-        let input = g.nodes.iter().find(|n| &n.id == input_id).unwrap();
-        let input_flag = input
-            .data
-            .params
-            .get("cliName")
-            .and_then(definition::to_value)
-            .map(|v| v.text())
-            .unwrap_or_default();
-        let files = match options.named_files.get(&input_flag) {
-            // A list is processed in the order it was given, which for the interface is
-            // the order the images were imported in: that is the order a Flipbook tiles
-            // them and a Rename numbers them, as the Electron batch took `imagePaths`.
-            // A file listed twice is still processed once, where it first appears.
-            Some(listed) if !listed.is_empty() => {
-                let mut seen = BTreeSet::new();
-                listed
-                    .iter()
-                    .filter(|path| seen.insert(*path))
-                    .cloned()
-                    .collect()
-            }
-            _ => {
-                let dir = options
-                    .named_paths
-                    .get(&input_flag)
-                    .filter(|path| !path.as_os_str().is_empty())
-                    .ok_or_else(|| {
-                        let flag = if input_flag.is_empty() {
-                            "input"
-                        } else {
-                            &input_flag
-                        };
-                        let node = output
-                            .data
-                            .params
-                            .get("cliName")
-                            .and_then(definition::to_value)
-                            .map(|value| value.text())
-                            .unwrap_or_default();
-                        format!(
-                            "Missing required flag: --{flag}\n  \
-                             Needed to run output node \"{node}\".\n  \
-                             Export a CLI script from Bite to see all required flags."
-                        )
-                    })?;
-                images(dir)?
-            }
-        };
+        let &OutputJob {
+            plan: output_plan,
+            output,
+            input_id,
+            ref contributors,
+            ref work,
+        } = job;
+        reporter.node = &output.id;
+        reporter.label = &output.data.label;
+        reporter.output = position + 1;
+        reporter.enter(RunStage::Reading);
         let raw_output: Context = output
             .data
             .params
@@ -1232,16 +1448,17 @@ pub fn run_workflow(
             NodeKind::Builtin(BuiltinNodeKind::TextOutput) => dest.map(text_file),
             _ => dest,
         };
-        if output.kind != NodeKind::Builtin(BuiltinNodeKind::ImageOutput)
-            && dest.as_ref().is_some_and(|p| p.exists())
-            && !overwrite
-        {
-            result.skipped += files.len();
+        if let Some(existing) = dest.as_deref().filter(|path| {
+            output.kind != NodeKind::Builtin(BuiltinNodeKind::ImageOutput)
+                && path.exists()
+                && !overwrite
+        }) {
+            result.skipped += work.len();
+            reporter.finish(work.len(), existing);
             continue;
         }
         let output_started = Instant::now();
         let first_output = result.outputs.len();
-        let contributors: BTreeSet<_> = output_plan.contributors.iter().cloned().collect();
         // A preview evaluates the whole graph, so what any of it asks about the file has
         // to be read, not only what this output's own chain needs.
         let definitions: Vec<_> = if options.capture_values {
@@ -1258,75 +1475,6 @@ pub fn run_workflow(
         };
         let heavy = wants_heavy_metadata(definitions.iter().copied());
         let dimensions = wants_dimensions(definitions.iter().copied());
-        let set_node = g
-            .nodes
-            .iter()
-            .find(|n| contributors.contains(&n.id) && n.data.definition_id == "process_as_set");
-        let mut work: Vec<(PathBuf, Option<String>, BTreeMap<String, PathBuf>)> = Vec::new();
-        if let Some(set) = set_node {
-            if !matches!(
-                set.data.params.get("suffixes"),
-                Some(ParamValue::Structured(StructuredParam::SetSuffixes { .. }))
-            ) {
-                return Err("set suffixes missing".into());
-            }
-            let (prefix, suffixes) = set_pattern(g, registry, set);
-            // Sets keep the order their first files came in, as Electron's grouping map
-            // did, so a Rename numbers them in import order just as it does single files.
-            let mut groups: Vec<(String, BTreeMap<String, PathBuf>)> = Vec::new();
-            for file in &files {
-                let stem = file.file_stem().unwrap_or_default().to_string_lossy();
-                if let Some(rest) = stem.strip_prefix(&prefix) {
-                    for (i, suffix) in suffixes.iter().enumerate() {
-                        if !suffix.is_empty() {
-                            if let Some(middle) = rest.strip_suffix(suffix.as_str()) {
-                                let index = match groups.iter().position(|(m, _)| m == middle) {
-                                    Some(index) => index,
-                                    None => {
-                                        groups.push((middle.into(), BTreeMap::new()));
-                                        groups.len() - 1
-                                    }
-                                };
-                                groups[index].1.insert(format!("suffix_{i}"), file.clone());
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            // A preview of a file the pattern does not match still shows that file: the
-            // Electron preview seeded no suffix port then, so every port fell back to the
-            // selected image. A run leaves such a file out, as Electron's run did.
-            if groups.is_empty() && options.capture_values {
-                if let Some(file) = files.first() {
-                    let group = (0..suffixes.len())
-                        .map(|i| (format!("suffix_{i}"), file.clone()))
-                        .collect();
-                    work.push((file.clone(), None, group));
-                }
-            }
-            for (name, mut group) in groups {
-                let reference = (0..suffixes.len())
-                    .find_map(|i| group.get(&format!("suffix_{i}")))
-                    .unwrap()
-                    .clone();
-                // Legacy mat() resolves an unseeded suffix stream to the first
-                // available image, including when that stream is transformed.
-                for i in 0..suffixes.len() {
-                    group
-                        .entry(format!("suffix_{i}"))
-                        .or_insert_with(|| reference.clone());
-                }
-                // The set's name is the stem its files share: the prefix and the middle,
-                // which is how the Process As Set inspector lists it.
-                work.push((reference, Some(format!("{prefix}{name}")), group));
-            }
-        } else {
-            work = files
-                .iter()
-                .map(|p| (p.clone(), None, BTreeMap::new()))
-                .collect();
-        }
         let mut report = Vec::new();
         let mut atlas = Vec::new();
         let mut claimed_paths = BTreeSet::new();
@@ -1343,18 +1491,38 @@ pub fn run_workflow(
             registry,
             options,
             plan: &plan,
-            contributors: &contributors,
+            contributors,
             input_id,
             output,
             raw_output: &raw_output,
             heavy,
             dimensions,
         };
-        let resolved = scatter(host, options, &work, &|host, index| {
-            let (file, set_name, set_inputs) = &work[index];
-            resolve_item(host, &context, index, file, set_name, set_inputs)
-        });
-        for (index, ((file, _, _), item)) in work.iter().zip(resolved).enumerate() {
+        let resolved = scatter(
+            host,
+            options,
+            work,
+            &|host, index| {
+                let (file, set_name, set_inputs) = &work[index];
+                resolve_item(host, &context, index, file, set_name, set_inputs)
+            },
+            // A step with a picture to write is not finished until it is written, and one
+            // bound for a flipbook not until the atlas is. Every other step is done as soon
+            // as it has resolved.
+            &mut |index, outcome| {
+                let waits = matches!(
+                    outcome,
+                    Ok(ItemResult {
+                        output: ItemOutput::Image { .. } | ItemOutput::Atlas(_),
+                        ..
+                    })
+                );
+                if !waits {
+                    reporter.finish(1, &work[index].0);
+                }
+            },
+        );
+        for ((file, _, _), item) in work.iter().zip(resolved) {
             let item = match item {
                 Ok(item) => item,
                 Err(error) => {
@@ -1370,16 +1538,14 @@ pub fn run_workflow(
                         file.display(),
                         output.id
                     ));
-                    progress(index + 1, work.len(), file);
                     continue;
                 }
             };
             result.values.extend(item.values);
             result.stopped.extend(item.stopped);
-            let mut queued = false;
             match item.output {
                 ItemOutput::None => {}
-                ItemOutput::Skipped => result.skipped += 1,
+                ItemOutput::Skipped => result.filtered += 1,
                 ItemOutput::Image { name, args, format } => {
                     let desired = dest
                         .clone()
@@ -1398,6 +1564,7 @@ pub fn run_workflow(
                     }
                     if out.exists() && !overwrite {
                         result.skipped += 1;
+                        reporter.finish(1, file);
                     } else {
                         let operation = if args.len() == 1 && format.is_none() {
                             OutputOperation::Copy {
@@ -1411,8 +1578,7 @@ pub fn run_workflow(
                                 output: out.clone(),
                             }
                         };
-                        pending.push((index, file.clone(), out, operation));
-                        queued = true;
+                        pending.push((file.clone(), out, operation));
                     }
                 }
                 ItemOutput::Text(line) => {
@@ -1424,17 +1590,17 @@ pub fn run_workflow(
                     atlas_params = params;
                 }
             }
-            if !queued {
-                progress(index + 1, work.len(), file);
-            }
         }
         if !pending.is_empty() {
             let operations = pending
                 .iter()
-                .map(|(_, _, _, operation)| operation.clone())
+                .map(|(_, _, operation)| operation.clone())
                 .collect();
-            let emitted = host.emit_many(operations, &emit_options, options.jobs);
-            for ((index, file, out, _), emitted) in pending.into_iter().zip(emitted) {
+            reporter.enter(RunStage::Writing);
+            let emitted = host.emit_many(operations, &emit_options, options.jobs, &mut |index| {
+                reporter.finish(1, &pending[index].0)
+            });
+            for ((file, out, _), emitted) in pending.into_iter().zip(emitted) {
                 match emitted {
                     Ok(()) => {
                         result.processed += 1;
@@ -1455,7 +1621,6 @@ pub fn run_workflow(
                         ));
                     }
                 }
-                progress(index + 1, work.len(), &file);
             }
         }
         if output.kind == NodeKind::Builtin(BuiltinNodeKind::TextOutput) && !report.is_empty() {
@@ -1491,6 +1656,8 @@ pub fn run_workflow(
             } else if sort == "name_desc" {
                 atlas.sort_by(|a, b| natural_name_cmp(b, a));
             }
+            // What the grid has no cell for is left out, and counted as skipped.
+            let gathered = atlas.len();
             atlas.truncate(rows * cols);
             let mut args = vec!["montage".into()];
             for p in &atlas {
@@ -1527,6 +1694,7 @@ pub fn run_workflow(
                 "-background",
                 &color,
             ]));
+            reporter.enter(RunStage::Writing);
             host.emit(
                 OutputOperation::Image {
                     args,
@@ -1536,6 +1704,8 @@ pub fn run_workflow(
                 &emit_options,
             )?;
             result.processed += atlas.len();
+            result.skipped += gathered - atlas.len();
+            reporter.finish(gathered, &out);
             result.outputs.push(out);
         }
         if bool_param(&raw_output, "generateLog", false) {

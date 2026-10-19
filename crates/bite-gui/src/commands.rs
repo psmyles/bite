@@ -520,6 +520,7 @@ pub fn add_paths(editor: &mut Editor, node: &str, paths: Vec<PathBuf>) {
         elapsed_seconds: 0.0,
         error: None,
         skipped: 0,
+        stage: None,
     };
 
     std::thread::spawn(move || {
@@ -838,15 +839,21 @@ pub fn start_run(editor: &mut Editor) {
             &registry,
             &mut magick,
             &options,
-            &mut |completed, total, path| {
+            &mut |progress| {
                 reporter.send(work::Message::RunProgress {
-                    completed,
-                    total,
-                    file: path
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .unwrap_or_default()
-                        .to_string(),
+                    completed: progress.completed,
+                    total: progress.total,
+                    node: progress.node.to_string(),
+                    label: progress.label.to_string(),
+                    output: progress.output,
+                    outputs: progress.outputs,
+                    writing: progress.stage == bite_core::execution::RunStage::Writing,
+                    file: progress.file.map(|path| {
+                        path.file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or_default()
+                            .to_string()
+                    }),
                 });
             },
         );
@@ -854,6 +861,7 @@ pub fn start_run(editor: &mut Editor) {
             Ok(batch) => {
                 crate::timings::report_run(crate::timings::Run {
                     processed: batch.processed,
+                    filtered: batch.filtered,
                     skipped: batch.skipped,
                     failed: batch.failed,
                     processes: magick.processes(),
@@ -1058,12 +1066,30 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
         work::Message::RunProgress {
             completed,
             total,
+            node,
+            label,
+            output,
+            outputs,
+            writing,
             file,
         } => {
             editor.progress.completed = completed;
             editor.progress.total = total;
+            editor.progress.stage = Some(modals::RunStage {
+                label,
+                output,
+                outputs,
+                writing,
+            });
+            // The canvas badges the output being worked on with the file it last finished.
             if let Some(run) = &mut editor.run {
-                run.file = Some(file);
+                if run.node.as_deref() != Some(node.as_str()) {
+                    run.file = None;
+                }
+                run.node = Some(node);
+                if file.is_some() {
+                    run.file = file;
+                }
             }
         }
         work::Message::RunFinished(batch) => {
@@ -1074,8 +1100,14 @@ pub fn apply_message(editor: &mut Editor, message: work::Message) {
             editor.run = None;
             editor.modal = modals::Modal::BatchSummary(modals::BatchSummary {
                 processed: batch.processed,
+                filtered: batch.filtered,
                 skipped: batch.skipped,
                 failed: batch.failed,
+                outputs: editor
+                    .progress
+                    .stage
+                    .as_ref()
+                    .map_or(0, |stage| stage.outputs),
                 elapsed_ms: elapsed,
                 errors: batch.errors.clone(),
                 output_dir: batch

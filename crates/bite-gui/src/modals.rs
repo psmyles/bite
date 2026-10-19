@@ -91,14 +91,28 @@ impl RunCandidate {
 }
 
 /// The batch result the summary dialog reports.
+///
+/// Every step the progress dialog counted lands in exactly one of the four counts, so they
+/// add up to the total it counted towards.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BatchSummary {
     pub processed: usize,
+    /// Steps a Gate stopped, which wrote nothing because the workflow chose not to.
+    pub filtered: usize,
+    /// Steps whose output already existed, on an output that skips rather than overwrites.
     pub skipped: usize,
     pub failed: usize,
+    /// How many output nodes the run went through.
+    pub outputs: usize,
     pub elapsed_ms: Option<u64>,
     pub errors: Vec<String>,
     pub output_dir: Option<String>,
+}
+
+impl BatchSummary {
+    pub fn steps(&self) -> usize {
+        self.processed + self.filtered + self.skipped + self.failed
+    }
 }
 
 /// Progress for the batch and import dialogs.
@@ -110,6 +124,18 @@ pub struct Progress {
     pub error: Option<String>,
     /// Files an import could not read. They are left out of the branch and named in the log.
     pub skipped: usize,
+    /// What a run is working on. An import has no stages.
+    pub stage: Option<RunStage>,
+}
+
+/// The output node a run is on, and which half of its work.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RunStage {
+    pub label: String,
+    /// Its place among the run's outputs, from one.
+    pub output: usize,
+    pub outputs: usize,
+    pub writing: bool,
 }
 
 impl Progress {
@@ -121,8 +147,10 @@ impl Progress {
         }
     }
 
+    /// The whole percentage done, rounded down so that 100% means finished rather than
+    /// nearly so.
     pub fn percent(&self) -> i32 {
-        (self.fraction() * 100.0).round() as i32
+        (self.fraction() * 100.0).floor() as i32
     }
 }
 
@@ -787,24 +815,27 @@ fn batch_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
             );
             ui.dummy([inner, size[1] + 20.0]);
         } else {
-            counter_row(ui, inner, progress.completed, progress.total);
+            if let Some(stage) = &progress.stage {
+                stage_row(ui, inner, stage);
+                ui.dummy([inner, 10.0]);
+            }
+            counter_row(ui, inner, progress.completed, progress.total, "steps");
             ui.dummy([inner, 12.0]);
             progress_bar(ui, inner, progress.fraction(), theme::COLOR_SUCCESS);
             ui.dummy([inner, 8.0]);
-            let label = format!(
-                "{}%  -  {}",
-                progress.percent(),
-                format_elapsed(progress.elapsed_seconds)
-            );
-            let size = controls::measure(ui, theme::face::SMALL_MONO, &label);
-            ui.draw_list().text_with_face(
-                [
-                    ui.cursor_screen_position()[0] + inner - size[0],
-                    ui.cursor_screen_position()[1],
-                ],
+            // The share done and the time taken so far, and no guess at the time left: a
+            // run's steps differ too much in cost for one to mean anything.
+            let percent = format!("{}%", progress.percent());
+            let elapsed = format!("{} elapsed", format_elapsed(progress.elapsed_seconds));
+            let origin = ui.cursor_screen_position();
+            let list = ui.draw_list();
+            let size = list.measure(theme::face::SMALL_MONO, &elapsed);
+            list.text_with_face(origin, theme::TEXT, theme::face::SMALL_MONO, &percent);
+            list.text_with_face(
+                [origin[0] + inner - size[0], origin[1]],
                 theme::TEXT,
                 theme::face::SMALL_MONO,
-                &label,
+                &elapsed,
             );
             ui.dummy([inner, size[1] + 20.0]);
         }
@@ -813,8 +844,41 @@ fn batch_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
     })
 }
 
+/// The output a run is on, with its place among the outputs, and on the right whether its
+/// files are being read or written.
+fn stage_row(ui: &mut Ui, width: f32, stage: &RunStage) {
+    let origin = ui.cursor_screen_position();
+    let face = theme::face::LABEL;
+    let activity = if stage.writing {
+        "Writing files"
+    } else {
+        "Reading files"
+    };
+    let activity_width = controls::measure(ui, face, activity)[0];
+    let output = if stage.outputs > 1 {
+        format!("{}  ({} of {})", stage.label, stage.output, stage.outputs)
+    } else {
+        stage.label.clone()
+    };
+    controls::draw_ellipsized(
+        ui,
+        origin,
+        theme::TEXT_BRIGHT,
+        face,
+        &output,
+        width - activity_width - 12.0,
+    );
+    ui.draw_list().text_with_face(
+        [origin[0] + width - activity_width, origin[1]],
+        theme::TEXT,
+        face,
+        activity,
+    );
+    ui.dummy([width, controls::measure(ui, face, &output)[1]]);
+}
+
 /// The large completed-over-total counter the progress dialogs show.
-fn counter_row(ui: &mut Ui, width: f32, completed: usize, total: usize) {
+fn counter_row(ui: &mut Ui, width: f32, completed: usize, total: usize, unit: &str) {
     let origin = ui.cursor_screen_position();
     let list = ui.draw_list();
     let completed_text = completed.to_string();
@@ -832,7 +896,7 @@ fn counter_row(ui: &mut Ui, width: f32, completed: usize, total: usize) {
         ),
         (count, theme::TEXT, "/", 5.0),
         (count, theme::TEXT_BRIGHT, total_text.as_str(), 5.0),
-        (theme::face::BODY, theme::TEXT, "images", 9.0),
+        (theme::face::BODY, theme::TEXT, unit, 9.0),
     ];
     let mut x = origin[0];
     for (face, color, text, gap) in runs {
@@ -870,23 +934,28 @@ fn progress_bar(ui: &mut Ui, width: f32, fraction: f32, color: bite_imgui::Color
 
 fn batch_summary(ui: &mut Ui, summary: &BatchSummary) -> Option<Outcome> {
     let mut open_folder = None;
-    let result = panel(ui, "summary", "Batch Complete", 320.0, true, |ui, width| {
+    let mut stats: Vec<(&str, String, bite_imgui::Color)> = vec![(
+        "PROCESSED",
+        summary.processed.to_string(),
+        theme::COLOR_SUCCESS_MUTED,
+    )];
+    if summary.filtered > 0 {
+        stats.push(("FILTERED", summary.filtered.to_string(), theme::TEXT));
+    }
+    if summary.skipped > 0 {
+        stats.push(("SKIPPED", summary.skipped.to_string(), theme::TEXT));
+    }
+    if summary.failed > 0 {
+        stats.push((
+            "FAILED",
+            summary.failed.to_string(),
+            theme::COLOR_ERROR_TEXT,
+        ));
+    }
+    // Four columns need more room than the three the dialog was sized for.
+    let span = if stats.len() > 3 { 400.0 } else { 320.0 };
+    let result = panel(ui, "summary", "Batch Complete", span, true, |ui, width| {
         let inner = body_start(ui, width, 20.0, 20.0);
-        let mut stats: Vec<(&str, String, bite_imgui::Color)> = vec![(
-            "PROCESSED",
-            summary.processed.to_string(),
-            theme::COLOR_SUCCESS_MUTED,
-        )];
-        if summary.skipped > 0 {
-            stats.push(("SKIPPED", summary.skipped.to_string(), theme::TEXT));
-        }
-        if summary.failed > 0 {
-            stats.push((
-                "FAILED",
-                summary.failed.to_string(),
-                theme::COLOR_ERROR_TEXT,
-            ));
-        }
         let column = inner / stats.len() as f32;
         let origin = ui.cursor_screen_position();
         for (index, (label, value, colour)) in stats.iter().enumerate() {
@@ -925,32 +994,43 @@ fn batch_summary(ui: &mut Ui, summary: &BatchSummary) -> Option<Outcome> {
         }
         ui.dummy([inner, 56.0]);
 
+        // The steps are what the progress dialog counted to, and what the counts above add
+        // up to.
+        let mut rows = vec![(
+            if summary.outputs > 1 {
+                format!("Steps across {} outputs", summary.outputs)
+            } else {
+                "Steps".to_string()
+            },
+            summary.steps().to_string(),
+        )];
         if let Some(elapsed) = summary.elapsed_ms {
-            let row = ui.cursor_screen_position();
-            let list = ui.draw_list();
-            list.rect(
-                row,
-                [row[0] + inner, row[1] + 2.0],
-                theme::CTX_BORDER,
-                0.0,
-                Rounding::None,
-            );
+            rows.push((
+                "Total time".to_string(),
+                format_elapsed(elapsed as f32 / 1000.0),
+            ));
+        }
+        let row = ui.cursor_screen_position();
+        let list = ui.draw_list();
+        list.rect(
+            row,
+            [row[0] + inner, row[1] + 2.0],
+            theme::CTX_BORDER,
+            0.0,
+            Rounding::None,
+        );
+        for (index, (label, value)) in rows.iter().enumerate() {
+            let y = row[1] + 10.0 + index as f32 * 22.0;
+            list.text_with_face([row[0], y], theme::TEXT, theme::face::BODY, label);
+            let size = list.measure(theme::face::VALUE, value);
             list.text_with_face(
-                [row[0], row[1] + 10.0],
-                theme::TEXT,
-                theme::face::BODY,
-                "Total time",
-            );
-            let text = format_elapsed(elapsed as f32 / 1000.0);
-            let size = list.measure(theme::face::VALUE, &text);
-            list.text_with_face(
-                [row[0] + inner - size[0], row[1] + 10.0],
+                [row[0] + inner - size[0], y],
                 theme::TEXT_BRIGHT,
                 theme::face::VALUE,
-                &text,
+                value,
             );
-            ui.dummy([inner, 32.0]);
         }
+        ui.dummy([inner, 10.0 + rows.len() as f32 * 22.0]);
 
         if !summary.errors.is_empty() {
             let row = ui.cursor_screen_position();
@@ -1076,7 +1156,7 @@ fn import_progress(ui: &mut Ui, progress: &Progress) -> Option<Outcome> {
             return footer(ui, width, 24.0, &[("OK", ButtonKind::Primary, true)])
                 .map(|_| Outcome::Dismissed);
         }
-        counter_row(ui, inner, progress.completed, progress.total);
+        counter_row(ui, inner, progress.completed, progress.total, "images");
         ui.dummy([inner, 12.0]);
         progress_bar(ui, inner, progress.fraction(), theme::COLOR_SUCCESS);
         ui.dummy([inner, 8.0]);
@@ -1151,6 +1231,7 @@ mod tests {
             elapsed_seconds: 1.0,
             error: None,
             skipped: 0,
+            stage: None,
         };
         assert_eq!(progress.fraction(), 0.75);
         assert_eq!(progress.percent(), 75);
