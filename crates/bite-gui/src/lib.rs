@@ -11,7 +11,7 @@ pub mod icon;
 pub mod log_window;
 pub mod logging;
 pub mod menu;
-/// The macOS system menu bar, which is where Cmd+Q lives.
+/// The macOS system menu bar, which carries the editor's menu there.
 #[cfg(target_os = "macos")]
 pub mod menubar;
 pub mod modals;

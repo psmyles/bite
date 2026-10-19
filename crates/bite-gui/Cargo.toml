@@ -81,10 +81,10 @@ objc2-app-kit = { version = "0.2", features = [
     "NSResponder",                  # NSView's superclass chain
     "objc2-quartz-core",            # setLayer: takes a CALayer, so NSView needs the type
     "NSApplication",                # the delegate `openfiles` extends with openURLs:
+    "NSEvent",                      # NSApp.currentEvent: whether a menu item was chosen by key
 ] }
-# The system menu bar. Without one a Mac app cannot be quit from the keyboard at all: Cmd+Q is
-# the menu's, not the window's. Default features off - the tray icon and its image decoders are
-# a third of the crate and nothing here wants them.
+# The system menu bar, which carries the editor's whole menu on macOS. Default features off -
+# the tray icon and its image decoders are a third of the crate and nothing here wants them.
 muda = { version = "0.19.3", default-features = false }
 # `timing`'s macOS arm: proc_pidinfo for the process-creation clock, proc_pid_rusage for the
 # footprint. The Windows arm calls GetProcessTimes for the same two numbers.

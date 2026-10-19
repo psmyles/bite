@@ -734,14 +734,23 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
         bite_imgui::Rounding::None,
     );
 
-    let bar = ui.with_face(theme::face::BODY, |ui| {
-        menu::draw(
-            ui,
-            &editor.title(),
-            editor.timers_enabled,
-            cfg!(debug_assertions),
-        )
-    });
+    // On macOS the menu is the system menu bar's (`crate::menubar`) and the document title is the
+    // window's, so the panels start at the top of the window.
+    let bar = if cfg!(target_os = "macos") {
+        menu::Bar {
+            command: None,
+            height: 0.0,
+        }
+    } else {
+        ui.with_face(theme::face::BODY, |ui| {
+            menu::draw(
+                ui,
+                &editor.title(),
+                editor.timers_enabled,
+                cfg!(debug_assertions),
+            )
+        })
+    };
     let command = bar.command;
 
     let layout = shell::compute(size, bar.height, editor.session.panels);

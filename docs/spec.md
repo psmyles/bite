@@ -352,7 +352,7 @@ Each workflow node also stores a **`cliName`** param - auto-assigned at creation
 | **Properties** | Name, Path, Dimensions, Size, Bit Depth, File Type, Resolution, EXIF, Power of Two                      |
 | **Values**     | Boolean, Float, String, Color, Vector 2, Vector 3, Vector 4                                             |
 | **Math**       | Add, Subtract, Multiply, Divide, Power, Lerp, Negate, Mean Value, Dot Product, Length, Normalize        |
-| **Utility**    | Comment (annotation node), Folder Path, Append (vector), Split (vector)                                 |
+| **Utility**    | Folder Path, Append (vector), Split (vector)                                                            |
 
 The Group node (visual container) is not a JSON definition - it is created via Ctrl+G in the editor.
 

@@ -1013,7 +1013,6 @@ fn resolve_item(
                         }
                     }
                 }
-                "comment" => {}
                 other => return Err(format!("unimplemented native executor {other}")),
             },
         }

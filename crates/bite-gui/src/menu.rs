@@ -4,9 +4,9 @@
 //! which is the shape the menu has always had; `docs/spec.md` is where that contract is
 //! written down.
 //!
-//! On macOS the system menu bar beside this one (`crate::menubar`) carries only what AppKit
-//! must own - the application menu and Quit. This is the editor's menu on both platforms, so
-//! the two must not both claim an accelerator; see that module.
+//! This is the in-window menu bar. On macOS it is not drawn: the system menu bar
+//! (`crate::menubar`) carries the same menus instead, and a change to the rows here belongs there
+//! too.
 use crate::{controls, theme};
 use bite_imgui::{Color, StyleColor, StyleVar, Ui};
 

@@ -39,8 +39,9 @@ use winit::{
 pub enum AppEvent {
     /// A background job has a result ready, or wants a frame drawn.
     Wake,
-    /// A menu item the system menu bar owns was chosen (macOS; see `menubar`).
-    Menu(crate::menu::Command),
+    /// An item on the system menu bar was chosen, and how (macOS; see `menubar`).
+    #[cfg(target_os = "macos")]
+    Menu(crate::menu::Command, crate::menubar::Trigger),
     /// A workflow Launch Services asked the editor to open (macOS; see `openfiles`).
     Open(PathBuf),
 }
@@ -66,6 +67,14 @@ struct State {
     /// files as one event per file, so they are gathered here and imported together once the
     /// drop's events have all arrived (`about_to_wait`).
     drops: Vec<PathBuf>,
+    /// The modifiers winit last reported, which a menu chord replayed into Dear ImGui must not
+    /// press or release a second time (see `menubar::Chord::replay`).
+    #[cfg(target_os = "macos")]
+    modifiers: winit::keyboard::ModifiersState,
+    /// The system menu bar, held here so its labels can follow editor state; dropping it takes
+    /// the menu bar with it.
+    #[cfg(target_os = "macos")]
+    menu: Option<crate::menubar::MenuBar>,
     /// Kept only so the device outlives sokol_gfx: `sg::shutdown` runs against it.
     _device: Device,
 }
@@ -76,6 +85,10 @@ struct App {
     initial: Option<PathBuf>,
     /// The GPU bring-up, started at the top of [`run`] and joined once the window exists.
     gpu: Option<JoinHandle<Result<Device, String>>>,
+    /// The system menu bar, built before the loop runs and handed to the [`State`] once the
+    /// window exists.
+    #[cfg(target_os = "macos")]
+    menu: Option<crate::menubar::MenuBar>,
 }
 
 /// Starts the editor.
@@ -109,15 +122,14 @@ pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
     event_loop.set_control_flow(ControlFlow::Wait);
     let proxy = event_loop.create_proxy();
 
-    // The menu bar, built after the event loop exists (`NSApplication` has to be up) and held to
-    // the end of this function, because dropping the menu takes the menu bar with it. A failure
-    // is not worth refusing to start over - the editor is merely harder to quit - so it degrades
-    // to no menu and a line in the log.
+    // The menu bar, built after the event loop exists (`NSApplication` has to be up) and kept
+    // for the life of the loop, because dropping the menu takes the menu bar with it. A failure
+    // is not worth refusing to start over, so it degrades to no menu and a line in the log.
     #[cfg(target_os = "macos")]
-    let _menu = {
-        let menu = crate::menubar::install(proxy.clone());
+    let menu = {
+        let menu = crate::menubar::install(proxy.clone(), cfg!(debug_assertions));
         if menu.is_none() {
-            logging::warn("Could not build the macOS menu bar; Cmd+Q will not work");
+            logging::warn("Could not build the macOS menu bar; the editor's menu will be missing");
         }
         menu
     };
@@ -136,6 +148,8 @@ pub fn run(initial: Option<PathBuf>) -> Result<(), String> {
         proxy,
         initial,
         gpu: Some(gpu),
+        #[cfg(target_os = "macos")]
+        menu,
     };
     event_loop
         .run_app(&mut app)
@@ -199,13 +213,9 @@ impl ApplicationHandler<AppEvent> for App {
         let Some(state) = &mut self.state else { return };
         match event {
             AppEvent::Wake => {}
-            // A menu command runs exactly as the in-window menu bar's would, including the exit
-            // path: `Command::Exit` is what asks about unsaved work, and `should_exit` is its
-            // answer. Cmd+Q arrives here rather than as AppKit's `terminate:` for that reason -
-            // see `menubar`.
-            AppEvent::Menu(command) => {
-                commands::run(&mut state.editor, command);
-                if state.editor.should_exit {
+            #[cfg(target_os = "macos")]
+            AppEvent::Menu(command, trigger) => {
+                if menu_command(state, command, trigger) {
                     save_session(state);
                     event_loop.exit();
                     return;
@@ -213,7 +223,9 @@ impl ApplicationHandler<AppEvent> for App {
             }
             AppEvent::Open(path) => open_workflow(state, path),
         }
-        state.settle = state.settle.max(2);
+        // Four rather than two: a replayed menu chord is trickled into Dear ImGui over a press
+        // frame and a release frame before the frame that settles.
+        state.settle = state.settle.max(4);
         state.surface.window.request_redraw();
     }
 
@@ -307,6 +319,10 @@ impl ApplicationHandler<AppEvent> for App {
             }
             WindowEvent::ModifiersChanged(modifiers) => {
                 let modifiers = modifiers.state();
+                #[cfg(target_os = "macos")]
+                {
+                    state.modifiers = modifiers;
+                }
                 state.context.key(Key::Ctrl, modifiers.control_key());
                 state.context.key(Key::Shift, modifiers.shift_key());
                 state.context.key(Key::Alt, modifiers.alt_key());
@@ -413,6 +429,10 @@ impl App {
             settle: 8,
             saved: false,
             drops: Vec::new(),
+            #[cfg(target_os = "macos")]
+            modifiers: Default::default(),
+            #[cfg(target_os = "macos")]
+            menu: self.menu.take(),
             _device: device,
         };
         // On macOS a launch-by-open arrives as an Apple event *before* this point, not as an
@@ -498,6 +518,10 @@ impl App {
         let size: Vec2 = [width as f32 / scale, height as f32 / scale];
 
         app::draw_frame(&mut state.editor, &mut state.context, size, scale, delta);
+        #[cfg(target_os = "macos")]
+        if let Some(menu) = &state.menu {
+            menu.sync(state.editor.timers_enabled);
+        }
 
         state
             .surface
@@ -715,6 +739,31 @@ fn handle_drop(state: &mut State, paths: Vec<PathBuf>) {
 /// Shared by the two ways one arrives without a dialog: dropped on the window, and handed over
 /// by Launch Services on macOS (`openfiles`). Both have to go through the same prompt, because
 /// either can land on a document with unsaved changes.
+/// Handles an item chosen on the system menu bar. True when the editor should now exit.
+///
+/// What runs is what the in-window menu bar runs on the other platforms, including the exit path:
+/// `Command::Exit` is what asks about unsaved work, and `should_exit` is its answer. Cmd+Q
+/// arrives here rather than as AppKit's `terminate:` for that reason - see `menubar`.
+#[cfg(target_os = "macos")]
+fn menu_command(
+    state: &mut State,
+    command: crate::menu::Command,
+    trigger: crate::menubar::Trigger,
+) -> bool {
+    let typing = state.context.want_text_input();
+    if let Some(chord) = crate::menubar::replay_for(command, trigger, typing) {
+        chord.replay(&mut state.context, state.modifiers);
+        return false;
+    }
+    // The in-window menu cannot be reached past an open dialog, and this one must not act behind
+    // it either - except Quit, which asks about unsaved work itself.
+    if command != crate::menu::Command::Exit && !matches!(state.editor.modal, modals::Modal::None) {
+        return false;
+    }
+    commands::run(&mut state.editor, command);
+    state.editor.should_exit
+}
+
 fn open_workflow(state: &mut State, path: PathBuf) {
     let editor = &mut state.editor;
     editor.pending_open = Some(path);
