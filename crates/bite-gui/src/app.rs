@@ -1032,6 +1032,7 @@ fn handle_shortcuts(editor: &mut Editor, ui: &bite_imgui::Ui) {
         (Key::V, "v"),
         (Key::D, "d"),
         (Key::A, "a"),
+        (Key::F, "f"),
         (Key::Digit0, "0"),
         (Key::Minus, "-"),
         (Key::Equal, "="),

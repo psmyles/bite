@@ -27,14 +27,21 @@
 //! There is no AppKit Full Screen item: the editor owns that state (`Editor::fullscreen`, which
 //! `platform` syncs onto the window each frame), and `toggleFullScreen:` would change it behind
 //! winit's back and leave the flag stale. The View menu's item is the editor's own command.
+//!
+//! **AppKit adds items of its own** to menus it recognises by title, for features the editor
+//! does not have: window tabs (Show Tab Bar and Show All Tabs in View, the tab items in Window),
+//! Enter Full Screen in View, and AutoFill, Start Dictation and Emoji & Symbols in Edit, none of
+//! which can reach a Dear ImGui text field. [`suppress_appkit_items`] turns them off.
 
 use std::cell::Cell;
 
 use bite_imgui::{Context, Key};
 use muda::accelerator::{Accelerator, Code, Modifiers};
 use muda::{IsMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem, Submenu};
-use objc2_app_kit::{NSApplication, NSEventType};
-use objc2_foundation::MainThreadMarker;
+use objc2::rc::Retained;
+use objc2::runtime::AnyObject;
+use objc2_app_kit::{NSApplication, NSEventType, NSWindow};
+use objc2_foundation::{MainThreadMarker, NSDictionary, NSNumber, NSString, NSUserDefaults};
 use winit::event_loop::EventLoopProxy;
 use winit::keyboard::ModifiersState;
 
@@ -212,6 +219,11 @@ const VIEW: &[Row] = &[
         "Zoom Out",
         Some(Chord::cmd(Code::Minus, Key::Minus)),
     )),
+    Some((
+        Command::FitView,
+        "Fit View",
+        Some(Chord::bare(Code::KeyF, Key::F)),
+    )),
     None,
     Some((
         Command::ToggleFullScreen,
@@ -287,6 +299,7 @@ fn timers_label(enabled: bool) -> &'static str {
 /// merely becomes harder to use, and the caller says so.
 pub fn install(proxy: EventLoopProxy<AppEvent>, show_developer_items: bool) -> Option<MenuBar> {
     let product = env!("BITE_PRODUCT_NAME");
+    suppress_appkit_items(MainThreadMarker::new()?);
 
     // About opens the editor's own dialog, as it does in-window, rather than AppKit's panel: the
     // editor's lists the ImageMagick and library versions too.
@@ -377,6 +390,40 @@ pub fn install(proxy: EventLoopProxy<AppEvent>, show_developer_items: bool) -> O
         timers,
         timers_shown: Cell::new(timers_enabled),
     })
+}
+
+/// Keeps AppKit from adding its own items to the menus; see the module comment.
+///
+/// Tabbing is a class-wide switch and has to be off before the window is created, which is why
+/// this runs from [`install`] rather than once the window exists. The rest are user defaults
+/// AppKit reads as it fills the menus, registered rather than written so nothing is persisted
+/// and a value the user has set themselves still wins.
+fn suppress_appkit_items(mtm: MainThreadMarker) {
+    NSWindow::setAllowsAutomaticWindowTabbing(false, mtm);
+
+    let defaults: [(&str, bool); 4] = [
+        // Enter Full Screen, in View.
+        ("NSFullScreenMenuItemEverywhere", false),
+        // Start Dictation and Emoji & Symbols, in Edit.
+        ("NSDisabledDictationMenuItem", true),
+        ("NSDisabledCharacterPaletteMenuItem", true),
+        // AutoFill, in Edit.
+        ("NSAutoFillSystemInsertMenuEnabled", false),
+    ];
+    let keys: Vec<Retained<NSString>> = defaults
+        .iter()
+        .map(|(key, _)| NSString::from_str(key))
+        .collect();
+    let keys: Vec<&NSString> = keys.iter().map(|key| &**key).collect();
+    let values: Vec<Retained<AnyObject>> = defaults
+        .iter()
+        // SAFETY: an NSNumber is an object; the dictionary's value type only erases which one.
+        .map(|(_, value)| unsafe { Retained::cast(NSNumber::new_bool(*value)) })
+        .collect();
+    let dictionary = NSDictionary::from_vec(&keys, values);
+    // SAFETY: the standard defaults are thread-safe, and the dictionary is of property-list
+    // values only.
+    unsafe { NSUserDefaults::standardUserDefaults().registerDefaults(&dictionary) };
 }
 
 /// A submenu holding `rows`.
