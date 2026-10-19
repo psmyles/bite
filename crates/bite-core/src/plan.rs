@@ -546,7 +546,7 @@ pub fn concrete<'a>(
         current_dependencies: Vec::new(),
         fatal: None,
     };
-    let result = execution::run_workflow(graph, registry, &mut host, options, &mut |_, _, _| {});
+    let result = execution::run_workflow(graph, registry, &mut host, options, &mut |_| {});
     let summary = match result {
         Ok(result) if host.pending.is_none() => Some(result),
         Ok(_) => None,

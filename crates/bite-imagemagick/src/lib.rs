@@ -484,21 +484,29 @@ impl ImageHost for Magick {
         operations: Vec<bite_core::execution::OutputOperation>,
         options: &bite_core::execution::RunOptions,
         jobs: usize,
+        done: &mut dyn FnMut(usize),
     ) -> Vec<Result<(), String>> {
         if jobs <= 1 || operations.len() <= 1 {
             return operations
                 .into_iter()
-                .map(|operation| self.emit(operation, options))
+                .enumerate()
+                .map(|(index, operation)| {
+                    let result = self.emit(operation, options);
+                    done(index);
+                    result
+                })
                 .collect();
         }
         let count = operations.len();
         let queue = Mutex::new(operations.into_iter().enumerate().collect::<VecDeque<_>>());
         let results = Mutex::new((0..count).map(|_| None).collect::<Vec<_>>());
         let workers = jobs.min(count).max(1);
+        let (finished, finishing) = std::sync::mpsc::channel();
         thread::scope(|scope| {
             for _ in 0..workers {
                 let queue = &queue;
                 let results = &results;
+                let finished = finished.clone();
                 // Each pipeline gets an equal share of the hardware threads. Pinning every
                 // one of them to a single thread leaves most of a machine idle when there
                 // are only a few images to process, and letting each take the whole machine
@@ -514,7 +522,14 @@ impl ImageHost for Magick {
                     };
                     let value = worker.emit(operation, options);
                     results.lock().unwrap()[index] = Some(value);
+                    let _ = finished.send(index);
                 });
+            }
+            // The workers hold the only senders left, so this ends when the last one does,
+            // and `done` hears of each write here, on the caller's thread.
+            drop(finished);
+            for index in finishing {
+                done(index);
             }
         });
         results

@@ -62,10 +62,18 @@ pub enum Message {
         generation: u64,
         lines: Vec<String>,
     },
+    /// How far a run has got, counted in steps across every output.
     RunProgress {
         completed: usize,
         total: usize,
-        file: String,
+        /// The output node being worked on, its label, and its place among the outputs.
+        node: String,
+        label: String,
+        output: usize,
+        outputs: usize,
+        writing: bool,
+        /// The file the latest step finished with; nothing when a stage has just begun.
+        file: Option<String>,
     },
     RunFinished(Box<BatchResult>),
     RunFailed(String),

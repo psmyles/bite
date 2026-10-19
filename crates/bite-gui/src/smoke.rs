@@ -29,6 +29,8 @@ pub enum Scene {
     ConfirmPrompt,
     /// The batch summary dialog with a representative result.
     BatchSummary,
+    /// A run part way through the second of three outputs.
+    BatchProgress,
     /// The run dialog with one ready and one blocked output.
     RunDialog,
     /// The about dialog.
@@ -86,6 +88,7 @@ impl Scene {
             "create-menu" => Self::CreateMenu,
             "confirm" => Self::ConfirmPrompt,
             "summary" => Self::BatchSummary,
+            "progress" => Self::BatchProgress,
             "run-dialog" => Self::RunDialog,
             "about" => Self::About,
             "credits" => Self::Credits,
@@ -117,6 +120,7 @@ impl Scene {
             Self::CreateMenu => "create-menu",
             Self::ConfirmPrompt => "confirm",
             Self::BatchSummary => "summary",
+            Self::BatchProgress => "progress",
             Self::RunDialog => "run-dialog",
             Self::About => "about",
             Self::Credits => "credits",
@@ -148,6 +152,7 @@ impl Scene {
             Self::CreateMenu,
             Self::ConfirmPrompt,
             Self::BatchSummary,
+            Self::BatchProgress,
             Self::RunDialog,
             Self::About,
             Self::Credits,
@@ -363,12 +368,29 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
         Scene::BatchSummary => {
             editor.modal = crate::modals::Modal::BatchSummary(crate::modals::BatchSummary {
                 processed: 24,
+                filtered: 48,
                 skipped: 2,
                 failed: 1,
+                outputs: 3,
                 elapsed_ms: Some(4230),
                 errors: vec!["corrupted_scan.jpg: decode error - unsupported colour space".into()],
                 output_dir: Some("out".into()),
             });
+        }
+        Scene::BatchProgress => {
+            editor.modal = crate::modals::Modal::BatchProgress;
+            editor.progress = crate::modals::Progress {
+                completed: 131,
+                total: 235,
+                elapsed_seconds: 16.0,
+                stage: Some(crate::modals::RunStage {
+                    label: "Image Output".into(),
+                    output: 2,
+                    outputs: 3,
+                    writing: true,
+                }),
+                ..Default::default()
+            };
         }
         Scene::RunDialog => {
             editor.modal = crate::modals::Modal::RunWorkflow {
@@ -708,10 +730,11 @@ mod tests {
         assert!(scenes.contains(&Scene::Seed));
         assert!(scenes.contains(&Scene::CreateMenu));
         assert!(scenes.contains(&Scene::BatchSummary));
+        assert!(scenes.contains(&Scene::BatchProgress));
         assert!(scenes.contains(&Scene::Previewing));
         assert!(scenes.contains(&Scene::LogWindow));
         assert!(scenes.contains(&Scene::ResizeInspector));
         assert!(scenes.contains(&Scene::VectorInspector));
-        assert_eq!(scenes.len(), 25);
+        assert_eq!(scenes.len(), 26);
     }
 }

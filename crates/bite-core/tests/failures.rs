@@ -74,8 +74,7 @@ fn failed_images_preserve_existing_outputs_and_cancellation_still_stops_batch() 
             cancel_on_failure: cancel,
             calls: 0,
         };
-        let result =
-            execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_, _, _| {});
+        let result = execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_| {});
         assert_eq!(fs::read(output.join("a.png")).unwrap(), b"original");
         if cancel {
             assert!(result.is_err());
@@ -192,8 +191,8 @@ fn text_output_matches_legacy_empty_and_fully_filtered_behavior() {
         cancel_on_failure: false,
         calls: 0,
     };
-    let error = execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_, _, _| {})
-        .unwrap_err();
+    let error =
+        execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_| {}).unwrap_err();
     assert!(error.contains("All values resolved to empty"));
     assert!(!report.exists());
 
@@ -211,8 +210,16 @@ fn text_output_matches_legacy_empty_and_fully_filtered_behavior() {
         target_handle: "txo:condition".into(),
     });
     let result =
-        execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_, _, _| {}).unwrap();
-    assert_eq!((result.processed, result.skipped, result.failed), (0, 1, 0));
+        execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_| {}).unwrap();
+    assert_eq!(
+        (
+            result.processed,
+            result.filtered,
+            result.skipped,
+            result.failed
+        ),
+        (0, 1, 0, 0)
+    );
     assert!(result.outputs.is_empty());
     assert!(!report.exists());
 }
@@ -264,8 +271,8 @@ fn failed_atlas_process_is_fatal_and_preserves_existing_output() {
         cancel_on_failure: false,
         calls: 0,
     };
-    let error = execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_, _, _| {})
-        .unwrap_err();
+    let error =
+        execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_| {}).unwrap_err();
     assert!(error.contains("injected image failure"));
     assert_eq!(host.calls, 1);
     assert_eq!(fs::read(&output).unwrap(), b"original atlas");
@@ -339,8 +346,7 @@ fn each_output_node_decides_whether_an_existing_file_is_replaced() {
         };
         let mut host = WritingHost { calls: 0 };
         let result =
-            execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_, _, _| {})
-                .unwrap();
+            execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_| {}).unwrap();
         assert_eq!(
             fs::read(output.join("a.png")).unwrap(),
             expected,
@@ -411,7 +417,7 @@ fn a_wired_folder_path_node_is_where_an_image_output_writes() {
         ..RunOptions::default()
     };
     let result =
-        execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_, _, _| {}).unwrap();
+        execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_| {}).unwrap();
     assert_eq!(result.outputs, vec![wired.join("a.png")]);
     assert!(wired.join("a.png").exists());
 
@@ -422,6 +428,6 @@ fn a_wired_folder_path_node_is_where_an_image_output_writes() {
         ..RunOptions::default()
     };
     let result =
-        execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_, _, _| {}).unwrap();
+        execution::run_workflow(&graph, &registry, &mut host, &options, &mut |_| {}).unwrap();
     assert_eq!(result.outputs, vec![flagged.join("a.png")]);
 }

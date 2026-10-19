@@ -224,8 +224,10 @@ fn dialogs() -> Vec<(&'static str, modals::Modal)> {
             "Batch summary",
             modals::Modal::BatchSummary(modals::BatchSummary {
                 processed: 24,
+                filtered: 48,
                 skipped: 2,
                 failed: 1,
+                outputs: 3,
                 elapsed_ms: Some(4230),
                 errors: vec!["corrupted_scan.jpg: decode error - unsupported colour space".into()],
                 output_dir: None,
