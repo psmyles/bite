@@ -79,6 +79,9 @@ pub fn run(editor: &mut Editor, command: menu::Command) {
                 .viewport
                 .zoom_about(centre, 1.0 / crate::theme::ZOOM_STEP);
         }
+        // The canvas frames the graph on its next frame, by the same path as its Fit View
+        // button: only the canvas knows its rectangle and the nodes' measured sizes.
+        C::FitView => editor.canvas.state.fit_request = true,
         C::ToggleFullScreen => editor.fullscreen = !editor.fullscreen,
         C::TogglePerformanceTimers => {
             editor.timers_enabled = !editor.timers_enabled;

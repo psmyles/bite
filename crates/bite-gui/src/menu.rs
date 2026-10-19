@@ -33,6 +33,7 @@ pub enum Command {
     ActualSize,
     ZoomIn,
     ZoomOut,
+    FitView,
     ToggleFullScreen,
     TogglePerformanceTimers,
     ViewLog,
@@ -291,6 +292,7 @@ fn menus(ui: &mut Ui, timers_enabled: bool, show_developer_items: bool) -> Optio
             primary!("-"),
             Command::ZoomOut,
         );
+        item(ui, &mut command, "Fit View", "F", Command::FitView);
         ui.separator();
         item(
             ui,
@@ -393,6 +395,7 @@ pub fn shortcut(key: &str, modifiers: Modifiers) -> Option<Command> {
         ("0", true, false) => Command::ActualSize,
         ("+" | "=", true, _) => Command::ZoomIn,
         ("-", true, false) => Command::ZoomOut,
+        ("f", false, false) => Command::FitView,
         ("F11", false, false) => Command::ToggleFullScreen,
         _ => return None,
     })
@@ -440,6 +443,13 @@ mod tests {
         assert_eq!(press("=", true, false), Some(Command::ZoomIn));
         assert_eq!(press("-", true, false), Some(Command::ZoomOut));
         assert_eq!(press("0", true, false), Some(Command::ActualSize));
+    }
+
+    #[test]
+    fn fit_view_is_the_bare_f_key() {
+        assert_eq!(press("f", false, false), Some(Command::FitView));
+        assert_eq!(press("f", true, false), None);
+        assert_eq!(press("f", false, true), None);
     }
 
     #[test]

@@ -57,6 +57,9 @@ objc2-foundation = { version = "0.2", features = [
     "NSString",
     "NSURL",                        # what a Finder open arrives as
     "NSThread",                     # MainThreadMarker
+    "NSUserDefaults",               # the defaults that keep AppKit's own items off the menu bar
+    "NSDictionary",                 # ...registered as one dictionary
+    "NSValue",                      # ...of NSNumber booleans
 ] }
 objc2-metal = { version = "0.2", features = [
     "MTLDevice",                    # MTLCreateSystemDefaultDevice: the device sokol_gfx runs on
@@ -82,6 +85,7 @@ objc2-app-kit = { version = "0.2", features = [
     "objc2-quartz-core",            # setLayer: takes a CALayer, so NSView needs the type
     "NSApplication",                # the delegate `openfiles` extends with openURLs:
     "NSEvent",                      # NSApp.currentEvent: whether a menu item was chosen by key
+    "NSWindow",                     # allowsAutomaticWindowTabbing, off: the editor has no tabs
 ] }
 # The system menu bar, which carries the editor's whole menu on macOS. Default features off -
 # the tray icon and its image decoders are a third of the crate and nothing here wants them.
