@@ -183,7 +183,8 @@ a two-pixel border and eight-pixel radius, a titled header, and a right-aligned 
   frame is drawn while it is open.
 - Rename blocks and Text Output ports both draw their grab handle but cannot yet be dragged
   to reorder.
-- macOS uses the same in-window menu bar as Windows rather than the system menu.
+- macOS shows the menu in the system menu bar rather than in the window. The menus and their
+  rows are the same, with About and Quit moved to the application menu.
 
 ## Verification
 

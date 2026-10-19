@@ -13,6 +13,11 @@
 # Security -> Open Anyway. That makes it right for testing the real packaged app and wrong for
 # shipping. Use packaging/build-mac-release.sh for anything you send to someone.
 #
+# To keep dev builds quick, the bundled ImageMagick is signed ad-hoc rather than with your
+# Developer ID: signing its ~150 Mach-Os with secure timestamps takes minutes. The app itself and
+# the .dmg are still Developer ID signed. The release script re-vendors ImageMagick with real
+# signatures, and with --skip-magick it refuses an ad-hoc tree left behind by this script.
+#
 # Options
 #   --skip-build          reuse target/release as it stands
 #   --skip-magick         reuse resources/mac/magick (scripts/bundle-magick-mac.sh's output)
@@ -28,6 +33,7 @@ set -euo pipefail
 
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mac-common.sh"
 mac_parse_args "${BASH_SOURCE[0]}" "$@"
+MAGICK_ADHOC=1
 
 say "Preflight"
 mac_preflight

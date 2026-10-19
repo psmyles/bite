@@ -26,6 +26,11 @@
 # they carry the same team as the app - the hardened runtime enforces exactly that at load time,
 # so a mismatch found here is a crash found on the user's machine otherwise.
 #
+# A dev build (MAGICK_ADHOC=1, set by build-mac-dmg.sh) has the tree signed ad-hoc instead: no
+# timestamp round-trips, so seconds rather than minutes. That works because magick runs as its
+# own process and an ad-hoc tree is signed without the hardened runtime, so nothing enforces a
+# team on its dylibs. It is not notarizable, which is why the release script never sets it.
+#
 # ---------------------------------------------------------------------------------------------
 # Notarization credentials
 # ---------------------------------------------------------------------------------------------
@@ -74,6 +79,7 @@ SKIP_MAGICK=0
 SKIP_ICON=0
 SIGN_ID=""
 OUT_DIR=""
+MAGICK_ADHOC=0   # set by the calling script, not a flag: see "Signing" above
 
 # Prints the header comment of the calling script as its --help.
 mac_usage() { sed -n '2,/^$/p' "$1" | sed 's/^# \{0,1\}//'; }
@@ -202,8 +208,14 @@ mac_build_inputs() {
         [[ -x "$magick" ]] || die "--skip-magick, but $magick is not built. Run scripts/bundle-magick-mac.sh."
         say "Skipping the ImageMagick bundle (--skip-magick)"
     else
-        say "Vendoring ImageMagick"
-        "$ROOT/scripts/bundle-magick-mac.sh" --identity "$SIGN_IDENTITY" \
+        local magick_identity="$SIGN_IDENTITY"
+        if [[ "$MAGICK_ADHOC" -eq 1 ]]; then
+            magick_identity="-"
+            say "Vendoring ImageMagick (ad-hoc signed, dev build)"
+        else
+            say "Vendoring ImageMagick"
+        fi
+        "$ROOT/scripts/bundle-magick-mac.sh" --identity "$magick_identity" \
             || die "scripts/bundle-magick-mac.sh failed."
     fi
 
@@ -416,13 +428,21 @@ mac_sign_app() {
     # surfaces that. The here-strings below read a string, so there is no pipe to break.
     local signature magick_team
     signature="$(codesign -dvv "$magick" 2>&1 || true)"
-    magick_team="$(sed -n 's/^TeamIdentifier=//p' <<< "$signature")"
-    [[ "$magick_team" == "$APPLE_TEAM_ID" ]] \
-        || die "the bundled ImageMagick is signed by team '$magick_team', not '$APPLE_TEAM_ID'.
+    if grep -q '^Signature=adhoc' <<< "$signature"; then
+        [[ "$MAGICK_ADHOC" -eq 1 ]] \
+            || die "the bundled ImageMagick is ad-hoc signed (left by a dev build).
+  Re-run without --skip-magick so scripts/bundle-magick-mac.sh signs it with '$SIGN_IDENTITY'."
+        note "bundled ImageMagick: ad-hoc (dev build)."
+    else
+        # A Developer ID tree from an earlier release build is fine for a dev build too.
+        magick_team="$(sed -n 's/^TeamIdentifier=//p' <<< "$signature")"
+        [[ "$magick_team" == "$APPLE_TEAM_ID" ]] \
+            || die "the bundled ImageMagick is signed by team '$magick_team', not '$APPLE_TEAM_ID'.
   The hardened runtime will refuse to load it. Re-run scripts/bundle-magick-mac.sh --identity '$SIGN_IDENTITY'."
-    grep -q 'flags=.*runtime' <<< "$signature" \
-        || die "the bundled ImageMagick is not signed with the hardened runtime."
-    note "bundled ImageMagick: team $magick_team, hardened."
+        grep -q 'flags=.*runtime' <<< "$signature" \
+            || die "the bundled ImageMagick is not signed with the hardened runtime."
+        note "bundled ImageMagick: team $magick_team, hardened."
+    fi
 
     # `--options runtime` is the hardened runtime, which notarization requires; `--timestamp` is
     # the secure timestamp it also requires, and what keeps the signature valid after the

@@ -313,12 +313,12 @@ fn entry_row(ui: &mut Ui, entry: &Entry, width: f32, state: &mut LibraryState, d
         &entry.label,
         width - 44.0,
     );
-    // The stylesheet marks a draggable row with three stacked colons.
+    // The stylesheet marks a draggable row with two stacked colons.
     list.text_with_face(
         [origin[0] + width - 28.0, origin[1] + 2.0],
         theme::TEXT_BRIGHT.with_alpha(0.5),
         theme::face::COMMENT_BODY,
-        ":::",
+        "::",
     );
 
     ui.drag_source("bite-node", &entry.id, |ui| {
