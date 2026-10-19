@@ -135,27 +135,45 @@ pub fn thread_share(workers: usize) -> usize {
     (cores / workers.max(1)).max(1)
 }
 
-impl Magick {
-    pub fn discover(cancelled: Arc<AtomicBool>) -> Self {
-        let mut candidates = Vec::new();
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                candidates.push(dir.join("magick/magick.exe"));
-                candidates.push(dir.join("ImageMagick/magick.exe"));
-                // The macOS bundle: `Contents/MacOS` holds the executables and everything else
-                // lives beside them in `Contents/Resources`, which is where the packaging script
-                // puts the tree `scripts/bundle-magick-mac.sh` built.
-                candidates.push(dir.join("../Resources/magick/bin/magick"));
-                candidates.push(dir.join("../Resources/ImageMagick/bin/magick"));
-                candidates.push(dir.join("magick/bin/magick"));
-            }
+/// Where a bundled ImageMagick may be, first to last: beside the executable as the package
+/// lays it out, then in the source tree a development build runs from.
+///
+/// Each platform looks only for its own binary. The source tree holds both, and the other
+/// platform's can never start here: found first, as the Windows one was on macOS, it failed
+/// every run with a permission error.
+fn candidates(directory: Option<&Path>) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    #[cfg(windows)]
+    {
+        if let Some(dir) = directory {
+            candidates.push(dir.join("magick/magick.exe"));
+            candidates.push(dir.join("ImageMagick/magick.exe"));
         }
         candidates.push(PathBuf::from("resources/win/magick/magick.exe"));
+    }
+    #[cfg(not(windows))]
+    {
+        if let Some(dir) = directory {
+            // The macOS bundle: `Contents/MacOS` holds the executables and everything else
+            // lives beside them in `Contents/Resources`, which is where the packaging script
+            // puts the tree `scripts/bundle-magick-mac.sh` built.
+            candidates.push(dir.join("../Resources/magick/bin/magick"));
+            candidates.push(dir.join("../Resources/ImageMagick/bin/magick"));
+            candidates.push(dir.join("magick/bin/magick"));
+        }
         candidates.push(PathBuf::from("resources/mac/magick/bin/magick"));
+    }
+    candidates
+}
+
+impl Magick {
+    pub fn discover(cancelled: Arc<AtomicBool>) -> Self {
+        let executable = std::env::current_exe().ok();
+        let directory = executable.as_deref().and_then(Path::parent);
         let binary = std::env::var_os("BITE_MAGICK")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
-                candidates
+                candidates(directory)
                     .into_iter()
                     .find(|p| p.is_file())
                     .unwrap_or_else(|| "magick".into())
@@ -669,6 +687,16 @@ impl ImageHost for Magick {
 #[cfg(test)]
 mod process_tests {
     use super::*;
+
+    #[test]
+    fn discovery_looks_only_for_this_platforms_binary() {
+        let found = candidates(Some(Path::new("bin")));
+        assert!(!found.is_empty());
+        for path in &found {
+            let exe = path.extension().is_some_and(|extension| extension == "exe");
+            assert_eq!(exe, cfg!(windows), "{}", path.display());
+        }
+    }
 
     #[test]
     fn child_fixture() {

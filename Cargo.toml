@@ -11,7 +11,7 @@ exclude = ["vendor/sokol-rust"]
 # The product version, and what the GUI's update check compares against the latest
 # GitHub release. It was carried over from the package manifest the Electron build used.
 [workspace.package]
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 license = "MIT"
 rust-version = "1.87"
