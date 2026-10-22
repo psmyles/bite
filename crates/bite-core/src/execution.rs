@@ -208,6 +208,9 @@ pub struct BatchResult {
     pub skipped: usize,
     pub failed: usize,
     pub errors: Vec<String>,
+    /// The failed steps one by one, for a host that lists them rather than printing
+    /// `errors`. A failed output log is in `errors` only: it is not a file's step.
+    pub failures: Vec<FileFailure>,
     pub outputs: Vec<PathBuf>,
     /// What each value node resolved to on the last file, when `capture_values` asked
     /// for it. Never serialised: the command line reports counts and paths.
@@ -217,6 +220,30 @@ pub struct BatchResult {
     /// has no image to show rather than reporting a failure. Also `capture_values` only.
     #[serde(skip)]
     pub stopped: Vec<String>,
+}
+impl BatchResult {
+    /// Counts a file's step through an output as failed, and says why.
+    fn fail(&mut self, file: &Path, output: &GraphNode, cli_name: &str, error: &str) {
+        self.failed += 1;
+        self.errors.push(format!(
+            "{} (output {}): {error}",
+            file.display(),
+            output.id
+        ));
+        self.failures.push(FileFailure {
+            file: file.into(),
+            output: cli_name.into(),
+            problem: error.trim().into(),
+        });
+    }
+}
+/// A file that did not make it through an output, and why.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FileFailure {
+    pub file: PathBuf,
+    /// The output's CLI name: the one `--<name>` sets.
+    pub output: String,
+    pub problem: String,
 }
 /// How far a run has got, as [`run_workflow`] reports it.
 ///
@@ -1532,12 +1559,7 @@ pub fn run_workflow(
                     {
                         return Err(error);
                     }
-                    result.failed += 1;
-                    result.errors.push(format!(
-                        "{} (output {}): {error}",
-                        file.display(),
-                        output.id
-                    ));
+                    result.fail(file, output, &flag, &error);
                     continue;
                 }
             };
@@ -1613,12 +1635,7 @@ pub fn run_workflow(
                         {
                             return Err(error);
                         }
-                        result.failed += 1;
-                        result.errors.push(format!(
-                            "{} (output {}): {error}",
-                            file.display(),
-                            output.id
-                        ));
+                        result.fail(&file, output, &flag, &error);
                     }
                 }
             }
