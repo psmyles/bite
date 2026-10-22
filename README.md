@@ -34,10 +34,18 @@ is required, an output's overrides where that output writes.
 ```bash
 bite run workflow.bite --in <folder> --out <folder>    # run every output node
 bite run workflow.bite --in <folder> --overwrite       # replace existing files, whatever each output says
+bite run workflow.bite --in <folder> --out <folder> --run-report run.json   # and what it did, as JSON
 bite plan workflow.bite --in <folder> --out <folder>   # the commands a run would issue, as JSON
+bite describe workflow.bite                            # the workflow's CLI names, as JSON
 bite validate workflow.bite                            # load and check a workflow without running it
 bite --help                                            # everything else
 ```
+
+A run exits 0 only when every file worked, 1 when one failed or the run stopped, and 2 when the
+command line can't be followed: a name the workflow doesn't have, a flag without its path, or an
+input left out. `--run-report` writes the counts, the files written, each file that failed and
+why, and the `problem` that stopped the run, however it ends. It isn't `--report` because the
+workflow's CLI names share the command line, and `report` is a likely name for a Text Output.
 
 These assume the CLI names `in` and `out`. **CLI export** writes the same call into a script with
 every flag the workflow needs, and the Windows installer can put `bite` on your PATH.

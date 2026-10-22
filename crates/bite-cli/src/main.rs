@@ -1,10 +1,19 @@
-use bite_schema::{FormatDefinition, NodeDefinition, Workflow};
-use std::{env, fs, process::ExitCode, time::Instant};
+use bite_schema::{
+    BuiltinNodeKind, FormatDefinition, Graph, GraphNode, NodeDefinition, NodeKind, ParamValue,
+    Workflow,
+};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    env, fs,
+    path::{Path, PathBuf},
+    process::ExitCode,
+    time::Instant,
+};
 
-fn run() -> Result<(), String> {
+fn run() -> Result<(), Fail> {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.is_empty() || args[0] == "--help" || args[0] == "-h" {
-        println!("bite run <workflow.bite> [--<cliName> <path>] [--overwrite] [--jobs N]\n  --overwrite  Overwrite existing output files (default: skip)\n  --jobs N     Bounded ImageMagick worker count (safe default: half the CPUs, max 8)\nbite plan <workflow.bite> [--<cliName> <path>] [--overwrite] [--facts <json>]\n  Reports complete=false when image analysis facts are required.\nbite observe <workflow.bite> [--<cliName> <path>] --facts-out <json>\n  Runs only required analysis and writes provenance-bound planning facts.\nbite bench-import <folder> [--recursive] [--size 256] [--jobs N]\n  Measures scan plus cold/warm native thumbnail import.\nbite bench-workflow <workflow.bite> --overwrite [--iterations 2] [run flags]\n  Measures repeated native workflow throughput and process/cache counts.\nbite bench-cancel <workflow.bite> [--after-ms 250] [run flags]\n  Measures cooperative cancellation latency during a native workflow.\nbite inspect|validate <workflow.bite>\nbite validate-node <file>\nbite validate-format <file>\nbite validate-workflow <file>\nbite expr --params <json> <expression>\nbite schemas <directory>\nbite nodes|formats|version");
+        println!("bite run <workflow.bite> [--<cliName> <path>] [--overwrite] [--jobs N] [--run-report <json>]\n  --overwrite  Overwrite existing output files (default: skip)\n  --jobs N     Bounded ImageMagick worker count (safe default: half the CPUs, max 8)\n  --run-report <json>  Write the counts, the files written, and the ones that failed and why\n  Exits 0 when every file worked, 1 when one failed or the run stopped, and 2 when the\n  command line names something the workflow lacks or leaves out an input's folder.\nbite describe <workflow.bite>\n  The workflow's inputs and outputs as JSON: each one's CLI name and what its path names.\nbite plan <workflow.bite> [--<cliName> <path>] [--overwrite] [--facts <json>]\n  Reports complete=false when image analysis facts are required.\nbite observe <workflow.bite> [--<cliName> <path>] --facts-out <json>\n  Runs only required analysis and writes provenance-bound planning facts.\nbite bench-import <folder> [--recursive] [--size 256] [--jobs N]\n  Measures scan plus cold/warm native thumbnail import.\nbite bench-workflow <workflow.bite> --overwrite [--iterations 2] [run flags]\n  Measures repeated native workflow throughput and process/cache counts.\nbite bench-cancel <workflow.bite> [--after-ms 250] [run flags]\n  Measures cooperative cancellation latency during a native workflow.\nbite inspect|validate <workflow.bite>\nbite validate-node <file>\nbite validate-format <file>\nbite validate-workflow <file>\nbite expr --params <json> <expression>\nbite schemas <directory>\nbite nodes|formats|version|--version");
         return Ok(());
     }
     if args[0] == "bench-cancel" {
@@ -54,7 +63,11 @@ fn run() -> Result<(), String> {
                         },
                     );
                 }
-                value => return Err(format!("Unexpected bench-cancel argument: {value}")),
+                value => {
+                    return Err(Fail::Usage(format!(
+                        "Unexpected bench-cancel argument: {value}"
+                    )))
+                }
             }
             i += 1;
         }
@@ -150,7 +163,11 @@ fn run() -> Result<(), String> {
                         },
                     );
                 }
-                value => return Err(format!("Unexpected bench-workflow argument: {value}")),
+                value => {
+                    return Err(Fail::Usage(format!(
+                        "Unexpected bench-workflow argument: {value}"
+                    )))
+                }
             }
             i += 1;
         }
@@ -245,7 +262,7 @@ fn run() -> Result<(), String> {
                         }
                     }
                 }
-                flag => return Err(format!("Unknown bench-import option: {flag}")),
+                flag => return Err(Fail::Usage(format!("Unknown bench-import option: {flag}"))),
             }
             i += 1;
         }
@@ -257,7 +274,7 @@ fn run() -> Result<(), String> {
         let paths = bite_imagemagick::import::scan_folder(&root, recursive, jobs, &cancelled)?;
         let scan_ms = started.elapsed().as_secs_f64() * 1000.0;
         if paths.is_empty() {
-            return Err(format!("No images found in: {}", root.display()));
+            return Err(format!("No images found in: {}", root.display()).into());
         }
         let cache_dir = env::current_dir()
             .map_err(|error| error.to_string())?
@@ -309,63 +326,221 @@ fn run() -> Result<(), String> {
         return Ok(());
     }
     if args[0] == "run" || args[0] == "plan" || args[0] == "observe" {
-        if args.len() < 2 {
-            return Err("Missing workflow file argument.\nUsage: bite run <workflow.bite>".into());
+        return workflow_command(&args);
+    }
+    if ["nodes", "formats"].contains(&args[0].as_str()) {
+        let registry = load_registry()?;
+        let ids = if args[0] == "nodes" {
+            registry.nodes.keys().collect::<Vec<_>>()
+        } else {
+            registry.formats.keys().collect::<Vec<_>>()
+        };
+        for id in ids {
+            println!("{id}");
         }
-        let mut options = bite_core::execution::RunOptions::default();
-        let planning = args[0] == "plan";
-        let observing = args[0] == "observe";
-        let mut facts_out = None;
-        let mut facts = bite_core::plan::PlanningFacts::default();
-        let cancelled = options.cancelled.clone();
-        ctrlc::set_handler(move || cancelled.store(true, std::sync::atomic::Ordering::Relaxed))
-            .map_err(|e| format!("Cannot install cancellation handler: {e}"))?;
-        let mut i = 2;
-        while i < args.len() {
-            if observing && args[i] == "--facts-out" {
-                i += 1;
-                facts_out = Some(
-                    args.get(i)
-                        .ok_or("--facts-out requires a JSON file")?
-                        .into(),
-                );
-            } else if planning && args[i] == "--facts" {
-                i += 1;
-                let path = args.get(i).ok_or("--facts requires a JSON file")?;
-                facts = serde_json::from_str(&fs::read_to_string(path).map_err(|e| e.to_string())?)
-                    .map_err(|e| format!("Invalid planning facts: {e}"))?;
-            } else if args[i] == "--overwrite" {
-                options.overwrite = true;
-            } else if args[i] == "--jobs" {
-                i += 1;
-                options.jobs = args
-                    .get(i)
-                    .ok_or("--jobs requires a value")?
-                    .parse()
-                    .map_err(|_| "invalid --jobs")?;
-                if options.jobs == 0 || options.jobs > 256 {
-                    return Err("--jobs must be between 1 and 256".into());
-                }
-            } else if let Some(flag) = args[i].strip_prefix("--") {
-                if args.get(i + 1).is_some_and(|s| !s.starts_with("--")) {
-                    i += 1;
-                    let path = std::path::PathBuf::from(&args[i]);
-                    options.named_paths.insert(
-                        flag.into(),
-                        if path.is_absolute() {
-                            path
-                        } else {
-                            env::current_dir().map_err(|e| e.to_string())?.join(path)
-                        },
-                    );
-                }
-            }
-            i += 1;
+        return Ok(());
+    }
+    if args[0] == "version" || args[0] == "--version" || args[0] == "-V" {
+        println!("bite {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+    if args[0] == "describe" {
+        if args.len() != 2 {
+            return Err(Fail::Usage("usage: bite describe <workflow.bite>".into()));
         }
         let registry = load_registry()?;
-        let text = fs::read_to_string(&args[1])
-            .map_err(|_| format!("Cannot read workflow: {}", args[1]))?;
-        let loaded = bite_core::workflow::load(&text, &registry)?;
+        let loaded = bite_core::workflow::load(&read_workflow(&args[1])?, &registry)?;
+        let endpoints = endpoints(&loaded.workflow.graph, &registry)?;
+        let (inputs, outputs): (Vec<_>, Vec<_>) = endpoints.iter().partition(|e| e.kind == "input");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "workflow": args[1],
+                "inputs": inputs.iter().map(|e| serde_json::json!({
+                    "name": e.name,
+                    "label": e.label,
+                    "required": e.required,
+                })).collect::<Vec<_>>(),
+                "outputs": outputs.iter().map(|e| serde_json::json!({
+                    "name": e.name,
+                    "label": e.label,
+                    "kind": e.kind,
+                    "takes": e.takes,
+                    "path": e.path,
+                })).collect::<Vec<_>>(),
+            }))
+            .map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
+    if ["inspect", "validate"].contains(&args[0].as_str()) {
+        if args.len() != 2 {
+            return Err(Fail::Usage(
+                "usage: bite inspect|validate workflow.bite".into(),
+            ));
+        }
+        let registry = load_registry()?;
+        let loaded = bite_core::workflow::load(
+            &fs::read_to_string(&args[1]).map_err(|e| e.to_string())?,
+            &registry,
+        )?;
+        for warning in loaded.warnings {
+            eprintln!("[Bite] {warning}");
+        }
+        if args[0] == "inspect" {
+            println!(
+                "Workflow schema: {}\nNodes: {}\nEdges: {}\nExecution order:",
+                if loaded.migrated {
+                    "1 -> migrated to 2"
+                } else {
+                    "2"
+                },
+                loaded.workflow.graph.nodes.len(),
+                loaded.workflow.graph.edges.len()
+            );
+            for id in bite_core::graph::topo_sort(&loaded.workflow.graph)? {
+                println!("  {id}");
+            }
+        } else {
+            println!("OK: {}", args[1]);
+        }
+        return Ok(());
+    }
+    if args[0] == "expr" {
+        if args.len() != 4 || args[1] != "--params" {
+            return Err(Fail::Usage(
+                "usage: bite expr --params '{\"width\":1024}' 'width / 2'".into(),
+            ));
+        }
+        let ctx: bite_expr::Context = serde_json::from_str(&args[2]).map_err(|e| e.to_string())?;
+        let types = ctx.iter().map(|(k, v)| (k.clone(), v.kind())).collect();
+        let expr = bite_expr::Expression::compile(&args[3], &types).map_err(|e| e.to_string())?;
+        println!("{}", expr.evaluate(&ctx).map_err(|e| e.to_string())?.text());
+        return Ok(());
+    }
+    if ![
+        "schemas",
+        "validate-node",
+        "validate-format",
+        "validate-workflow",
+    ]
+    .contains(&args[0].as_str())
+    {
+        return Err(Fail::Usage(format!(
+            "Unknown command: {:?}. Run \"bite --help\" for usage.",
+            args[0]
+        )));
+    }
+    if args.len() != 2 {
+        return Err(Fail::Usage(
+            "expected a command and one path; use --help".into(),
+        ));
+    }
+    if args[0] == "schemas" {
+        fs::create_dir_all(&args[1]).map_err(|e| e.to_string())?;
+        for (name, schema) in bite_schema::json_schemas() {
+            fs::write(
+                std::path::Path::new(&args[1]).join(name),
+                serde_json::to_string_pretty(&schema).unwrap() + "\n",
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
+    let json = fs::read_to_string(&args[1]).map_err(|e| format!("{}: {e}", args[1]))?;
+    let (label, result) = match args[0].as_str() {
+        "validate-node" => {
+            let d: NodeDefinition = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+            let label = d.id.clone();
+            bite_expr::definition::CompiledDefinition::compile(d).map_err(|e| e.to_string())?;
+            (label, Ok(()))
+        }
+        "validate-format" => {
+            let d: FormatDefinition = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+            let r = d.validate();
+            bite_expr::CompiledArg::compile_all(
+                &d.args,
+                &bite_expr::definition::parameter_types(&d.params),
+            )
+            .map_err(|e| e.to_string())?;
+            (d.id, r)
+        }
+        "validate-workflow" => {
+            let d: Workflow = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+            (args[1].clone(), d.validate())
+        }
+        cmd => return Err(format!("unknown command {cmd:?}").into()),
+    };
+    result.map_err(|errors| errors.join("\n"))?;
+    println!("OK: {label}");
+    Ok(())
+}
+/// `run`, `plan` and `observe`: a workflow, a path for each of its inputs and outputs that
+/// the command line names (`--<name> <path>`), and the options each command takes.
+fn workflow_command(args: &[String]) -> Result<(), Fail> {
+    let command = args[0].as_str();
+    let Some(workflow_file) = args.get(1).filter(|arg| !arg.starts_with("--")) else {
+        return Err(Fail::Usage(format!(
+            "Missing workflow file argument.\nUsage: bite {command} <workflow.bite>"
+        )));
+    };
+    let mut options = bite_core::execution::RunOptions::default();
+    let planning = command == "plan";
+    let observing = command == "observe";
+    let mut facts_out = None;
+    let mut facts_file = None;
+    let mut report = None;
+    let mut i = 2;
+    while i < args.len() {
+        let flag = args[i].as_str();
+        match flag {
+            "--overwrite" => options.overwrite = true,
+            "--jobs" => {
+                options.jobs = value(args, &mut i, "a number")?
+                    .parse()
+                    .ok()
+                    .filter(|jobs| (1..=256).contains(jobs))
+                    .ok_or_else(|| Fail::Usage("--jobs must be between 1 and 256".into()))?;
+            }
+            "--facts-out" if observing => {
+                facts_out = Some(PathBuf::from(value(args, &mut i, "a JSON file")?))
+            }
+            "--facts" if planning => facts_file = Some(value(args, &mut i, "a JSON file")?),
+            "--run-report" if command == "run" => {
+                report = Some(absolute(value(args, &mut i, "a JSON file")?)?)
+            }
+            _ => match flag.strip_prefix("--").filter(|name| !name.is_empty()) {
+                Some(name) => {
+                    let path = absolute(value(args, &mut i, "a path")?)?;
+                    options.named_paths.insert(name.into(), path);
+                }
+                None => return Err(Fail::Usage(format!("Unexpected argument: {flag}"))),
+            },
+        }
+        i += 1;
+    }
+    let cancelled = options.cancelled.clone();
+    ctrlc::set_handler(move || cancelled.store(true, std::sync::atomic::Ordering::Relaxed))
+        .map_err(|e| format!("Cannot install cancellation handler: {e}"))?;
+    if command == "run" {
+        let outcome = run_batch(workflow_file, &options);
+        if let Some(path) = &report {
+            write_report(path, workflow_file, &outcome)?;
+        }
+        let result = outcome?;
+        if result.failed > 0 {
+            let total = result.processed + result.filtered + result.skipped + result.failed;
+            return Err(format!("{} of {total} failed.", result.failed).into());
+        }
+        return Ok(());
+    }
+    let mut facts = bite_core::plan::PlanningFacts::default();
+    if let Some(path) = facts_file {
+        facts = serde_json::from_str(&fs::read_to_string(path).map_err(|e| e.to_string())?)
+            .map_err(|e| format!("Invalid planning facts: {e}"))?;
+    }
+    let (registry, loaded) = load_checked(workflow_file, &options)?;
+    {
         let mut host = bite_imagemagick::Magick::discover(options.cancelled.clone());
         if observing {
             use bite_core::{execution::ImageHost, plan::AnalysisDependency};
@@ -438,169 +613,240 @@ fn run() -> Result<(), String> {
             }
             return Err("Observation exceeded 256 dependency rounds".into());
         }
-        if planning {
-            use bite_core::execution::ImageHost;
-            if !facts.metadata.is_empty() || !facts.captures.is_empty() {
-                options.analysis_identity = host.analysis_identity()?;
-            }
-            let mut metadata = |path: &std::path::Path, heavy| {
-                if heavy {
-                    Err(format!(
-                        "Metadata analysis required for {}; supply metadata in --facts",
-                        path.display()
-                    ))
-                } else {
-                    host.metadata(path, false)
-                }
-            };
-            let plan = bite_core::plan::concrete(
-                &loaded.workflow.graph,
-                &registry,
-                &options,
-                &facts,
-                &mut metadata,
-            )?;
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&plan).map_err(|e| e.to_string())?
-            );
-            return Ok(());
+        use bite_core::execution::ImageHost;
+        if !facts.metadata.is_empty() || !facts.captures.is_empty() {
+            options.analysis_identity = host.analysis_identity()?;
         }
-        let result = bite_core::execution::run_workflow(
+        let mut metadata = |path: &std::path::Path, heavy| {
+            if heavy {
+                Err(format!(
+                    "Metadata analysis required for {}; supply metadata in --facts",
+                    path.display()
+                ))
+            } else {
+                host.metadata(path, false)
+            }
+        };
+        let plan = bite_core::plan::concrete(
             &loaded.workflow.graph,
             &registry,
-            &mut host,
             &options,
-            &mut |progress| {
-                if let Some(file) = progress.file {
-                    println!(
-                        "[{}/{}] {}",
-                        progress.completed,
-                        progress.total,
-                        file.display()
-                    );
-                }
-            },
+            &facts,
+            &mut metadata,
         )?;
         println!(
-            "Done: {} processed, {} filtered, {} skipped, {} failed",
-            result.processed, result.filtered, result.skipped, result.failed
+            "{}",
+            serde_json::to_string_pretty(&plan).map_err(|e| e.to_string())?
         );
-        for error in &result.errors {
-            eprintln!("[Bite] Failed to process {error}");
-        }
-        return Ok(());
     }
-    if ["nodes", "formats"].contains(&args[0].as_str()) {
-        let registry = load_registry()?;
-        let ids = if args[0] == "nodes" {
-            registry.nodes.keys().collect::<Vec<_>>()
-        } else {
-            registry.formats.keys().collect::<Vec<_>>()
-        };
-        for id in ids {
-            println!("{id}");
-        }
-        return Ok(());
-    }
-    if args[0] == "version" {
-        println!("bite {}", env!("CARGO_PKG_VERSION"));
-        return Ok(());
-    }
-    if ["inspect", "validate"].contains(&args[0].as_str()) {
-        if args.len() != 2 {
-            return Err("usage: bite inspect|validate workflow.bite".into());
-        }
-        let registry = load_registry()?;
-        let loaded = bite_core::workflow::load(
-            &fs::read_to_string(&args[1]).map_err(|e| e.to_string())?,
-            &registry,
-        )?;
-        for warning in loaded.warnings {
-            eprintln!("[Bite] {warning}");
-        }
-        if args[0] == "inspect" {
-            println!(
-                "Workflow schema: {}\nNodes: {}\nEdges: {}\nExecution order:",
-                if loaded.migrated {
-                    "1 -> migrated to 2"
-                } else {
-                    "2"
-                },
-                loaded.workflow.graph.nodes.len(),
-                loaded.workflow.graph.edges.len()
-            );
-            for id in bite_core::graph::topo_sort(&loaded.workflow.graph)? {
-                println!("  {id}");
+    Ok(())
+}
+/// Runs a workflow over the folders the command line gave it, printing each file as it
+/// finishes, then what the run came to.
+fn run_batch(
+    workflow_file: &str,
+    options: &bite_core::execution::RunOptions,
+) -> Result<bite_core::execution::BatchResult, Fail> {
+    let (registry, loaded) = load_checked(workflow_file, options)?;
+    let mut host = bite_imagemagick::Magick::discover(options.cancelled.clone());
+    let result = bite_core::execution::run_workflow(
+        &loaded.workflow.graph,
+        &registry,
+        &mut host,
+        options,
+        &mut |progress| {
+            if let Some(file) = progress.file {
+                println!(
+                    "[{}/{}] {}",
+                    progress.completed,
+                    progress.total,
+                    file.display()
+                );
             }
-        } else {
-            println!("OK: {}", args[1]);
-        }
-        return Ok(());
+        },
+    )?;
+    println!(
+        "Done: {} processed, {} filtered, {} skipped, {} failed",
+        result.processed, result.filtered, result.skipped, result.failed
+    );
+    for error in &result.errors {
+        eprintln!("[Bite] Failed to process {error}");
     }
-    if args[0] == "expr" {
-        if args.len() != 4 || args[1] != "--params" {
-            return Err("usage: bite expr --params '{\"width\":1024}' 'width / 2'".into());
-        }
-        let ctx: bite_expr::Context = serde_json::from_str(&args[2]).map_err(|e| e.to_string())?;
-        let types = ctx.iter().map(|(k, v)| (k.clone(), v.kind())).collect();
-        let expr = bite_expr::Expression::compile(&args[3], &types).map_err(|e| e.to_string())?;
-        println!("{}", expr.evaluate(&ctx).map_err(|e| e.to_string())?.text());
-        return Ok(());
+    Ok(result)
+}
+/// Writes what `--run-report` asks for: the run's counts, the files it wrote, the ones that
+/// failed and why, and the problem that stopped it when one did. It is written however the
+/// run ends, so whoever asked for it always has it to read.
+fn write_report(
+    path: &Path,
+    workflow_file: &str,
+    outcome: &Result<bite_core::execution::BatchResult, Fail>,
+) -> Result<(), Fail> {
+    let nothing = bite_core::execution::BatchResult::default();
+    let result = outcome.as_ref().unwrap_or(&nothing);
+    let mut report = serde_json::json!({
+        "bite": env!("CARGO_PKG_VERSION"),
+        "workflow": absolute(workflow_file)?,
+        "processed": result.processed,
+        "filtered": result.filtered,
+        "skipped": result.skipped,
+        "failed": result.failed,
+        "outputs": result.outputs,
+        "failures": result.failures,
+    });
+    if let Err(fail) = outcome {
+        report["problem"] = fail.message().into();
     }
-    if ![
-        "schemas",
-        "validate-node",
-        "validate-format",
-        "validate-workflow",
-    ]
-    .contains(&args[0].as_str())
-    {
-        return Err(format!(
-            "Unknown command: {:?}. Run \"bite --help\" for usage.",
-            args[0]
-        ));
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    if args.len() != 2 {
-        return Err("expected a command and one path; use --help".into());
-    }
-    if args[0] == "schemas" {
-        fs::create_dir_all(&args[1]).map_err(|e| e.to_string())?;
-        for (name, schema) in bite_schema::json_schemas() {
-            fs::write(
-                std::path::Path::new(&args[1]).join(name),
-                serde_json::to_string_pretty(&schema).unwrap() + "\n",
-            )
-            .map_err(|e| e.to_string())?;
-        }
-        return Ok(());
-    }
-    let json = fs::read_to_string(&args[1]).map_err(|e| format!("{}: {e}", args[1]))?;
-    let (label, result) = match args[0].as_str() {
-        "validate-node" => {
-            let d: NodeDefinition = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-            let label = d.id.clone();
-            bite_expr::definition::CompiledDefinition::compile(d).map_err(|e| e.to_string())?;
-            (label, Ok(()))
-        }
-        "validate-format" => {
-            let d: FormatDefinition = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-            let r = d.validate();
-            bite_expr::CompiledArg::compile_all(
-                &d.args,
-                &bite_expr::definition::parameter_types(&d.params),
-            )
-            .map_err(|e| e.to_string())?;
-            (d.id, r)
-        }
-        "validate-workflow" => {
-            let d: Workflow = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-            (args[1].clone(), d.validate())
-        }
-        cmd => return Err(format!("unknown command {cmd:?}")),
+    let text = serde_json::to_string_pretty(&report).map_err(|e| e.to_string())? + "\n";
+    fs::write(path, text).map_err(|e| {
+        Fail::Work(format!(
+            "Cannot write the run report {}: {e}",
+            path.display()
+        ))
+    })
+}
+/// The workflow, loaded, once the command line has been checked against it.
+fn load_checked(
+    workflow_file: &str,
+    options: &bite_core::execution::RunOptions,
+) -> Result<(bite_core::Registry, bite_core::workflow::LoadedWorkflow), Fail> {
+    let registry = load_registry()?;
+    let loaded = bite_core::workflow::load(&read_workflow(workflow_file)?, &registry)?;
+    check_paths(
+        &endpoints(&loaded.workflow.graph, &registry)?,
+        &options.named_paths,
+    )?;
+    Ok((registry, loaded))
+}
+fn read_workflow(file: &str) -> Result<String, Fail> {
+    fs::read_to_string(file).map_err(|_| Fail::Usage(format!("Cannot read workflow: {file}")))
+}
+/// The value after the option at `args[*i]`, moving `i` onto it. Another option, nothing,
+/// or an empty value in its place is a command line that can't be followed: an empty path
+/// would otherwise mean the current folder.
+fn value<'a>(args: &'a [String], i: &mut usize, what: &str) -> Result<&'a str, Fail> {
+    let flag = &args[*i];
+    *i += 1;
+    args.get(*i)
+        .map(String::as_str)
+        .filter(|value| !value.is_empty() && !value.starts_with("--"))
+        .ok_or_else(|| Fail::Usage(format!("{flag} needs {what}")))
+}
+fn absolute(path: &str) -> Result<PathBuf, Fail> {
+    let path = PathBuf::from(path);
+    Ok(if path.is_absolute() {
+        path
+    } else {
+        env::current_dir().map_err(|e| e.to_string())?.join(path)
+    })
+}
+/// An Input or output node, which a command line names with `--<name> <path>`.
+struct Endpoint {
+    /// The node's CLI name, exactly as a run looks it up. Empty when it has none, and then
+    /// no command line can reach it.
+    name: String,
+    label: String,
+    /// `input`, `image`, `text` or `flipbook`.
+    kind: &'static str,
+    /// What its path names: a `folder` (of images to read, or to write them to) or a `file`.
+    takes: &'static str,
+    /// Where an output writes when the command line doesn't say: the folder or file the
+    /// workflow names, or nothing for an Image Output that writes beside each image it read.
+    path: String,
+    /// An Input some output reads from, which a run can't go without.
+    required: bool,
+}
+/// The workflow's inputs, then its outputs, each in the order the graph holds them.
+fn endpoints(graph: &Graph, registry: &bite_core::Registry) -> Result<Vec<Endpoint>, String> {
+    let read: BTreeSet<String> = bite_core::plan::build(graph, registry)?
+        .outputs
+        .into_iter()
+        .filter_map(|output| output.input)
+        .collect();
+    let text = |node: &GraphNode, name: &str| match node.data.params.get(name) {
+        Some(ParamValue::String(value)) => value.clone(),
+        _ => String::new(),
     };
-    result.map_err(|errors| errors.join("\n"))?;
-    println!("OK: {label}");
+    let mut inputs = Vec::new();
+    let mut outputs = Vec::new();
+    for node in &graph.nodes {
+        let (kind, takes, path) = match node.kind {
+            NodeKind::Builtin(BuiltinNodeKind::Input) => ("input", "folder", String::new()),
+            NodeKind::Builtin(BuiltinNodeKind::ImageOutput) => (
+                "image",
+                "folder",
+                bite_core::graph::connected_folder(graph, &node.id)
+                    .or_else(|| {
+                        (text(node, "outputPath") == "custom").then(|| text(node, "customPath"))
+                    })
+                    .unwrap_or_default(),
+            ),
+            NodeKind::Builtin(BuiltinNodeKind::TextOutput) => {
+                ("text", "file", text(node, "outputPath"))
+            }
+            NodeKind::Builtin(BuiltinNodeKind::FlipbookOutput) => {
+                ("flipbook", "file", text(node, "flipbookOutputPath"))
+            }
+            _ => continue,
+        };
+        let endpoint = Endpoint {
+            name: text(node, "cliName"),
+            label: node.data.label.clone(),
+            kind,
+            takes,
+            path,
+            required: read.contains(&node.id),
+        };
+        if kind == "input" {
+            inputs.push(endpoint);
+        } else {
+            outputs.push(endpoint);
+        }
+    }
+    inputs.extend(outputs);
+    Ok(inputs)
+}
+/// Refuses a path for something the workflow doesn't have, and a run without a folder one
+/// of its outputs reads from. Either would otherwise go ahead on what the workflow itself
+/// says, and an output whose name was mistyped writes beside the images it read.
+fn check_paths(endpoints: &[Endpoint], given: &BTreeMap<String, PathBuf>) -> Result<(), Fail> {
+    for name in given.keys() {
+        if !endpoints.iter().any(|endpoint| endpoint.name == *name) {
+            let known: Vec<String> = endpoints
+                .iter()
+                .filter(|endpoint| !endpoint.name.is_empty())
+                .map(|endpoint| format!("--{}", endpoint.name))
+                .collect();
+            return Err(Fail::Usage(if known.is_empty() {
+                format!("Unknown option --{name}. This workflow has no CLI names.")
+            } else {
+                format!(
+                    "Unknown option --{name}. This workflow takes {}.",
+                    known.join(", ")
+                )
+            }));
+        }
+    }
+    if let Some(input) = endpoints
+        .iter()
+        .find(|endpoint| endpoint.required && !given.contains_key(&endpoint.name))
+    {
+        return Err(Fail::Usage(if input.name.is_empty() {
+            format!(
+                "The Input \"{}\" has no CLI name, so no command line can give it a folder. \
+                 Name it in Bite's Inspector.",
+                input.label
+            )
+        } else {
+            format!(
+                "Missing required option --{}, the folder of images for \"{}\".",
+                input.name, input.label
+            )
+        }));
+    }
     Ok(())
 }
 fn load_registry() -> Result<bite_core::Registry, String> {
@@ -625,12 +871,40 @@ fn load_registry() -> Result<bite_core::Registry, String> {
     }
     Err("Cannot find node and format definitions; set BITE_RESOURCES".into())
 }
+/// Why a command stopped, which is also how the process ends: 2 when the command line can't
+/// be followed (an unknown command or option, a value or an input's folder missing, a
+/// workflow that isn't there), 1 when the work went wrong. A run ends 0 only when every
+/// file worked.
+enum Fail {
+    Usage(String),
+    Work(String),
+}
+impl Fail {
+    fn message(&self) -> &str {
+        match self {
+            Fail::Usage(message) | Fail::Work(message) => message,
+        }
+    }
+}
+impl From<String> for Fail {
+    fn from(message: String) -> Self {
+        Fail::Work(message)
+    }
+}
+impl From<&str> for Fail {
+    fn from(message: &str) -> Self {
+        Fail::Work(message.into())
+    }
+}
 fn main() -> ExitCode {
     match run() {
         Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            eprintln!("[Bite] {e}");
-            ExitCode::FAILURE
+        Err(fail) => {
+            eprintln!("[Bite] {}", fail.message());
+            ExitCode::from(match fail {
+                Fail::Usage(_) => 2,
+                Fail::Work(_) => 1,
+            })
         }
     }
 }
