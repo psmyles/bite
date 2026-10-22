@@ -1,2 +1,2 @@
 - frame view when opening a file
-- status shows starting while processing
+- show file icon on mac os
