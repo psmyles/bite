@@ -12,6 +12,8 @@ pub struct WindowFlags {
     pub no_collapse: bool,
     pub no_background: bool,
     pub no_bring_to_front: bool,
+    /// Appearing does not take focus from the window that has it.
+    pub no_focus_on_appearing: bool,
     pub no_saved_settings: bool,
     pub no_nav: bool,
     pub always_auto_resize: bool,
@@ -49,6 +51,10 @@ impl WindowFlags {
         set(
             self.no_bring_to_front,
             sys::ImGuiWindowFlags_NoBringToFrontOnFocus,
+        );
+        set(
+            self.no_focus_on_appearing,
+            sys::ImGuiWindowFlags_NoFocusOnAppearing,
         );
         set(
             self.no_saved_settings,
@@ -111,6 +117,11 @@ impl Ui<'_> {
     /// Focuses the next window, so a field inside it can take the keyboard.
     pub fn set_next_window_focus(&mut self) {
         unsafe { sys::igSetNextWindowFocus() }
+    }
+
+    /// Draws the current window above the others without focusing it.
+    pub fn bring_window_to_front(&mut self) {
+        unsafe { sys::igBringWindowToDisplayFront(sys::igGetCurrentWindow()) }
     }
 
     pub fn set_next_window_size(&mut self, size: Vec2) {
