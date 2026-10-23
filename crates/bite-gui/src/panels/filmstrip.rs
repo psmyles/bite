@@ -73,13 +73,15 @@ pub enum Outcome {
     Dropped(Vec<String>),
 }
 
-/// Draws the filmstrip.
+/// Draws the filmstrip. `notice`, when there is one, takes the status bar's line in place of the
+/// count, as a warning.
 pub fn draw(
     ui: &mut Ui,
     rect: Rect,
     thumbnails: &[Thumbnail],
     selected: Option<usize>,
     scroll: &mut f32,
+    notice: Option<&str>,
 ) -> Option<Outcome> {
     let mut outcome = None;
     ui.set_next_window_position(rect.min);
@@ -183,15 +185,21 @@ pub fn draw(
             theme::BORDER.mix(40.0, bite_imgui::Color::TRANSPARENT),
             1.0,
         );
-        // The count shows even at zero, as `countLabel` does.
-        let text = status_text(thumbnails.len());
+        // The count shows even at zero, as `countLabel` does - unless a notice holds the line.
+        let (text, color) = match notice {
+            Some(notice) => (notice.to_string(), theme::COLOR_WARNING_TEXT),
+            None => (
+                status_text(thumbnails.len()),
+                theme::TEXT_BRIGHT.with_alpha(0.5),
+            ),
+        };
         let size = list.measure(theme::face::SMALL_MONO, &text);
         list.text_with_face(
             [
                 rect.min[0] + 10.0,
                 status_top + (status_height - size[1]) / 2.0,
             ],
-            theme::TEXT_BRIGHT.with_alpha(0.5),
+            color,
             theme::face::SMALL_MONO,
             &text,
         );

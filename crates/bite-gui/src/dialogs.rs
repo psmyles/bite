@@ -67,6 +67,15 @@ pub fn message(title: &str, description: &str) {
         .show();
 }
 
+/// A plain informational message with a native title.
+pub fn info(title: &str, description: &str) {
+    rfd::MessageDialog::new()
+        .set_title(title)
+        .set_description(description)
+        .set_level(rfd::MessageLevel::Info)
+        .show();
+}
+
 /// Shows a warning with two buttons and reports whether the first was chosen.
 pub fn confirm(title: &str, description: &str) -> bool {
     matches!(

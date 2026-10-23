@@ -1,6 +1,9 @@
 //! The native BITE editor. Modules mirror the Electron renderer they reproduce.
 pub mod app;
 pub mod canvas;
+/// Putting the bundled command line tool on the PATH.
+#[cfg(target_os = "macos")]
+pub mod cli_install;
 pub mod clock;
 pub mod color_picker;
 pub mod commands;

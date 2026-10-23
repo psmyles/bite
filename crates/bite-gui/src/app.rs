@@ -58,6 +58,9 @@ pub struct Editor {
     /// cleared once the import ends, which freezes the time the completion line shows.
     pub import_started: Option<std::time::Instant>,
     pub status: String,
+    /// A warning shown in the filmstrip's status bar in place of the image count, until the
+    /// count next changes: on macOS, that the CLI is not on the PATH.
+    pub status_notice: Option<String>,
     pub timers_enabled: bool,
 
     pub run: Option<ActiveRun>,
@@ -152,6 +155,10 @@ impl Editor {
             progress: modals::Progress::default(),
             import_started: None,
             status: String::new(),
+            #[cfg(target_os = "macos")]
+            status_notice: crate::cli_install::startup_notice(),
+            #[cfg(not(target_os = "macos"))]
+            status_notice: None,
             timers_enabled: false,
             run: None,
             pending_action: None,
@@ -808,12 +815,18 @@ pub fn draw_frame(editor: &mut Editor, context: &mut Context, size: Vec2, scale:
         .active_branch()
         .map(|branch| branch.scroll)
         .unwrap_or(0.0);
+    // The notice is the status bar's first line and the count its next, so it goes as soon as
+    // there is a count other than the empty one it replaced.
+    if !thumbnails.is_empty() {
+        editor.status_notice = None;
+    }
     if let Some(outcome) = panels::filmstrip::draw(
         &mut ui,
         layout.filmstrip,
         &thumbnails,
         selected,
         &mut scroll,
+        editor.status_notice.as_deref(),
     ) {
         handle_filmstrip(editor, outcome);
     }
@@ -1111,6 +1124,7 @@ mod tests {
             progress: Default::default(),
             import_started: None,
             status: String::new(),
+            status_notice: None,
             timers_enabled: false,
             run: None,
             pending_action: None,

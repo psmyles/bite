@@ -23,6 +23,7 @@ struct Product {
     description: String,
     copyright: String,
     homepage: String,
+    cli_name: String,
 }
 
 fn main() {
@@ -180,6 +181,7 @@ fn read_product() -> Product {
         description: field("description"),
         copyright: field("copyright"),
         homepage: field("homepage"),
+        cli_name: field("cliName"),
     }
 }
 
@@ -237,4 +239,5 @@ fn export_env(product: &Product) {
     println!("cargo:rustc-env=BITE_DESCRIPTION={}", product.description);
     println!("cargo:rustc-env=BITE_COPYRIGHT={}", product.copyright);
     println!("cargo:rustc-env=BITE_HOMEPAGE={}", product.homepage);
+    println!("cargo:rustc-env=BITE_CLI_NAME={}", product.cli_name);
 }

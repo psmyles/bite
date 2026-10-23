@@ -48,7 +48,8 @@ why, and the `problem` that stopped the run, however it ends. It isn't `--report
 workflow's CLI names share the command line, and `report` is a likely name for a Text Output.
 
 These assume the CLI names `in` and `out`. **CLI export** writes the same call into a script with
-every flag the workflow needs, and the Windows installer can put `bite` on your PATH.
+every flag the workflow needs. The Windows installer can put `bite` on your PATH; on macOS, choose
+**Bite > Install Command Line Tool…**, which links `/usr/local/bin/bite` into the app.
 
 ---
 
@@ -171,7 +172,10 @@ modules out of Homebrew, rewrites their install names and re-signs them), and
 `scripts/build-icon-mac.sh` compiles `build/icons/bite.icon` into the layered icon catalogue plus
 an `.icns` fallback. The icon script needs full Xcode, not just the command line tools.
 
-The bundle carries the CLI at `Bite.app/Contents/MacOS/bite`; there is no PATH entry, so either
-call it by that path or symlink it somewhere yourself.
+The bundle carries the CLI at `Bite.app/Contents/MacOS/bite`. The .dmg cannot install anything
+itself, so the app does it: **Bite > Install Command Line Tool…** symlinks `/usr/local/bin/bite` to
+that binary, asking for an administrator password when the folder needs one, and the filmstrip's
+status bar says so at startup while no `bite` is on the PATH. The CLI resolves its own symlink
+before looking for `../Resources`, so the link finds the bundled definitions and ImageMagick.
 
 ---

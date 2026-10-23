@@ -257,6 +257,7 @@ const HELP: &[Row] = &[
 /// The item ids, which are the commands' names, so one lookup serves every row.
 const ID_QUIT: &str = "Exit";
 const ID_ABOUT: &str = "About";
+const ID_INSTALL_CLI: &str = "InstallCommandLineTool";
 
 fn id(command: Command) -> String {
     format!("{command:?}")
@@ -304,6 +305,8 @@ pub fn install(proxy: EventLoopProxy<AppEvent>, show_developer_items: bool) -> O
     // About opens the editor's own dialog, as it does in-window, rather than AppKit's panel: the
     // editor's lists the ImageMagick and library versions too.
     let about = MenuItem::with_id(ID_ABOUT, format!("About {product}"), true, None);
+    // Here rather than in the in-window menus: only the macOS .dmg has no installer to do it.
+    let install_cli = MenuItem::with_id(ID_INSTALL_CLI, "Install Command Line Tool…", true, None);
     let quit = MenuItem::with_id(
         ID_QUIT,
         format!("Quit {product}"),
@@ -315,6 +318,8 @@ pub fn install(proxy: EventLoopProxy<AppEvent>, show_developer_items: bool) -> O
         true,
         &[
             &about,
+            &PredefinedMenuItem::separator(),
+            &install_cli,
             &PredefinedMenuItem::separator(),
             &PredefinedMenuItem::services(None),
             &PredefinedMenuItem::separator(),
@@ -501,6 +506,7 @@ fn command_for(id: &MenuId) -> Option<Command> {
     match id.as_ref() {
         ID_QUIT => return Some(Command::Exit),
         ID_ABOUT => return Some(Command::About),
+        ID_INSTALL_CLI => return Some(Command::InstallCommandLineTool),
         _ => {}
     }
     [FILE, EXPORT, EDIT, VIEW, DEBUG, DEVELOPER, HELP]
@@ -594,5 +600,9 @@ mod tests {
         );
         assert_eq!(command_for(&MenuId::new(ID_QUIT)), Some(Command::Exit));
         assert_eq!(command_for(&MenuId::new(ID_ABOUT)), Some(Command::About));
+        assert_eq!(
+            command_for(&MenuId::new(ID_INSTALL_CLI)),
+            Some(Command::InstallCommandLineTool)
+        );
     }
 }
