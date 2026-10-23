@@ -2,9 +2,12 @@
 // Drop into Assets/Editor/ in your Unity project.
 //
 // Setup:
-//   1. Install Bite from the Windows installer (Bite-Windows-x.x.x-Setup.exe).
-//      The installer places bite.exe in %LOCALAPPDATA%\Programs\bite\ and
-//      adds that folder to your PATH automatically.
+//   1. Install Bite.
+//        - Windows: run Bite-Windows-x.x.x-Setup.exe. The installer places bite.exe in
+//          %LOCALAPPDATA%\Programs\Bite\ and adds that folder to your PATH automatically.
+//        - macOS: open Bite-Mac-x.x.x-arm64.dmg and drag Bite.app into /Applications
+//          (or ~/Applications). The CLI lives inside the bundle at
+//          Bite.app/Contents/MacOS/bite.
 //   2. Save a workflow from Bite: File > Save Workflow  ->  produces a .bite file
 //   3. Right-click any asset > Bite > Settings...
 //        - Bite CLI  ->  auto-detected; override only if you chose a custom install path
@@ -31,7 +34,8 @@ public static class BiteBatchTool
     }
 
     /// <summary>
-    /// Optional override path to bite.exe. When empty, auto-detection is used.
+    /// Optional override path to the Bite CLI (or, on macOS, to Bite.app).
+    /// When empty, auto-detection is used.
     /// </summary>
     private static string CliExe
     {
@@ -39,25 +43,77 @@ public static class BiteBatchTool
         set => EditorPrefs.SetString(KeyCliExe, value);
     }
 
+    // -- Platform ----------------------------------------------------------------
+    private static bool IsMac => Application.platform == RuntimePlatform.OSXEditor;
+
+    private static string CliFileName => IsMac ? "bite" : "bite.exe";
+
+    private static string InstallHint => IsMac
+        ? "Drag Bite.app from the .dmg into /Applications, or set the"
+        : "Install from Bite-Windows-x.x.x-Setup.exe, or set the";
+
     // -- CLI resolution --------------------------------------------------------
     /// <summary>
-    /// Returns the full path to bite.exe, or null if not found.
-    /// Priority: (1) user override, (2) default installer location.
+    /// Returns the full path to the Bite CLI, or null if not found.
+    /// Priority: (1) user override, (2) default install locations, (3) PATH.
     /// </summary>
     private static string ResolveCliExe()
     {
         // User has set an explicit path - use it if valid.
-        if (!string.IsNullOrEmpty(CliExe) && File.Exists(CliExe))
-            return CliExe;
+        string overridePath = NormalizeCliPath(CliExe);
+        if (overridePath != null)
+            return overridePath;
 
-        // Default per-user install location used by the NSIS installer.
-        string defaultPath = Path.Combine(
-            System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
-            "Programs", "Bite", "bite.exe");
+        foreach (string candidate in DefaultCliLocations())
+            if (File.Exists(candidate))
+                return candidate;
 
-        if (File.Exists(defaultPath))
-            return defaultPath;
+        // Last resort: anything on PATH (e.g. a symlink in /usr/local/bin).
+        string pathVar = System.Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (string dir in pathVar.Split(Path.PathSeparator))
+        {
+            if (string.IsNullOrWhiteSpace(dir)) continue;
+            string candidate = Path.Combine(dir.Trim(), CliFileName);
+            if (File.Exists(candidate))
+                return candidate;
+        }
 
+        return null;
+    }
+
+    private static IEnumerable<string> DefaultCliLocations()
+    {
+        if (IsMac)
+        {
+            // Bite.app dragged into the system or per-user Applications folder.
+            yield return "/Applications/Bite.app/Contents/MacOS/bite";
+            yield return Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal),
+                "Applications", "Bite.app", "Contents", "MacOS", "bite");
+        }
+        else
+        {
+            // Default per-user install location used by the Windows installer.
+            yield return Path.Combine(
+                System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+                "Programs", "Bite", "bite.exe");
+        }
+    }
+
+    /// <summary>
+    /// Returns the CLI path for a user-supplied override, or null if it is invalid.
+    /// On macOS a path to Bite.app is accepted and resolved to the CLI inside it.
+    /// </summary>
+    private static string NormalizeCliPath(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (File.Exists(path)) return path;
+
+        if (IsMac && Directory.Exists(path) && path.TrimEnd('/').EndsWith(".app"))
+        {
+            string inner = Path.Combine(path, "Contents", "MacOS", "bite");
+            if (File.Exists(inner)) return inner;
+        }
         return null;
     }
 
@@ -98,7 +154,7 @@ public static class BiteBatchTool
             EditorUtility.DisplayDialog("Bite - Setup Required",
                 "Before running workflows, configure:\n\n" +
                 (cliOk    ? "" : "  - Bite is not installed or the CLI path is wrong.\n" +
-                                 "    Install from Bite-Windows-x.x.x-Setup.exe or set the\n" +
+                                 $"    {InstallHint}\n" +
                                  "    path manually via Assets > Bite > Settings...\n") +
                 (folderOk ? "" : "  - Workflows Folder\n"),
                 "OK");
@@ -121,8 +177,8 @@ public static class BiteBatchTool
         if (resolvedCli == null)
         {
             EditorUtility.DisplayDialog("Bite",
-                "bite.exe not found.\n\nInstall Bite from the Windows installer, " +
-                "or set the path manually via Assets > Bite > Settings...", "OK");
+                $"{CliFileName} not found.\n\n{InstallHint} " +
+                "path manually via Assets > Bite > Settings...", "OK");
             return;
         }
 
@@ -233,9 +289,9 @@ public static class BiteBatchTool
             CliExe = EditorGUILayout.TextField(CliExe, GUILayout.ExpandWidth(true));
             if (GUILayout.Button("\u2026", GUILayout.Width(28)))
             {
-                string p = EditorUtility.OpenFilePanel("Locate bite.exe",
-                    string.IsNullOrEmpty(CliExe) ? detected ?? "" : CliExe, "exe");
-                if (!string.IsNullOrEmpty(p)) CliExe = p;
+                string p = EditorUtility.OpenFilePanel(IsMac ? "Locate Bite.app or bite" : "Locate bite.exe",
+                    string.IsNullOrEmpty(CliExe) ? detected ?? "" : CliExe, IsMac ? "" : "exe");
+                if (!string.IsNullOrEmpty(p)) CliExe = NormalizeCliPath(p) ?? p;
             }
             EditorGUILayout.EndHorizontal();
 

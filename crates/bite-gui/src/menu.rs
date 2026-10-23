@@ -45,6 +45,8 @@ pub enum Command {
     ReportBug,
     Credits,
     CheckForUpdates,
+    /// macOS only: links the bundled CLI onto the PATH. See `crate::cli_install`.
+    InstallCommandLineTool,
 }
 
 /// The height the in-window menu bar is laid out for, from `MenuBar.svelte`. Dear ImGui

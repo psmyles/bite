@@ -130,8 +130,36 @@ pub fn run(editor: &mut Editor, command: menu::Command) {
                 )));
             });
         }
+        C::InstallCommandLineTool => install_command_line_tool(editor),
     }
 }
+
+/// Links the bundled CLI onto the PATH and says how that went. The password prompt, when there
+/// is one, is the system's and modal, so this blocks the frame for as long as it is open.
+#[cfg(target_os = "macos")]
+fn install_command_line_tool(editor: &mut Editor) {
+    let title = "Install Command Line Tool";
+    match crate::cli_install::install() {
+        Ok(cli) => {
+            editor.status_notice = None;
+            dialogs::info(
+                title,
+                &format!(
+                    "{} now runs {}.\n\nOpen a new terminal window and try `{} --help`.",
+                    crate::cli_install::LINK,
+                    cli.display(),
+                    env!("BITE_CLI_NAME"),
+                ),
+            );
+        }
+        Err(error) if error == "Cancelled." => {}
+        Err(error) => dialogs::message(title, &error),
+    }
+}
+
+/// The installers on the other platforms put the CLI on the PATH, and no menu raises this there.
+#[cfg(not(target_os = "macos"))]
+fn install_command_line_tool(_editor: &mut Editor) {}
 
 /// The dependency versions the About dialog lists.
 pub fn about_versions() -> Vec<(String, String)> {

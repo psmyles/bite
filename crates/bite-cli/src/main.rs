@@ -854,7 +854,9 @@ fn load_registry() -> Result<bite_core::Registry, String> {
     if let Some(root) = env::var_os("BITE_RESOURCES") {
         roots.push(std::path::PathBuf::from(root));
     }
-    if let Ok(exe) = env::current_exe() {
+    // Resolved first: on macOS `bite` on the PATH is a symlink into the app bundle, and
+    // `current_exe` reports the link, beside which there are no definitions.
+    if let Ok(exe) = env::current_exe().and_then(std::fs::canonicalize) {
         if let Some(parent) = exe.parent() {
             roots.push(parent.into());
             roots.push(parent.join("../Resources"));

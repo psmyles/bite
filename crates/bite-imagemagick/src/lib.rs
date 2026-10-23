@@ -168,7 +168,9 @@ fn candidates(directory: Option<&Path>) -> Vec<PathBuf> {
 
 impl Magick {
     pub fn discover(cancelled: Arc<AtomicBool>) -> Self {
-        let executable = std::env::current_exe().ok();
+        // Resolved, because `bite` on the PATH is a symlink into the macOS bundle, and the path
+        // the process was started by is the link's: `../Resources` beside it is nothing.
+        let executable = std::env::current_exe().and_then(fs::canonicalize).ok();
         let directory = executable.as_deref().and_then(Path::parent);
         let binary = std::env::var_os("BITE_MAGICK")
             .map(PathBuf::from)
