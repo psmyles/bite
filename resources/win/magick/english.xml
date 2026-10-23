@@ -83,6 +83,12 @@
     </cache>
     <coder>
       <error>
+        <message name="CoderDoesNotSupportThisStreamType">
+          coder does not support this stream tyype
+        </message>
+        <message name="CoderNestedTooDeeply">
+          coder nested too deeply
+        </message>
         <message name="ColormapTypeNotSupported">
           colormap type not supported
         </message>
@@ -260,9 +266,6 @@
           </message>
           <message name="ImageFileDoesNotContainAnyImageData">
             image file does not contain any image data
-          </message>
-          <message name="ImageTypeNotSupported">
-            image type not supported
           </message>
           <message name="ImproperImageHeader">
             improper image header
@@ -506,6 +509,9 @@
         <message name="ColorspaceColorProfileMismatch">
           color profile operates on another colorspace
         </message>
+        <message name="ExplicitCoderNotAllowed">
+          explicit coder not allowed
+        </message>
         <message name="ImageDepthNotSupported">
           image depth not supported
         </message>
@@ -523,6 +529,12 @@
         </message>
         <message name="LeftAndRightImageSizesDiffer">
           left and right image sizes differ
+        </message>
+        <message name="ImageSizeLimitExceeded">
+          Image dimension exceeds maximum supported size
+        </message>
+        <message name="ImageTypeNotSupported">
+          image type not supported
         </message>
         <message name="NegativeOrZeroImageSize">
           negative or zero image size
@@ -702,6 +714,9 @@
         </message>
         <message name="MissingOutputFilename">
           missing output filename
+        </message>
+        <message name="MustSpecifyImageManifest">
+          must specify an image manifest
         </message>
         <message name="MustSpecifyAnImageName">
           must specify an image name

@@ -2,11 +2,23 @@
 #
 # Vendors a self-contained arm64 ImageMagick into resources/mac/magick/ so the
 # packaged macOS app ships its own binary, the way resources/win/magick/ does on
-# Windows.  Upstream publishes no relocatable macOS build, so we take the local
-# Homebrew install apart: copy `magick` plus every non-system dylib it pulls in,
-# rewrite the absolute Cellar install names to @rpath, and re-sign everything
+# Windows.  Upstream publishes no relocatable macOS build, so we build the pinned
+# release below from source against Homebrew's libraries, then take that install
+# apart: copy `magick` plus every non-system dylib it pulls in, rewrite the
+# absolute Cellar install names to @rpath, and re-sign everything
 # (install_name_tool invalidates the signature, and arm64 refuses to load an
 # unsigned Mach-O).
+#
+# Why not Homebrew's own imagemagick: its formula is configured --without-openexr,
+# so it cannot read or write EXR, which the Windows build (upstream's portable
+# release, OpenEXR built in) can.  imagemagick-full has OpenEXR but also links
+# Ghostscript, which is AGPL.  So the configure line here is the imagemagick
+# formula's with OpenEXR turned on, and the build lands in target/magick-mac/,
+# reused by later runs until IM_VERSION changes or --rebuild is passed.
+#
+# To move to a new release, set IM_VERSION and IM_SHA256 below from the release's
+# ImageMagick-<version>.7z asset on GitHub (the API lists its sha256 digest), and
+# update resources/win/magick from the same release's portable-Q16-HDRI-x64.7z.
 #
 # The binaries look for it at resources/mac/magick/bin/magick relative to the working
 # directory, which is how a `cargo run` finds it, and at ../Resources/magick/bin/magick
@@ -25,6 +37,10 @@
 #   resources/mac/magick/share/ImageMagick-7/*
 #
 # Usage:  scripts/bundle-magick-mac.sh [--identity "Developer ID Application: ..."] [--no-heic]
+#                                     [--rebuild]
+#
+# Homebrew provides the libraries; the script names the `brew install` line when
+# one is missing.
 #
 # The identity defaults to $CSC_NAME, then $APPLE_SIGNING_IDENTITY.  Pass
 # --identity - for an ad-hoc signature (fine for local runs, not for a release).
@@ -32,20 +48,29 @@
 # --no-heic drops the HEIC/AVIF coder.  That coder is the only thing that pulls
 # in libheif and its codecs (x265 is GPLv2, libde265 LGPLv3), so dropping it
 # takes ~20 MB off the bundle and leaves nothing copyleft in it.
+#
+# --rebuild compiles ImageMagick again even if target/magick-mac/ already holds
+# this version.
 
 set -euo pipefail
 
+IM_VERSION="7.1.2-34"
+IM_SHA256="a376053195cbab4618855e1a7d90f85f41b95ec2240a91e9c0fe5815d231960d"
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST="$ROOT/resources/mac/magick"
+BUILD_ROOT="$ROOT/target/magick-mac"
 IDENTITY="${CSC_NAME:-${APPLE_SIGNING_IDENTITY:-}}"
 WITH_HEIC=1
+REBUILD=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --identity) IDENTITY="${2:-}"; shift 2 ;;
     --identity=*) IDENTITY="${1#*=}"; shift ;;
     --no-heic) WITH_HEIC=0; shift ;;
-    -h|--help) sed -n '2,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --rebuild) REBUILD=1; shift ;;
+    -h|--help) sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -60,25 +85,128 @@ if [[ -z "$IDENTITY" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Locate the source install
+# Build ImageMagick from source, with OpenEXR
 # ---------------------------------------------------------------------------
 
 if ! command -v brew >/dev/null 2>&1; then
-  echo "error: Homebrew not found. Install it, then: brew install imagemagick" >&2
+  echo "error: Homebrew not found. It provides the libraries ImageMagick is built against." >&2
+  exit 1
+fi
+BREW="$(brew --prefix)"
+
+# The imagemagick formula's dependencies, plus OpenEXR (which brings Imath).
+DEPS=(pkgconf freetype jpeg-turbo libheif libpng libtiff libtool little-cms2 webp xz zstd openexr)
+missing=()
+for dep in "${DEPS[@]}"; do
+  [[ -d "$BREW/opt/$dep" ]] || missing+=("$dep")
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+  echo "error: missing Homebrew packages. Run: brew install ${missing[*]}" >&2
   exit 1
 fi
 
-PREFIX="$(brew --prefix imagemagick 2>/dev/null || true)"
-if [[ -z "$PREFIX" || ! -x "$PREFIX/bin/magick" ]]; then
-  echo "error: ImageMagick not installed via Homebrew. Run: brew install imagemagick" >&2
-  exit 1
-fi
-
+PREFIX="$BUILD_ROOT/$IM_VERSION"
 SRC_MAGICK="$PREFIX/bin/magick"
-IM_VERSION="$("$SRC_MAGICK" --version | head -1 | sed -E 's/.*ImageMagick ([^ ]+).*/\1/')"
+
+if [[ "$REBUILD" -eq 1 || ! -x "$SRC_MAGICK" ]]; then
+  echo "==> Building ImageMagick $IM_VERSION with OpenEXR"
+  archive="$BUILD_ROOT/ImageMagick-$IM_VERSION.7z"
+  mkdir -p "$BUILD_ROOT"
+  if [[ ! -f "$archive" ]] || ! shasum -a 256 "$archive" | grep -q "^$IM_SHA256 "; then
+    curl -fsSL -o "$archive.part" \
+      "https://github.com/ImageMagick/ImageMagick/releases/download/$IM_VERSION/ImageMagick-$IM_VERSION.7z"
+    mv "$archive.part" "$archive"
+  fi
+  actual="$(shasum -a 256 "$archive" | cut -d' ' -f1)"
+  if [[ "$actual" != "$IM_SHA256" ]]; then
+    echo "error: ImageMagick-$IM_VERSION.7z has sha256 $actual, expected $IM_SHA256." >&2
+    rm -f "$archive"
+    exit 1
+  fi
+
+  rm -rf "$BUILD_ROOT/src" "$PREFIX"
+  mkdir -p "$BUILD_ROOT/src"
+  # The bsdtar macOS ships reads 7z, so this needs nothing installed.
+  tar -xf "$archive" -C "$BUILD_ROOT/src"
+  src="$(echo "$BUILD_ROOT"/src/ImageMagick-*)"
+  [[ -x "$src/configure" ]] || { echo "error: no configure script in $src." >&2; exit 1; }
+  # As the formula does: lib/ImageMagick rather than lib/ImageMagick-7.1.2, the
+  # layout Magick::discover and the rest of this script expect.
+  sed -i '' 's/${PACKAGE_NAME}-${PACKAGE_BASE_VERSION}/${PACKAGE_NAME}/g' "$src/configure"
+
+  # This is not Homebrew's sandbox, where only declared dependencies are
+  # visible and their paths are passed in: the -I/-L flags stand in for the
+  # latter (libltdl has no pkg-config file), and configure would link anything
+  # installed on this Mac.  So every
+  # optional delegate outside the formula's set is named and turned off, and the
+  # result is checked below.
+  (
+    cd "$src"
+    PKG_CONFIG="$BREW/bin/pkg-config" \
+    PKG_CONFIG_PATH="$BREW/lib/pkgconfig" \
+    CPPFLAGS="-I$BREW/include" \
+    LDFLAGS="-L$BREW/lib" \
+    ./configure \
+      --prefix="$PREFIX" \
+      --disable-dependency-tracking \
+      --disable-silent-rules \
+      --disable-opencl \
+      --disable-openmp \
+      --disable-docs \
+      --enable-shared \
+      --disable-static \
+      --enable-hdri \
+      --with-quantum-depth=16 \
+      --with-modules \
+      --with-openexr=yes \
+      --with-webp=yes \
+      --with-heic=yes \
+      --without-x \
+      --without-perl \
+      --without-magick-plus-plus \
+      --without-gslib \
+      --with-gvc=no \
+      --with-raw=no \
+      --without-djvu \
+      --without-fftw \
+      --without-pango \
+      --without-wmf \
+      --without-jxl \
+      --without-lqr \
+      --without-openjp2 \
+      --without-rsvg \
+      --without-fontconfig \
+      --without-raqm \
+      --without-zip \
+      --without-jbig \
+      --without-dps \
+      --without-fpx \
+      --without-flif \
+      --without-uhdr \
+      --without-dmr \
+      > "$BUILD_ROOT/configure.log" 2>&1 \
+      || { echo "error: configure failed; see $BUILD_ROOT/configure.log" >&2; exit 1; }
+    make -j"$(sysctl -n hw.ncpu)" install > "$BUILD_ROOT/make.log" 2>&1 \
+      || { echo "error: make failed; see $BUILD_ROOT/make.log" >&2; exit 1; }
+  )
+  rm -rf "$BUILD_ROOT/src"
+fi
 
 if ! lipo -archs "$SRC_MAGICK" | grep -qw arm64; then
   echo "error: $SRC_MAGICK is not arm64 (found: $(lipo -archs "$SRC_MAGICK"))." >&2
+  exit 1
+fi
+
+# The delegate set this build is meant to have - Homebrew's imagemagick plus
+# openexr. More means configure found something on this Mac it should not ship;
+# less means a library the formats rely on is missing.
+EXPECTED_DELEGATES="bzlib freetype heic jng jpeg lcms ltdl lzma openexr png tiff webp xml zlib zstd"
+delegates="$("$SRC_MAGICK" -version | sed -n 's/^Delegates (built-in): *//p' | tr -s ' ' | sed 's/ *$//')"
+if [[ "$delegates" != "$EXPECTED_DELEGATES" ]]; then
+  echo "error: the ImageMagick build has delegates" >&2
+  echo "         $delegates" >&2
+  echo "       expected" >&2
+  echo "         $EXPECTED_DELEGATES" >&2
   exit 1
 fi
 
@@ -209,10 +337,11 @@ done
 retarget "$DEST/bin/magick"
 install_name_tool -add_rpath "@executable_path/../lib" "$DEST/bin/magick" 2>/dev/null
 
-# Anything still referencing the Homebrew prefix would break on a user's machine.
-if otool -L "$DEST/bin/magick" "$DEST"/lib/*.dylib ${MODULES[@]+"${MODULES[@]}"} | grep -q "$(brew --prefix)"; then
-  echo "error: some install names still point at $(brew --prefix):" >&2
-  otool -L "$DEST/bin/magick" "$DEST"/lib/*.dylib ${MODULES[@]+"${MODULES[@]}"} | grep "$(brew --prefix)" >&2
+# Anything still referencing the Homebrew prefix or the build's own prefix would
+# break on a user's machine.
+if otool -L "$DEST/bin/magick" "$DEST"/lib/*.dylib ${MODULES[@]+"${MODULES[@]}"} | grep -qF -e "$BREW" -e "$PREFIX"; then
+  echo "error: some install names still point at $BREW or $PREFIX:" >&2
+  otool -L "$DEST/bin/magick" "$DEST"/lib/*.dylib ${MODULES[@]+"${MODULES[@]}"} | grep -F -e "$BREW" -e "$PREFIX" >&2
   exit 1
 fi
 
@@ -220,10 +349,10 @@ fi
 # Configuration files (delegates, type maps, policy, locale)
 # ---------------------------------------------------------------------------
 
-IM_CONFIG_DIR="$(basename "$(echo "$(brew --prefix)"/etc/ImageMagick-*)")"
+IM_CONFIG_DIR="$(basename "$(echo "$PREFIX"/etc/ImageMagick-*)")"
 mkdir -p "$DEST/etc/$IM_CONFIG_DIR" "$DEST/share/$IM_CONFIG_DIR"
-cp "$(brew --prefix)/etc/$IM_CONFIG_DIR"/*.xml "$DEST/etc/$IM_CONFIG_DIR/"
-cp -R "$(brew --prefix)/share/$IM_CONFIG_DIR"/. "$DEST/share/$IM_CONFIG_DIR/"
+cp "$PREFIX/etc/$IM_CONFIG_DIR"/*.xml "$DEST/etc/$IM_CONFIG_DIR/"
+cp -R "$PREFIX/share/$IM_CONFIG_DIR"/. "$DEST/share/$IM_CONFIG_DIR/"
 MODULE_DIR="$(cd "$DEST/lib/ImageMagick" && echo modules-*)"
 CONFIG_MODULE_DIR="$(cd "$DEST/lib/ImageMagick" && echo config-*)"
 
@@ -310,6 +439,15 @@ for fmt in JPEG PNG TIFF WEBP; do
   env -i PATH=/usr/bin:/bin "${smoke_env[@]}" "$DEST/bin/magick" -list format 2>/dev/null | grep -qE "^ *$fmt\*? " \
     || echo "warning: bundled magick reports no $fmt support" >&2
 done
+# EXR is the reason this script builds ImageMagick itself, so it is checked by a
+# real round trip rather than listed: a float gradient written and read back.
+exr_dir="$(mktemp -d)"
+env -i PATH=/usr/bin:/bin "${smoke_env[@]}" "$DEST/bin/magick" \
+  -size 16x16 gradient:red-blue -depth 32 -define quantum:format=floating-point "$exr_dir/smoke.exr" \
+  && env -i PATH=/usr/bin:/bin "${smoke_env[@]}" "$DEST/bin/magick" identify "$exr_dir/smoke.exr" | grep -q ' EXR 16x16 ' \
+  || { echo "error: the bundled magick cannot write and read EXR." >&2; rm -rf "$exr_dir"; exit 1; }
+rm -rf "$exr_dir"
+echo "==> EXR round trip works"
 
 # The bundle is packaged into an .app and installed wherever the user drops it,
 # so prove it still runs from a path it has never seen.

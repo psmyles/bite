@@ -500,7 +500,7 @@ mac_smoke_magick() {
     # scripts/bundle-magick-mac.sh makes (--no-heic drops the copyleft codecs).
     local formats listed
     listed="$(env -i PATH=/usr/bin:/bin "${magick_env[@]}" "$magick" -list format 2>/dev/null || true)"
-    for formats in JPEG PNG TIFF WEBP; do
+    for formats in JPEG PNG TIFF WEBP EXR; do
         grep -qE "^ *$formats\*? " <<< "$listed" \
             || echo "warning: the bundled ImageMagick reports no $formats support" >&2
     done
