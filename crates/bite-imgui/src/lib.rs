@@ -125,6 +125,51 @@ pub unsafe fn discard_current_context() {
     }
 }
 
+/// The system clipboard, as the host reaches it. Text fields cut, copy and paste through it.
+///
+/// Dear ImGui only knows the system clipboard on Windows; everywhere else it keeps a private
+/// one, so text copied in a field could not leave the editor and text copied elsewhere could
+/// not be pasted into it.
+#[derive(Clone, Copy)]
+pub struct Clipboard {
+    pub get: fn() -> Option<String>,
+    pub set: fn(&str),
+}
+
+/// What `Platform_ClipboardUserData` points at: the host's hooks, and the last text read through
+/// them, which Dear ImGui borrows until it next asks.
+struct ClipboardState {
+    clipboard: Clipboard,
+    text: CString,
+}
+
+unsafe extern "C" fn get_clipboard(context: *mut sys::ImGuiContext) -> *const std::ffi::c_char {
+    let state = unsafe {
+        &mut *(*sys::igGetPlatformIO_ContextPtr(context))
+            .Platform_ClipboardUserData
+            .cast::<ClipboardState>()
+    };
+    match (state.clipboard.get)() {
+        Some(text) => {
+            state.text = c(&text);
+            state.text.as_ptr()
+        }
+        None => std::ptr::null(),
+    }
+}
+
+unsafe extern "C" fn set_clipboard(context: *mut sys::ImGuiContext, text: *const std::ffi::c_char) {
+    let state = unsafe {
+        &*(*sys::igGetPlatformIO_ContextPtr(context))
+            .Platform_ClipboardUserData
+            .cast::<ClipboardState>()
+    };
+    if !text.is_null() {
+        let text = unsafe { std::ffi::CStr::from_ptr(text) }.to_string_lossy();
+        (state.clipboard.set)(&text);
+    }
+}
+
 /// The ImGui context. Only one may exist at a time.
 pub struct Context {
     raw: *mut sys::ImGuiContext,
@@ -132,6 +177,8 @@ pub struct Context {
     /// What the last rendered frame needs done to its textures, waiting to be collected by
     /// [`Context::texture_requests`].
     pending_textures: Vec<TextureRequest>,
+    /// Boxed so the address Dear ImGui holds stays put when the context moves.
+    clipboard: Option<Box<ClipboardState>>,
     _owner: MutexGuard<'static, ()>,
     _thread: PhantomData<Rc<()>>,
 }
@@ -176,6 +223,7 @@ impl Context {
             raw,
             fonts,
             pending_textures: Vec::new(),
+            clipboard: None,
             _owner: owner,
             _thread: PhantomData,
         })
@@ -183,6 +231,20 @@ impl Context {
 
     pub fn fonts(&self) -> &Fonts {
         &self.fonts
+    }
+
+    /// Routes the text fields' cut, copy and paste through the host's clipboard.
+    pub fn set_clipboard(&mut self, clipboard: Clipboard) {
+        let state = self.clipboard.insert(Box::new(ClipboardState {
+            clipboard,
+            text: CString::default(),
+        }));
+        unsafe {
+            let platform = sys::igGetPlatformIO_ContextPtr(self.raw);
+            (*platform).Platform_ClipboardUserData = (&mut **state as *mut ClipboardState).cast();
+            (*platform).Platform_GetClipboardTextFn = Some(get_clipboard);
+            (*platform).Platform_SetClipboardTextFn = Some(set_clipboard);
+        }
     }
 
     /// Records a new display scale, for example after a monitor change.
@@ -527,5 +589,17 @@ mod tests {
         for &handle in &context.fonts().handles {
             assert_eq!(unsafe { (*handle).CurrentRasterizerDensity }, 2.0);
         }
+
+        // Text fields copy and paste through the host's clipboard, not Dear ImGui's own.
+        static HOST: Mutex<Option<String>> = Mutex::new(None);
+        context.set_clipboard(Clipboard {
+            get: || HOST.lock().unwrap().clone(),
+            set: |text| *HOST.lock().unwrap() = Some(text.to_string()),
+        });
+        unsafe { sys::igSetClipboardText(c("copied in a field").as_ptr()) };
+        assert_eq!(HOST.lock().unwrap().as_deref(), Some("copied in a field"));
+        *HOST.lock().unwrap() = Some("copied elsewhere".into());
+        let pasted = unsafe { std::ffi::CStr::from_ptr(sys::igGetClipboardText()) };
+        assert_eq!(pasted.to_str(), Ok("copied elsewhere"));
     }
 }

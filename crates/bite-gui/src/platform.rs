@@ -15,7 +15,7 @@ use crate::{
     render::{self, Device, Swapchain, Textures, SWAPCHAIN_FORMAT},
     theme, timing, work,
 };
-use bite_imgui::{Context, Key, MouseButton, Vec2};
+use bite_imgui::{Clipboard, Context, Key, MouseButton, Vec2};
 use sokol::gfx as sg;
 use std::{
     path::PathBuf,
@@ -407,7 +407,13 @@ impl App {
         timing::report("swapchain");
 
         let scale = window.scale_factor() as f32;
-        let context = Context::new(scale)?;
+        let mut context = Context::new(scale)?;
+        context.set_clipboard(Clipboard {
+            get: || dialogs::read_clipboard().ok().flatten(),
+            set: |text| {
+                let _ = dialogs::write_clipboard(text);
+            },
+        });
         timing::report("imgui Context (fonts)");
         theme::apply_base_style();
 
