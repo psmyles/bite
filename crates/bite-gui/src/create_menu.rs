@@ -314,9 +314,8 @@ impl CreateMenu {
                     }
                 }
                 if ui.key_pressed(Key::Enter) {
-                    // With nothing highlighted, Enter takes a lone result, as the Svelte
-                    // menu does, and otherwise waits for a choice.
-                    let chosen = self.active_index.or((flat.len() == 1).then_some(0));
+                    // With nothing highlighted, Enter takes the first result.
+                    let chosen = self.active_index.or(Some(0));
                     if let Some(entry) = chosen.and_then(|index| flat.get(index)) {
                         outcome = Some(self.create(entry.clone()));
                     }
@@ -494,6 +493,8 @@ impl CreateMenu {
             no_collapse: true,
             no_saved_settings: true,
             no_nav: true,
+            // Pointing at a category must not take the keyboard from the search field.
+            no_focus_on_appearing: true,
             ..bite_imgui::WindowFlags::default()
         };
         ui.with_style(
@@ -511,6 +512,8 @@ impl CreateMenu {
                     ],
                     |ui| {
                         ui.window_with(&format!("##sub-{category}"), flags, |ui| {
+                            // Focusing it is what used to raise it, so it is raised by hand.
+                            ui.bring_window_to_front();
                             for entry in entries {
                                 // The flyout lists one category, so its name is not repeated.
                                 if self.result_row(
