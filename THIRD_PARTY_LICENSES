@@ -46,11 +46,16 @@ Full license text: https://imagemagick.org/script/license.php
 LIBRARIES BUNDLED WITH THE macOS BUILD
 --------------------------------------------------------------------------------
 
-The macOS app ships ImageMagick's delegate libraries alongside it (they are
-copied out of Homebrew by scripts/bundle-magick-mac.sh). Their licenses:
+The macOS app ships ImageMagick's delegate libraries alongside it (ImageMagick
+is built against Homebrew's copies by scripts/bundle-magick-mac.sh, which then
+bundles them). Their licenses:
 
   libpng, libjpeg-turbo, libtiff, libwebp, libsharpyuv, libzstd, liblzma,
-  libaom, libvmaf, little-cms2   - permissive (BSD/MIT-style)
+  libaom, libvmaf, little-cms2, brotli, libdeflate
+                                 - permissive (BSD/MIT-style)
+  OpenEXR (libOpenEXR, libOpenEXRCore, libOpenEXRUtil, libIex, libIlmThread),
+  Imath                          - BSD-3-Clause
+  OpenJPH                        - BSD-2-Clause
   freetype                       - FTL or GPLv2
   libltdl (GNU Libtool)          - LGPLv2.1+
   libde265                       - LGPLv3+
@@ -62,6 +67,10 @@ no copyleft-licensed library in the app. Each library is bundled as a separate
 dynamic library and is not modified beyond having its install names rewritten
 for relocation; the corresponding sources are available from the upstream
 projects and via Homebrew.
+
+The Windows build ships upstream's portable ImageMagick, which links its
+delegates (OpenEXR among them) statically; their notices are in the NOTICE.txt
+installed beside magick.exe.
 
 
 --------------------------------------------------------------------------------

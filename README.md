@@ -167,8 +167,10 @@ echo 'APPLE_KEYCHAIN_PROFILE=bite' >> .env.mac    # gitignored
 
 Two inputs are built by the scripts but can be refreshed on their own, and neither is in git:
 `scripts/bundle-magick-mac.sh` vendors a relocatable, signed ImageMagick into
-`resources/mac/magick/` (upstream publishes none, so it copies `magick` plus its dylibs and coder
-modules out of Homebrew, rewrites their install names and re-signs them), and
+`resources/mac/magick/` (upstream publishes none, so it builds the release pinned in the script
+from source against Homebrew's libraries - Homebrew's own `imagemagick` is configured without
+OpenEXR - then copies `magick` plus its dylibs and coder modules out, rewrites their install names
+and re-signs them; the compile is kept in `target/magick-mac/` for later runs), and
 `scripts/build-icon-mac.sh` compiles `build/icons/bite.icon` into the layered icon catalogue plus
 an `.icns` fallback. The icon script needs full Xcode, not just the command line tools.
 
