@@ -164,7 +164,7 @@ mac_preflight() {
 
     OUT_DIR="${OUT_DIR:-$ROOT/dist}"
     APP="$ROOT/target/mac/$PRODUCT.app"
-    DMG="$OUT_DIR/$PRODUCT-Mac-$VERSION-arm64.dmg"
+    DMG="$OUT_DIR/$(tr '[:upper:]' '[:lower:]' <<< "$PRODUCT")-$VERSION.dmg"
 
     note "$PRODUCT $VERSION ($BUNDLE_ID)"
     note "identity: $SIGN_IDENTITY"

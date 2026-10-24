@@ -41,7 +41,7 @@ fn usage() {
                                 Setup's wizard images to DIR
   package-windows [--no-build]  sync the crate version to product.json, redraw the icons, build
                                 the release binaries and compile packaging/bite.iss into
-                                dist/Bite-Windows-<version>-Setup.exe (--no-build reuses
+                                dist/bite-<version>.exe (--no-build reuses
                                 target/release and the icons as they are)"
     );
 }

@@ -10,7 +10,7 @@
 //! 5. Checks the payload: the bundled ImageMagick (the real binary, not its LFS pointer, and
 //!    without the legacy utilities), the node and format definitions, the licence notices.
 //! 6. Draws Setup's wizard images into `target/package/wizard` and compiles `packaging/bite.iss`
-//!    with Inno Setup into `dist/Bite-Windows-<version>-Setup.exe`.
+//!    with Inno Setup into `dist/bite-<version>.exe`.
 //!
 //! With `--no-build`, steps 3 and 4 are skipped: `target/release` and the icons are used as they
 //! are. The only tracked files this edits are Cargo.toml and Cargo.lock (step 2) and the icons
@@ -280,7 +280,7 @@ pub fn run_windows(args: &[String]) -> Result<(), String> {
             .arg(format!("/DOutputDir={}", out.display()))
             .arg(root.join("packaging/bite.iss")),
     )?;
-    let setup = out.join(format!("{}-Windows-{}-Setup.exe", p.name, p.version));
+    let setup = out.join(format!("{}-{}.exe", p.name.to_lowercase(), p.version));
     let size = std::fs::metadata(&setup).map(|m| m.len()).unwrap_or(0);
     println!(
         "{} ({:.2} MB)",

@@ -112,7 +112,7 @@ version to `product.json`, redraws the icons if the artwork changed, builds `bit
 `bite.exe`, checks the payload (bundled ImageMagick, node and format definitions, license
 notices), draws the wizard images and compiles `packaging/bite.iss` with
 [Inno Setup](https://jrsoftware.org/isdl.php) 6.5.2 or later, producing
-`dist/Bite-Windows-<version>-Setup.exe`. Pass `--no-build` to reuse `target/release` as it
+`dist/bite-<version>.exe`. Pass `--no-build` to reuse `target/release` as it
 stands.
 
 `product.json` is the single source of the product name, version and publisher: both `build.rs`
@@ -145,7 +145,7 @@ packaging/build-mac-dmg.sh        # signed .dmg, for testing the real packaged a
 packaging/build-mac-release.sh    # signed, notarized and stapled .dmg - the one to ship
 ```
 
-Both produce `dist/Bite-Mac-<version>-arm64.dmg`. They sync the crate version to `product.json`,
+Both produce `dist/bite-<version>.dmg`. They sync the crate version to `product.json`,
 build `bite-gui` and `bite`, assemble `Bite.app`, check that nothing in it links against the
 build machine's Homebrew, sign it with your Developer ID and smoke-test the bundled ImageMagick
 from inside the signed bundle. `packaging/mac-common.sh` holds the steps both share. Pass

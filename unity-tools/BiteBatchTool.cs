@@ -3,9 +3,9 @@
 //
 // Setup:
 //   1. Install Bite.
-//        - Windows: run Bite-Windows-x.x.x-Setup.exe. The installer places bite.exe in
+//        - Windows: run bite-x.x.x.exe. The installer places bite.exe in
 //          %LOCALAPPDATA%\Programs\Bite\ and adds that folder to your PATH automatically.
-//        - macOS: open Bite-Mac-x.x.x-arm64.dmg and drag Bite.app into /Applications
+//        - macOS: open bite-x.x.x.dmg and drag Bite.app into /Applications
 //          (or ~/Applications). The CLI lives inside the bundle at
 //          Bite.app/Contents/MacOS/bite.
 //   2. Save a workflow from Bite: File > Save Workflow  ->  produces a .bite file
@@ -50,7 +50,7 @@ public static class BiteBatchTool
 
     private static string InstallHint => IsMac
         ? "Drag Bite.app from the .dmg into /Applications, or set the"
-        : "Install from Bite-Windows-x.x.x-Setup.exe, or set the";
+        : "Install from bite-x.x.x.exe, or set the";
 
     // -- CLI resolution --------------------------------------------------------
     /// <summary>

@@ -1,6 +1,6 @@
 # -- Build outputs -------------------------------------------------------------
 target/
-# Packaging output: dist/Bite-Windows-<version>-Setup.exe
+# Packaging output: dist/bite-<version>.exe
 dist/
 
 # -- Logs ----------------------------------------------------------------------
