@@ -1134,8 +1134,15 @@ fn flipbook_output_node(
         // is the run's own fallback rather than the minimum.
         type Field<'a> = (&'a str, &'a str, i64, i64, i64);
         let mut pair = |ui: &mut Ui, left: Field, right: Field| {
+            let origin = ui.cursor_screen_position();
             for (index, (name, label, min, max, fallback)) in [left, right].into_iter().enumerate()
             {
+                // The right field is placed by hand rather than with `same_line`, which would
+                // carry the left input's frame padding into the label's baseline and drop the
+                // whole column by that much.
+                if index == 1 {
+                    ui.set_cursor_screen_position([origin[0] + half + 8.0, origin[1]]);
+                }
                 ui.group(|ui| {
                     field_label(ui, label);
                     let current = int_param(node, name, fallback);
@@ -1152,9 +1159,6 @@ fn flipbook_output_node(
                         }
                     }
                 });
-                if index == 0 {
-                    ui.same_line_at(0.0, 8.0);
-                }
             }
         };
         pair(
