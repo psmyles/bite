@@ -1,13 +1,6 @@
 # Credits
 
-Bite is made by Chandan Singh ([@psmyles](https://github.com/psmyles)).
-
-## How it was built
-
-Bite was built with [Claude](https://www.anthropic.com/claude) (Anthropic) as an AI coding
-assistant. I designed the architecture, made the decisions, and tested it in production.
-
-## What Bite stands on
+Bite is built on the projects listed below. For license terms and per-package copyright notices, see [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
 
 - **[ImageMagick](https://imagemagick.org)** does all of the image processing. Bite builds the
   commands; ImageMagick runs them. This product includes software developed by the ImageMagick
@@ -30,5 +23,6 @@ assistant. I designed the architecture, made the decisions, and tested it in pro
 - On macOS, the image format libraries that ImageMagick uses (libpng, libjpeg-turbo, libtiff,
   libwebp, OpenEXR and others) ship with the app.
 
-The licence of each, and the full texts where a licence asks for them, are in
-[THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
+## Development
+
+- **[Claude Code](https://claude.com/claude-code)** - Anthropic. Coding assistant.
