@@ -1,2 +1,9 @@
 [alias]
 xtask = "run --quiet --package xtask --"
+
+# Every Windows binary links the C and C++ runtimes statically (fire-decode plan, FD20). fire-decode's
+# HEIF libraries are built /MT for it, and its `heif-sys` refuses a Windows build without this
+# flag. Without it bite would need the Visual C++ redistributable, which no installer ships. A
+# `RUSTFLAGS` environment variable replaces this list, so it must repeat the flag.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

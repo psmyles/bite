@@ -412,7 +412,7 @@ fn folder_card(ui: &mut Ui, width: f32, path: &str) {
     ui.dummy([width, height]);
 }
 
-/// The five column grid of format chips.
+/// The five column grid of format chips: three rows, the last part full.
 fn format_chips(ui: &mut Ui, width: f32, node: &GraphNode, state: &InspectorState) -> Vec<Edit> {
     let mut edits = Vec::new();
     let groups = scan_format_groups();
@@ -467,7 +467,9 @@ fn format_chips(ui: &mut Ui, width: f32, node: &GraphNode, state: &InspectorStat
                 group: (*name).to_string(),
             });
         }
-        if (index + 1) % 5 == 0 {
+        // A row ends after its fifth chip, and after the last chip of a row left part full,
+        // so what follows the grid starts on a line of its own.
+        if (index + 1) % 5 == 0 || index + 1 == groups.len() {
             ui.dummy([width, gap]);
         } else {
             ui.same_line_at(0.0, gap);

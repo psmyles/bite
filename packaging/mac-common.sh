@@ -497,7 +497,7 @@ mac_smoke_magick() {
 
     # The formats the editor's own defaults reach for. A missing one is a warning, not a failure:
     # the bundle still works for everything else, and which coders are present is a choice
-    # scripts/bundle-magick-mac.sh makes (--no-heic drops the copyleft codecs).
+    # scripts/bundle-magick-mac.sh makes (--no-heic drops ImageMagick's HEIC/AVIF coder).
     local formats listed
     listed="$(env -i PATH=/usr/bin:/bin "${magick_env[@]}" "$magick" -list format 2>/dev/null || true)"
     for formats in JPEG PNG TIFF WEBP EXR; do

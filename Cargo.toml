@@ -14,7 +14,9 @@ exclude = ["vendor/sokol-rust"]
 version = "0.5.3"
 edition = "2021"
 license = "MIT"
-rust-version = "1.87"
+# fire-decode's floor (its `rust-version`): thumbnails and cached reads decode through it.
+# Every crate inherits it (`rust-version.workspace = true`), so the floor is one number.
+rust-version = "1.99"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -24,6 +26,17 @@ bite-schema = { path = "crates/bite-schema" }
 bite-expr = { path = "crates/bite-expr" }
 bite-core = { path = "crates/bite-core" }
 bite-imagemagick = { path = "crates/bite-imagemagick" }
+# The shared decoder (fire-decode plan, step 5): thumbnails of PNG, TGA, PSD, EXR, HEIC, HEIF and
+# AVIF, every file's size, and every cached thumbnail read. `psd` brings psd_sdk (compiled from
+# source). No `icc` (bite does no colour management) and no `raw` (camera raw stays on
+# ImageMagick, which develops it). `heif` - the libheif / libde265 / dav1d static libraries,
+# LGPL-3.0-or-later for the first two, linked under the relink terms in THIRD_PARTY_LICENSES - is
+# turned on per crate for Windows and macOS only: fire-decode has those libraries for no other
+# target, and the CLI still builds on Linux, where HEIC goes to ImageMagick. To build against a
+# local checkout, put a `[patch."https://github.com/psmyles/fire-decode"]` in a
+# `.cargo/config.toml` above this folder.
+fire-decode = { git = "https://github.com/psmyles/fire-decode", branch = "main", features = ["psd"] }
+image-webp = "0.2"
 
 [profile.release]
 lto = "thin"

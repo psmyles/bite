@@ -45,9 +45,14 @@
 # The identity defaults to $CSC_NAME, then $APPLE_SIGNING_IDENTITY.  Pass
 # --identity - for an ad-hoc signature (fine for local runs, not for a release).
 #
-# --no-heic drops the HEIC/AVIF coder.  That coder is the only thing that pulls
-# in libheif and its codecs (x265 is GPLv2, libde265 LGPLv3), so dropping it
-# takes ~20 MB off the bundle and leaves nothing copyleft in it.
+# --no-heic drops ImageMagick's HEIC/AVIF coder.  That coder is the only thing in
+# the bundle that pulls in libheif and its codecs (x265 is GPLv2, libde265
+# LGPLv3), so dropping it takes ~20 MB off the bundle.  It drops only
+# ImageMagick's coder: bite-gui and bite link libheif and libde265 themselves,
+# through fire-decode, so the app still shows HEIC/AVIF thumbnails and still
+# carries LGPLv3 code (THIRD_PARTY_LICENSES), and libltdl (LGPLv2.1+) stays in
+# the bundle either way.  What it loses is processing those files: a workflow
+# run hands them to ImageMagick, which can no longer read them.
 #
 # --rebuild compiles ImageMagick again even if target/magick-mac/ already holds
 # this version.

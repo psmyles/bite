@@ -3,6 +3,7 @@ name = "bite-gui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+rust-version.workspace = true
 
 # `bite-gui.exe`, the name the Windows installer ships and the file association points at.
 [[bin]]
@@ -22,7 +23,7 @@ png = "0.18"
 rfd = { version = "0.15.4", default-features = false, features = ["xdg-portal", "tokio"] }
 arboard = "3.6.1"
 ureq = "2.12.1"
-image-webp = "0.2"
+fire-decode.workspace = true
 # The drawing API. Vendored (`vendor/sokol-rust`, floooh/sokol-rust @ b22a545) because the
 # crates.io `sokol` name belongs to an unrelated crate from 2019. `build.rs` compiles
 # `simgui/simgui.c` - Dear ImGui's sokol_gfx renderer - against the same headers.
@@ -32,6 +33,11 @@ sokol = { path = "../../vendor/sokol-rust" }
 # the staging-texture readback `--capture` reads its pixels back with (`render::readback`). The
 # typed crate rather than raw `windows-sys` because these are COM calls. The feature list is what
 # those two files use, plus the one call `platform.rs` makes to read the launch show command.
+# HEIC / HEIF / AVIF in process where fire-decode has the libraries for it (the workspace
+# manifest says why only there).
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+fire-decode = { workspace = true, features = ["heif"] }
+
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
     "Win32_Foundation",

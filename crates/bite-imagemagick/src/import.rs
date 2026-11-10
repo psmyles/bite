@@ -1,5 +1,5 @@
 //! Folder scanning and thumbnail services used by the native importer.
-use super::Magick;
+use super::{in_process, Magick};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     fs,
@@ -169,9 +169,8 @@ struct CachedInfo {
 type Probe = Result<(Stamp, Option<(u32, u32, &'static str)>), String>;
 
 fn probe_all(paths: &[PathBuf], jobs: usize) -> Vec<Probe> {
-    let one = |path: &PathBuf| -> Probe {
-        Ok((ThumbnailCache::stamp(path)?, super::header::probe(path)))
-    };
+    let one =
+        |path: &PathBuf| -> Probe { Ok((ThumbnailCache::stamp(path)?, in_process::probe(path))) };
     let workers = jobs.max(1).min(paths.len());
     if workers <= 1 {
         return paths.iter().map(one).collect();
@@ -195,6 +194,58 @@ fn probe_all(paths: &[PathBuf], jobs: usize) -> Vec<Probe> {
             slot.into_inner()
                 .unwrap()
                 .unwrap_or(Err("not probed".into()))
+        })
+        .collect()
+}
+
+/// What [`in_process::thumbnail`] made of one file: the source's size and format.
+type Made = Result<(u32, u32, &'static str), String>;
+
+/// Thumbnails every `(source, thumbnail)` pair in this process, across `workers` threads,
+/// keeping the order.
+///
+/// One file to a thread, each decode capped to its share of the cores. Left uncapped, the first
+/// of several HEICs took nearly every core for its whole decode and the rest ran on one each:
+/// three iPhone photographs took 637 ms that way, 243 ms one after another, and 219 ms three at
+/// once with four threads each. AVIF halved the same way; PNG, PSD and EXR did not change.
+fn thumbnail_all(
+    jobs: &[(PathBuf, PathBuf)],
+    size: u32,
+    workers: usize,
+    cancelled: &AtomicBool,
+) -> Vec<Made> {
+    let workers = workers.max(1).min(jobs.len());
+    let cores = thread::available_parallelism().map_or(1, |cores| cores.get());
+    let share = (workers > 1).then(|| (cores / workers).max(1));
+    let one = |(source, thumbnail): &(PathBuf, PathBuf)| -> Made {
+        if cancelled.load(Ordering::Relaxed) {
+            return Err("Cancelled".into());
+        }
+        in_process::thumbnail(source, size, thumbnail, cancelled, share)
+    };
+    if workers <= 1 {
+        return jobs.iter().map(one).collect();
+    }
+    let next = AtomicUsize::new(0);
+    let results: Vec<Mutex<Option<Made>>> = jobs.iter().map(|_| Mutex::new(None)).collect();
+    thread::scope(|scope| {
+        for _ in 0..workers {
+            let next = &next;
+            let results = &results;
+            let one = &one;
+            scope.spawn(move || loop {
+                let index = next.fetch_add(1, Ordering::Relaxed);
+                let Some(job) = jobs.get(index) else { break };
+                *results[index].lock().unwrap() = Some(one(job));
+            });
+        }
+    });
+    results
+        .into_iter()
+        .map(|slot| {
+            slot.into_inner()
+                .unwrap()
+                .unwrap_or_else(|| Err("not thumbnailed".into()))
         })
         .collect()
 }
@@ -332,58 +383,47 @@ impl ThumbnailCache {
             });
         }
 
-        // The files each command thumbnails. Which of them it prints measurements for comes
-        // back with the arguments, since only an unmeasured one is asked to print.
-        let batches: Vec<Vec<usize>> = misses
-            .chunks(self.batch_size.max(1))
-            .map(<[usize]>::to_vec)
-            .collect();
-        let prepared: Vec<(Vec<String>, Vec<usize>)> = batches
+        // The formats routed to fire-decode are thumbnailed in this process (fire-decode plan,
+        // FD9), the rest by ImageMagick in commands of `batch_size`, as before. The two run at
+        // once: a folder of photographs and textures waits on neither one alone.
+        let (routed, to_magick): (Vec<usize>, Vec<usize>) = misses
             .iter()
-            .map(|members| Self::thumbnail_command(&items, members, size))
+            .partition(|index| in_process::is_routed(&items[**index].path));
+        let jobs: Vec<(PathBuf, PathBuf)> = routed
+            .iter()
+            .map(|index| (items[*index].path.clone(), items[*index].thumbnail.clone()))
             .collect();
-        let mut printing = Vec::with_capacity(prepared.len());
-        let mut commands = Vec::with_capacity(prepared.len());
-        for (args, printed) in prepared {
-            commands.push(args);
-            printing.push(printed);
-        }
+        let workers = self.jobs;
+        let cancelled = host.cancelled.clone();
         let mut dropped = BTreeSet::new();
-        for ((outcome, printed), members) in host
-            .output_many(commands, self.jobs)
-            .into_iter()
-            .zip(printing)
-            .zip(&batches)
-        {
+        let (made, magick) = thread::scope(|scope| {
+            let made = scope.spawn(|| thumbnail_all(&jobs, size, workers, &cancelled));
+            let magick =
+                self.thumbnail_with_magick(host, &mut items, &to_magick, size, &mut dropped);
+            // A worker that panicked leaves its files to ImageMagick like any other failure.
+            let made = made
+                .join()
+                .unwrap_or_else(|_| vec![Err("panicked".into()); jobs.len()]);
+            (made, magick)
+        });
+        magick?;
+        // A file fire-decode could not thumbnail goes to ImageMagick, whatever the error,
+        // `TooLarge` included (FD10): ImageMagick runs in a process of its own and has no size
+        // limits, so a picture over 30000 px still gets its thumbnail.
+        let mut retry = Vec::new();
+        for (index, outcome) in routed.iter().zip(made) {
             match outcome {
-                Ok(output) => Self::measure(&mut items, &output, &printed),
-                // One picture ImageMagick cannot read fails every file batched into its
-                // command, so each is tried again on its own. A folder with one truncated
-                // photograph in it still imports the rest.
-                Err(error) => {
-                    if host.cancelled.load(Ordering::Relaxed) {
-                        return Err("Cancelled".into());
-                    }
-                    for index in members {
-                        let (args, printed) =
-                            Self::thumbnail_command(&items, std::slice::from_ref(index), size);
-                        // A command that held one file has already had its chance.
-                        let attempt = if members.len() == 1 {
-                            Err(error.clone())
-                        } else {
-                            host.output(&args)
-                        };
-                        match attempt {
-                            Ok(output) => Self::measure(&mut items, &output, &printed),
-                            Err(error) => {
-                                self.failures.push((items[*index].path.clone(), error));
-                                dropped.insert(*index);
-                            }
-                        }
-                    }
+                Ok((width, height, format)) => {
+                    let item = &mut items[*index];
+                    item.width = width;
+                    item.height = height;
+                    item.format = format.to_owned();
                 }
+                Err(_) if host.cancelled.load(Ordering::Relaxed) => return Err("Cancelled".into()),
+                Err(_) => retry.push(*index),
             }
         }
+        self.thumbnail_with_magick(host, &mut items, &retry, size, &mut dropped)?;
 
         for (index, item) in items.iter_mut().enumerate() {
             if dropped.contains(&index) {
@@ -442,6 +482,74 @@ impl ThumbnailCache {
             .filter(|(index, _)| !dropped.contains(index))
             .map(|(_, item)| item)
             .collect())
+    }
+
+    /// Thumbnails `misses` through ImageMagick, `batch_size` files to a command, measuring those
+    /// whose header nothing in process could read. A file it cannot read either is recorded in
+    /// `failures` and `dropped`.
+    fn thumbnail_with_magick(
+        &mut self,
+        host: &mut Magick,
+        items: &mut [ThumbnailInfo],
+        misses: &[usize],
+        size: u32,
+        dropped: &mut BTreeSet<usize>,
+    ) -> Result<(), String> {
+        if misses.is_empty() {
+            return Ok(());
+        }
+        // The files each command thumbnails. Which of them it prints measurements for comes
+        // back with the arguments, since only an unmeasured one is asked to print.
+        let batches: Vec<Vec<usize>> = misses
+            .chunks(self.batch_size.max(1))
+            .map(<[usize]>::to_vec)
+            .collect();
+        let prepared: Vec<(Vec<String>, Vec<usize>)> = batches
+            .iter()
+            .map(|members| Self::thumbnail_command(items, members, size))
+            .collect();
+        let mut printing = Vec::with_capacity(prepared.len());
+        let mut commands = Vec::with_capacity(prepared.len());
+        for (args, printed) in prepared {
+            commands.push(args);
+            printing.push(printed);
+        }
+        for ((outcome, printed), members) in host
+            .output_many(commands, self.jobs)
+            .into_iter()
+            .zip(printing)
+            .zip(&batches)
+        {
+            match outcome {
+                Ok(output) => Self::measure(items, &output, &printed),
+                // One picture ImageMagick cannot read fails every file batched into its
+                // command, so each is tried again on its own. A folder with one truncated
+                // photograph in it still imports the rest.
+                Err(error) => {
+                    if host.cancelled.load(Ordering::Relaxed) {
+                        return Err("Cancelled".into());
+                    }
+                    for index in members {
+                        let (args, printed) =
+                            Self::thumbnail_command(items, std::slice::from_ref(index), size);
+                        // A command that held one file has already had its chance.
+                        let attempt = if members.len() == 1 {
+                            Err(error.clone())
+                        } else {
+                            host.output(&args)
+                        };
+                        match attempt {
+                            Ok(output) => Self::measure(items, &output, &printed),
+                            Err(error) => {
+                                self.failures.push((items[*index].path.clone(), error));
+                                dropped.insert(*index);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     /// The arguments that write thumbnails for `members`, and which of them the command
@@ -511,25 +619,29 @@ mod tests {
     ///
     /// Reading a picture is what these tests are about, so they need the real decoder. A
     /// machine without one reports it and passes rather than failing for the wrong reason.
+    ///
+    /// Only this platform's bundle counts: a Mac checkout holds the Windows `magick.exe` too,
+    /// and trying to start that one skipped every test here.
     fn magick() -> Option<Magick> {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let mut host = Magick::discover(Arc::new(AtomicBool::new(false)));
-        for candidate in [
-            root.join("resources/win/magick/magick.exe"),
-            root.join("resources/mac/magick/bin/magick"),
-        ] {
-            if candidate.is_file() {
-                host.binary = candidate;
-                break;
+        let bundled = if cfg!(windows) {
+            root.join("resources/win/magick/magick.exe")
+        } else {
+            root.join("resources/mac/magick/bin/magick")
+        };
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut host = if bundled.is_file() {
+            Magick::at(bundled, cancelled)
+        } else {
+            Magick::discover(cancelled)
+        };
+        match host.output(&["-version".into()]) {
+            Ok(_) => Some(host),
+            Err(error) => {
+                println!("no ImageMagick to test against ({error}); skipping");
+                None
             }
         }
-        host.output(&["-version".into()])
-            .is_ok()
-            .then_some(host)
-            .or_else(|| {
-                println!("no ImageMagick to test against; skipping");
-                None
-            })
     }
 
     /// A one-by-one pixel, which any build of ImageMagick can read.
@@ -543,23 +655,33 @@ mod tests {
     /// One picture nobody can decode used to fail the whole command it was batched into,
     /// and with it the entire import: a folder of five hundred photographs with one
     /// truncated file in it produced no thumbnails at all.
+    ///
+    /// Run twice: as `.png`, which fire-decode thumbnails and ImageMagick then retries the
+    /// broken file of, and as `.gif`, which goes to ImageMagick alone, batched. Both hold the
+    /// same PNG bytes; each reads a file by its content.
     #[test]
     fn one_unreadable_picture_does_not_lose_the_batch_it_was_read_with() {
+        one_unreadable_picture_in("png");
+        one_unreadable_picture_in("gif");
+    }
+
+    fn one_unreadable_picture_in(extension: &str) {
         let Some(mut host) = magick() else { return };
-        let root = std::env::temp_dir().join(format!("bite-batch-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("bite-batch-{}-{extension}", std::process::id()));
         let sources = root.join("sources");
         fs::create_dir_all(&sources).unwrap();
-        let good: Vec<PathBuf> = ["a.png", "b.png", "c.png"]
+        let good: Vec<PathBuf> = ["a", "b", "c"]
             .iter()
             .map(|name| {
-                let path = sources.join(name);
+                let path = sources.join(format!("{name}.{extension}"));
                 fs::write(&path, PIXEL).unwrap();
                 path
             })
             .collect();
         // A file that claims to be a picture and is not, which is what a truncated
         // download or a half-copied photograph looks like.
-        let broken = sources.join("broken.png");
+        let broken = sources.join(format!("broken.{extension}"));
         fs::write(&broken, b"this is not a picture").unwrap();
 
         let mut cache = ThumbnailCache::new(root.join("cache"));
@@ -581,6 +703,47 @@ mod tests {
         }
         // Nothing half-written is left behind to be mistaken for a valid cache entry.
         assert!(!cache.thumbnail_path(&broken, 64).exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// fire-decode refuses a picture over 30000 px (its thumbnail setup's limit), and that file
+    /// goes to ImageMagick, which has no limit, so it still gets its thumbnail (FD10).
+    #[test]
+    fn a_picture_too_large_to_decode_in_process_is_thumbnailed_by_imagemagick() {
+        let Some(mut host) = magick() else { return };
+        let root = std::env::temp_dir().join(format!("bite-too-large-{}", std::process::id()));
+        let sources = root.join("sources");
+        fs::create_dir_all(&sources).unwrap();
+        let wide = sources.join("wide.png");
+        let mut encoded = Vec::new();
+        {
+            let mut encoder = ::png::Encoder::new(&mut encoded, 30_001, 2);
+            encoder.set_color(::png::ColorType::Grayscale);
+            let mut writer = encoder.write_header().unwrap();
+            writer.write_image_data(&vec![200; 30_001 * 2]).unwrap();
+        }
+        fs::write(&wide, encoded).unwrap();
+        assert!(in_process::is_routed(&wide));
+        assert!(
+            in_process::thumbnail(
+                &wide,
+                64,
+                &root.join("t.webp"),
+                &AtomicBool::new(false),
+                None
+            )
+            .unwrap_err()
+            .contains("30001"),
+            "fire-decode refuses it on its size"
+        );
+
+        let mut cache = ThumbnailCache::new(root.join("cache"));
+        let loaded = cache
+            .load_batch(&mut host, std::slice::from_ref(&wide), 64)
+            .unwrap();
+        assert!(cache.failures.is_empty(), "{:?}", cache.failures);
+        assert_eq!((loaded[0].width, loaded[0].height), (30_001, 2));
+        assert!(loaded[0].thumbnail.is_file());
         fs::remove_dir_all(root).unwrap();
     }
 

@@ -1,5 +1,5 @@
-pub mod header;
 pub mod import;
+pub mod in_process;
 use bite_core::execution::ImageHost;
 use bite_expr::{definition::metadata_types, Context, Type, Value};
 use std::{
@@ -180,6 +180,12 @@ impl Magick {
                     .find(|p| p.is_file())
                     .unwrap_or_else(|| "magick".into())
             });
+        Self::at(binary, cancelled)
+    }
+
+    /// A host onto the ImageMagick at `binary`, with the environment a relocated macOS bundle
+    /// needs to find its coders and configuration when `binary` is one.
+    pub fn at(binary: PathBuf, cancelled: Arc<AtomicBool>) -> Self {
         #[allow(unused_mut)] // macOS bundle relocation adds environment entries.
         let mut environment = BTreeMap::from([("MAGICK_THREAD_LIMIT".into(), "1".into())]);
         #[cfg(target_os = "macos")]
@@ -619,7 +625,8 @@ impl ImageHost for Magick {
             "image.size".into(),
             Value::Int(fs::metadata(path).map(|m| m.len() as i64).unwrap_or(0)),
         );
-        if let Some((w, h)) = header::dimensions(path) {
+        // From the header, through fire-decode (FD19); `heavy` asks ImageMagick for the rest.
+        if let Some((w, h, _)) = in_process::probe(path) {
             ctx.insert("image.width".into(), Value::Int(w.into()));
             ctx.insert("image.height".into(), Value::Int(h.into()));
         }
@@ -761,11 +768,20 @@ mod process_tests {
         ));
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("fixture.png");
-        let mut png = vec![0; 24];
-        png[..8].copy_from_slice(b"\x89PNG\r\n\x1a\n");
-        png[16..20].copy_from_slice(&32u32.to_be_bytes());
-        png[20..24].copy_from_slice(&16u32.to_be_bytes());
-        fs::write(&path, &png).unwrap();
+        // A real file: the size comes from fire-decode's reading of its header, which wants
+        // the whole header chunk rather than the two numbers in it.
+        let png = |width: u32| {
+            let mut encoded = Vec::new();
+            let mut encoder = ::png::Encoder::new(&mut encoded, width, 16);
+            encoder.set_color(::png::ColorType::Grayscale);
+            let mut writer = encoder.write_header().unwrap();
+            writer
+                .write_image_data(&vec![0; width as usize * 16])
+                .unwrap();
+            writer.finish().unwrap();
+            encoded
+        };
+        fs::write(&path, png(32)).unwrap();
         let mut host = fixture("tokens");
 
         let first = host.metadata(&path, false).unwrap();
@@ -779,8 +795,7 @@ mod process_tests {
         assert_eq!(host.metadata_cache_stats().invalidations, 1);
         host.cache_ttl = Duration::from_secs(60);
         thread::sleep(Duration::from_millis(10));
-        png[16..20].copy_from_slice(&64u32.to_be_bytes());
-        fs::write(&path, &png).unwrap();
+        fs::write(&path, png(64)).unwrap();
         let changed = host.metadata(&path, false).unwrap();
         assert_eq!(changed["image.width"], Value::Int(64));
         assert_eq!(host.metadata_cache_stats().invalidations, 2);

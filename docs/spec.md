@@ -55,7 +55,7 @@ A batch image workflow builder application built around a visual node graph edit
 | Build             | Vite 5 + vite-plugin-electron      | Hot-reload dev, separate renderer/main/preload bundles                               |
 | UI framework      | Svelte 5 (runes) + TypeScript      | Entire UI - panels, filmstrip, inspector, preview                                    |
 | Node graph editor | @xyflow/svelte 1.x (Svelte Flow)   | Custom node components, minimap, controls                                            |
-| Image processing  | ImageMagick v7 CLI (`magick`)      | All image operations; no Sharp / no LGPL deps                                        |
+| Image processing  | ImageMagick v7 CLI (`magick`)      | All image operations; no Sharp. Sizes, and thumbnails of PNG / TGA / PSD / EXR / HEIC / AVIF, through fire-decode in process |
 | Packaging         | electron-builder (NSIS on Windows) | NSIS installer patched via `scripts/patch-nsis.cjs` postinstall to show file details |
 | Language          | TypeScript throughout              | Main process, renderer, shared types                                                 |
 
@@ -85,6 +85,8 @@ A batch image workflow builder application built around a visual node graph edit
 | Inter                       | SIL OFL 1.1                                                     |
 
 **Avoided:** Sharp/libvips (LGPLv3), Bun (statically links JavaScriptCore, LGPL-2).
+
+**LGPL code in the native build:** bite-gui and bite statically link libheif and libde265 (LGPL-3.0-or-later) through fire-decode, the decoder bite shares with fire and 3D Review, to read HEIC / HEIF / AVIF in process (fire-decode plan, step 5). That is allowed under the LGPL's relink terms: Bite's and fire-decode's source are public, the exact static libraries are in fire-decode's tree, and `THIRD_PARTY_LICENSES` says how to relink against modified ones. The bundled ImageMagick carries LGPL libraries of its own (libltdl, and on Windows libheif and libde265 statically in `magick.exe`).
 
 ---
 

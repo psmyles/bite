@@ -275,22 +275,15 @@ impl JobHandle {
     }
 }
 
-/// Decodes a portable network graphics image into straight eight-bit pixels.
 /// Decodes a set of cached thumbnails at once, across `jobs` threads, keeping the order.
 ///
-/// Reading and decoding is all this does, so it scales with the cores. An entry that is
-/// neither a portable network graphic nor a WebP comes back as an error for the caller to
-/// put through ImageMagick, which the cache's own files never need.
+/// Reading and decoding is all this does, so it scales with the cores. An entry fire-decode
+/// cannot read comes back as an error for the caller to put through ImageMagick, which the
+/// cache's own files never need.
 pub fn decode_many(paths: &[PathBuf], jobs: usize) -> Vec<Result<DecodedImage, String>> {
     let one = |path: &PathBuf| -> Result<DecodedImage, String> {
         let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
-        if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
-            return decode_png(&bytes);
-        }
-        if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
-            return decode_webp(&bytes);
-        }
-        Err("not a thumbnail this can decode".into())
+        decode_image(&bytes)
     };
     let workers = jobs.max(1).min(paths.len());
     if workers <= 1 {
@@ -321,83 +314,25 @@ pub fn decode_many(paths: &[PathBuf], jobs: usize) -> Vec<Result<DecodedImage, S
         .collect()
 }
 
-/// Decodes a WebP thumbnail without leaving the process.
+/// Decodes a cached thumbnail, or the PNG a preview chain wrote, to straight eight-bit RGBA,
+/// without leaving the process (fire-decode plan, FD12).
 ///
-/// The thumbnail cache stores WebP, which is a tenth the size of the same picture as a
-/// portable network graphic. Electron hands those straight to the browser to decode; here
-/// they went back through ImageMagick, one process per image, which is what made
-/// re-importing an already cached folder take a second.
-pub fn decode_webp(bytes: &[u8]) -> Result<DecodedImage, String> {
-    let mut decoder = image_webp::WebPDecoder::new(std::io::Cursor::new(bytes))
-        .map_err(|error| error.to_string())?;
-    let (width, height) = decoder.dimensions();
-    let has_alpha = decoder.has_alpha();
-    let mut buffer = vec![0u8; decoder.output_buffer_size().ok_or("Image is too large")?];
-    decoder
-        .read_image(&mut buffer)
-        .map_err(|error| error.to_string())?;
-    let pixel_count = width as usize * height as usize;
-    let pixels = if has_alpha {
-        buffer
-    } else {
-        let mut pixels = vec![0u8; pixel_count * 4];
-        for index in 0..pixel_count {
-            pixels[index * 4..index * 4 + 3].copy_from_slice(&buffer[index * 3..index * 3 + 3]);
-            pixels[index * 4 + 3] = 255;
-        }
-        pixels
-    };
+/// The thumbnail cache stores WebP. Electron handed those straight to the browser to decode;
+/// the first native build sent them back through ImageMagick, one process per image, which is
+/// what made re-importing an already cached folder take a second. fire-decode reads them, and
+/// anything else a cache might hold, the way it reads the sources: no colour conversion, no
+/// EXIF rotation, a sixteen-bit sample rounded to eight. Nothing is resized, since these are
+/// already the size they are shown at, and the viewer's limits apply rather than a
+/// thumbnail's, so a preview a chain enlarged still shows.
+pub fn decode_image(bytes: &[u8]) -> Result<DecodedImage, String> {
+    let mut options = fire_decode::DecodeOptions::thumbnail(1);
+    options.fit = None;
+    options.limits = fire_decode::Limits::VIEWER;
+    let image = fire_decode::decode(bytes, None, &options).map_err(|error| error.to_string())?;
     Ok(DecodedImage {
-        width,
-        height,
-        pixels,
-        bytes: bytes.len() as u64,
-    })
-}
-
-pub fn decode_png(bytes: &[u8]) -> Result<DecodedImage, String> {
-    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-    // Expanding palettes and narrowing sixteen-bit channels keeps one decode path.
-    decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
-    let mut reader = decoder.read_info().map_err(|error| error.to_string())?;
-    let mut buffer = vec![0; reader.output_buffer_size().ok_or("Image is too large")?];
-    let info = reader
-        .next_frame(&mut buffer)
-        .map_err(|error| error.to_string())?;
-    let width = info.width;
-    let height = info.height;
-    let pixel_count = width as usize * height as usize;
-    let mut pixels = vec![0u8; pixel_count * 4];
-    match info.color_type {
-        png::ColorType::Rgba => pixels.copy_from_slice(&buffer[..pixel_count * 4]),
-        png::ColorType::Rgb => {
-            for index in 0..pixel_count {
-                pixels[index * 4..index * 4 + 3].copy_from_slice(&buffer[index * 3..index * 3 + 3]);
-                pixels[index * 4 + 3] = 255;
-            }
-        }
-        png::ColorType::Grayscale => {
-            for index in 0..pixel_count {
-                let value = buffer[index];
-                pixels[index * 4..index * 4 + 3].copy_from_slice(&[value, value, value]);
-                pixels[index * 4 + 3] = 255;
-            }
-        }
-        png::ColorType::GrayscaleAlpha => {
-            for index in 0..pixel_count {
-                let value = buffer[index * 2];
-                pixels[index * 4..index * 4 + 3].copy_from_slice(&[value, value, value]);
-                pixels[index * 4 + 3] = buffer[index * 2 + 1];
-            }
-        }
-        png::ColorType::Indexed => {
-            return Err("Indexed images must be expanded before decoding".into());
-        }
-    }
-    Ok(DecodedImage {
-        width,
-        height,
-        pixels,
+        width: image.width,
+        height: image.height,
+        pixels: image.pixels,
         bytes: bytes.len() as u64,
     })
 }
@@ -611,7 +546,7 @@ fn render_preview(
             .map(|(target, handle)| (*target, handle.as_str())),
     )?;
     Ok(RenderedPreview {
-        image: result.png.as_deref().map(decode_png).transpose()?,
+        image: result.png.as_deref().map(decode_image).transpose()?,
         source,
         resolved: resolved_params(result.resolved_values),
         stopped: result.stopped,
@@ -947,7 +882,7 @@ mod tests {
 
     #[test]
     fn a_webp_thumbnail_decodes_without_leaving_the_process() {
-        let image = decode_webp(&WEBP_FIXTURE).expect("the fixture decodes");
+        let image = decode_image(&WEBP_FIXTURE).expect("the fixture decodes");
         assert_eq!((image.width, image.height), (2, 2));
         assert_eq!(image.pixels.len(), 2 * 2 * 4);
         assert_eq!(&image.pixels[0..4], &[0xff, 0x00, 0x00, 0xff]);
@@ -998,7 +933,7 @@ mod tests {
             let mut writer = encoder.write_header().unwrap();
             writer.write_image_data(&[128]).unwrap();
         }
-        let decoded = decode_png(&encoded).unwrap();
+        let decoded = decode_image(&encoded).unwrap();
         assert_eq!(decoded.width, 1);
         assert_eq!(decoded.height, 1);
         assert_eq!(decoded.pixels, vec![128, 128, 128, 255]);

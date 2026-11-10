@@ -648,16 +648,12 @@ fn new_paths(branch: Option<&crate::app::Branch>, paths: Vec<PathBuf>) -> Vec<Pa
         .collect()
 }
 
-/// Decodes a cached thumbnail, converting it through ImageMagick when it is not already a
-/// portable network graphic. The cache stores compact formats, so most entries convert.
+/// Decodes a cached thumbnail, converting it through ImageMagick when fire-decode cannot read
+/// it. The cache only writes WebP, so the conversion is for a file something else put there.
 fn decode_thumbnail(magick: &mut Magick, path: &Path) -> Result<work::DecodedImage, String> {
     let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
-    if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
-        return work::decode_png(&bytes);
-    }
-    // The cache writes WebP, which decodes here rather than through another process.
-    if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
-        return work::decode_webp(&bytes);
+    if let Ok(image) = work::decode_image(&bytes) {
+        return Ok(image);
     }
     let converted = path.with_extension("decoded.png");
     bite_core::execution::ImageHost::run(
@@ -669,7 +665,7 @@ fn decode_thumbnail(magick: &mut Magick, path: &Path) -> Result<work::DecodedIma
     )?;
     let decoded = std::fs::read(&converted).map_err(|error| error.to_string())?;
     let _ = std::fs::remove_file(&converted);
-    work::decode_png(&decoded)
+    work::decode_image(&decoded)
 }
 
 /// The thumbnail size configured on an Input node.

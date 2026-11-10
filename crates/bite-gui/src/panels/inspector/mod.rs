@@ -181,6 +181,9 @@ pub fn scan_format_groups() -> Vec<(&'static str, Vec<&'static str>)> {
         ("JPEG", vec!["jpg", "jpeg"]),
         ("WEBP", vec!["webp"]),
         ("AVIF", vec!["avif"]),
+        // Off by default like AVIF. Before it, a folder import never picked up a `.heic`;
+        // only the picker and drag-and-drop did (fire-decode plan, FD12).
+        ("HEIC", vec!["heic", "heif"]),
         ("TIFF", vec!["tif", "tiff"]),
         ("BMP", vec!["bmp"]),
         ("TGA", vec!["tga"]),
@@ -332,13 +335,16 @@ mod tests {
         assert!(state.scan_formats.contains("WEBP"));
         assert!(state.scan_formats.contains("TIFF"));
         assert!(!state.scan_formats.contains("AVIF"));
+        assert!(!state.scan_formats.contains("HEIC"));
         assert_eq!(state.scan_formats.len(), 4);
     }
 
     #[test]
-    fn the_format_chip_grid_offers_ten_groups() {
+    fn the_format_chip_grid_offers_eleven_groups() {
         let groups = scan_format_groups();
-        assert_eq!(groups.len(), 10);
+        assert_eq!(groups.len(), 11);
+        let heic = groups.iter().find(|(name, _)| *name == "HEIC").unwrap();
+        assert_eq!(heic.1, vec!["heic", "heif"]);
         assert!(groups.iter().any(|(name, _)| *name == "RAW"));
         let jpeg = groups.iter().find(|(name, _)| *name == "JPEG").unwrap();
         assert_eq!(jpeg.1, vec!["jpg", "jpeg"]);

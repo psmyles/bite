@@ -5,6 +5,13 @@ Bite is built on the projects listed below. For license terms and per-package co
 - **[ImageMagick](https://imagemagick.org)** does all of the image processing. Bite builds the
   commands; ImageMagick runs them. This product includes software developed by the ImageMagick
   Studio LLC.
+- **[fire-decode](https://github.com/psmyles/fire-decode)** reads every image's size, and makes
+  the thumbnails of PNG, TGA, PSD, EXR, HEIC and AVIF files without starting ImageMagick. It brings
+  [psd_sdk](https://github.com/MolecularMatters/psd_sdk) by Molecular Matters,
+  [libheif](https://github.com/strukturag/libheif) and
+  [libde265](https://github.com/strukturag/libde265) by struktur AG,
+  [dav1d](https://code.videolan.org/videolan/dav1d) by VideoLAN and
+  [libwebp](https://chromium.googlesource.com/webm/libwebp) by Google.
 - **[Dear ImGui](https://github.com/ocornut/imgui)** by Omar Cornut, through
   [cimgui](https://github.com/cimgui/cimgui), draws the editor.
 - **[sokol](https://github.com/floooh/sokol)** by Andre Weissflog renders it on Direct3D 11 and

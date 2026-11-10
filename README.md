@@ -71,9 +71,13 @@ every flag the workflow needs. The Windows installer can put `bite` on your PATH
 
 - Windows, or macOS on Apple Silicon. The CLI and the core crates also build and test on Linux;
   the editor does not, as it has no Linux renderer
-- [Rust](https://www.rust-lang.org/tools/install) 1.88+ (stable)
-- A C/C++ toolchain for the vendored Dear ImGui and sokol: MSVC build tools on Windows, Xcode
-  command line tools on macOS. Both are checked in, so there are no submodules to fetch
+- [Rust](https://www.rust-lang.org/tools/install) 1.99+ (stable), the floor of
+  [fire-decode](https://github.com/psmyles/fire-decode), the decoder bite reads sizes and
+  thumbnails through. It brings its HEIF libraries prebuilt for Windows and macOS, so there is
+  nothing extra to install
+- A C/C++ toolchain for the vendored Dear ImGui and sokol, and for psd_sdk inside fire-decode
+  (the CLI needs it too): MSVC build tools on Windows, Xcode command line tools on macOS. All
+  are checked in, so there are no submodules to fetch
 - [ImageMagick](https://imagemagick.org) 7+ - both packaged builds bundle their own binary;
   building from source needs `magick` on your PATH (or `resources/win/magick/`,
   `resources/mac/magick/` under the working directory, which the binaries check first). Set

@@ -77,6 +77,9 @@ pub enum Scene {
     /// A Vector 4 node selected, whose inspector is a column of component fields sharing
     /// one left edge, each editable although the card's port is an output.
     VectorInspector,
+    /// The Input node with a folder chosen, so the inspector shows the format chip grid:
+    /// eleven chips since HEIC joined it, the last row part full.
+    InputFolder,
 }
 
 impl Scene {
@@ -109,6 +112,7 @@ impl Scene {
             "resize-inspector" => Self::ResizeInspector,
             "rename-inspector" => Self::RenameInspector,
             "vector-inspector" => Self::VectorInspector,
+            "input-folder" => Self::InputFolder,
             _ => return None,
         })
     }
@@ -141,6 +145,7 @@ impl Scene {
             Self::ResizeInspector => "resize-inspector",
             Self::RenameInspector => "rename-inspector",
             Self::VectorInspector => "vector-inspector",
+            Self::InputFolder => "input-folder",
         }
     }
 
@@ -173,6 +178,7 @@ impl Scene {
             Self::ResizeInspector,
             Self::RenameInspector,
             Self::VectorInspector,
+            Self::InputFolder,
         ]
     }
 }
@@ -328,6 +334,24 @@ fn stage(editor: &mut app::Editor, scene: Scene, workflow: Option<&Path>) {
             }
         }
         Scene::Tooltip => {}
+        Scene::InputFolder => {
+            let input = editor
+                .studio
+                .workflow
+                .graph
+                .nodes
+                .iter()
+                .find(|node| {
+                    node.kind == bite_schema::NodeKind::Builtin(bite_schema::BuiltinNodeKind::Input)
+                })
+                .map(|node| node.id.clone());
+            if let Some(input) = input {
+                editor.canvas.state.select_only([input.clone()]);
+                editor.selected_node = Some(input);
+            }
+            editor.inspector.scan_folder = "/Users/artist/Textures".into();
+            editor.inspector.scan_count = Some(42);
+        }
         Scene::Previewing => {
             // The seed's Input and Image Output with a processing node wired between them.
             let graph = &editor.studio.workflow.graph;
@@ -735,6 +759,7 @@ mod tests {
         assert!(scenes.contains(&Scene::LogWindow));
         assert!(scenes.contains(&Scene::ResizeInspector));
         assert!(scenes.contains(&Scene::VectorInspector));
-        assert_eq!(scenes.len(), 26);
+        assert!(scenes.contains(&Scene::InputFolder));
+        assert_eq!(scenes.len(), 27);
     }
 }
