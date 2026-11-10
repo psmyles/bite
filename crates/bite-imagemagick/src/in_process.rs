@@ -10,9 +10,10 @@
 //! - **A file fire-decode cannot thumbnail goes to ImageMagick** (FD10), whatever the error,
 //!   `TooLarge` included. ImageMagick runs in a process of its own, so a file it cannot handle
 //!   cannot take bite down, and it has no size limits.
-//! - **The thumbnails are lossless WebP** (FD12), with the source's ICC profile embedded as
-//!   ImageMagick's `-thumbnail` keeps it, so the preview chain that runs over them reads what it
-//!   always has.
+//! - **The thumbnails are WebP at quality 85** (FD12), encoded by libwebp with ImageMagick's own
+//!   settings for `-quality 85`, and with the source's ICC profile embedded as ImageMagick's
+//!   `-thumbnail` keeps it. The preview chain that runs over them reads what it always has, and the
+//!   cache stays the size it was: lossless files were three to seven times larger.
 //!
 //! The pixels match ImageMagick's own thumbnails where it matters for parity: no ICC conversion,
 //! no EXIF rotation, HEIF's `irot` / `imir` applied, a float source clamped without a curve, and
@@ -77,30 +78,115 @@ pub fn thumbnail(
     let (width, height) = image.downscaled_from.unwrap_or((image.width, image.height));
     let name = magick_name(image.source.format, ext.as_deref()).unwrap_or("UNKNOWN");
 
-    let mut encoded = Vec::new();
-    let mut encoder = image_webp::WebPEncoder::new(&mut encoded);
-    if let Some(icc) = image.icc {
-        encoder.set_icc_profile(icc);
-    }
     // An opaque picture is written without alpha. ImageMagick's lossy WebP dropped an alpha
     // plane that held nothing too, so the preview chain sees the channels it always saw. The
     // thumbnail itself is what is scanned: fire-decode's `alpha_opaque` only describes a source
     // that has an alpha channel, and is false for one with none.
     let (pixels, _) = image.pixels.as_chunks::<4>();
-    let written = if pixels.iter().all(|pixel| pixel[3] == u8::MAX) {
+    let mut encoded = if pixels.iter().all(|pixel| pixel[3] == u8::MAX) {
         let rgb: Vec<u8> = pixels.iter().flat_map(|&[r, g, b, _]| [r, g, b]).collect();
-        encoder.encode(&rgb, image.width, image.height, image_webp::ColorType::Rgb8)
+        encode_lossy(&rgb, image.width, image.height, false)?
     } else {
-        encoder.encode(
-            &image.pixels,
-            image.width,
-            image.height,
-            image_webp::ColorType::Rgba8,
-        )
+        encode_lossy(&image.pixels, image.width, image.height, true)?
     };
-    written.map_err(|error| error.to_string())?;
+    if let Some(icc) = image.icc.filter(|icc| !icc.is_empty()) {
+        encoded = with_icc(&encoded, &icc, image.width, image.height)?;
+    }
     write_whole(out, &encoded)?;
     Ok((width, height, name))
+}
+
+/// The quality bite's thumbnails have always been written at (`-quality 85`).
+const QUALITY: f32 = 85.0;
+
+/// Encodes RGB (`alpha` false) or RGBA pixels as a lossy WebP at [`QUALITY`], through libwebp's
+/// simple API: its default preset, which is what ImageMagick's WebP writer starts from too.
+fn encode_lossy(pixels: &[u8], width: u32, height: u32, alpha: bool) -> Result<Vec<u8>, String> {
+    let channels: usize = if alpha { 4 } else { 3 };
+    let too_large = || "the thumbnail is too large to encode".to_string();
+    let stride = (width as usize)
+        .checked_mul(channels)
+        .filter(|stride| stride.checked_mul(height as usize) == Some(pixels.len()))
+        .ok_or_else(|| "the thumbnail's buffer does not match its size".to_string())?;
+    let (width, height, stride) = (
+        i32::try_from(width).map_err(|_| too_large())?,
+        i32::try_from(height).map_err(|_| too_large())?,
+        i32::try_from(stride).map_err(|_| too_large())?,
+    );
+    let mut output: *mut u8 = std::ptr::null_mut();
+    // SAFETY: `pixels` holds exactly `height` rows of `stride` bytes (checked above) and outlives
+    // the call, which only reads it. libwebp allocates the output itself and stores it in
+    // `output`; it is copied out below and freed with libwebp's own `WebPFree`.
+    let size = unsafe {
+        if alpha {
+            libwebp_sys::WebPEncodeRGBA(
+                pixels.as_ptr(),
+                width,
+                height,
+                stride,
+                QUALITY,
+                &mut output,
+            )
+        } else {
+            libwebp_sys::WebPEncodeRGB(pixels.as_ptr(), width, height, stride, QUALITY, &mut output)
+        }
+    };
+    if output.is_null() {
+        return Err("libwebp could not encode the thumbnail".into());
+    }
+    // SAFETY: libwebp returned `output` with `size` bytes written to it, and it is freed only
+    // after they are copied.
+    let encoded = unsafe { std::slice::from_raw_parts(output, size) }.to_vec();
+    // SAFETY: `output` came from libwebp's allocator and is freed exactly once.
+    unsafe { libwebp_sys::WebPFree(output.cast()) };
+    if size == 0 {
+        return Err("libwebp could not encode the thumbnail".into());
+    }
+    Ok(encoded)
+}
+
+/// Adds an ICC profile to a WebP from libwebp's simple encoder, which writes none: the extended
+/// format's `VP8X` header, then the `ICCP` chunk, then the image's own chunks, in the order the
+/// WebP container specification gives. libwebp writes a `VP8X` of its own when there is alpha,
+/// and its flags are kept.
+fn with_icc(webp: &[u8], icc: &[u8], width: u32, height: u32) -> Result<Vec<u8>, String> {
+    const ICC_FLAG: u8 = 0x20;
+    let malformed = || "libwebp wrote a WebP this cannot add a profile to".to_string();
+    if webp.len() < 12 || &webp[..4] != b"RIFF" || &webp[8..12] != b"WEBP" {
+        return Err(malformed());
+    }
+    let mut chunks = &webp[12..];
+    let mut flags = ICC_FLAG;
+    if chunks.starts_with(b"VP8X") {
+        // A 10-byte payload: the flags, three reserved bytes and the canvas size.
+        flags |= *chunks.get(8).ok_or_else(malformed)?;
+        chunks = chunks.get(18..).ok_or_else(malformed)?;
+    }
+    let chunk = |fourcc: &[u8], payload: &[u8], out: &mut Vec<u8>| -> Result<(), String> {
+        let size = u32::try_from(payload.len()).map_err(|_| malformed())?;
+        out.extend_from_slice(fourcc);
+        out.extend_from_slice(&size.to_le_bytes());
+        out.extend_from_slice(payload);
+        if payload.len() % 2 == 1 {
+            out.push(0);
+        }
+        Ok(())
+    };
+    let mut vp8x = vec![flags, 0, 0, 0];
+    vp8x.extend_from_slice(&(width - 1).to_le_bytes()[..3]);
+    vp8x.extend_from_slice(&(height - 1).to_le_bytes()[..3]);
+    let mut body = b"WEBP".to_vec();
+    chunk(b"VP8X", &vp8x, &mut body)?;
+    chunk(b"ICCP", icc, &mut body)?;
+    body.extend_from_slice(chunks);
+    let mut out = b"RIFF".to_vec();
+    out.extend_from_slice(
+        &u32::try_from(body.len())
+            .map_err(|_| malformed())?
+            .to_le_bytes(),
+    );
+    out.extend_from_slice(&body);
+    Ok(out)
 }
 
 /// Writes `bytes` to `path` all at once: into a file of its own beside it, then renamed over it.
@@ -240,7 +326,7 @@ mod tests {
     }
 
     #[test]
-    fn a_thumbnail_is_a_lossless_webp_at_most_size_on_its_longer_side() {
+    fn a_thumbnail_is_a_lossy_webp_at_most_size_on_its_longer_side() {
         let root = scratch("thumb");
         let source = root.join("wide.png");
         fs::write(&source, png_rgb(400, 100, |x, y| [x as u8, y as u8, 7])).unwrap();
@@ -250,7 +336,7 @@ mod tests {
         let mut decoder =
             image_webp::WebPDecoder::new(io::Cursor::new(fs::read(&out).unwrap())).unwrap();
         assert_eq!(decoder.dimensions(), (64, 16));
-        assert!(!decoder.is_lossy());
+        assert!(decoder.is_lossy());
         // No alpha channel in the source, so no alpha plane, as ImageMagick's had none.
         assert!(!decoder.has_alpha());
         let mut pixels = vec![0; decoder.output_buffer_size().unwrap()];
@@ -304,6 +390,36 @@ mod tests {
         let mut decoder =
             image_webp::WebPDecoder::new(io::Cursor::new(fs::read(&out).unwrap())).unwrap();
         assert_eq!(decoder.icc_profile().unwrap(), Some(icc));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// With alpha, libwebp writes a `VP8X` header of its own; the profile joins it rather than
+    /// replacing its alpha flag.
+    #[test]
+    fn a_transparent_tagged_source_keeps_both_its_alpha_and_its_profile() {
+        let root = scratch("alpha-icc");
+        let source = root.join("tagged-cut-out.png");
+        let icc = b"an odd number of bytes, padded in the chunk".to_vec();
+        assert_eq!(icc.len() % 2, 1);
+        let mut encoded = Vec::new();
+        let mut info = ::png::Info::with_size(8, 8);
+        info.color_type = ::png::ColorType::Rgba;
+        info.bit_depth = ::png::BitDepth::Eight;
+        info.icc_profile = Some(icc.clone().into());
+        let encoder = ::png::Encoder::with_info(&mut encoded, info).unwrap();
+        let mut writer = encoder.write_header().unwrap();
+        let pixels: Vec<u8> = (0..64u8).flat_map(|i| [i * 3, 90, 200, i * 4]).collect();
+        writer.write_image_data(&pixels).unwrap();
+        writer.finish().unwrap();
+        fs::write(&source, encoded).unwrap();
+        let out = root.join("thumb.webp");
+        thumbnail(&source, 8, &out, &AtomicBool::new(false), None).unwrap();
+        let mut decoder =
+            image_webp::WebPDecoder::new(io::Cursor::new(fs::read(&out).unwrap())).unwrap();
+        assert!(decoder.has_alpha());
+        assert_eq!(decoder.icc_profile().unwrap(), Some(icc));
+        let mut pixels = vec![0; decoder.output_buffer_size().unwrap()];
+        decoder.read_image(&mut pixels).unwrap();
         fs::remove_dir_all(root).unwrap();
     }
 

@@ -36,7 +36,6 @@ bite-imagemagick = { path = "crates/bite-imagemagick" }
 # local checkout, put a `[patch."https://github.com/psmyles/fire-decode"]` in a
 # `.cargo/config.toml` above this folder.
 fire-decode = { git = "https://github.com/psmyles/fire-decode", branch = "main", features = ["psd"] }
-image-webp = "0.2"
 
 [profile.release]
 lto = "thin"

@@ -97,7 +97,8 @@ native libraries, which are linked statically into both executables:
   dav1d      - BSD-2-Clause  AV1 decoder, for AVIF
                Copyright 2018-2024 VideoLAN and dav1d authors
                https://code.videolan.org/videolan/dav1d
-  libwebp    - BSD-3-Clause  WebP decoder
+  libwebp    - BSD-3-Clause  WebP encoder and decoder (the thumbnails
+                             bite writes, and every one it reads)
                Copyright 2010 Google Inc.
                https://chromium.googlesource.com/webm/libwebp
                Google also grants a patent licence for WebP; its terms are in

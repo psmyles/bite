@@ -10,7 +10,9 @@ bite-core.workspace = true
 bite-expr.workspace = true
 serde.workspace = true
 fire-decode.workspace = true
-image-webp.workspace = true
+# libwebp's encoder, for the thumbnails (FD12). fire-decode already builds libwebp, for decoding,
+# through this crate; the version has to be the one it uses, since only one may link.
+libwebp-sys = "0.14"
 
 # HEIC / HEIF / AVIF in process where fire-decode has the libraries for it (the workspace
 # manifest says why only there).
@@ -19,3 +21,5 @@ fire-decode = { workspace = true, features = ["heif"] }
 
 [dev-dependencies]
 png = "0.18"
+# Reads the thumbnails back in the tests, independently of the encoder that wrote them.
+image-webp = "0.2"

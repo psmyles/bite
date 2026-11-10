@@ -300,6 +300,7 @@ dependencies = [
  "bite-expr",
  "fire-decode",
  "image-webp",
+ "libwebp-sys",
  "png",
  "serde",
 ]
