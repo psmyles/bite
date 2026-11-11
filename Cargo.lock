@@ -827,6 +827,7 @@ checksum = "ef25905e51abafe4dcea6c15fec58c57b601cdbd0ee53d22ea1d3016c587d39b"
 [[package]]
 name = "fire-decode"
 version = "0.0.0"
+source = "git+https://github.com/psmyles/fire-decode?tag=v0.1.0#c68d0eba70c5ec8990698f81ebf35942915e74f7"
 dependencies = [
  "bcdec_rs",
  "bytemuck",
@@ -840,6 +841,7 @@ dependencies = [
  "miniz_oxide 0.8.9",
  "psd-sdk-sys",
  "qoi",
+ "serde_json",
  "tiff",
  "zune-bmp",
  "zune-core",
@@ -1040,6 +1042,7 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 [[package]]
 name = "heif-sys"
 version = "0.0.0"
+source = "git+https://github.com/psmyles/fire-decode?tag=v0.1.0#c68d0eba70c5ec8990698f81ebf35942915e74f7"
 dependencies = [
  "cc",
 ]
@@ -2221,6 +2224,7 @@ dependencies = [
 [[package]]
 name = "psd-sdk-sys"
 version = "0.0.0"
+source = "git+https://github.com/psmyles/fire-decode?tag=v0.1.0#c68d0eba70c5ec8990698f81ebf35942915e74f7"
 dependencies = [
  "cc",
 ]

@@ -35,7 +35,7 @@ bite-imagemagick = { path = "crates/bite-imagemagick" }
 # target, and the CLI still builds on Linux, where HEIC goes to ImageMagick. To build against a
 # local checkout, put a `[patch."https://github.com/psmyles/fire-decode"]` in a
 # `.cargo/config.toml` above this folder.
-fire-decode = { git = "https://github.com/psmyles/fire-decode", branch = "main", features = ["psd"] }
+fire-decode = { git = "https://github.com/psmyles/fire-decode", tag = "v0.1.0", features = ["psd"] }
 
 [profile.release]
 lto = "thin"
