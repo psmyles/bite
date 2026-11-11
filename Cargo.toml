@@ -35,9 +35,13 @@ bite-imagemagick = { path = "crates/bite-imagemagick" }
 # target, and the CLI still builds on Linux, where HEIC goes to ImageMagick. A release tag, which
 # Cargo.lock records; moving to a new release is this tag and `cargo update -p fire-decode`. The
 # release sets the decoders' versions too: fire-decode pins each one exactly, so Cargo.lock takes
-# them from the tag, and `png`, `image`, `image-webp` and `libwebp-sys` here follow. To build
-# against a local checkout, put a `[patch."https://github.com/psmyles/fire-decode"]` in a
-# `.cargo/config.toml` above this folder; take it out before updating Cargo.lock.
+# them from the tag, and `png`, `image`, `image-webp` and `libwebp-sys` here follow. Nothing
+# outside this repository decides where it comes from: no `.cargo/config.toml` above it patches
+# it. To try an unreleased fire-decode, patch it for one command only, from a checkout beside
+# this one:
+#   cargo build --config 'patch."https://github.com/psmyles/fire-decode".fire-decode.path="../fire-decode/crates/fire-decode"'
+# That writes the path into Cargo.lock: `git checkout Cargo.lock` afterwards, and never commit a
+# lock it wrote (a `--locked` build refuses one).
 fire-decode = { git = "https://github.com/psmyles/fire-decode", tag = "v0.1.1", features = ["psd"] }
 
 [profile.release]
