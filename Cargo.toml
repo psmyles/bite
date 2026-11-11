@@ -32,10 +32,13 @@ bite-imagemagick = { path = "crates/bite-imagemagick" }
 # ImageMagick, which develops it). `heif` - the libheif / libde265 / dav1d static libraries,
 # LGPL-3.0-or-later for the first two, linked under the relink terms in THIRD_PARTY_LICENSES - is
 # turned on per crate for Windows and macOS only: fire-decode has those libraries for no other
-# target, and the CLI still builds on Linux, where HEIC goes to ImageMagick. To build against a
-# local checkout, put a `[patch."https://github.com/psmyles/fire-decode"]` in a
-# `.cargo/config.toml` above this folder.
-fire-decode = { git = "https://github.com/psmyles/fire-decode", tag = "v0.1.0", features = ["psd"] }
+# target, and the CLI still builds on Linux, where HEIC goes to ImageMagick. A release tag, which
+# Cargo.lock records; moving to a new release is this tag and `cargo update -p fire-decode`. The
+# release sets the decoders' versions too: fire-decode pins each one exactly, so Cargo.lock takes
+# them from the tag, and `png`, `image`, `image-webp` and `libwebp-sys` here follow. To build
+# against a local checkout, put a `[patch."https://github.com/psmyles/fire-decode"]` in a
+# `.cargo/config.toml` above this folder; take it out before updating Cargo.lock.
+fire-decode = { git = "https://github.com/psmyles/fire-decode", tag = "v0.1.1", features = ["psd"] }
 
 [profile.release]
 lto = "thin"
