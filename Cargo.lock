@@ -827,49 +827,26 @@ checksum = "ef25905e51abafe4dcea6c15fec58c57b601cdbd0ee53d22ea1d3016c587d39b"
 [[package]]
 name = "fire-decode"
 version = "0.0.0"
-source = "git+https://github.com/psmyles/fire-decode?tag=v0.1.1#be6de7e7844e605c65e4862891add748fe78d61b"
 dependencies = [
  "bcdec_rs",
  "bytemuck",
  "ddsfile",
  "exr",
- "fax",
- "fdeflate",
- "gif",
  "heif-sys",
  "image",
  "image-webp",
- "jxl-bitstream",
- "jxl-coding",
- "jxl-color",
- "jxl-frame",
- "jxl-grid",
- "jxl-image",
- "jxl-jbr",
- "jxl-modular",
  "jxl-oxide",
- "jxl-oxide-common",
- "jxl-render",
- "jxl-threadpool",
- "jxl-vardct",
  "libwebp-sys",
  "miniz_oxide 0.8.9",
- "moxcms",
- "png",
  "psd-sdk-sys",
- "pxfm",
  "qoi",
- "serde_json",
  "tiff",
- "weezl",
  "zune-bmp",
  "zune-core",
  "zune-farbfeld",
  "zune-image",
- "zune-inflate",
  "zune-jpeg",
  "zune-ppm",
- "zune-qoi",
 ]
 
 [[package]]
@@ -1063,7 +1040,6 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 [[package]]
 name = "heif-sys"
 version = "0.0.0"
-source = "git+https://github.com/psmyles/fire-decode?tag=v0.1.1#be6de7e7844e605c65e4862891add748fe78d61b"
 dependencies = [
  "cc",
 ]
@@ -2245,7 +2221,6 @@ dependencies = [
 [[package]]
 name = "psd-sdk-sys"
 version = "0.0.0"
-source = "git+https://github.com/psmyles/fire-decode?tag=v0.1.1#be6de7e7844e605c65e4862891add748fe78d61b"
 dependencies = [
  "cc",
 ]
